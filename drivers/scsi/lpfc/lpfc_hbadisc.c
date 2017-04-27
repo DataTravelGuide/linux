@@ -312,7 +312,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_state, ndlp->nlp_rpi);
 	}
 
-	if (!(ndlp->nlp_flag & NLP_DELAY_TMO) &&
+	if (!(vport->load_flag & FC_UNLOADING) &&
+	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
 	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) &&
@@ -2168,7 +2169,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint32_t boot_flag, addr_mode;
 	uint16_t fcf_index, next_fcf_index;
 	struct lpfc_fcf_rec *fcf_rec = NULL;
-	uint16_t vlan_id = LPFC_FCOE_NULL_VID;
+	uint16_t vlan_id;
 	uint32_t seed;
 	bool select_new_fcf;
 	int rc;
@@ -4020,11 +4021,9 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		rdata = rport->dd_data;
 		/* break the link before dropping the ref */
 		ndlp->rport = NULL;
-		if (rdata) {
-			if (rdata->pnode == ndlp)
-				lpfc_nlp_put(ndlp);
-			rdata->pnode = NULL;
-		}
+		if (rdata && rdata->pnode == ndlp)
+			lpfc_nlp_put(ndlp);
+		rdata->pnode = NULL;
 		/* drop reference for earlier registeration */
 		put_device(&rport->dev);
 	}
@@ -4607,9 +4606,9 @@ lpfc_sli4_dequeue_nport_iocbs(struct lpfc_hba *phba,
 		pring = qp->pring;
 		if (!pring)
 			continue;
-		spin_lock(&pring->ring_lock);
+		spin_lock_irq(&pring->ring_lock);
 		__lpfc_dequeue_nport_iocbs(phba, ndlp, pring, dequeue_list);
-		spin_unlock(&pring->ring_lock);
+		spin_unlock_irq(&pring->ring_lock);
 	}
 	spin_unlock_irq(&phba->hbalock);
 }
