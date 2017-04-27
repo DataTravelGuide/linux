@@ -1844,6 +1844,8 @@ nvme_fc_unmap_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 				((rq_data_dir(rq) == WRITE) ?
 					DMA_TO_DEVICE : DMA_FROM_DEVICE));
 
+	nvme_cleanup_cmd(rq);
+
 	sg_free_table_chained(&freq->sg_table, true);
 
 	freq->sg_cnt = 0;
@@ -2082,9 +2084,9 @@ __nvme_fc_final_op_cleanup(struct request *rq)
 	op->flags &= ~(FCOP_FLAGS_TERMIO | FCOP_FLAGS_RELEASED |
 			FCOP_FLAGS_COMPLETE);
 
-	nvme_fc_unmap_data(ctrl, rq, op);
-
 	nvme_cleanup_cmd(rq);
+
+	nvme_fc_unmap_data(ctrl, rq, op);
 
 	if (unlikely(rq->errors)) {
 		if (nvme_req_needs_retry(rq, rq->errors)) {
