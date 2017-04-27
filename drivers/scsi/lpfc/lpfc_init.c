@@ -93,9 +93,6 @@ static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
 static DEFINE_IDR(lpfc_hba_index);
 #define LPFC_NVMET_BUF_POST 254
 
-bool nvme_preview_warning;
-bool nvmet_preview_warning;
-
 /**
  * lpfc_config_port_prep - Perform lpfc initialization prior to config port
  * @phba: pointer to lpfc hba data structure.
@@ -3749,10 +3746,6 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	} else if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		shost = scsi_host_alloc(&lpfc_template_nvme,
 					sizeof(struct lpfc_vport));
-		if (!nvme_preview_warning) {
-			nvme_preview_warning = true;
-			mark_tech_preview("lpfc NVMe", THIS_MODULE);
-		}
 	}
 	if (!shost)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
@@ -5942,11 +5935,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 						"6017 NVME Target %016llx\n",
 						wwn);
 				phba->nvmet_support = 1; /* a match */
-				if (!nvmet_preview_warning) {
-					nvmet_preview_warning = true;
-					mark_tech_preview("lpfc NVMe Target",
-							  THIS_MODULE);
-				}
 #else
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6021 Can't enable NVME Target."
