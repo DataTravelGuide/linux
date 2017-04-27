@@ -2187,7 +2187,6 @@ nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 static struct blk_mq_ops nvme_fc_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
 	.complete	= nvme_fc_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
 	.reinit_request	= nvme_fc_reinit_request,
@@ -2726,7 +2725,6 @@ nvme_fc_connect_ctrl_work(struct work_struct *work)
 static struct blk_mq_ops nvme_fc_admin_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
 	.complete	= nvme_fc_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_fc_init_admin_request,
 	.exit_request	= nvme_fc_exit_request,
 	.reinit_request	= nvme_fc_reinit_request,
