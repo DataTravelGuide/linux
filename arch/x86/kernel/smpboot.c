@@ -79,6 +79,8 @@
 
 #include <asm/realmode.h>
 
+#include <asm/hypervisor.h>
+
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
@@ -335,6 +337,18 @@ static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 	 * package can be smaller than the actual used apic ids.
 	 */
 	max_physical_pkg_id = DIV_ROUND_UP(MAX_LOCAL_APIC, ncpus);
+
+	if (x86_hyper == &x86_hyper_xen_hvm) {
+		/*
+		 * RHEL-only. Each logical package has not more than
+		 * x86_max_cores CPUs but it can happen that it has less, e.g.
+		 * we may have 1 CPU per logical package regardless of what's
+		 * in x86_max_cores. This is seen on some Xen setups with AMD
+		 * processors.
+		 */
+		__max_logical_packages = min(max_physical_pkg_id, total_cpus);
+	}
+
 	size = max_physical_pkg_id * sizeof(unsigned int);
 	physical_to_logical_pkg = kmalloc(size, GFP_KERNEL);
 	memset(physical_to_logical_pkg, 0xff, size);
