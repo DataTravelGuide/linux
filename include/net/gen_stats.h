@@ -21,11 +21,17 @@ struct gnet_dump {
 	int               compat_xstats;
 	void *            xstats;
 	int               xstats_len;
+	RH_KABI_FILL_HOLE(int padattr)
 	struct tc_stats   tc_stats;
 };
 
-extern int gnet_stats_start_copy(struct sk_buff *skb, int type,
-				 spinlock_t *lock, struct gnet_dump *d);
+int gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
+			  struct gnet_dump *d, int padattr);
+
+int gnet_stats_start_copy_compat(struct sk_buff *skb, int type,
+				 int tc_stats_type, int xstats_type,
+				 spinlock_t *lock, struct gnet_dump *d,
+				 int padattr);
 
 int gnet_stats_copy_basic(struct gnet_dump *d,
 			  struct gnet_stats_basic_cpu __percpu *cpu,
