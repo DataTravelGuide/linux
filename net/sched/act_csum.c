@@ -502,7 +502,7 @@ static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
 	u32 update_flags;
 
 	spin_lock(&p->tcf_lock);
-	p->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&p->tcf_tm);
 	bstats_update(&p->tcf_bstats, skb);
 	action = p->tcf_action;
 	update_flags = p->update_flags;
