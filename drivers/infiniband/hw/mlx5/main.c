@@ -2940,6 +2940,11 @@ static const char * const names[] = {
 	"rx_atomic_requests",
 	"out_of_buffer",
 	"out_of_sequence",
+	"duplicate_request",
+	"rnr_nak_retry_err",
+	"packet_seq_err",
+	"implied_nak_seq_err",
+	"local_ack_timeout_err",
 };
 
 static const size_t stats_offsets[] = {
@@ -2948,6 +2953,11 @@ static const size_t stats_offsets[] = {
 	MLX5_BYTE_OFF(query_q_counter_out, rx_atomic_requests),
 	MLX5_BYTE_OFF(query_q_counter_out, out_of_buffer),
 	MLX5_BYTE_OFF(query_q_counter_out, out_of_sequence),
+	MLX5_BYTE_OFF(query_q_counter_out, duplicate_request),
+	MLX5_BYTE_OFF(query_q_counter_out, rnr_nak_retry_err),
+	MLX5_BYTE_OFF(query_q_counter_out, packet_seq_err),
+	MLX5_BYTE_OFF(query_q_counter_out, implied_nak_seq_err),
+	MLX5_BYTE_OFF(query_q_counter_out, local_ack_timeout_err),
 };
 
 static struct rdma_hw_stats *mlx5_ib_alloc_hw_stats(struct ib_device *ibdev,
