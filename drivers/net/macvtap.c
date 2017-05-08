@@ -1056,7 +1056,7 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q, struct kiocb *iocb,
 					TASK_INTERRUPTIBLE);
 
 		/* Read frames from the queue */
-		skb = skb_dequeue(&q->sk.sk_receive_queue);
+		skb = skb_array_consume(&q->skb_array);
 		if (!skb) {
 			if (noblock) {
 				ret = -EAGAIN;
