@@ -1053,7 +1053,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 	}
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags))) {
 		if (fl->fl_type == F_UNLCK)
-			posix_lock_file_wait(file, fl);
+			locks_lock_file_wait(file, fl);
 		return -EIO;
 	}
 	if (IS_GETLK(cmd))
@@ -1084,7 +1084,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (gl) {
 		if (fl_gh->gh_state == state)
 			goto out;
-		flock_lock_file_wait(file,
+		locks_lock_file_wait(file,
 				     &(struct file_lock){.fl_type = F_UNLCK});
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_reinit(state, flags, fl_gh);
@@ -1109,7 +1109,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		if (error == GLR_TRYFAILED)
 			error = -EAGAIN;
 	} else {
-		error = flock_lock_file_wait(file, fl);
+		error = locks_lock_file_wait(file, fl);
 		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
 	}
 
@@ -1124,7 +1124,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 	struct gfs2_holder *fl_gh = &fp->f_fl_gh;
 
 	mutex_lock(&fp->f_fl_mutex);
-	flock_lock_file_wait(file, fl);
+	locks_lock_file_wait(file, fl);
 	if (gfs2_holder_initialized(fl_gh)) {
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_uninit(fl_gh);
