@@ -5280,9 +5280,25 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 		lock->fl_end = OFFSET_MAX;
 }
 
-/* Hack!: For now, we're defining this just so we can use a pointer to it
- * as a unique cookie to identify our (NFSv4's) posix locks. */
-static const struct lock_manager_operations nfsd_posix_mng_ops  = {
+static void nfsd4_fl_get_owner(struct file_lock *dst, struct file_lock *src)
+{
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)src->fl_owner;
+	dst->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lo->lo_owner));
+}
+
+static void nfsd4_fl_put_owner(struct file_lock *fl)
+{
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)fl->fl_owner;
+
+	if (lo) {
+		nfs4_put_stateowner(&lo->lo_owner);
+		fl->fl_owner = NULL;
+	}
+}
+
+static const struct lock_manager_operations_extend nfsd_posix_mng_ops  = {
+	.lm_get_owner = nfsd4_fl_get_owner,
+	.lm_put_owner = nfsd4_fl_put_owner,
 };
 
 static inline void
@@ -5290,7 +5306,7 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 {
 	struct nfs4_lockowner *lo;
 
-	if (fl->fl_lmops == &nfsd_posix_mng_ops) {
+	if (fl->fl_lmops == &nfsd_posix_mng_ops.kabi_lmops) {
 		lo = (struct nfs4_lockowner *) fl->fl_owner;
 		deny->ld_owner.data = kmemdup(lo->lo_owner.so_owner.data,
 					lo->lo_owner.so_owner.len, GFP_KERNEL);
@@ -5664,11 +5680,12 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_openmode;
 		goto out;
 	}
-	file_lock->fl_owner = (fl_owner_t)lock_sop;
+
+	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lock_sop->lo_owner));
 	file_lock->fl_pid = current->tgid;
 	file_lock->fl_file = filp;
-	file_lock->fl_flags = FL_POSIX;
-	file_lock->fl_lmops = &nfsd_posix_mng_ops;
+	file_lock->fl_flags = FL_POSIX | FL_LM_OPS_EXTEND;
+	file_lock->fl_lmops = &nfsd_posix_mng_ops.kabi_lmops;
 	file_lock->fl_start = lock->lk_offset;
 	file_lock->fl_end = last_byte_offset(lock->lk_offset, lock->lk_length);
 	nfs4_transform_lock_offset(file_lock);
@@ -5859,11 +5876,11 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 
 	file_lock->fl_type = F_UNLCK;
-	file_lock->fl_owner = (fl_owner_t)lockowner(stp->st_stateowner);
+	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(stp->st_stateowner));
 	file_lock->fl_pid = current->tgid;
 	file_lock->fl_file = filp;
-	file_lock->fl_flags = FL_POSIX;
-	file_lock->fl_lmops = &nfsd_posix_mng_ops;
+	file_lock->fl_flags = FL_POSIX | FL_LM_OPS_EXTEND;
+	file_lock->fl_lmops = &nfsd_posix_mng_ops.kabi_lmops;
 	file_lock->fl_start = locku->lu_offset;
 
 	file_lock->fl_end = last_byte_offset(locku->lu_offset,
