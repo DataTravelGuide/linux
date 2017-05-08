@@ -6240,15 +6240,8 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs4_state_owner *sp = state->owner;
 	unsigned char fl_flags = request->fl_flags;
-	int status = -ENOLCK;
+	int status;
 
-	if ((fl_flags & FL_POSIX) &&
-			!test_bit(NFS_STATE_POSIX_LOCKS, &state->flags))
-		goto out;
-	/* Is this a delegated open? */
-	status = nfs4_set_lock_state(state, request);
-	if (status != 0)
-		goto out;
 	request->fl_flags |= FL_ACCESS;
 	status = locks_lock_inode_wait(state->inode, request);
 	if (status < 0)
@@ -6335,6 +6328,14 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 		if (!(filp->f_mode & FMODE_WRITE))
 			return -EBADF;
 	}
+
+	if ((request->fl_flags & FL_POSIX) &&
+	    !test_bit(NFS_STATE_POSIX_LOCKS, &state->flags))
+		return -ENOLCK;
+
+	status = nfs4_set_lock_state(state, request);
+	if (status != 0)
+		return status;
 
 	do {
 		status = nfs4_proc_setlk(state, cmd, request);
