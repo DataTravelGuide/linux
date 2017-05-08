@@ -1022,6 +1022,7 @@ static inline int file_check_writeable(struct file *filp)
 #define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
 #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
 #define FL_LAYOUT	2048	/* outstanding pNFS layout */
+#define FL_LM_OPS_EXTEND	65536 /* safe to use lock_manager_operations_extend */
 
 #define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
 
@@ -1053,6 +1054,16 @@ struct lock_manager_operations {
 	void (*lm_break)(struct file_lock *);
 	int (*lm_change)(struct file_lock **, int);
 };
+
+/* Can't use these without setting FL_LM_OPS_EXTEND */
+struct lock_manager_operations_extend {
+	struct lock_manager_operations kabi_lmops;
+	void (*lm_get_owner)(struct file_lock *, struct file_lock *);
+	void (*lm_put_owner)(struct file_lock *);
+};
+
+#define to_lm_ops_extend(fl_lmops)	\
+	container_of((fl_lmops), struct lock_manager_operations_extend, kabi_lmops)
 
 struct lock_manager {
 	struct list_head list;
@@ -1121,6 +1132,14 @@ struct file_lock {
 		} afs;
 	} fl_u;
 };
+
+static inline struct lock_manager_operations_extend *
+get_lm_ops_extend(struct file_lock *fl)
+{
+	if (fl->fl_flags & FL_LM_OPS_EXTEND)
+		return to_lm_ops_extend(fl->fl_lmops);
+	return NULL;
+}
 
 /* The following constant reflects the upper bound of the file/locking space */
 #ifndef OFFSET_MAX

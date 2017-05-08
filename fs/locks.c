@@ -229,13 +229,20 @@ EXPORT_SYMBOL_GPL(locks_alloc_lock);
 
 void locks_release_private(struct file_lock *fl)
 {
+	struct lock_manager_operations_extend *lm_ops_extend;
+
 	if (fl->fl_ops) {
 		if (fl->fl_ops->fl_release_private)
 			fl->fl_ops->fl_release_private(fl);
 		fl->fl_ops = NULL;
 	}
-	fl->fl_lmops = NULL;
 
+	if (fl->fl_lmops) {
+		lm_ops_extend = get_lm_ops_extend(fl);
+		if (lm_ops_extend && lm_ops_extend->lm_put_owner)
+			lm_ops_extend->lm_put_owner(fl);
+		fl->fl_lmops = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(locks_release_private);
 
@@ -261,13 +268,20 @@ EXPORT_SYMBOL(locks_init_lock);
 
 static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
 {
+	struct lock_manager_operations_extend *lm_ops_extend;
+
 	if (fl->fl_ops) {
 		if (fl->fl_ops->fl_copy_lock)
 			fl->fl_ops->fl_copy_lock(new, fl);
 		new->fl_ops = fl->fl_ops;
 	}
-	if (fl->fl_lmops)
+
+	if (fl->fl_lmops) {
+		lm_ops_extend = get_lm_ops_extend(fl);
+		if (lm_ops_extend && lm_ops_extend->lm_get_owner)
+			lm_ops_extend->lm_get_owner(new, fl);
 		new->fl_lmops = fl->fl_lmops;
+	}
 }
 
 /*
