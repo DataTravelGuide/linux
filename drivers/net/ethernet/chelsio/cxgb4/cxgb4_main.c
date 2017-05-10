@@ -2741,6 +2741,7 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 }
 
 static const struct net_device_ops cxgb4_netdev_ops = {
+	.ndo_size             = sizeof(struct net_device_ops),
 	.ndo_open             = cxgb_open,
 	.ndo_stop             = cxgb_close,
 	.ndo_start_xmit       = t4_eth_xmit,
