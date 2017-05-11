@@ -2483,6 +2483,7 @@ static void enic_clear_intr_mode(struct enic *enic)
 }
 
 static const struct net_device_ops enic_netdev_dynamic_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_open		= enic_open,
 	.ndo_stop		= enic_stop,
 	.ndo_start_xmit		= enic_hard_start_xmit,
@@ -2509,6 +2510,7 @@ static const struct net_device_ops enic_netdev_dynamic_ops = {
 };
 
 static const struct net_device_ops enic_netdev_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_open		= enic_open,
 	.ndo_stop		= enic_stop,
 	.ndo_start_xmit		= enic_hard_start_xmit,
