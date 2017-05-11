@@ -2585,6 +2585,7 @@ static void nfp_net_del_vxlan_port(struct net_device *netdev,
 }
 
 static const struct net_device_ops nfp_net_netdev_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_open		= nfp_net_netdev_open,
 	.ndo_stop		= nfp_net_netdev_close,
 	.ndo_start_xmit		= nfp_net_tx,
