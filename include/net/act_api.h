@@ -23,6 +23,7 @@ struct tcf_common {
 	struct rcu_head			tcfc_rcu;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue __percpu *cpu_qstats;
+	struct tc_cookie	*act_cookie;
 };
 #define tcf_head	common.tcfc_head
 #define tcf_index	common.tcfc_index

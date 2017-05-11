@@ -486,4 +486,12 @@ struct tc_cls_matchall_offload {
 	unsigned long cookie;
 };
 
+
+/* This structure holds cookie structure that is passed from user
+ * to the kernel for actions and classifiers
+ */
+struct tc_cookie {
+	u8  *data;
+	u32 len;
+};
 #endif
