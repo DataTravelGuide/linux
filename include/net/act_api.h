@@ -2,8 +2,8 @@
 #define __NET_ACT_API_H
 
 /*
- * Public police action API for classifiers/qdiscs
- */
+ * Public action API for classifiers/qdiscs
+*/
 
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
@@ -111,7 +111,8 @@ struct tc_action_ops {
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
 	struct module		*owner;
-	int     (*act)(struct sk_buff *, const struct tc_action *, struct tcf_result *);
+	int     (*act)(struct sk_buff *, const struct tc_action *,
+		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *, int bind);
 	int     (*lookup)(struct tc_action *, u32);
