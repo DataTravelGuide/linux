@@ -81,8 +81,20 @@ int create_user_ns(struct cred *new)
 		goto fail;
 
 	ucounts = inc_user_namespaces(parent_ns, owner);
-	if (!ucounts)
+	if (!ucounts) {
+		/*
+		 * Preserve bug comaptibility with previous versions of RHEL
+		 * and don't change the error code for user namespaces entirely
+		 * disabled.
+		 *
+		 * This allows old version of chrome to start.  Newer versions
+		 * can handle -ENOSPC properly.
+		 */
+		if ((parent_ns == &init_user_ns) &&
+		    (init_user_ns.ucount_max[UCOUNT_USER_NAMESPACES] == 0))
+			ret = -EINVAL;
 		goto fail;
+	}
 
 	/*
 	 * Verify that we can not violate the policy of which files
