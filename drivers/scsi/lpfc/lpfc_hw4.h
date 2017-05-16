@@ -1380,6 +1380,10 @@ struct rq_context {
 #define lpfc_rq_context_page_size_MASK	0x000000FF
 #define lpfc_rq_context_page_size_WORD	word0
 #define	LPFC_RQ_PAGE_SIZE_4096	0x1
+	uint32_t reserved1;
+	uint32_t word2;
+#define lpfc_rq_context_cq_id_SHIFT	16
+#define	LPFC_RQ_PAGE_SIZE_4096	0x1
 	uint32_t word1;
 #define lpfc_rq_context_data_size_SHIFT	16		/* Version 2 Only */
 #define lpfc_rq_context_data_size_MASK	0x0000FFFF
