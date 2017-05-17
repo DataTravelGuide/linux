@@ -60,6 +60,7 @@
 #include <linux/migrate.h>
 #include <linux/hugetlb.h>
 #include <linux/backing-dev.h>
+#include <linux/memremap.h>
 
 #include <asm/tlbflush.h>
 
@@ -1348,6 +1349,52 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	pte_t pteval;
 	spinlock_t *ptl;
 	int ret = SWAP_AGAIN;
+
+	if ((flags & TTU_MIGRATION) && is_zone_device_page(page)) {
+		swp_entry_t entry;
+		pte_t swp_pte;
+		pmd_t *pmdp;
+
+		if (!is_hmm_page(page))
+			goto out;
+
+		pmdp = mm_find_pmd(mm, address);
+		if (!pmdp)
+			goto out;
+
+		pte = pte_offset_map_lock(mm, pmdp, address, &ptl);
+		if (!pte)
+			goto out;
+
+		pteval = ptep_get_and_clear(mm, address, pte);
+		if (pte_present(pteval) || pte_none(pteval)) {
+			set_pte_at(mm, address, pte, pteval);
+			goto out_unmap;
+		}
+
+		entry = pte_to_swp_entry(pteval);
+		if (!is_hmm_entry(entry)) {
+			set_pte_at(mm, address, pte, pteval);
+			goto out_unmap;
+		}
+
+		if (hmm_entry_to_page(entry) != page) {
+			set_pte_at(mm, address, pte, pteval);
+			goto out_unmap;
+		}
+
+		/*
+		 * Store the pfn of the page in a special migration
+		 * pte. do_swap_page() will wait until the migration
+		 * pte is removed and then restart fault handling.
+		 */
+		entry = make_migration_entry(page, 0);
+		swp_pte = swp_entry_to_pte(entry);
+		if (pte_soft_dirty(*pte))
+			swp_pte = pte_swp_mksoft_dirty(swp_pte);
+		set_pte_at(mm, address, pte, swp_pte);
+		goto out_unmap;
+	}
 
 	pte = page_check_address(page, mm, address, &ptl, 0);
 	if (!pte)
