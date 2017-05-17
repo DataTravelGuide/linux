@@ -178,7 +178,9 @@ struct opal_sg_list {
 #define OPAL_LEDS_SET_INDICATOR			115
 #define OPAL_CEC_REBOOT2			116
 #define OPAL_CONSOLE_FLUSH			117
-#define OPAL_LAST				117
+#define OPAL_PCI_TCE_KILL			126
+
+#define OPAL_LAST				126
 
 /* Device tree flags */
 
@@ -1196,6 +1198,12 @@ int64_t opal_flash_write(uint64_t id, uint64_t offset, uint64_t buf,
 		uint64_t size, uint64_t token);
 int64_t opal_flash_erase(uint64_t id, uint64_t offset, uint64_t size,
 		uint64_t token);
+int64_t opal_pci_tce_kill(uint64_t phb_id, uint32_t kill_type,
+			  uint32_t pe_num, uint32_t tce_size,
+			  uint64_t dma_addr, uint32_t npages);
+int64_t opal_rm_pci_tce_kill(uint64_t phb_id, uint32_t kill_type,
+			     uint32_t pe_num, uint32_t tce_size,
+			     uint64_t dma_addr, uint32_t npages);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
@@ -1265,6 +1273,13 @@ extern int opal_error_code(int rc);
 enum {
 	OPAL_REBOOT_NORMAL		= 0,
 	OPAL_REBOOT_PLATFORM_ERROR	= 1,
+};
+
+/* Argument to OPAL_PCI_TCE_KILL */
+enum {
+	OPAL_PCI_TCE_KILL_PAGES,
+	OPAL_PCI_TCE_KILL_PE,
+	OPAL_PCI_TCE_KILL_ALL,
 };
 
 #endif /* __ASSEMBLY__ */
