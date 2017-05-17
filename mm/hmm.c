@@ -409,8 +409,40 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 		}
 
 		if (!pte_present(pte)) {
-			if (hmm_vma_walk->fault)
-				goto fault;
+			swp_entry_t entry;
+
+			if (!non_swap_entry(entry)) {
+				if (hmm_vma_walk->fault)
+					goto fault;
+				continue;
+			}
+			entry = pte_to_swp_entry(pte);
+
+			/*
+			 * This is a special swap entry, ignore migration, use
+			 * device and report anything else as error.
+			 */
+			if (is_hmm_entry(entry)) {
+				pfns[i] = hmm_pfn_t_from_pfn(swp_offset(entry));
+				if (is_write_hmm_entry(entry)) {
+					pfns[i] |= HMM_PFN_WRITE;
+				} else if (write_fault)
+					goto fault;
+				pfns[i] |= HMM_PFN_DEVICE_UNADDRESSABLE;
+				pfns[i] |= flag;
+			} else if (is_migration_entry(entry)) {
+				if (hmm_vma_walk->fault) {
+					pte_unmap(ptep - 1);
+					hmm_vma_walk->last = addr;
+					migration_entry_wait(vma->vm_mm,
+							     pmdp, addr);
+					return -EAGAIN;
+				}
+				continue;
+			} else {
+				/* Report error for everything else */
+				pfns[i] = HMM_PFN_ERROR;
+			}
 			continue;
 		}
 
