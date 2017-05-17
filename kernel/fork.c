@@ -72,6 +72,7 @@
 #include <linux/signalfd.h>
 #include <linux/uprobes.h>
 #include <linux/aio.h>
+#include <linux/hmm.h>
 #include <linux/compiler.h>
 #ifndef __GENKSYMS__
 #include <linux/user_namespace.h>
@@ -659,6 +660,7 @@ void __mmdrop(struct mm_struct *mm)
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
 	destroy_context(mm);
+	hmm_mm_destroy(mm);
 	mmu_notifier_mm_destroy(mm);
 	check_mm(mm);
 	free_mm(mm);
