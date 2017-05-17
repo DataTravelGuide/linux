@@ -42,6 +42,7 @@ extern int migrate_vmas(struct mm_struct *mm,
 		const nodemask_t *from, const nodemask_t *to,
 		unsigned long flags);
 extern void migrate_page_copy(struct page *newpage, struct page *page);
+extern void migrate_page_states(struct page *newpage, struct page *page);
 extern int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page);
 extern int migrate_page_move_mapping(struct address_space *mapping,
@@ -68,6 +69,10 @@ static inline int migrate_vmas(struct mm_struct *mm,
 
 static inline void migrate_page_copy(struct page *newpage,
 				     struct page *page) {}
+
+static inline void migrate_page_states(struct page *newpage, struct page *page)
+{
+}
 
 static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page)
