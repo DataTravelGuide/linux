@@ -492,6 +492,8 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
 			mss->swap += ptent_size;
 		else if (is_migration_entry(swpent))
 			page = migration_entry_to_page(swpent);
+		else if (is_hmm_entry(swpent))
+			page = hmm_entry_to_page(swpent);
 	} else if (pte_file(ptent)) {
 		if (pte_to_pgoff(ptent) != pgoff)
 			mss->nonlinear += ptent_size;
@@ -1038,6 +1040,8 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
 		flags = PM_SWAP;
 		if (is_migration_entry(entry))
 			page = migration_entry_to_page(entry);
+		else if (is_hmm_entry(entry))
+			page = hmm_entry_to_page(entry);
 	} else {
 		if (vma->vm_flags & VM_SOFTDIRTY)
 			flags2 |= __PM_SOFT_DIRTY;

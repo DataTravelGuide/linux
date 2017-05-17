@@ -1252,8 +1252,9 @@ void page_add_new_anon_rmap(struct page *page,
 	__page_set_anon_rmap(page, vma, address, 1);
 	if (!mlocked_vma_newpage(vma, page)) {
 		SetPageActive(page);
-		lru_cache_add(page);
-	} else
+		if (!is_zone_device_page(page))
+			lru_cache_add(page);
+	} else if (!is_zone_device_page(page))
 		add_page_to_unevictable_list(page);
 }
 

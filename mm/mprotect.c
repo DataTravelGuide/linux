@@ -107,6 +107,16 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				set_pte_at(mm, addr, pte, newpte);
 
 				pages++;
+			} else if (is_write_hmm_entry(entry)) {
+				pte_t newpte;
+
+				make_hmm_entry_read(&entry);
+				newpte = swp_entry_to_pte(entry);
+				if (pte_swp_soft_dirty(oldpte))
+					newpte = pte_swp_mksoft_dirty(newpte);
+				set_pte_at(mm, addr, pte, newpte);
+
+				pages++;
 			}
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);

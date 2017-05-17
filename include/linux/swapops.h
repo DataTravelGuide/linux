@@ -102,6 +102,76 @@ static inline void *swp_to_radix_entry(swp_entry_t entry)
 	return (void *)(value | RADIX_TREE_EXCEPTIONAL_ENTRY);
 }
 
+
+#if IS_ENABLED(CONFIG_HMM)
+static inline swp_entry_t make_hmm_entry(struct page *page, bool write)
+{
+	return swp_entry(write ? SWP_HMM_WRITE : SWP_HMM_READ,
+			 page_to_pfn(page));
+}
+
+static inline bool is_hmm_entry(swp_entry_t entry)
+{
+	int type = swp_type(entry);
+	return type == SWP_HMM_READ || type == SWP_HMM_WRITE;
+}
+
+static inline void make_hmm_entry_read(swp_entry_t *entry)
+{
+	*entry = swp_entry(SWP_HMM_READ, swp_offset(*entry));
+}
+
+static inline bool is_write_hmm_entry(swp_entry_t entry)
+{
+	return unlikely(swp_type(entry) == SWP_HMM_WRITE);
+}
+
+static inline struct page *hmm_entry_to_page(swp_entry_t entry)
+{
+	return pfn_to_page(swp_offset(entry));
+}
+
+int hmm_entry_fault(struct vm_area_struct *vma,
+		    unsigned long addr,
+		    swp_entry_t entry,
+		    unsigned flags,
+		    pmd_t *pmdp);
+#else /* CONFIG_HMM */
+static inline swp_entry_t make_hmm_entry(struct page *page, bool write)
+{
+	return swp_entry(0, 0);
+}
+
+static inline void make_hmm_entry_read(swp_entry_t *entry)
+{
+}
+
+static inline bool is_hmm_entry(swp_entry_t entry)
+{
+	return false;
+}
+
+static inline bool is_write_hmm_entry(swp_entry_t entry)
+{
+	return false;
+}
+
+static inline struct page *hmm_entry_to_page(swp_entry_t entry)
+{
+	return NULL;
+}
+
+static inline int hmm_entry_fault(struct vm_area_struct *vma,
+				  unsigned long addr,
+				  swp_entry_t entry,
+				  unsigned flags,
+				  pmd_t *pmdp)
+{
+	return VM_FAULT_SIGBUS;
+}
+#endif /* CONFIG_HMM */
+
+
 #ifdef CONFIG_MIGRATION
 static inline swp_entry_t make_migration_entry(struct page *page, int write)
 {
