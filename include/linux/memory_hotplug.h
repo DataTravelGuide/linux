@@ -275,5 +275,7 @@ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
 		unsigned long map_offset);
 extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
 					  unsigned long pnum);
+int add_pages(int nid, unsigned long start,
+	      unsigned long size, bool for_device);
 
 #endif /* __LINUX_MEMORY_HOTPLUG_H */

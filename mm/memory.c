@@ -3892,3 +3892,20 @@ void ptlock_free(struct page *page)
 	kfree(page->ptl);
 }
 #endif
+
+#ifndef CONFIG_ARCH_HAS_ADD_PAGES
+int add_pages(int nid, unsigned long start,
+	      unsigned long size, bool for_device)
+{
+	struct pglist_data *pgdat = NODE_DATA(nid);
+	int zoneid = zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
+	struct zone *zone = pgdat->node_zones + zoneid;
+
+#ifdef CONFIG_ZONE_DEVICE
+	if (zoneid == ZONE_DEVICE)
+		zone = pgdat->zone_device;
+#endif
+
+	return __add_pages(nid, zone, start >> PAGE_SHIFT, size >> PAGE_SHIFT);
+}
+#endif /* ARCH_HAS_ADD_PAGES */
