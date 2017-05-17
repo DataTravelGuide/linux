@@ -1700,36 +1700,6 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 	return -ENOMEM;
 }
 
-int nfs_commit_file(struct file *file, struct nfs_write_verifier *verf)
-{
-	struct inode *inode = file_inode(file);
-	struct nfs_open_context *open;
-	struct nfs_commit_info cinfo;
-	struct nfs_page *req;
-	int ret;
-
-	open = get_nfs_open_context(nfs_file_open_context(file));
-	req  = nfs_create_request(open, NULL, NULL, 0, i_size_read(inode));
-	if (!req) {
-		ret = -ENOMEM;
-		goto out_put;
-	}
-
-	nfs_init_cinfo_from_inode(&cinfo, inode);
-
-	memcpy(&req->wb_verf, verf, sizeof(struct nfs_write_verifier));
-	nfs_request_add_commit_list(req, &cinfo.mds->list, &cinfo);
-	ret = nfs_commit_inode(inode, FLUSH_SYNC);
-	if (ret > 0)
-		ret = 0;
-
-	nfs_free_request(req);
-out_put:
-	put_nfs_open_context(open);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nfs_commit_file);
-
 /*
  * COMMIT call returned
  */

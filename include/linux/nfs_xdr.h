@@ -1367,6 +1367,7 @@ struct nfs42_copy_res {
 	struct nfs42_write_res		write_res;
 	bool				consecutive;
 	bool				synchronous;
+	struct nfs_commitres		commit_res;
 };
 
 struct nfs42_seek_args {
