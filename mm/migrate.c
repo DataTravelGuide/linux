@@ -610,7 +610,7 @@ int migrate_page(struct address_space *mapping,
 	if (rc != MIGRATEPAGE_SUCCESS)
 		return rc;
 
-	if (mode != MIGRATE_SYNC_NO_COPY)
+	if ((int)mode != MIGRATE_SYNC_NO_COPY)
 		migrate_page_copy(newpage, page);
 	else
 		migrate_page_states(newpage, page);
@@ -663,7 +663,7 @@ int buffer_migrate_page(struct address_space *mapping,
 
 	SetPagePrivate(newpage);
 
-	if (mode != MIGRATE_SYNC_NO_COPY)
+	if ((int)mode != MIGRATE_SYNC_NO_COPY)
 		migrate_page_copy(newpage, page);
 	else
 		migrate_page_states(newpage, page);
@@ -730,7 +730,7 @@ static int fallback_migrate_page(struct address_space *mapping,
 {
 	if (PageDirty(page)) {
 		/* Only writeback pages in full synchronous migration */
-		switch (mode) {
+		switch ((int)mode) {
 		case MIGRATE_SYNC:
 		case MIGRATE_SYNC_NO_COPY:
 			break;
@@ -851,7 +851,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 		 * the retry loop is too short and in the sync-light case,
 		 * the overhead of stalling is too much
 		 */
-		switch (mode) {
+		switch ((int)mode) {
 		case MIGRATE_SYNC:
 		case MIGRATE_SYNC_NO_COPY:
 			break;
@@ -1067,7 +1067,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	if (!trylock_page(hpage)) {
 		if (!force)
 			goto out;
-		switch (mode) {
+		switch ((int)mode) {
 		case MIGRATE_SYNC:
 		case MIGRATE_SYNC_NO_COPY:
 			break;
