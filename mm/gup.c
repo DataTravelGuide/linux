@@ -167,11 +167,6 @@ split_fallthrough:
 			pte_unmap_unlock(ptep, ptl);
 			migration_entry_wait(mm, pmd, address);
 			goto split_fallthrough;
-		} else if (is_hmm_entry(entry)) {
-			pte_unmap_unlock(ptep, ptl);
-			if (hmm_migrate_fault(vma, address, entry, pmd))
-				goto no_page;
-			goto split_fallthrough;
 		}
 		goto no_page;
 	}

@@ -192,57 +192,6 @@ static inline int is_hwpoison_entry(swp_entry_t swp)
 }
 #endif
 
-#ifdef CONFIG_HMM_MIGRATE
-
-#define HMM_SWP_INVALID 0
-#define HMM_SWP_PAGE 1
-
-static inline swp_entry_t make_hmm_entry(unsigned long pfn, uint8_t type)
-{
-	/* We do not store anything inside the CPU page table entry (pte). */
-	return swp_entry(SWP_HMM, (pfn << 2) | (type & 3));
-}
-
-static inline int is_hmm_entry(swp_entry_t entry)
-{
-	return (swp_type(entry) == SWP_HMM);
-}
-
-static inline int is_hmm_entry_poisonous(swp_entry_t entry)
-{
-	return (swp_type(entry) == SWP_HMM) && (swp_offset(entry) == 0);
-}
-
-static inline struct page *hmm_swp_entry_to_page(swp_entry_t entry)
-{
-	unsigned long pfn = swp_offset(entry);
-
-	if (swp_type(entry) != SWP_HMM || (pfn & 3) != HMM_SWP_PAGE)
-		return NULL;
-
-	return pfn_to_page(pfn >> 2);
-}
-
-extern int hmm_migrate_fault(struct vm_area_struct *vma,
-			     unsigned long addr,
-			     swp_entry_t entry,
-			     pmd_t *pmdp);
-
-#else /* CONFIG_HMM_MIGRATE */
-static inline int is_hmm_entry(swp_entry_t swp)
-{
-	return 0;
-}
-
-static inline int hmm_migrate_fault(struct vm_area_struct *vma,
-				    unsigned long addr,
-				    swp_entry_t entry,
-				    pmd_t *pmdp)
-{
-	return VM_FAULT_SIGBUS;
-}
-#endif /* CONFIG_HMM_MIGRATE */
-
 #if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION) || defined(CONFIG_HMM)
 static inline int non_swap_entry(swp_entry_t entry)
 {

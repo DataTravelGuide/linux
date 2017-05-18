@@ -273,21 +273,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
 
 config HMM
 	bool
-	select GENERIC_PAGE_TABLE
 	select MMU_NOTIFIER
-
-config HMM_MIGRATE
-	bool "Migration with heterogeneous memory management (HMM)"
-	depends on MMU
-	select HMM
-	default n
-	help
-	  Allow to migrate memory backing range of virtual address space of
-	  a process in bulk. Usefull with platform that have heterogeneous
-	  memory type (each with different latency and/or bandwidth). Also
-	  usefull when device driver want to leverage device memory.
-
-	  If unsure, say N to disable HMM.
 
 config HMM_MIRROR
 	bool "Mirror with heterogeneous memory management (HMM)"
