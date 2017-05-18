@@ -2582,6 +2582,18 @@ dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
 
 	dump_nhm_cst_cfg();
 }
+int is_dnv(unsigned int family, unsigned int model)
+{
+
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_ATOM_DENVERTON:
+		return 1;
+	}
+	return 0;
+}
 
 
 /*
@@ -3682,6 +3694,14 @@ void process_cpuid()
 		BIC_PRESENT(BIC_Pkgpc6);
 	if (do_snb_cstates && (pkg_cstate_limit >= PCL__7))
 		BIC_PRESENT(BIC_Pkgpc7);
+	if (is_dnv(family, model)) {
+		BIC_PRESENT(BIC_CPU_c1);
+		BIC_NOT_PRESENT(BIC_CPU_c3);
+		BIC_NOT_PRESENT(BIC_Pkgpc3);
+		BIC_NOT_PRESENT(BIC_CPU_c7);
+		BIC_NOT_PRESENT(BIC_Pkgpc7);
+		use_c1_residency_msr = 1;
+	}
 	if (has_hsw_msrs(family, model)) {
 		BIC_PRESENT(BIC_Pkgpc8);
 		BIC_PRESENT(BIC_Pkgpc9);
