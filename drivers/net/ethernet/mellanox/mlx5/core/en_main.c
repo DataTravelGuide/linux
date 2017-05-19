@@ -2749,6 +2749,19 @@ static int set_feature_vlan_filter(struct net_device *netdev, bool enable)
 	return 0;
 }
 
+static int set_feature_tc_num_filters(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (!enable && mlx5e_tc_num_filters(priv)) {
+		netdev_err(netdev,
+			   "Active offloaded tc filters, can't turn hw_tc_offload off\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int set_feature_rx_all(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -2822,6 +2835,8 @@ static int mlx5e_set_features(struct net_device *netdev,
 	err |= mlx5e_handle_feature(netdev, features,
 				    NETIF_F_HW_VLAN_CTAG_FILTER,
 				    set_feature_vlan_filter);
+	err |= mlx5e_handle_feature(netdev, features, NETIF_F_HW_TC,
+				    set_feature_tc_num_filters);
 	err |= mlx5e_handle_feature(netdev, features, NETIF_F_RXALL,
 				    set_feature_rx_all);
 	err |= mlx5e_handle_feature(netdev, features, NETIF_F_HW_VLAN_CTAG_RX,
