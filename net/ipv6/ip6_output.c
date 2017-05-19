@@ -110,6 +110,7 @@ static int ip6_finish_output2(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 	if (!IS_ERR(neigh)) {
+		sock_confirm_neigh(skb, neigh);
 		ret = dst_neigh_output(dst, neigh, skb);
 		rcu_read_unlock_bh();
 		return ret;

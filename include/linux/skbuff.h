@@ -640,6 +640,7 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
  *	@wifi_acked_valid: wifi_acked was set
  *	@wifi_acked: whether frame was acked on wifi or not
  *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
+ *	@dst_pending_confirm: need to confirm neighbour
  *	@xmit_more: More SKBs are pending for this queue
  *	@napi_id: id of the NAPI struct this skb came from
  *	@csum_not_inet: use CRC32c to resolve CHECKSUM_PARTIAL
@@ -808,7 +809,8 @@ struct sk_buff {
 	RH_KABI_EXTEND(__u8	offload_fwd_mark:1)
 	RH_KABI_EXTEND(__u8	sw_hash:1)
 	RH_KABI_EXTEND(__u8     csum_not_inet:1)
-	/* 9 bit hole */
+	RH_KABI_EXTEND(__u8	dst_pending_confirm:1)
+	/* 8 bit hole */
 	RH_KABI_EXTEND(kmemcheck_bitfield_end(flags3))
 
 	/* private: */
@@ -3610,6 +3612,16 @@ static inline u16 skb_get_rx_queue(const struct sk_buff *skb)
 static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 {
 	return skb->queue_mapping != 0;
+}
+
+static inline void skb_set_dst_pending_confirm(struct sk_buff *skb, u32 val)
+{
+	skb->dst_pending_confirm = val;
+}
+
+static inline bool skb_get_dst_pending_confirm(const struct sk_buff *skb)
+{
+	return skb->dst_pending_confirm != 0;
 }
 
 #ifdef CONFIG_XFRM
