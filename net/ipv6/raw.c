@@ -637,6 +637,9 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
+	if (flags & MSG_CONFIRM)
+		skb_set_dst_pending_confirm(skb, 1);
+
 	skb->transport_header = skb->network_header;
 	err = memcpy_fromiovecend((void *)iph, from, 0, length);
 	if (err)
@@ -908,7 +911,8 @@ out:
 	txopt_put(opt_to_free);
 	return err<0?err:len;
 do_confirm:
-	dst_confirm(dst);
+	if (msg->msg_flags & MSG_PROBE)
+		dst_confirm_neigh(dst, &fl6.daddr);
 	if (!(msg->msg_flags & MSG_PROBE) || len)
 		goto back_from_confirm;
 	err = 0;
