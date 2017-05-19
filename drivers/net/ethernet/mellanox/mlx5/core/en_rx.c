@@ -616,6 +616,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       be16_to_cpu(cqe->vlan_info));
 
+	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
+
 	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
 	skb->protocol = eth_type_trans(skb, netdev);
 }
