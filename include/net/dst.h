@@ -62,8 +62,7 @@ struct dst_entry {
 #define DST_XFRM_QUEUE		0x0100
 #define DST_METADATA		0x0200
 
-	unsigned short		pending_confirm;
-
+	RH_KABI_DEPRECATE(unsigned short, pending_confirm)
 	short			error;
 
 	/* A non-zero value of dst->obsolete forces by-hand validation
@@ -459,22 +458,12 @@ static inline void dst_rcu_free(struct rcu_head *head)
 
 static inline void dst_confirm(struct dst_entry *dst)
 {
-	dst->pending_confirm = 1;
 }
 
 static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 				   struct sk_buff *skb)
 {
 	const struct hh_cache *hh;
-
-	if (dst->pending_confirm) {
-		unsigned long now = jiffies;
-
-		dst->pending_confirm = 0;
-		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
-	}
 
 	hh = &n->hh;
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
