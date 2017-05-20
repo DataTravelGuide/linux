@@ -235,9 +235,6 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	if (unlock)
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	/* expedite the RCU grace period to free some request slabs */
-	synchronize_rcu_expedited();
-
 	return count;
 }
 
@@ -263,7 +260,6 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
 				I915_SHRINK_ACTIVE);
-	synchronize_rcu(); /* wait for our earlier RCU delayed slab frees */
 
 	return freed;
 }
