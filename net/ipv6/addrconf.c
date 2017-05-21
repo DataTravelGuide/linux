@@ -3195,6 +3195,7 @@ EXPORT_SYMBOL_GPL(addrconf_add_linklocal);
  */
 static struct notifier_block ipv6_dev_notf = {
 	.notifier_call = addrconf_notify,
+	.priority = ADDRCONF_NOTIFY_PRIORITY,
 };
 
 static void addrconf_type_change(struct net_device *dev, unsigned long event)
