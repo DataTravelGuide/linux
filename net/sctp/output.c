@@ -665,6 +665,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		} else {
 			/* no need to seed pseudo checksum for SCTP */
 			head->ip_summed = CHECKSUM_PARTIAL;
+			head->csum_not_inet = 1;
 			head->csum_start = skb_transport_header(head) - head->head;
 			head->csum_offset = offsetof(struct sctphdr, checksum);
 		}

@@ -188,12 +188,13 @@
  *
  *   NETIF_F_SCTP_CRC - This feature indicates that a device is capable of
  *     offloading the SCTP CRC in a packet. To perform this offload the stack
- *     will set ip_summed to CHECKSUM_PARTIAL and set csum_start and csum_offset
- *     accordingly. Note the there is no indication in the skbuff that the
- *     CHECKSUM_PARTIAL refers to an SCTP checksum, a driver that supports
- *     both IP checksum offload and SCTP CRC offload must verify which offload
- *     is configured for a packet presumably by inspecting packet headers; in
- *     case, skb_crc32c_csum_help is provided to compute CRC on SCTP packets.
+ *     will set set csum_start and csum_offset accordingly, set ip_summed to
+ *     CHECKSUM_PARTIAL and set csum_not_inet to 1, to provide an indication in
+ *     the skbuff that the CHECKSUM_PARTIAL refers to CRC32c.
+ *     A driver that supports both IP checksum offload and SCTP CRC32c offload
+ *     must verify which offload is configured for a packet by testing the
+ *     value of skb->csum_not_inet; skb_crc32c_csum_help is provided to resolve
+ *     CHECKSUM_PARTIAL on skbs where csum_not_inet is set to 1.
  *
  *   NETIF_F_FCOE_CRC - This feature indicates that a device is capable of
  *     offloading the FCOE CRC in a packet. To perform this offload the stack
@@ -641,6 +642,7 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
  *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
  *	@xmit_more: More SKBs are pending for this queue
  *	@napi_id: id of the NAPI struct this skb came from
+ *	@csum_not_inet: use CRC32c to resolve CHECKSUM_PARTIAL
  *	@secmark: security marking
  *	@mark: Generic packet mark
  *	@dropcount: total number of sk_receive_queue overflows
@@ -805,7 +807,8 @@ struct sk_buff {
 	RH_KABI_EXTEND(__u8	csum_bad:1)
 	RH_KABI_EXTEND(__u8	offload_fwd_mark:1)
 	RH_KABI_EXTEND(__u8	sw_hash:1)
-	/* 10 bit hole */
+	RH_KABI_EXTEND(__u8     csum_not_inet:1)
+	/* 9 bit hole */
 	RH_KABI_EXTEND(kmemcheck_bitfield_end(flags3))
 
 	/* private: */
