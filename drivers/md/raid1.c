@@ -1077,16 +1077,98 @@ static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	kfree(plug);
 }
 
-static void raid1_make_request(struct mddev *mddev, struct bio * bio)
+static void raid1_read_request(struct mddev *mddev, struct bio *bio,
+				 struct r1bio *r1_bio)
 {
 	struct r1conf *conf = mddev->private;
 	struct raid1_info *mirror;
-	struct r1bio *r1_bio;
 	struct bio *read_bio;
+	struct bitmap *bitmap = mddev->bitmap;
+	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
+	int sectors_handled;
+	int max_sectors;
+	int rdisk;
+
+	wait_barrier(conf, bio);
+
+read_again:
+	rdisk = read_balance(conf, r1_bio, &max_sectors);
+
+	if (rdisk < 0) {
+		/* couldn't find anywhere to read from */
+		raid_end_bio_io(r1_bio);
+		return;
+	}
+	mirror = conf->mirrors + rdisk;
+
+	if (test_bit(WriteMostly, &mirror->rdev->flags) &&
+	    bitmap) {
+		/*
+		 * Reading from a write-mostly device must take care not to
+		 * over-take any writes that are 'behind'
+		 */
+		wait_event(bitmap->behind_wait,
+			   atomic_read(&bitmap->behind_writes) == 0);
+	}
+	r1_bio->read_disk = rdisk;
+	r1_bio->start_next_window = 0;
+
+	read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+	bio_trim(read_bio, r1_bio->sector - bio->bi_sector,
+		 max_sectors);
+
+	r1_bio->bios[rdisk] = read_bio;
+
+	read_bio->bi_sector = r1_bio->sector + mirror->rdev->data_offset;
+	read_bio->bi_bdev = mirror->rdev->bdev;
+	read_bio->bi_end_io = raid1_end_read_request;
+	read_bio->bi_rw = READ | do_sync;
+	if (test_bit(FailFast, &mirror->rdev->flags) &&
+	    test_bit(R1BIO_FailFast, &r1_bio->state))
+		read_bio->bi_rw |= MD_FAILFAST;
+	read_bio->bi_private = r1_bio;
+
+	if (max_sectors < r1_bio->sectors) {
+		/*
+		 * could not read all from this device, so we will need another
+		 * r1_bio.
+		 */
+		sectors_handled = (r1_bio->sector + max_sectors
+				   - bio->bi_sector);
+		r1_bio->sectors = max_sectors;
+		spin_lock_irq(&conf->device_lock);
+		if (bio->bi_phys_segments == 0)
+			bio->bi_phys_segments = 2;
+		else
+			bio->bi_phys_segments++;
+		spin_unlock_irq(&conf->device_lock);
+
+		/*
+		 * Cannot call generic_make_request directly as that will be
+		 * queued in __make_request and subsequent mempool_alloc might
+		 * block waiting for it.  So hand bio over to raid1d.
+		 */
+		reschedule_retry(r1_bio);
+
+		r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
+
+		r1_bio->master_bio = bio;
+		r1_bio->sectors = bio_sectors(bio) - sectors_handled;
+		r1_bio->state = 0;
+		r1_bio->mddev = mddev;
+		r1_bio->sector = bio->bi_sector + sectors_handled;
+		goto read_again;
+	} else
+		generic_make_request(read_bio);
+}
+
+static void raid1_write_request(struct mddev *mddev, struct bio *bio,
+				struct r1bio *r1_bio)
+{
+	struct r1conf *conf = mddev->private;
 	int i, disks;
-	struct bitmap *bitmap;
+	struct bitmap *bitmap = mddev->bitmap;
 	unsigned long flags;
-	const int rw = bio_data_dir(bio);
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
 	const unsigned long do_discard = (bio->bi_rw
@@ -1108,8 +1190,7 @@ static void raid1_make_request(struct mddev *mddev, struct bio * bio)
 
 	md_write_start(mddev, bio); /* wait on superblock update early */
 
-	if (bio_data_dir(bio) == WRITE &&
-	    bio_end_sector(bio) > mddev->suspend_lo &&
+	if (bio_end_sector(bio) > mddev->suspend_lo &&
 	    bio->bi_sector < mddev->suspend_hi) {
 		/* As the suspend_* range is controlled by
 		 * userspace, we want an interruptible
@@ -1127,114 +1208,8 @@ static void raid1_make_request(struct mddev *mddev, struct bio * bio)
 		}
 		finish_wait(&conf->wait_barrier, &w);
 	}
-
 	start_next_window = wait_barrier(conf, bio);
 
-	bitmap = mddev->bitmap;
-
-	/*
-	 * make_request() can abort the operation when READA is being
-	 * used and no empty request is available.
-	 *
-	 */
-	r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
-
-	r1_bio->master_bio = bio;
-	r1_bio->sectors = bio_sectors(bio);
-	r1_bio->state = 0;
-	r1_bio->mddev = mddev;
-	r1_bio->sector = bio->bi_sector;
-
-	/* We might need to issue multiple reads to different
-	 * devices if there are bad blocks around, so we keep
-	 * track of the number of reads in bio->bi_phys_segments.
-	 * If this is 0, there is only one r1_bio and no locking
-	 * will be needed when requests complete.  If it is
-	 * non-zero, then it is the number of not-completed requests.
-	 */
-	bio->bi_phys_segments = 0;
-	clear_bit(BIO_SEG_VALID, &bio->bi_flags);
-
-	if (rw == READ) {
-		/*
-		 * read balancing logic:
-		 */
-		int rdisk;
-
-read_again:
-		rdisk = read_balance(conf, r1_bio, &max_sectors);
-
-		if (rdisk < 0) {
-			/* couldn't find anywhere to read from */
-			raid_end_bio_io(r1_bio);
-			return;
-		}
-		mirror = conf->mirrors + rdisk;
-
-		if (test_bit(WriteMostly, &mirror->rdev->flags) &&
-		    bitmap) {
-			/* Reading from a write-mostly device must
-			 * take care not to over-take any writes
-			 * that are 'behind'
-			 */
-			wait_event(bitmap->behind_wait,
-				   atomic_read(&bitmap->behind_writes) == 0);
-		}
-		r1_bio->read_disk = rdisk;
-		r1_bio->start_next_window = 0;
-
-		read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		bio_trim(read_bio, r1_bio->sector - bio->bi_sector,
-			 max_sectors);
-
-		r1_bio->bios[rdisk] = read_bio;
-
-		read_bio->bi_sector = r1_bio->sector + mirror->rdev->data_offset;
-		read_bio->bi_bdev = mirror->rdev->bdev;
-		read_bio->bi_end_io = raid1_end_read_request;
-		read_bio->bi_rw = READ | do_sync;
-		if (test_bit(FailFast, &mirror->rdev->flags) &&
-		    test_bit(R1BIO_FailFast, &r1_bio->state))
-			read_bio->bi_rw |= MD_FAILFAST;
-		read_bio->bi_private = r1_bio;
-
-		if (max_sectors < r1_bio->sectors) {
-			/* could not read all from this device, so we will
-			 * need another r1_bio.
-			 */
-
-			sectors_handled = (r1_bio->sector + max_sectors
-					   - bio->bi_sector);
-			r1_bio->sectors = max_sectors;
-			spin_lock_irq(&conf->device_lock);
-			if (bio->bi_phys_segments == 0)
-				bio->bi_phys_segments = 2;
-			else
-				bio->bi_phys_segments++;
-			spin_unlock_irq(&conf->device_lock);
-			/* Cannot call generic_make_request directly
-			 * as that will be queued in __make_request
-			 * and subsequent mempool_alloc might block waiting
-			 * for it.  So hand bio over to raid1d.
-			 */
-			reschedule_retry(r1_bio);
-
-			r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
-
-			r1_bio->master_bio = bio;
-			r1_bio->sectors = bio_sectors(bio) - sectors_handled;
-			r1_bio->state = 0;
-			r1_bio->mddev = mddev;
-			r1_bio->sector = bio->bi_sector + sectors_handled;
-			goto read_again;
-		} else
-			generic_make_request(read_bio);
-		return;
-	}
-
-	/*
-	 * WRITE:
-	 */
 	if (conf->pending_count >= max_queued_requests) {
 		md_wakeup_thread(mddev->thread);
 		wait_event(conf->wait_barrier,
@@ -1278,8 +1253,7 @@ read_again:
 			int bad_sectors;
 			int is_bad;
 
-			is_bad = is_badblock(rdev, r1_bio->sector,
-					     max_sectors,
+			is_bad = is_badblock(rdev, r1_bio->sector, max_sectors,
 					     &first_bad, &bad_sectors);
 			if (is_bad < 0) {
 				/* mustn't write here until the bad block is
@@ -1367,7 +1341,8 @@ read_again:
 			continue;
 
 		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		bio_trim(mbio, r1_bio->sector - bio->bi_sector, max_sectors);
+		bio_trim(mbio, r1_bio->sector - bio->bi_sector,
+			 max_sectors);
 
 		if (first_clone) {
 			/* do behind I/O ?
@@ -1453,6 +1428,40 @@ read_again:
 
 	/* In case raid1d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
+}
+
+static void raid1_make_request(struct mddev *mddev, struct bio *bio)
+{
+	struct r1conf *conf = mddev->private;
+	struct r1bio *r1_bio;
+
+	/*
+	 * make_request() can abort the operation when read-ahead is being
+	 * used and no empty request is available.
+	 *
+	 */
+	r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
+
+	r1_bio->master_bio = bio;
+	r1_bio->sectors = bio_sectors(bio);
+	r1_bio->state = 0;
+	r1_bio->mddev = mddev;
+	r1_bio->sector = bio->bi_sector;
+
+	/*
+	 * We might need to issue multiple reads to different devices if there
+	 * are bad blocks around, so we keep track of the number of reads in
+	 * bio->bi_phys_segments.  If this is 0, there is only one r1_bio and
+	 * no locking will be needed when requests complete.  If it is
+	 * non-zero, then it is the number of not-completed requests.
+	 */
+	bio->bi_phys_segments = 0;
+	clear_bit(BIO_SEG_VALID, &bio->bi_flags);
+
+	if (bio_data_dir(bio) == READ)
+		raid1_read_request(mddev, bio, r1_bio);
+	else
+		raid1_write_request(mddev, bio, r1_bio);
 }
 
 static void raid1_status(struct seq_file *seq, struct mddev *mddev)
