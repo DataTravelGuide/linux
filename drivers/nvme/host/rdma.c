@@ -120,7 +120,6 @@ struct nvme_rdma_ctrl {
 
 	struct nvme_rdma_qe	async_event_sqe;
 
-	int			reconnect_delay;
 	struct delayed_work	reconnect_work;
 
 	struct list_head	list;
@@ -754,7 +753,7 @@ requeue:
 		dev_info(ctrl->ctrl.device,
 			"Failed reconnect attempt, requeueing...\n");
 		queue_delayed_work(nvme_rdma_wq, &ctrl->reconnect_work,
-					ctrl->reconnect_delay * HZ);
+				ctrl->ctrl.opts->reconnect_delay * HZ);
 	}
 }
 
@@ -781,10 +780,10 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 				nvme_cancel_request, &ctrl->ctrl);
 
 	dev_info(ctrl->ctrl.device, "reconnecting in %d seconds\n",
-		ctrl->reconnect_delay);
+		ctrl->ctrl.opts->reconnect_delay);
 
 	queue_delayed_work(nvme_rdma_wq, &ctrl->reconnect_work,
-				ctrl->reconnect_delay * HZ);
+				ctrl->ctrl.opts->reconnect_delay * HZ);
 }
 
 static void nvme_rdma_error_recovery(struct nvme_rdma_ctrl *ctrl)
@@ -1867,7 +1866,6 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	if (ret)
 		goto out_free_ctrl;
 
-	ctrl->reconnect_delay = opts->reconnect_delay;
 	INIT_DELAYED_WORK(&ctrl->reconnect_work,
 			nvme_rdma_reconnect_ctrl_work);
 	INIT_WORK(&ctrl->err_work, nvme_rdma_error_recovery_work);
