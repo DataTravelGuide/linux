@@ -1265,7 +1265,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	struct bitmap *bitmap = mddev->bitmap;
 	unsigned long flags;
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
-	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
+	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
 	const unsigned long do_discard = (bio->bi_rw
 					  & (REQ_DISCARD | REQ_SECURE));
 	const unsigned long do_same = (bio->bi_rw & REQ_WRITE_SAME);
@@ -1465,7 +1465,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
 		mbio->bi_rw =
-			WRITE | do_flush_fua | do_sync | do_discard | do_same;
+			WRITE | do_fua | do_sync | do_discard | do_same;
 		if (test_bit(FailFast, &conf->mirrors[i].rdev->flags) &&
 		    !test_bit(WriteMostly, &conf->mirrors[i].rdev->flags) &&
 		    conf->raid_disks - mddev->degraded > 1)
@@ -1512,6 +1512,11 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 static void raid1_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct r1bio *r1_bio;
+
+	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+		md_flush_request(mddev, bio);
+		return;
+	}
 
 	/*
 	 * make_request() can abort the operation when read-ahead is being
