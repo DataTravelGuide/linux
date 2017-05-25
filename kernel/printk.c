@@ -34,7 +34,7 @@
 #include <linux/memblock.h>
 #include <linux/aio.h>
 #include <linux/syscalls.h>
-#include <linux/kexec.h>
+#include <linux/crash_core.h>
 #include <linux/kdb.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
@@ -718,7 +718,7 @@ const struct file_operations kmsg_fops = {
 	.release = devkmsg_release,
 };
 
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_CRASH_CORE
 /*
  * This appends the listed symbols to /proc/vmcoreinfo
  *
@@ -727,7 +727,7 @@ const struct file_operations kmsg_fops = {
  * symbols are specifically used so that utilities can access and extract the
  * dmesg log from a vmcore file after a crash.
  */
-void log_buf_kexec_setup(void)
+void log_buf_vmcoreinfo_setup(void)
 {
 	VMCOREINFO_SYMBOL(log_buf);
 	VMCOREINFO_SYMBOL(log_buf_len);
