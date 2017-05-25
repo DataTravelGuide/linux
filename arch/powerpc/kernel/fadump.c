@@ -114,6 +114,11 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 	return 1;
 }
 
+int is_fadump_enabled(void)
+{
+	return fw_dump.fadump_enabled;
+}
+
 int is_fadump_active(void)
 {
 	return fw_dump.dump_active;
@@ -210,14 +215,27 @@ static unsigned long init_fadump_mem_struct(struct fadump_mem_struct *fdm,
  */
 static inline unsigned long fadump_calculate_reserve_size(void)
 {
-	unsigned long size;
+	int ret;
+	unsigned long long base, size;
 
 	/*
-	 * Check if the size is specified through fadump_reserve_mem= cmdline
-	 * option. If yes, then use that.
+	 * Check if the size is specified through crashkernel= cmdline
+	 * option. If yes, then use that but ignore base as fadump
+	 * reserves memory at end of RAM.
 	 */
-	if (fw_dump.reserve_bootvar)
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
+				&size, &base);
+	if (ret == 0 && size > 0) {
+		fw_dump.reserve_bootvar = (unsigned long)size;
 		return fw_dump.reserve_bootvar;
+	}
+
+	return fadump_default_reserve_size();
+}
+
+unsigned long long fadump_default_reserve_size(void)
+{
+	unsigned long long size;
 
 	/* divide by 20 to get 5% of value */
 	size = memblock_end_of_DRAM() / 20;
@@ -347,15 +365,6 @@ static int __init early_fadump_param(char *p)
 	return 0;
 }
 early_param("fadump", early_fadump_param);
-
-/* Look for fadump_reserve_mem= cmdline option */
-static int __init early_fadump_reserve_mem(char *p)
-{
-	if (p)
-		fw_dump.reserve_bootvar = memparse(p, &p);
-	return 0;
-}
-early_param("fadump_reserve_mem", early_fadump_reserve_mem);
 
 static void register_fw_dump(struct fadump_mem_struct *fdm)
 {
