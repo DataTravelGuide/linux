@@ -194,9 +194,10 @@ static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 			     u64 lastuse)
 {
 	struct tcf_mirred *m = to_mirred(a);
+	struct tcf_t *tm = &m->tcf_tm;
 
-	tcf_lastuse_update(&m->tcf_tm);
 	_bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), bytes, packets);
+	tm->lastuse = lastuse;
 }
 
 static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
