@@ -801,6 +801,8 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	get_cpu_cap(c);
 
+	get_model_name(c); /* RHEL7: get default name for unsupported check */
+
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
 
