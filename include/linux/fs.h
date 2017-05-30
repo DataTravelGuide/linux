@@ -1380,7 +1380,7 @@ static inline int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
 
 static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
 {
-	return locks_lock_inode_wait(file_inode(filp), fl);
+	return locks_lock_inode_wait(locks_inode(filp), fl);
 }
 
 struct fasync_struct {
