@@ -580,4 +580,11 @@ static void quirk_intel_soc_ixgbe_variant(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x15AE,
 			quirk_intel_soc_ixgbe_variant);
 
+static void quirk_amd_xgbe_nic(struct pci_dev *dev)
+{
+	/* amd xgbe is not supported */
+	mark_hardware_unsupported("AMD xgbe device");
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1458, quirk_amd_xgbe_nic);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x1459, quirk_amd_xgbe_nic);
 #endif

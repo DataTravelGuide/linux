@@ -888,15 +888,15 @@ static void rh_check_supported(void)
 	}
 
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) &&
-	    (boot_cpu_data.x86 >= 23)) {
-		/*
-		*  Naples/Ryzen is not supported, nor is anything that
-		*  follows
-		*/
-		pr_crit("Detected CPU family %d model %d\n",
-			boot_cpu_data.x86,
-			boot_cpu_data.x86_model);
-		mark_hardware_unsupported("AMD CPU Family");
+	    (boot_cpu_data.x86 >= 0x17)) {
+		/* RHEL7 supports model AMD EPYC 7xxx (Naples SP3) */
+		if (boot_cpu_data.x86 != 0x17 ||
+		    !strstr(boot_cpu_data.x86_model_id, "AMD EPYC 7")) {
+			pr_crit("Detected CPU family %xh model %d\n",
+				boot_cpu_data.x86,
+				boot_cpu_data.x86_model);
+			mark_hardware_unsupported("AMD Processor");
+		}
 	}
 
 	/* Intel CPU family 6, model greater than 60 */
@@ -923,7 +923,7 @@ static void rh_check_supported(void)
 				pr_crit("Detected CPU family %d model %d\n",
 					boot_cpu_data.x86,
 					boot_cpu_data.x86_model);
-				mark_hardware_unsupported("Intel CPU model");
+				mark_hardware_unsupported("Intel Processor");
 			}
 			break;
 		}
