@@ -454,7 +454,7 @@ static inline void create_wreq(struct chcr_context *ctx,
 {
 	struct uld_ctx *u_ctx = ULD_CTX(ctx);
 	int iv_loc = IV_DSGL;
-	int qid = u_ctx->lldi.rxq_ids[ctx->tx_channel_id];
+	int qid = u_ctx->lldi.rxq_ids[ctx->rx_qidx];
 	unsigned int immdatalen = 0, nr_frags = 0;
 
 	if (is_ofld_imm(skb)) {
@@ -475,7 +475,7 @@ static inline void create_wreq(struct chcr_context *ctx,
 	chcr_req->wreq.cookie = cpu_to_be64((uintptr_t)req);
 	chcr_req->wreq.rx_chid_to_rx_q_id =
 		FILL_WR_RX_Q_ID(ctx->dev->rx_channel_id, qid,
-				(hash_sz) ? IV_NOP : iv_loc, ctx->tx_channel_id);
+				(hash_sz) ? IV_NOP : iv_loc, ctx->tx_qidx);
 	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id,
 						       qid);
 	chcr_req->ulptx.len = htonl((DIV_ROUND_UP((calc_tx_flits_ofld(skb) * 8),
@@ -658,19 +658,19 @@ static int chcr_aes_encrypt(struct ablkcipher_request *req)
 	struct sk_buff *skb;
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    ctx->tx_channel_id))) {
+					    ctx->tx_qidx))) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
 			return -EBUSY;
 	}
 
-	skb = create_cipher_wr(req, u_ctx->lldi.rxq_ids[ctx->tx_channel_id],
+	skb = create_cipher_wr(req, u_ctx->lldi.rxq_ids[ctx->rx_qidx],
 			       CHCR_ENCRYPT_OP);
 	if (IS_ERR(skb)) {
 		pr_err("chcr : %s : Failed to form WR. No memory\n", __func__);
 		return  PTR_ERR(skb);
 	}
 	skb->dev = u_ctx->lldi.ports[0];
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
 	return -EINPROGRESS;
 }
@@ -683,19 +683,19 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 	struct sk_buff *skb;
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    ctx->tx_channel_id))) {
+					    ctx->tx_qidx))) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
 			return -EBUSY;
 	}
 
-	skb = create_cipher_wr(req, u_ctx->lldi.rxq_ids[0],
+	skb = create_cipher_wr(req, u_ctx->lldi.rxq_ids[ctx->rx_qidx],
 			       CHCR_DECRYPT_OP);
 	if (IS_ERR(skb)) {
 		pr_err("chcr : %s : Failed to form WR. No memory\n", __func__);
 		return PTR_ERR(skb);
 	}
 	skb->dev = u_ctx->lldi.ports[0];
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
 	return -EINPROGRESS;
 }
@@ -703,7 +703,9 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 static int chcr_device_init(struct chcr_context *ctx)
 {
 	struct uld_ctx *u_ctx;
+	struct adapter *adap;
 	unsigned int id;
+	int txq_perchan, txq_idx, ntxq;
 	int err = 0, rxq_perchan, rxq_idx;
 
 	id = smp_processor_id();
@@ -714,11 +716,18 @@ static int chcr_device_init(struct chcr_context *ctx)
 			goto out;
 		}
 		u_ctx = ULD_CTX(ctx);
+		adap = padap(ctx->dev);
+		ntxq = min_not_zero((unsigned int)u_ctx->lldi.nrxq,
+				    adap->vres.ncrypto_fc);
 		rxq_perchan = u_ctx->lldi.nrxq / u_ctx->lldi.nchan;
+		txq_perchan = ntxq / u_ctx->lldi.nchan;
 		rxq_idx = ctx->dev->tx_channel_id * rxq_perchan;
 		rxq_idx += id % rxq_perchan;
+		txq_idx = ctx->dev->tx_channel_id * txq_perchan;
+		txq_idx += id % txq_perchan;
 		spin_lock(&ctx->dev->lock_chcr_dev);
-		ctx->tx_channel_id = rxq_idx;
+		ctx->rx_qidx = rxq_idx;
+		ctx->tx_qidx = txq_idx;
 		ctx->dev->tx_channel_id = !ctx->dev->tx_channel_id;
 		ctx->dev->rx_channel_id = 0;
 		spin_unlock(&ctx->dev->lock_chcr_dev);
@@ -872,7 +881,7 @@ static int chcr_ahash_update(struct ahash_request *req)
 
 	u_ctx = ULD_CTX(ctx);
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    ctx->tx_channel_id))) {
+					    ctx->tx_qidx))) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
 			return -EBUSY;
 	}
@@ -912,7 +921,7 @@ static int chcr_ahash_update(struct ahash_request *req)
 	}
 	req_ctx->reqlen = remainder;
 	skb->dev = u_ctx->lldi.ports[0];
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
 
 	return -EINPROGRESS;
@@ -965,7 +974,7 @@ static int chcr_ahash_final(struct ahash_request *req)
 		return -ENOMEM;
 
 	skb->dev = u_ctx->lldi.ports[0];
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
 	return -EINPROGRESS;
 }
@@ -984,7 +993,7 @@ static int chcr_ahash_finup(struct ahash_request *req)
 	u_ctx = ULD_CTX(ctx);
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    ctx->tx_channel_id))) {
+					    ctx->tx_qidx))) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
 			return -EBUSY;
 	}
@@ -1016,7 +1025,7 @@ static int chcr_ahash_finup(struct ahash_request *req)
 		return -ENOMEM;
 
 	skb->dev = u_ctx->lldi.ports[0];
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
 
 	return -EINPROGRESS;
@@ -1037,7 +1046,7 @@ static int chcr_ahash_digest(struct ahash_request *req)
 
 	u_ctx = ULD_CTX(ctx);
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    ctx->tx_channel_id))) {
+					    ctx->tx_qidx))) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
 			return -EBUSY;
 	}
@@ -1067,7 +1076,7 @@ static int chcr_ahash_digest(struct ahash_request *req)
 		return -ENOMEM;
 
 	skb->dev = u_ctx->lldi.ports[0];
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
+	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_qidx);
 	chcr_send_wr(skb);
 	return -EINPROGRESS;
 }
