@@ -156,6 +156,7 @@ static int __init x86_xsave_setup(char *s)
 	setup_clear_cpu_cap(X86_FEATURE_AVX);
 	setup_clear_cpu_cap(X86_FEATURE_AVX2);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512IFMA);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
@@ -163,6 +164,7 @@ static int __init x86_xsave_setup(char *s)
 	setup_clear_cpu_cap(X86_FEATURE_AVX512BW);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512VL);
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512VBMI);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512_4VNNIW);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512_4FMAPS);
 	return 1;
