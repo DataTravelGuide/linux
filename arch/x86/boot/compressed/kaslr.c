@@ -629,7 +629,7 @@ void choose_random_location(unsigned long input,
 	*virt_addr = *output;
 
 	if (!cmdline_find_option_bool("kaslr")) {
-		warn("KASLR disabled: no 'kaslr' on cmdline.");
+		debug_putstr("KASLR disabled: no 'kaslr' on cmdline.");
 		return;
 	}
 
