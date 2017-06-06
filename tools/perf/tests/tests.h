@@ -1,6 +1,8 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+#include <stdbool.h>
+
 #define TEST_ASSERT_VAL(text, cond)					 \
 do {									 \
 	if (!(cond)) {							 \
@@ -27,6 +29,7 @@ enum {
 struct test {
 	const char *desc;
 	int (*func)(int subtest);
+	bool (*is_supported)(void);
 };
 
 /* Tests */
@@ -80,6 +83,8 @@ int test__is_printable_array(int subtest);
 int test__bitmap_print(int subtest);
 int test__perf_hooks(int subtest);
 int test__unit_number__scnprint(int subtest);
+
+bool test__bp_signal_is_supported(void);
 
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
