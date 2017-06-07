@@ -3264,7 +3264,6 @@ static int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
-	struct page *page;
 
 	entry = *pte;
 	if (!pte_present(entry)) {
@@ -3280,13 +3279,6 @@ static int handle_pte_fault(struct mm_struct *mm,
 					pte, pmd, flags, entry);
 		return do_swap_page(mm, vma, address,
 					pte, pmd, flags, entry);
-	}
- 
-	/* Catch mapping of un-addressable memory this should never happen */
-	page = pfn_to_page(pte_pfn(entry));
-	if (is_hmm_page(page)) {
-		print_bad_pte(vma, address, entry, page);
-		return VM_FAULT_SIGBUS;
 	}
 
 	if (pte_numa(entry))
