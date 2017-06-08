@@ -102,7 +102,9 @@ static int cap_sb_set_mnt_opts(struct super_block *sb,
 }
 
 static int cap_sb_clone_mnt_opts(const struct super_block *oldsb,
-				  struct super_block *newsb)
+				  struct super_block *newsb,
+			          unsigned long kern_flags,
+			          unsigned long *set_kern_flags)
 {
 	return 0;
 }

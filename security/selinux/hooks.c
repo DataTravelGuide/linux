@@ -894,8 +894,11 @@ mismatch:
 }
 
 static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
-					struct super_block *newsb)
+					struct super_block *newsb,
+					unsigned long kern_flags,
+					unsigned long *set_kern_flags)
 {
+	int rc = 0;
 	const struct superblock_security_struct *oldsbsec = oldsb->s_security;
 	struct superblock_security_struct *newsbsec = newsb->s_security;
 
@@ -909,6 +912,13 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	 */
 	if (!ss_initialized)
 		return 0;
+
+	/*
+	 * Specifying internal flags without providing a place to
+	 * place the results is not allowed.
+	 */
+	if (kern_flags && !set_kern_flags)
+		return -EINVAL;
 
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
@@ -924,6 +934,20 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	newsbsec->sid = oldsbsec->sid;
 	newsbsec->def_sid = oldsbsec->def_sid;
 	newsbsec->behavior = oldsbsec->behavior;
+
+	if (newsbsec->behavior == SECURITY_FS_USE_NATIVE &&
+		!(kern_flags & SECURITY_LSM_NATIVE_LABELS) && !set_context) {
+		rc = security_fs_use((newsbsec->flags & SE_SBPROC) ?
+					"proc" : newsb->s_type->name,
+					&newsbsec->behavior, &newsbsec->sid);
+		if (rc)
+			goto out;
+	}
+
+	if (kern_flags & SECURITY_LSM_NATIVE_LABELS && !set_context) {
+		newsbsec->behavior = SECURITY_FS_USE_NATIVE;
+		*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
+	}
 
 	if (set_context) {
 		u32 sid = oldsbsec->mntpoint_sid;
@@ -944,8 +968,9 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	}
 
 	sb_finish_set_opts(newsb);
+out:
 	mutex_unlock(&newsbsec->lock);
-	return 0;
+	return rc;
 }
 
 static int selinux_parse_opts_str(char *options,

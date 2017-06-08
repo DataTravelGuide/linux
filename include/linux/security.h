@@ -1495,7 +1495,9 @@ struct security_operations {
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
 	int (*sb_clone_mnt_opts) (const struct super_block *oldsb,
-				   struct super_block *newsb);
+				   struct super_block *newsb,
+				   unsigned long kern_flags,
+				   unsigned long *set_kern_flags);
 	int (*sb_parse_opts_str) (char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security) (struct dentry *dentry, int mode,
 					struct qstr *name, void **ctx,
@@ -1796,7 +1798,9 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
 int security_sb_clone_mnt_opts(const struct super_block *oldsb,
-				struct super_block *newsb);
+				struct super_block *newsb,
+				unsigned long kern_flags,
+				unsigned long *set_kern_flags);
 int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts);
 int security_dentry_init_security(struct dentry *dentry, int mode,
 					struct qstr *name, void **ctx,
@@ -2100,7 +2104,9 @@ static inline int security_sb_set_mnt_opts(struct super_block *sb,
 }
 
 static inline int security_sb_clone_mnt_opts(const struct super_block *oldsb,
-					      struct super_block *newsb)
+					      struct super_block *newsb,
+					      unsigned long kern_flags,
+					      unsigned long *set_kern_flags)
 {
 	return 0;
 }
