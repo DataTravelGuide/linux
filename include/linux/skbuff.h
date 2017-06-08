@@ -518,8 +518,6 @@ enum {
 
 	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 12,
 
-	SKB_GSO_TUNNEL_REMCSUM = 1 << 13,
-
 	SKB_GSO_SCTP = 1 << 14,
 
 	SKB_GSO_TCP_FIXEDID = 1 << 15,
@@ -530,7 +528,7 @@ enum {
 /* NETIF_F_GSO flags are no longer part of a single range */
 #define SKB_GSO1_MASK (SKB_GSO_GRE_CSUM - 1)
 #define SKB_GSO2_MASK (SKB_GSO_GRE_CSUM|SKB_GSO_UDP_TUNNEL_CSUM|\
-		       SKB_GSO_TUNNEL_REMCSUM|SKB_GSO_SCTP|\
+		       SKB_GSO_SCTP|\
 		       SKB_GSO_TCP_FIXEDID|SKB_GSO_PARTIAL)
 
 #if BITS_PER_LONG > 32

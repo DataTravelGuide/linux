@@ -57,8 +57,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM);
 	skb->encap_hdr_csum = need_csum;
 
-	remcsum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TUNNEL_REMCSUM);
-	skb->remcsum_offload = remcsum;
+	remcsum = skb->remcsum_offload;
 
 	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 
@@ -380,9 +379,6 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff,
 	rcu_read_unlock();
 	if (sk)
 		sock_put(sk);
-
-	if (skb->remcsum_offload)
-		skb_shinfo(skb)->gso_type |= SKB_GSO_TUNNEL_REMCSUM;
 
 	return err;
 }
