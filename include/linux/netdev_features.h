@@ -73,24 +73,20 @@ enum {
 	NETIF_F_TSO_MANGLEID_BIT,	/* ... IPV4 ID mangling allowed */
 
 	/*
-	 * RHEL only: Make sure to leave space to allow adding new GSO bits
-	 * to this second arena of GSO bits so as not having to add another,
-	 * third, GSO arena. Please add new GSO bits upwards starting
-	 * at __NETIF_F_GSO2_PLACEHOLDER_1.
+	 * RHEL only: There is no more space for new GSO bits.
+	 * skb_shared_info->gso_type has only 16 bits and all of them are
+	 * used. We tried to extend skb_shared_info but that had performance
+	 * impact. Hence, no more GSO bits can be backported.
 	 *
-	 * !!! Make sure to add accompanying SKB flags to SKB_GSO2_MASK !!!
-	 *
-	 * Add non-GSO bits right before NETDEV_FEATURE_COUNT, as long as
-	 * there's space left.  Otherwise add further non-GSO bits starting
-	 * at __NETIF_F_GSO2_PLACEHOLDER_8 downwards.  If we ever need more
-	 * than 64 bits here it requires an upstream change anyway.
+	 * Non-GSO related bits can be still added here. Please add them
+	 * from the top, replacing the placeholder with the highest number.
 	 */
-	__NETIF_F_GSO2_PLACEHOLDER_1,
-	__NETIF_F_GSO2_PLACEHOLDER_2,
-	__NETIF_F_GSO2_PLACEHOLDER_3,
-	__NETIF_F_GSO2_PLACEHOLDER_4,
-	__NETIF_F_GSO2_PLACEHOLDER_5,
-	__NETIF_F_GSO2_PLACEHOLDER_6,
+	__NETIF_F_PLACEHOLDER_1,
+	__NETIF_F_PLACEHOLDER_2,
+	__NETIF_F_PLACEHOLDER_3,
+	__NETIF_F_PLACEHOLDER_4,
+	__NETIF_F_PLACEHOLDER_5,
+	__NETIF_F_PLACEHOLDER_6,
 
 	NETIF_F_HW_L2FW_DOFFLOAD_BIT,	/* Allow L2 Forwarding in Hardware */
 
