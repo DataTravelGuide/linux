@@ -3281,7 +3281,7 @@ static int __init ef4_init_module(void)
 
 	printk(KERN_INFO "Solarflare Falcon driver v" EF4_DRIVER_VERSION "\n");
 
-	rc = register_netdevice_notifier(&ef4_netdev_notifier);
+	rc = register_netdevice_notifier_rh(&ef4_netdev_notifier);
 	if (rc)
 		goto err_notifier;
 
@@ -3300,7 +3300,7 @@ static int __init ef4_init_module(void)
  err_pci:
 	destroy_workqueue(reset_workqueue);
  err_reset:
-	unregister_netdevice_notifier(&ef4_netdev_notifier);
+	unregister_netdevice_notifier_rh(&ef4_netdev_notifier);
  err_notifier:
 	return rc;
 }
@@ -3311,7 +3311,7 @@ static void __exit ef4_exit_module(void)
 
 	pci_unregister_driver(&ef4_pci_driver);
 	destroy_workqueue(reset_workqueue);
-	unregister_netdevice_notifier(&ef4_netdev_notifier);
+	unregister_netdevice_notifier_rh(&ef4_netdev_notifier);
 
 }
 
