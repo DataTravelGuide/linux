@@ -554,7 +554,6 @@ static int skcipher_check_key(struct socket *sock)
 	int err;
 	struct sock *psk;
 	struct alg_sock *pask;
-	// struct skcipher_tfm *tfm;
 	struct ablkcipher_tfm_keycheck *tfm;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -761,8 +760,10 @@ static int skcipher_accept_parent_common(void *private, struct sock *sk)
 static int skcipher_accept_parent(void *private, struct sock *sk)
 {
 	struct ablkcipher_tfm_keycheck *tfm = private;
+	struct crypto_tfm *ctfm = crypto_ablkcipher_tfm(tfm->ablkcipher);
+	struct crypto_alg *calg = ctfm->__crt_alg;
 
-	if (!tfm->has_key)
+	if (!tfm->has_key && calg->cra_u.ablkcipher.max_keysize)
 		return -ENOKEY;
 
 	return skcipher_accept_parent_common(private, sk);
