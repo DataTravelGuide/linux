@@ -1,8 +1,6 @@
 #ifndef LINUX_KEXEC_H
 #define LINUX_KEXEC_H
 
-#include <linux/crash_core.h>
-
 #include <uapi/linux/kexec.h>
 
 #ifdef CONFIG_KEXEC_CORE
@@ -11,6 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <asm/kexec.h>
+#include <linux/crash_core.h>
 
 /* Verify architecture specific macros are defined */
 
@@ -47,15 +46,6 @@
 #endif
 
 #define KEXEC_CORE_NOTE_NAME	CRASH_CORE_NOTE_NAME
-
-/*
- * The per-cpu notes area is a list of notes terminated by a "NULL"
- * note header.  For kdump, the code in vmcore.c runs in the context
- * of the second kernel to combine them into one note.
- */
-#ifndef KEXEC_NOTE_BYTES
-#define KEXEC_NOTE_BYTES	CRASH_CORE_NOTE_BYTES
-#endif
 
 /*
  * This structure is used to hold the arguments that are used when loading
