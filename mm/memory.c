@@ -1192,33 +1192,6 @@ again:
 		}
 
 		/*
-		 * Un-addressable page must always be check that are not like
-		 * other swap entries and thus should be check no matter what
-		 * details value is.
-		 */
-		entry = pte_to_swp_entry(ptent);
-		if (non_swap_entry(entry) && is_hmm_entry(entry)) {
-			struct page *page = hmm_entry_to_page(entry);
-
-			if (unlikely(details)) {
-				/*
-				 * unmap_shared_mapping_pages() wants to
-				 * invalidate cache without truncating:
-				 * unmap shared but keep private pages.
-				 */
-				if (details->check_mapping &&
-				    details->check_mapping != page_rmapping(page))
-					continue;
-			}
-
-			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
-			rss[mm_counter(page)]--;
-			page_remove_rmap(page);
-			put_page(page);
-			continue;
-		}
-
-		/*
 		 * If details->check_mapping, we leave swap entries;
 		 * if details->nonlinear_vma, we leave file entries.
 		 */
@@ -1232,7 +1205,21 @@ again:
 
 			if (!non_swap_entry(entry))
 				rss[MM_SWAPENTS]--;
-			else if (is_migration_entry(entry)) {
+			else if (is_hmm_entry(entry)) {
+				/*
+				 * Un-addressable page must always be check
+				 * that are not like other swap entries and
+				 * thus should be check no matter what
+				 * details value is.
+				 */
+				struct page *page = hmm_entry_to_page(entry);
+
+				pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+				rss[mm_counter(page)]--;
+				page_remove_rmap(page);
+				put_page(page);
+				continue;
+			} else if (is_migration_entry(entry)) {
 				struct page *page;
 
 				page = migration_entry_to_page(entry);
