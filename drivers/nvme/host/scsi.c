@@ -1230,7 +1230,7 @@ static int nvme_trans_send_activate_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr 
 	c.common.opcode = nvme_admin_activate_fw;
 	c.common.cdw10[0] = cpu_to_le32(buffer_id | NVME_FWACT_REPL_ACTV);
 
-	nvme_sc = nvme_submit_sync_cmd(ns->queue, &c, NULL, 0);
+	nvme_sc = nvme_submit_sync_cmd(ns->ctrl->admin_q, &c, NULL, 0);
 	return nvme_trans_status_code(hdr, nvme_sc);
 }
 
