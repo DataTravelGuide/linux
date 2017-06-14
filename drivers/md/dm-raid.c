@@ -3811,7 +3811,7 @@ static int raid_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 11, 0},
+	.version = {1, 12, 0},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
