@@ -8273,9 +8273,6 @@ static void md_start_sync(struct work_struct *ws)
  */
 void md_check_recovery(struct mddev *mddev)
 {
-	if (mddev->suspended)
-		return;
-
 	if (mddev->bitmap)
 		bitmap_daemon_work(mddev);
 
@@ -8377,6 +8374,7 @@ void md_check_recovery(struct mddev *mddev)
 		clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 
 		if (!test_and_clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
+		    mddev->suspended ||
 		    test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
 			goto not_running;
 		/* no recovery is running.
