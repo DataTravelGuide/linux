@@ -256,14 +256,14 @@ static void linear_free(struct mddev *mddev, void *priv)
 	kfree(conf);
 }
 
-static void linear_make_request(struct mddev *mddev, struct bio *bio)
+static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct dev_info *tmp_dev;
 	sector_t start_sector;
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
 
 	tmp_dev = which_dev(mddev, bio->bi_sector);
@@ -281,7 +281,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		       (unsigned long long)tmp_dev->rdev->sectors,
 		       (unsigned long long)start_sector);
 		bio_io_error(bio);
-		return;
+		return true;
 	}
 	if (unlikely(bio_end_sector(bio) > tmp_dev->end_sector)) {
 		/* This bio crosses a device boundary, so we have to
@@ -295,7 +295,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		linear_make_request(mddev, &bp->bio1);
 		linear_make_request(mddev, &bp->bio2);
 		bio_pair_release(bp);
-		return;
+		return true;
 	}
 		    
 	bio->bi_bdev = tmp_dev->rdev->bdev;
@@ -306,10 +306,11 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		     !blk_queue_discard(bdev_get_queue(bio->bi_bdev)))) {
 		/* Just ignore it */
 		bio_endio(bio, 0);
-		return;
+		return true;
 	}
 
 	generic_make_request(bio);
+	return true;
 }
 
 static void linear_status (struct seq_file *seq, struct mddev *mddev)

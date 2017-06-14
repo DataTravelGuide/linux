@@ -1160,7 +1160,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	kfree(plug);
 }
 
-static void raid10_make_request(struct mddev *mddev, struct bio * bio)
+static bool raid10_make_request(struct mddev *mddev, struct bio * bio)
 {
 	struct r10conf *conf = mddev->private;
 	struct r10bio *r10_bio;
@@ -1184,8 +1184,12 @@ static void raid10_make_request(struct mddev *mddev, struct bio * bio)
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
+
+
+	if (!md_write_start(mddev, bio))
+		return false;
 
 	/* If this request crosses a chunk boundary, we need to
 	 * split it.  This will only happen for 1 PAGE (or less) requests.
@@ -1225,17 +1229,15 @@ static void raid10_make_request(struct mddev *mddev, struct bio * bio)
 		spin_unlock_irq(&conf->resync_lock);
 
 		bio_pair_release(bp);
-		return;
+		return true;
 	bad_map:
 		printk("md/raid10:%s: make_request bug: can't convert block across chunks"
 		       " or bigger than %dk %llu %d\n", mdname(mddev), chunk_sects/2,
 		       (unsigned long long)bio->bi_sector, bio_sectors(bio) / 2);
 
 		bio_io_error(bio);
-		return;
+		return true;
 	}
-
-	md_write_start(mddev, bio);
 
 	/*
 	 * Register the new request and wait if the reconstruction
@@ -1305,7 +1307,7 @@ read_again:
 		rdev = read_balance(conf, r10_bio, &max_sectors);
 		if (!rdev) {
 			raid_end_bio_io(r10_bio);
-			return;
+			return true;
 		}
 		slot = r10_bio->read_slot;
 
@@ -1356,7 +1358,7 @@ read_again:
 			goto read_again;
 		} else
 			generic_make_request(read_bio);
-		return;
+		return true;
 	}
 
 	/*
@@ -1613,6 +1615,7 @@ retry_write:
 
 	/* In case raid10d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
+	return true;
 }
 
 static void raid10_status(struct seq_file *seq, struct mddev *mddev)
