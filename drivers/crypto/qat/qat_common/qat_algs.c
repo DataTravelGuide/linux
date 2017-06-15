@@ -737,6 +737,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		if (unlikely(dma_mapping_error(dev, bufl->bufers[bufs].addr)))
 			goto err;
 		bufs++;
+		qat_req->buf.copyback = 1;
 	}
 
 	for_each_sg(sgl, sg, n, i) {
@@ -757,7 +758,9 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	qat_req->buf.bl = bufl;
 	qat_req->buf.blp = blp;
 	qat_req->buf.sz = sz;
+	qat_req->buf.initial_iv = iv;
 	qat_req->buf.iv = civ;
+	qat_req->buf.ivlen = ivlen;
 	/* Handle out of place operation */
 	if (sgl != sglout) {
 		struct qat_alg_buf *bufers;
@@ -840,6 +843,10 @@ static void qat_aead_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 	struct aead_request *areq = qat_req->aead_req;
 	uint8_t stat_filed = qat_resp->comn_resp.comn_status;
 	int res = 0, qat_res = ICP_QAT_FW_COMN_RESP_CRYPTO_STAT_GET(stat_filed);
+
+	if (qat_req->buf.copyback)
+		memcpy(qat_req->buf.initial_iv, qat_req->buf.iv,
+		       qat_req->buf.ivlen);
 
 	qat_alg_free_bufl(inst, qat_req);
 	if (unlikely(qat_res != ICP_QAT_FW_COMN_STATUS_FLAG_OK))

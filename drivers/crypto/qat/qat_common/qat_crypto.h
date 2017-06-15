@@ -72,6 +72,9 @@ struct qat_crypto_request_buffs {
 	size_t sz;
 	size_t sz_out;
 	u8 *iv;
+	u8 *initial_iv;
+	u8 ivlen;
+	u8 copyback;
 };
 
 struct qat_crypto_request;

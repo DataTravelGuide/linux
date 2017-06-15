@@ -847,7 +847,7 @@ static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
 {
 	struct aead_request *req;
 
-	req = kmalloc(sizeof(*req) + crypto_aead_reqsize(tfm), gfp);
+	req = kzalloc(sizeof(*req) + crypto_aead_reqsize(tfm), gfp);
 
 	if (likely(req))
 		aead_request_set_tfm(req, tfm);
