@@ -2128,6 +2128,22 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "authenc(hmac(md5),ecb(cipher_null))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_md5_ecb_cipher_null_enc_tv_template,
+					.count = HMAC_MD5_ECB_CIPHER_NULL_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = hmac_md5_ecb_cipher_null_dec_tv_template,
+					.count = HMAC_MD5_ECB_CIPHER_NULL_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "authenc(hmac(sha1),cbc(aes))",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
@@ -2143,6 +2159,22 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "authenc(hmac(sha1),ctr(aes))",
 		.test = alg_test_null,
 		.fips_allowed = 1,
+	}, {
+		.alg = "authenc(hmac(sha1),ecb(cipher_null))",
+		.test = alg_test_aead,
+		.fips_allowed = 1,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = hmac_sha1_ecb_cipher_null_enc_tv_template,
+					.count = HMAC_SHA1_ECB_CIPHER_NULL_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = hmac_sha1_ecb_cipher_null_dec_tv_template,
+					.count = HMAC_SHA1_ECB_CIPHER_NULL_DEC_TEST_VECTORS
+				}
+			}
+		}
 	}, {
 		.alg = "authenc(hmac(sha256),cbc(aes))",
 		.test = alg_test_aead,
