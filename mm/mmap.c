@@ -2931,11 +2931,10 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
  *  anonymous maps.  eventually we may be able to do some
  *  brk-specific accounting here.
  */
-static unsigned long do_brk(unsigned long addr, unsigned long len, struct list_head *uf)
+static unsigned long do_brk_flags(unsigned long addr, unsigned long len, struct list_head *uf, unsigned long flags)
 {
 	struct mm_struct * mm = current->mm;
 	struct vm_area_struct * vma, * prev;
-	unsigned long flags;
 	struct rb_node ** rb_link, * rb_parent;
 	pgoff_t pgoff = addr >> PAGE_SHIFT;
 	int error;
@@ -2944,7 +2943,10 @@ static unsigned long do_brk(unsigned long addr, unsigned long len, struct list_h
 	if (!len)
 		return addr;
 
-	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+	/* Until we need other flags, refuse anything except VM_EXEC. */
+	if ((flags & (~VM_EXEC)) != 0)
+		return -EINVAL;
+	flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
 
 	error = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
 	if (error & ~PAGE_MASK)
@@ -3021,7 +3023,12 @@ out:
 	return addr;
 }
 
-unsigned long vm_brk(unsigned long addr, unsigned long len)
+static unsigned long do_brk(unsigned long addr, unsigned long len, struct list_head *uf)
+{
+	return do_brk_flags(addr, len, uf, 0);
+}
+
+unsigned long vm_brk_flags(unsigned long addr, unsigned long len, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long ret;
@@ -3029,13 +3036,19 @@ unsigned long vm_brk(unsigned long addr, unsigned long len)
 	LIST_HEAD(uf);
 
 	down_write(&mm->mmap_sem);
-	ret = do_brk(addr, len, &uf);
+	ret = do_brk_flags(addr, len, &uf, flags);
 	populate = ((mm->def_flags & VM_LOCKED) != 0);
 	up_write(&mm->mmap_sem);
 	userfaultfd_unmap_complete(mm, &uf);
 	if (populate)
 		mm_populate(addr, len);
 	return ret;
+}
+EXPORT_SYMBOL(vm_brk_flags);
+
+unsigned long vm_brk(unsigned long addr, unsigned long len)
+{
+	return vm_brk_flags(addr, len, 0);
 }
 EXPORT_SYMBOL(vm_brk);
 
