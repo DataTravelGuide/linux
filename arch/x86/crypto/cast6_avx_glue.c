@@ -368,7 +368,8 @@ static struct crypto_alg cast6_algs[10] = { {
 	.cra_name		= "__ecb-cast6-avx",
 	.cra_driver_name	= "__driver-ecb-cast6-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST6_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast6_ctx),
 	.cra_alignmask		= 0,
@@ -387,7 +388,8 @@ static struct crypto_alg cast6_algs[10] = { {
 	.cra_name		= "__cbc-cast6-avx",
 	.cra_driver_name	= "__driver-cbc-cast6-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST6_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast6_ctx),
 	.cra_alignmask		= 0,
@@ -406,7 +408,8 @@ static struct crypto_alg cast6_algs[10] = { {
 	.cra_name		= "__ctr-cast6-avx",
 	.cra_driver_name	= "__driver-ctr-cast6-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct cast6_ctx),
 	.cra_alignmask		= 0,
@@ -426,7 +429,8 @@ static struct crypto_alg cast6_algs[10] = { {
 	.cra_name		= "__lrw-cast6-avx",
 	.cra_driver_name	= "__driver-lrw-cast6-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST6_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast6_lrw_ctx),
 	.cra_alignmask		= 0,
@@ -449,7 +453,8 @@ static struct crypto_alg cast6_algs[10] = { {
 	.cra_name		= "__xts-cast6-avx",
 	.cra_driver_name	= "__driver-xts-cast6-avx",
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= CAST6_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct cast6_xts_ctx),
 	.cra_alignmask		= 0,
