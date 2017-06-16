@@ -762,10 +762,9 @@ static inline int do_one_ahash_op(struct ahash_request *req, int ret)
 	if (ret == -EINPROGRESS || ret == -EBUSY) {
 		struct tcrypt_result *tr = req->base.data;
 
-		ret = wait_for_completion_interruptible(&tr->completion);
-		if (!ret)
-			ret = tr->err;
+		wait_for_completion(&tr->completion);
 		INIT_COMPLETION(tr->completion);
+		ret = tr->err;
 	}
 	return ret;
 }
@@ -1102,10 +1101,9 @@ static inline int do_one_acipher_op(struct ablkcipher_request *req, int ret)
 	if (ret == -EINPROGRESS || ret == -EBUSY) {
 		struct tcrypt_result *tr = req->base.data;
 
-		ret = wait_for_completion_interruptible(&tr->completion);
-		if (!ret)
-			ret = tr->err;
+		wait_for_completion(&tr->completion);
 		INIT_COMPLETION(tr->completion);
+		ret = tr->err;
 	}
 
 	return ret;
