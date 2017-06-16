@@ -214,6 +214,7 @@ static int alg_setkey(struct sock *sk, char __user *ukey,
 	err = type->setkey(ask->private, key, keylen);
 
 out:
+	memset(key, 0, keylen);
 	sock_kfree_s(sk, key, keylen);
 
 	return err;
