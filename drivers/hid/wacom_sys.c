@@ -1198,6 +1198,14 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 	int error;
 	unsigned long n;
 
+	/*
+	 * Disabling power_supply code for RHEL-7.4 due lack of more intrusive
+	 * changes. This will be fixed in RHEL-7.5
+	 */
+	if (wacom->wacom_wac.features.type == REMOTE ||
+	    wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY)
+		return 0;
+
 	if (!devres_open_group(dev, &wacom->battery, GFP_KERNEL))
 		return -ENOMEM;
 
@@ -1238,6 +1246,10 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
+	if (wacom->wacom_wac.features.type == REMOTE ||
+	    wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY)
+		return;
+
 	if (wacom->battery.battery.dev) {
 		devres_release_group(&wacom->hdev->dev,
 				     &wacom->battery);
