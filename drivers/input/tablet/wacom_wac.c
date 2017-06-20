@@ -2051,7 +2051,7 @@ static const struct wacom_features wacom_features_0xF6 =
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x32A =
-	{ "Wacom Cintiq 27QHD", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63,
+	{ "Wacom Cintiq 27QHD", WACOM_PKGLEN_INTUOS, 119740, 67520, 1023, 63,
 	  WACOM_27QHD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x3F =
