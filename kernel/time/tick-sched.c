@@ -658,7 +658,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	/* Skip reprogram of event if its not changed */
 	if (ts->tick_stopped && (expires == ts->next_tick.tv64)) {
 		/* Sanity check: make sure clockevent is actually programmed */
-		if (likely(dev->next_event.tv64 <= ts->next_tick.tv64))
+		if (tick.tv64 == KTIME_MAX || ts->next_tick.tv64 == hrtimer_get_expires_tv64(&ts->sched_timer))
 			goto out;
 
 		WARN_ON_ONCE(1);
@@ -695,8 +695,10 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		goto out;
 	}
 
+	hrtimer_set_expires(&ts->sched_timer, tick);
+
 	if (ts->nohz_mode == NOHZ_MODE_HIGHRES)
-		hrtimer_start(&ts->sched_timer, tick, HRTIMER_MODE_ABS_PINNED);
+		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED);
 	else
 		tick_program_event(tick, 1);
 out:
