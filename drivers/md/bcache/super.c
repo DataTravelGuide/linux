@@ -63,6 +63,7 @@ static wait_queue_head_t unregister_wait;
 struct workqueue_struct *bcache_wq;
 
 #define BTREE_MAX_PAGES		(256 * 1024 / PAGE_SIZE)
+#define BCACHE_MINORS		16 /* partition support */
 
 static void bio_split_pool_free(struct bio_split_pool *p)
 {
@@ -761,11 +762,13 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size)
 	if (minor < 0)
 		return minor;
 
+	minor *= BCACHE_MINORS;
+
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
 	    !(d->unaligned_bvec = mempool_create_kmalloc_pool(1,
 				sizeof(struct bio_vec) * BIO_MAX_PAGES)) ||
 	    bio_split_pool_init(&d->bio_split_hook) ||
-	    !(d->disk = alloc_disk(1))) {
+	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
 		ida_simple_remove(&bcache_minor, minor);
 		return -ENOMEM;
 	}
