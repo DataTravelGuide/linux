@@ -2816,7 +2816,6 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	if (user_ns != &init_user_ns) {
 		static int __read_mostly called_mark_tech_preview = 0;
 		if (!enable_unpriv_mnt_ns_creation) {
-			put_mnt_ns(ns);
 			return ERR_PTR(-EPERM);
 		}
 		if (!called_mark_tech_preview &&
