@@ -740,7 +740,8 @@ static void bcache_device_free(struct bcache_device *d)
 	if (d->disk && d->disk->queue)
 		blk_cleanup_queue(d->disk->queue);
 	if (d->disk) {
-		ida_simple_remove(&bcache_minor, d->disk->first_minor);
+		ida_simple_remove(&bcache_minor, 
+				d->disk->first_minor / BCACHE_MINORS);
 		put_disk(d->disk);
 	}
 
@@ -769,7 +770,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size)
 				sizeof(struct bio_vec) * BIO_MAX_PAGES)) ||
 	    bio_split_pool_init(&d->bio_split_hook) ||
 	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
-		ida_simple_remove(&bcache_minor, minor);
+		ida_simple_remove(&bcache_minor, minor / BCACHE_MINORS);
 		return -ENOMEM;
 	}
 
