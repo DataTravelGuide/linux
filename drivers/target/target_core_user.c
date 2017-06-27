@@ -82,6 +82,7 @@ struct tcmu_hba {
 
 struct tcmu_dev {
 	struct se_device se_dev;
+	int dev_index;
 
 	char *name;
 	struct se_hba *hba;
@@ -137,6 +138,9 @@ struct tcmu_cmd {
 };
 
 static struct kmem_cache *tcmu_cmd_cache;
+
+static DEFINE_IDR(devices_idr);
+static DEFINE_MUTEX(device_mutex);
 
 /* multicast group */
 enum tcmu_multicast_groups {
@@ -908,8 +912,15 @@ static int tcmu_configure_device(struct se_device *dev)
 	struct tcmu_mailbox *mb;
 	size_t size;
 	size_t used;
-	int ret = 0;
+	int id, ret = 0;
 	char *str;
+
+	mutex_lock(&device_mutex);
+	id = idr_alloc_cyclic(&devices_idr, dev, 0, INT_MAX, GFP_KERNEL);
+	mutex_unlock(&device_mutex);
+	if (id < 0)
+		return -ENOMEM;
+	udev->dev_index = id;
 
 	info = &udev->uio_info;
 
@@ -917,8 +928,10 @@ static int tcmu_configure_device(struct se_device *dev)
 			udev->dev_config);
 	size += 1; /* for \0 */
 	str = kmalloc(size, GFP_KERNEL);
-	if (!str)
-		return -ENOMEM;
+	if (!str) {
+		ret = -ENOMEM;
+		goto err_kmalloc;
+	}
 
 	used = snprintf(str, size, "tcm-user/%u/%s", hba->host_id, udev->name);
 
@@ -987,6 +1000,10 @@ err_register:
 	vfree(udev->mb_addr);
 err_vzalloc:
 	kfree(info->name);
+err_kmalloc:
+	mutex_lock(&device_mutex);
+	idr_remove(&devices_idr, udev->dev_index);
+	mutex_unlock(&device_mutex);
 
 	return ret;
 }
@@ -1033,6 +1050,10 @@ static void tcmu_free_device(struct se_device *dev)
 		uio_unregister_device(&udev->uio_info);
 		kfree(udev->uio_info.name);
 		kfree(udev->name);
+
+		mutex_lock(&device_mutex);
+		idr_remove(&devices_idr, udev->dev_index);
+		mutex_unlock(&device_mutex);
 	}
 
 	kfree(udev);
@@ -1322,6 +1343,8 @@ static int __init tcmu_module_init(void)
 	if (ret)
 		goto out_unreg_genl;
 
+	idr_init(&devices_idr);
+
 	return 0;
 
 out_unreg_genl:
@@ -1336,6 +1359,7 @@ out_free_cache:
 
 static void __exit tcmu_module_exit(void)
 {
+	idr_destroy(&devices_idr);
 	transport_subsystem_release(&tcmu_template);
 	genl_unregister_family(&tcmu_genl_family);
 	root_device_unregister(tcmu_root_device);
