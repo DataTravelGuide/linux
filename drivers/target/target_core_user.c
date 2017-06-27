@@ -1197,12 +1197,19 @@ static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
 	return -EINVAL;
 }
 
+static void tcmu_free_device(struct se_device *dev)
+{
+	struct tcmu_dev *udev = TCMU_DEV(dev);
+
+	kfree(udev);
+}
+
 static bool tcmu_dev_configured(struct tcmu_dev *udev)
 {
 	return udev->uio_info.uio_dev ? true : false;
 }
 
-static void tcmu_free_device(struct se_device *dev)
+static void tcmu_destroy_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
 	struct tcmu_cmd *cmd;
@@ -1234,8 +1241,6 @@ static void tcmu_free_device(struct se_device *dev)
 		idr_remove(&devices_idr, udev->dev_index);
 		mutex_unlock(&device_mutex);
 	}
-
-	kfree(udev);
 }
 
 enum {
@@ -1482,6 +1487,7 @@ static struct se_subsystem_api tcmu_template = {
 	.detach_hba		= tcmu_detach_hba,
 	.alloc_device		= tcmu_alloc_device,
 	.configure_device	= tcmu_configure_device,
+	.destroy_device		= tcmu_destroy_device,
 	.free_device		= tcmu_free_device,
 	.parse_cdb		= tcmu_parse_cdb,
 	.set_configfs_dev_params = tcmu_set_configfs_dev_params,
