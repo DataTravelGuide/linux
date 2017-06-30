@@ -170,7 +170,7 @@ struct net {
 	RH_KABI_EXTEND(struct nf_sctp_net ct_sctp)
 #endif
 #if IS_ENABLED(CONFIG_NF_CONNTRACK) && defined(CONFIG_NF_CT_PROTO_UDPLITE)
-	RH_KABI_EXTEND(struct nf_udplite_net ct_udplite)
+	RH_KABI_EXTEND(struct nf_udplite_net rh_reserved_ct_udplite)
 #endif
 
 	RH_KABI_EXTEND(int idgen_retries)
