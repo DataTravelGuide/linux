@@ -1219,6 +1219,7 @@ static enum netdev_lag_tx_type bond_lag_tx_type(struct bonding *bond)
 static int bond_master_upper_dev_link(struct bonding *bond, struct slave *slave)
 {
 	struct netdev_lag_upper_info lag_upper_info;
+	char linkname[IFNAMSIZ+7];
 	int err;
 
 	lag_upper_info.tx_type = bond_lag_tx_type(bond);
@@ -1226,12 +1227,24 @@ static int bond_master_upper_dev_link(struct bonding *bond, struct slave *slave)
 					   &lag_upper_info);
 	if (err)
 		return err;
+
+	sprintf(linkname, "slave_%s", slave->dev->name);
+	err = sysfs_create_link(&(bond->dev->dev.kobj), &(slave->dev->dev.kobj),
+				linkname);
+	if (err) {
+		netdev_upper_dev_unlink(slave->dev, bond->dev);
+		return err;
+	}
+
 	rtmsg_ifinfo(RTM_NEWLINK, slave->dev, IFF_SLAVE, GFP_KERNEL);
 	return 0;
 }
 
 static void bond_upper_dev_unlink(struct bonding *bond, struct slave *slave)
 {
+	char linkname[IFNAMSIZ+7];
+	sprintf(linkname, "slave_%s", slave->dev->name);
+	sysfs_remove_link(&(bond->dev->dev.kobj), linkname);
 	netdev_upper_dev_unlink(slave->dev, bond->dev);
 	slave->dev->flags &= ~IFF_SLAVE;
 	rtmsg_ifinfo(RTM_NEWLINK, slave->dev, IFF_SLAVE, GFP_KERNEL);
