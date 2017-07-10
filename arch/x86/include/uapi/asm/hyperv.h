@@ -142,6 +142,11 @@
  */
 #define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
 
+/*
+ * HV_VP_SET available
+ */
+#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
+
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000
 
