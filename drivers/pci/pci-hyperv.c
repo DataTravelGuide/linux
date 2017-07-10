@@ -375,7 +375,10 @@ struct hv_pcibus_device {
 
 	struct list_head children;
 	struct list_head dr_list;
+
+	/* hypercall arg, must not cross page boundary */
 	struct retarget_msi_interrupt retarget_msi_interrupt_params;
+
 	spinlock_t retarget_msi_interrupt_lock;
 };
 
@@ -2122,7 +2125,13 @@ static int hv_pci_probe(struct hv_device *hdev,
 	struct hv_pcibus_device *hbus;
 	int ret;
 
-	hbus = kzalloc(sizeof(*hbus), GFP_KERNEL);
+	/*
+	 * hv_pcibus_device contains the hypercall arguments for retargeting in
+	 * hv_irq_unmask(). Those must not cross a page boundary.
+	 */
+	BUILD_BUG_ON(sizeof(*hbus) > PAGE_SIZE);
+
+	hbus = (struct hv_pcibus_device *)get_zeroed_page(GFP_KERNEL);
 	if (!hbus)
 		return -ENOMEM;
 	hbus->state = hv_pcibus_init;
@@ -2212,7 +2221,7 @@ release:
 close:
 	vmbus_close(hdev->channel);
 free_bus:
-	kfree(hbus);
+	free_page((unsigned long)hbus);
 	return ret;
 }
 
@@ -2288,7 +2297,7 @@ static int hv_pci_remove(struct hv_device *hdev)
 	hv_pci_free_bridge_windows(hbus);
 	put_hvpcibus(hbus);
 	wait_for_completion(&hbus->remove_event);
-	kfree(hbus);
+	free_page((unsigned long)hbus);
 	return 0;
 }
 
