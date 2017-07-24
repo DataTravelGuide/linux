@@ -27,6 +27,8 @@ static void nvmet_bio_done(struct bio *bio, int err)
 
 	if (bio != &req->inline_bio)
 		bio_put(bio);
+	else
+		kfree(bio->bio_aux);
 }
 
 static inline u32 nvmet_rw_len(struct nvmet_req *req)
