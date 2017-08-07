@@ -310,7 +310,12 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
 		nodes_per_socket = ((ecx >> 8) & 7) + 1;
-		node_id = cpuid_ecx(0x8000001e) & 7;
+
+		node_id  = ecx & 0xff;
+		smp_num_siblings = ((ebx >> 8) & 0xff) + 1;
+
+		if (c->x86 == 0x15)
+			c->cu_id = ebx & 0xff;
 
 		/*
 		 * We may have multiple LLCs if L3 caches exist, so check if we

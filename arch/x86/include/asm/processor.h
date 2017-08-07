@@ -134,7 +134,7 @@ struct cpuinfo_x86 {
 	/* Core id: */
 	u16			cpu_core_id;
 	/* Compute unit id */
-	u8			compute_unit_id;
+	RH_KABI_REPLACE(u8 compute_unit_id, __u8 cu_id)
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 	u32			microcode;
