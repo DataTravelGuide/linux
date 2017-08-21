@@ -1160,7 +1160,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 		/* for now, flush if more than 1 request in page_group */
 		do_flush |= req->wb_this_page != req;
 		if (l_ctx && ctx->dentry->d_inode->i_flock != NULL)
-			do_flush |= l_ctx->lockowner.l_owner != current->files;
+			do_flush |= l_ctx->lockowner != current->files;
 		nfs_release_request(req);
 		if (!do_flush)
 			return 0;
