@@ -711,27 +711,19 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
-		if (err) {
-			netdev_err(dev, "Failed to set flooding for FID=%d",
-				   vid);
-			return err;
-		}
-	}
-
-	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
 					true, flag_untagged);
 	if (err) {
-		netdev_err(dev, "Failed to configure flooding\n");
-		goto err_port_flood_set;
+		netdev_err(dev, "Unable to add VIDs %d-%d\n", vid_begin,
+			   vid_end);
+		goto err_port_vlans_set;
 	}
 
-	vid = vid_begin;
-	if (flag_pvid && mlxsw_sp_port->pvid != vid) {
-		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid);
+	old_pvid = mlxsw_sp_port->pvid;
+	if (flag_pvid && old_pvid != vid_begin) {
+		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid_begin);
 		if (err) {
-			netdev_err(mlxsw_sp_port->dev, "Unable to add PVID %d\n",
-				   vid);
-			return err;
+			netdev_err(dev, "Unable to add PVID %d\n", vid_begin);
+			goto err_port_pvid_set;
 		}
 	} else if (!flag_pvid && old_pvid >= vid_begin && old_pvid <= vid_end) {
 		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
@@ -758,8 +750,30 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			clear_bit(vid, mlxsw_sp_port->untagged_vlans);
 	}
 
-	return mlxsw_sp_port_stp_state_set(mlxsw_sp_port,
-					   mlxsw_sp_port->stp_state);
+	/* STP state change must be done after we set active VLANs */
+	err = mlxsw_sp_port_stp_state_set(mlxsw_sp_port,
+					  mlxsw_sp_port->stp_state);
+	if (err) {
+		netdev_err(dev, "Failed to set STP state\n");
+		goto err_port_stp_state_set;
+	}
+
+	return 0;
+
+err_port_stp_state_set:
+	for (vid = vid_begin; vid <= vid_end; vid++)
+		clear_bit(vid, mlxsw_sp_port->active_vlans);
+	mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid_begin, vid_end,
+				       false);
+err_port_vid_learning_set:
+	if (old_pvid != mlxsw_sp_port->pvid)
+		mlxsw_sp_port_pvid_set(mlxsw_sp_port, old_pvid);
+err_port_pvid_set:
+	__mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end, false,
+				  false);
+err_port_vlans_set:
+	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
+	return err;
 }
 
 static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1005,19 +1019,8 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	return 0;
 
-err_port_stp_state_set:
-	for (vid = vid_begin; vid <= vid_end; vid++)
-		clear_bit(vid, mlxsw_sp_port->active_vlans);
-	mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid_begin, vid_end,
-				       false);
-err_port_vid_learning_set:
-	if (old_pvid != mlxsw_sp_port->pvid)
-		mlxsw_sp_port_pvid_set(mlxsw_sp_port, old_pvid);
-err_port_pvid_set:
-	__mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end, false,
-				  false);
-err_port_vlans_set:
-	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
+err_out:
+	__mlxsw_sp_mc_dec_ref(mlxsw_sp, mid);
 	return err;
 }
 
@@ -1076,26 +1079,6 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	__mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end, false,
 				  false);
-
-	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
-
-	for (vid = vid_begin; vid <= vid_end; vid++) {
-		err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, false,
-						false);
-		if (err) {
-			netdev_err(dev, "Failed to clear flooding for FID=%d",
-				   vid);
-			return err;
-		}
-	}
-
-	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
-					false, false);
-	if (err) {
-		netdev_err(dev, "Unable to del VIDs %d-%d\n", vid_begin,
-			   vid_end);
-		return err;
-	}
 
 	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
 

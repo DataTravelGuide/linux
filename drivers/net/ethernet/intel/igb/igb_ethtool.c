@@ -3277,13 +3277,6 @@ static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
 	if (!indir)
 		return 0;
 
-	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
-	if (!indir)
-		return 0;
-
 	num_queues = adapter->rss_queues;
 
 	switch (hw->mac.type) {

@@ -33,10 +33,7 @@ int	core_dev_setup_virtual_lun0(void);
 void	core_dev_release_virtual_lun0(void);
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name);
 int	target_configure_device(struct se_device *dev);
-	struct list_head	tf_list;
-	struct config_group	tf_group;
-	struct config_group	tf_disc_group;
-	const struct target_core_fabric_ops *tf_ops;
+void	target_free_device(struct se_device *);
 
 /* target_core_hba.c */
 struct se_hba *core_alloc_hba(const char *, u32, u32);

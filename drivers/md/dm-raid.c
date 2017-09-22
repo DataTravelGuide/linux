@@ -1945,9 +1945,7 @@ static int read_disk_sb(struct md_rdev *rdev, int size, bool force_reload)
 	if (rdev->sb_loaded && !force_reload)
 		return 0;
 
-	rdev->sb_loaded = 0;
-
-	if (!sync_page_io(rdev, 0, size, rdev->sb_page, REQ_OP_READ, 0, true)) {
+	if (!sync_page_io(rdev, 0, size, rdev->sb_page, READ, true)) {
 		DMERR("Failed to read superblock of device at position %d",
 		      rdev->raid_disk);
 		md_error(rdev->mddev, rdev);

@@ -475,8 +475,9 @@ static void xgbe_unmap_rdata(struct xgbe_prv_data *pdata,
 		put_page(rdata->rx.buf.pa_unmap.pages);
 	}
 
-	rdata->tso_header = 0;
-	rdata->len = 0;
+	memset(&rdata->tx, 0, sizeof(rdata->tx));
+	memset(&rdata->rx, 0, sizeof(rdata->rx));
+
 	rdata->mapped_as_page = 0;
 
 	if (rdata->state_saved) {

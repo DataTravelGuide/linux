@@ -366,14 +366,15 @@ EXPORT_SYMBOL_GPL(handle_simple_irq);
  *	Note: Like handle_simple_irq, the caller is expected to handle
  *	the ack, clear, mask and unmask issues if necessary.
  */
-void handle_untracked_irq(struct irq_desc *desc)
+void handle_untracked_irq(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int flags = 0;
 
 	raw_spin_lock(&desc->lock);
 
-	if (!irq_may_run(desc))
-		goto out_unlock;
+	if (unlikely(irqd_irq_inprogress(&desc->irq_data)))
+		if (!irq_check_poll(desc))
+			goto out_unlock;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 
@@ -386,7 +387,7 @@ void handle_untracked_irq(struct irq_desc *desc)
 	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock(&desc->lock);
 
-	__handle_irq_event_percpu(desc, &flags);
+	__handle_irq_event_percpu(desc, desc->action, &flags);
 
 	raw_spin_lock(&desc->lock);
 	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);

@@ -548,6 +548,14 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp);
 
 static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	/* At this stage we're guaranteed not to have new incoming
+	 * FIB notifications and the work queue is free from FIBs
+	 * sitting on top of mlxsw netdevs. However, we can still
+	 * have other FIBs queued. Flush the queue before flushing
+	 * the device's tables. No need for locks, as we're the only
+	 * writer.
+	 */
+	mlxsw_core_flush_owq();
 	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	kfree(mlxsw_sp->router.vrs);
 }
@@ -1214,7 +1222,8 @@ static int mlxsw_sp_nexthop_mac_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 
 static int
 mlxsw_sp_nexthop_group_mac_update(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_nexthop_group *nh_grp)
+				  struct mlxsw_sp_nexthop_group *nh_grp,
+				  bool reallocate)
 {
 	u32 adj_index = nh_grp->adj_index; /* base */
 	struct mlxsw_sp_nexthop *nh;
@@ -1229,7 +1238,7 @@ mlxsw_sp_nexthop_group_mac_update(struct mlxsw_sp *mlxsw_sp,
 			continue;
 		}
 
-		if (nh->update) {
+		if (nh->update || reallocate) {
 			err = mlxsw_sp_nexthop_mac_update(mlxsw_sp,
 							  adj_index, nh);
 			if (err)
@@ -1295,7 +1304,8 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		/* Nothing was added or removed, so no need to reallocate. Just
 		 * update MAC on existing adjacency indexes.
 		 */
-		err = mlxsw_sp_nexthop_group_mac_update(mlxsw_sp, nh_grp);
+		err = mlxsw_sp_nexthop_group_mac_update(mlxsw_sp, nh_grp,
+							false);
 		if (err) {
 			dev_warn(mlxsw_sp->bus_info->dev, "Failed to update neigh MAC in adjacency table.\n");
 			goto set_trap;
@@ -1323,7 +1333,7 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	nh_grp->adj_index_valid = 1;
 	nh_grp->adj_index = adj_index;
 	nh_grp->ecmp_size = ecmp_size;
-	err = mlxsw_sp_nexthop_group_mac_update(mlxsw_sp, nh_grp);
+	err = mlxsw_sp_nexthop_group_mac_update(mlxsw_sp, nh_grp, true);
 	if (err) {
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to update neigh MAC in adjacency table.\n");
 		goto set_trap;
@@ -2501,52 +2511,9 @@ struct mlxsw_sp_fib_event_work {
 	};
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long event;
-static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
-				     unsigned long event, void *ptr)
-{
-	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
-	struct fib_entry_notifier_info *fen_info = ptr;
-	int err;
+};
 
-	if (!net_eq(fen_info->info.net, &init_net))
-		return NOTIFY_DONE;
-
-	switch (event) {
-	case FIB_EVENT_ENTRY_ADD:
-		err = mlxsw_sp_router_fib4_add(mlxsw_sp, fen_info);
-		if (err)
-			mlxsw_sp_router_fib4_abort(mlxsw_sp);
-		break;
-	case FIB_EVENT_ENTRY_DEL:
-		mlxsw_sp_router_fib4_del(mlxsw_sp, fen_info);
-		break;
-	case FIB_EVENT_RULE_ADD: /* fall through */
-	case FIB_EVENT_RULE_DEL:
-		mlxsw_sp_router_fib4_abort(mlxsw_sp);
-		break;
-	case FIB_EVENT_NH_ADD: /* fall through */
-	case FIB_EVENT_NH_DEL:
-		mlxsw_sp_nexthop_event(mlxsw_sp, fib_work->event,
-				       fib_work->fnh_info.fib_nh);
-		fib_info_put(fib_work->fnh_info.fib_nh->nh_parent);
-		break;
-	}
-	return NOTIFY_DONE;
-}
-
-static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
-{
-	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
-
-	/* Flush pending FIB notifications and then flush the device's
-	 * table before requesting another dump. The FIB notification
-	 * block is unregistered, so no need to take RTNL.
-	 */
-	mlxsw_core_flush_owq();
-	mlxsw_sp_router_fib_flush(mlxsw_sp);
-}
-
-int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 {
 	struct mlxsw_sp_fib_event_work *fib_work =
 		container_of(work, struct mlxsw_sp_fib_event_work, work);
@@ -2567,6 +2534,84 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 		if (err)
 			mlxsw_sp_router_fib4_abort(mlxsw_sp);
 		fib_info_put(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_ENTRY_DEL:
+		mlxsw_sp_router_fib4_del(mlxsw_sp, &fib_work->fen_info);
+		fib_info_put(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		break;
+	case FIB_EVENT_NH_ADD: /* fall through */
+	case FIB_EVENT_NH_DEL:
+		mlxsw_sp_nexthop_event(mlxsw_sp, fib_work->event,
+				       fib_work->fnh_info.fib_nh);
+		fib_info_put(fib_work->fnh_info.fib_nh->nh_parent);
+		break;
+	}
+	rtnl_unlock();
+	kfree(fib_work);
+}
+
+/* Called with rcu_read_lock() */
+static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+	struct mlxsw_sp_fib_event_work *fib_work;
+	struct fib_notifier_info *info = ptr;
+
+	if (!net_eq(info->net, &init_net))
+		return NOTIFY_DONE;
+
+	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
+	if (WARN_ON(!fib_work))
+		return NOTIFY_BAD;
+
+	INIT_WORK(&fib_work->work, mlxsw_sp_router_fib_event_work);
+	fib_work->mlxsw_sp = mlxsw_sp;
+	fib_work->event = event;
+
+	switch (event) {
+	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
+	case FIB_EVENT_ENTRY_APPEND: /* fall through */
+	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_DEL:
+		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
+		/* Take referece on fib_info to prevent it from being
+		 * freed while work is queued. Release it afterwards.
+		 */
+		fib_info_hold(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_NH_ADD: /* fall through */
+	case FIB_EVENT_NH_DEL:
+		memcpy(&fib_work->fnh_info, ptr, sizeof(fib_work->fnh_info));
+		fib_info_hold(fib_work->fnh_info.fib_nh->nh_parent);
+		break;
+	}
+
+	mlxsw_core_schedule_work(&fib_work->work);
+
+	return NOTIFY_DONE;
+}
+
+static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
+{
+	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+
+	/* Flush pending FIB notifications and then flush the device's
+	 * table before requesting another dump. The FIB notification
+	 * block is unregistered, so no need to take RTNL.
+	 */
+	mlxsw_core_flush_owq();
+	mlxsw_sp_router_fib_flush(mlxsw_sp);
+}
+
+int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int err;
+
 	INIT_LIST_HEAD(&mlxsw_sp->router.nexthop_neighs_list);
 	err = __mlxsw_sp_router_init(mlxsw_sp);
 	if (err)
@@ -2597,16 +2642,8 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_register_fib_notifier;
 
-	INIT_WORK(&fib_work->work, mlxsw_sp_router_fib_event_work);
-	fib_work->mlxsw_sp = mlxsw_sp;
-	fib_work->event = event;
+	return 0;
 
-	switch (event) {
-	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
-	case FIB_EVENT_ENTRY_APPEND: /* fall through */
-	case FIB_EVENT_ENTRY_ADD: /* fall through */
-	case FIB_EVENT_ENTRY_DEL:
-		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
 err_register_fib_notifier:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
@@ -2618,17 +2655,6 @@ err_nexthop_group_ht_init:
 err_nexthop_ht_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	return err;
-		break;
-	case FIB_EVENT_NH_ADD: /* fall through */
-	case FIB_EVENT_NH_DEL:
-		memcpy(&fib_work->fnh_info, ptr, sizeof(fib_work->fnh_info));
-		fib_info_hold(fib_work->fnh_info.fib_nh->nh_parent);
-		break;
-	}
-
-	mlxsw_core_schedule_work(&fib_work->work);
-
-	return NOTIFY_DONE;
 }
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)

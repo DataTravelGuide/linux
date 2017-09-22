@@ -3069,7 +3069,7 @@ static struct dentry *proc_pid_instantiate(struct inode *dir,
 	struct dentry *error = ERR_PTR(-ENOENT);
 	struct inode *inode;
 
-	inode = proc_pid_make_inode(dir->i_sb, task, S_IFDIR | S_IRUGO | S_IXUGO);
+	inode = proc_pid_make_inode(dir->i_sb, task, S_IFDIR|S_IRUGO|S_IXUGO);
 	if (!inode)
 		goto out;
 
@@ -3331,7 +3331,7 @@ static struct dentry *proc_task_instantiate(struct inode *dir,
 {
 	struct dentry *error = ERR_PTR(-ENOENT);
 	struct inode *inode;
-	inode = proc_pid_make_inode(dir->i_sb, task, S_IFDIR | S_IRUGO | S_IXUGO);
+	inode = proc_pid_make_inode(dir->i_sb, task, S_IFDIR|S_IRUGO|S_IXUGO);
 
 	if (!inode)
 		goto out;

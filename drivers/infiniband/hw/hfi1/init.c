@@ -94,7 +94,7 @@ module_param_array(krcvqs, uint, &krcvqsset, S_IRUGO);
 MODULE_PARM_DESC(krcvqs, "Array of the number of non-control kernel receive queues by VL");
 
 /* computed based on above array */
-unsigned n_krcvqs;
+unsigned long n_krcvqs;
 
 static unsigned hfi1_rcvarr_split = 25;
 module_param_named(rcvarr_split, hfi1_rcvarr_split, uint, S_IRUGO);
@@ -262,13 +262,6 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 		}
 		rcd->eager_base = base * dd->rcv_entries.group_size;
 
-		/* Validate and initialize Rcv Hdr Q variables */
-		if (rcvhdrcnt % HDRQ_INCREMENT) {
-			dd_dev_err(dd,
-				   "ctxt%u: header queue count %d must be divisible by %lu\n",
-				   rcd->ctxt, rcvhdrcnt, HDRQ_INCREMENT);
-			goto bail;
-		}
 		rcd->rcvhdrq_cnt = rcvhdrcnt;
 		rcd->rcvhdrqentsize = hfi1_hdrq_entsize;
 		/*
@@ -710,7 +703,7 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 	/* allocate dummy tail memory for all receive contexts */
 	dd->rcvhdrtail_dummy_kvaddr = dma_zalloc_coherent(
 		&dd->pcidev->dev, sizeof(u64),
-		&dd->rcvhdrtail_dummy_physaddr,
+		&dd->rcvhdrtail_dummy_dma,
 		GFP_KERNEL);
 
 	if (!dd->rcvhdrtail_dummy_kvaddr) {
@@ -943,12 +936,12 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 	if (rcd->rcvhdrq) {
 		dma_free_coherent(&dd->pcidev->dev, rcd->rcvhdrq_size,
-				  rcd->rcvhdrq, rcd->rcvhdrq_phys);
+				  rcd->rcvhdrq, rcd->rcvhdrq_dma);
 		rcd->rcvhdrq = NULL;
 		if (rcd->rcvhdrtail_kvaddr) {
 			dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
 					  (void *)rcd->rcvhdrtail_kvaddr,
-					  rcd->rcvhdrqtailaddr_phys);
+					  rcd->rcvhdrqtailaddr_dma);
 			rcd->rcvhdrtail_kvaddr = NULL;
 		}
 	}
@@ -957,11 +950,11 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	kfree(rcd->egrbufs.rcvtids);
 
 	for (e = 0; e < rcd->egrbufs.alloced; e++) {
-		if (rcd->egrbufs.buffers[e].phys)
+		if (rcd->egrbufs.buffers[e].dma)
 			dma_free_coherent(&dd->pcidev->dev,
 					  rcd->egrbufs.buffers[e].len,
 					  rcd->egrbufs.buffers[e].addr,
-					  rcd->egrbufs.buffers[e].phys);
+					  rcd->egrbufs.buffers[e].dma);
 	}
 	kfree(rcd->egrbufs.buffers);
 
@@ -1335,7 +1328,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		spin_unlock(&ppd->cc_state_lock);
 
 		if (cc_state)
-			call_rcu(&cc_state->rcu, cc_state_reclaim);
+			kfree_rcu(cc_state, rcu);
 	}
 
 	free_credit_return(dd);
@@ -1355,7 +1348,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 	if (dd->rcvhdrtail_dummy_kvaddr) {
 		dma_free_coherent(&dd->pcidev->dev, sizeof(u64),
 				  (void *)dd->rcvhdrtail_dummy_kvaddr,
-				  dd->rcvhdrtail_dummy_physaddr);
+				  dd->rcvhdrtail_dummy_dma);
 		dd->rcvhdrtail_dummy_kvaddr = NULL;
 	}
 
@@ -1399,6 +1392,29 @@ static void postinit_cleanup(struct hfi1_devdata *dd)
 	hfi1_free_devdata(dd);
 }
 
+static int init_validate_rcvhdrcnt(struct device *dev, uint thecnt)
+{
+	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
+		hfi1_early_err(dev, "Receive header queue count too small\n");
+		return -EINVAL;
+	}
+
+	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
+		hfi1_early_err(dev,
+			       "Receive header queue count cannot be greater than %u\n",
+			       HFI1_MAX_HDRQ_EGRBUF_CNT);
+		return -EINVAL;
+	}
+
+	if (thecnt % HDRQ_INCREMENT) {
+		hfi1_early_err(dev, "Receive header queue count %d must be divisible by %lu\n",
+			       thecnt, HDRQ_INCREMENT);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret = 0, j, pidx, initfail;
@@ -1409,18 +1425,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	HFI1_CAP_LOCK();
 
 	/* Validate some global module parameters */
-	if (rcvhdrcnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
-		hfi1_early_err(&pdev->dev, "Header queue  count too small\n");
-		ret = -EINVAL;
+	ret = init_validate_rcvhdrcnt(&pdev->dev, rcvhdrcnt);
+	if (ret)
 		goto bail;
-	}
-	if (rcvhdrcnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
-		hfi1_early_err(&pdev->dev,
-			       "Receive header queue count cannot be greater than %u\n",
-			       HFI1_MAX_HDRQ_EGRBUF_CNT);
-		ret = -EINVAL;
-		goto bail;
-	}
+
 	/* use the encoding function as a sanitization check */
 	if (!encode_rcv_header_entry_size(hfi1_hdrq_entsize)) {
 		hfi1_early_err(&pdev->dev, "Invalid HdrQ Entry size %u\n",
@@ -1594,7 +1602,7 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	u64 reg;
 
 	if (!rcd->rcvhdrq) {
-		dma_addr_t phys_hdrqtail;
+		dma_addr_t dma_hdrqtail;
 		gfp_t gfp_flags;
 
 		/*
@@ -1607,7 +1615,7 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 		gfp_flags = (rcd->ctxt >= dd->first_user_ctxt) ?
 			GFP_USER : GFP_KERNEL;
 		rcd->rcvhdrq = dma_zalloc_coherent(
-			&dd->pcidev->dev, amt, &rcd->rcvhdrq_phys,
+			&dd->pcidev->dev, amt, &rcd->rcvhdrq_dma,
 			gfp_flags | __GFP_COMP);
 
 		if (!rcd->rcvhdrq) {
@@ -1619,11 +1627,11 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL)) {
 			rcd->rcvhdrtail_kvaddr = dma_zalloc_coherent(
-				&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail,
+				&dd->pcidev->dev, PAGE_SIZE, &dma_hdrqtail,
 				gfp_flags);
 			if (!rcd->rcvhdrtail_kvaddr)
 				goto bail_free;
-			rcd->rcvhdrqtailaddr_phys = phys_hdrqtail;
+			rcd->rcvhdrqtailaddr_dma = dma_hdrqtail;
 		}
 
 		rcd->rcvhdrq_size = amt;
@@ -1651,7 +1659,7 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	 * before enabling any receive context
 	 */
 	write_kctxt_csr(dd, rcd->ctxt, RCV_HDR_TAIL_ADDR,
-			dd->rcvhdrtail_dummy_physaddr);
+			dd->rcvhdrtail_dummy_dma);
 
 	return 0;
 
@@ -1662,7 +1670,7 @@ bail_free:
 	vfree(rcd->user_event_mask);
 	rcd->user_event_mask = NULL;
 	dma_free_coherent(&dd->pcidev->dev, amt, rcd->rcvhdrq,
-			  rcd->rcvhdrq_phys);
+			  rcd->rcvhdrq_dma);
 	rcd->rcvhdrq = NULL;
 bail:
 	return -ENOMEM;
@@ -1723,15 +1731,15 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 		rcd->egrbufs.buffers[idx].addr =
 			dma_zalloc_coherent(&dd->pcidev->dev,
 					    rcd->egrbufs.rcvtid_size,
-					    &rcd->egrbufs.buffers[idx].phys,
+					    &rcd->egrbufs.buffers[idx].dma,
 					    gfp_flags);
 		if (rcd->egrbufs.buffers[idx].addr) {
 			rcd->egrbufs.buffers[idx].len =
 				rcd->egrbufs.rcvtid_size;
 			rcd->egrbufs.rcvtids[rcd->egrbufs.alloced].addr =
 				rcd->egrbufs.buffers[idx].addr;
-			rcd->egrbufs.rcvtids[rcd->egrbufs.alloced].phys =
-				rcd->egrbufs.buffers[idx].phys;
+			rcd->egrbufs.rcvtids[rcd->egrbufs.alloced].dma =
+				rcd->egrbufs.buffers[idx].dma;
 			rcd->egrbufs.alloced++;
 			alloced_bytes += rcd->egrbufs.rcvtid_size;
 			idx++;
@@ -1772,14 +1780,14 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 			for (i = 0, j = 0, offset = 0; j < idx; i++) {
 				if (i >= rcd->egrbufs.count)
 					break;
-				rcd->egrbufs.rcvtids[i].phys =
-					rcd->egrbufs.buffers[j].phys + offset;
+				rcd->egrbufs.rcvtids[i].dma =
+					rcd->egrbufs.buffers[j].dma + offset;
 				rcd->egrbufs.rcvtids[i].addr =
 					rcd->egrbufs.buffers[j].addr + offset;
 				rcd->egrbufs.alloced++;
-				if ((rcd->egrbufs.buffers[j].phys + offset +
+				if ((rcd->egrbufs.buffers[j].dma + offset +
 				     new_size) ==
-				    (rcd->egrbufs.buffers[j].phys +
+				    (rcd->egrbufs.buffers[j].dma +
 				     rcd->egrbufs.buffers[j].len)) {
 					j++;
 					offset = 0;
@@ -1831,7 +1839,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 
 	for (idx = 0; idx < rcd->egrbufs.alloced; idx++) {
 		hfi1_put_tid(dd, rcd->eager_base + idx, PT_EAGER,
-			     rcd->egrbufs.rcvtids[idx].phys, order);
+			     rcd->egrbufs.rcvtids[idx].dma, order);
 		cond_resched();
 	}
 	goto bail;
@@ -1843,9 +1851,9 @@ bail_rcvegrbuf_phys:
 		dma_free_coherent(&dd->pcidev->dev,
 				  rcd->egrbufs.buffers[idx].len,
 				  rcd->egrbufs.buffers[idx].addr,
-				  rcd->egrbufs.buffers[idx].phys);
+				  rcd->egrbufs.buffers[idx].dma);
 		rcd->egrbufs.buffers[idx].addr = NULL;
-		rcd->egrbufs.buffers[idx].phys = 0;
+		rcd->egrbufs.buffers[idx].dma = 0;
 		rcd->egrbufs.buffers[idx].len = 0;
 	}
 bail:

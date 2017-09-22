@@ -35,64 +35,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* reg_sbpm_buff_occupancy
- * Current buffer occupancy in cells.
- * Access: RO
- */
-MLXSW_ITEM32(reg, sbpm, buff_occupancy, 0x10, 0, 24);
-
-/* reg_sbpm_clr
- * Clear Max Buffer Occupancy
- * When this bit is set, max_buff_occupancy field is cleared (and a
- * new max value is tracked from the time the clear was performed).
- * Access: OP
- */
-MLXSW_ITEM32(reg, sbpm, clr, 0x14, 31, 1);
-
-/* reg_sbpm_max_buff_occupancy
- * Maximum value of buffer occupancy in cells monitored. Cleared by
- * writing to the clr field.
- * Access: RO
- */
-MLXSW_ITEM32(reg, sbpm, max_buff_occupancy, 0x14, 0, 24);
-
-/* reg_sbpm_min_buff
- * Minimum buffer size for the limiter, in cells.
- * Access: RW
-/* shared max_buff limits for dynamic threshold for SBCM, SBPM */
-#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN 1
-#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX 14
-
-/* reg_sbcm_max_buff
- * When the pool associated to the port-pg/tclass is configured to
- * static, Maximum buffer size for the limiter configured in cells.
-/* reg_pbmc_buf_xoff_threshold
- * Once the amount of data in the buffer goes above this value, device
- * starts sending PFC frames for all priorities associated with the
- * buffer. Units are represented in cells. Reserved in case of lossy
- * buffer.
- * Access: RW
- *
- * Note: In Spectrum, reserved for buffer[9].
- */
-MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xoff_threshold, 0x0C, 16, 16,
-		     0x08, 0x04, false);
-
-/* reg_pbmc_buf_xon_threshold
- * When the amount of data in the buffer goes below this value, device
- * stops sending PFC frames for the priorities associated with the
- * buffer. Units are represented in cells. Reserved in case of lossy
- * buffer.
- * Access: RW
- *
- * Note: In Spectrum, reserved for buffer[9].
- */
-MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xon_threshold, 0x0C, 0, 16,
-		     0x08, 0x04, false);
-
-static inline void mlxsw_reg_pbmc_pack(char *payload, u8 local_port,
-				       u16 xoff_timer_value, u16 xoff_refresh)
-{
 #ifndef _MLXSW_REG_H
 #define _MLXSW_REG_H
 
@@ -261,6 +203,38 @@ static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
 	mlxsw_reg_sspr_system_port_set(payload, local_port);
 }
 
+/* SFDAT - Switch Filtering Database Aging Time
+ * --------------------------------------------
+ * Controls the Switch aging time. Aging time is able to be set per Switch
+ * Partition.
+ */
+#define MLXSW_REG_SFDAT_ID 0x2009
+#define MLXSW_REG_SFDAT_LEN 0x8
+
+MLXSW_REG_DEFINE(sfdat, MLXSW_REG_SFDAT_ID, MLXSW_REG_SFDAT_LEN);
+
+/* reg_sfdat_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sfdat, swid, 0x00, 24, 8);
+
+/* reg_sfdat_age_time
+ * Aging time in seconds
+ * Min - 10 seconds
+ * Max - 1,000,000 seconds
+ * Default is 300 seconds.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdat, age_time, 0x04, 0, 20);
+
+static inline void mlxsw_reg_sfdat_pack(char *payload, u32 age_time)
+{
+	MLXSW_REG_ZERO(sfdat, payload);
+	mlxsw_reg_sfdat_swid_set(payload, 0);
+	mlxsw_reg_sfdat_age_time_set(payload, age_time);
+}
+
 /* SFD - Switch Filtering Database
  * -------------------------------
  * The following register defines the access to the filtering database.
@@ -275,10 +249,7 @@ static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
 #define MLXSW_REG_SFD_LEN (MLXSW_REG_SFD_BASE_LEN +	\
 			   MLXSW_REG_SFD_REC_LEN * MLXSW_REG_SFD_REC_MAX_COUNT)
 
-static const struct mlxsw_reg_info mlxsw_reg_sfd = {
-	.id = MLXSW_REG_SFD_ID,
-	.len = MLXSW_REG_SFD_LEN,
-};
+MLXSW_REG_DEFINE(sfd, MLXSW_REG_SFD_ID, MLXSW_REG_SFD_LEN);
 
 /* reg_sfd_swid
  * Switch partition ID for queries. Reserved on Write.
@@ -599,14 +570,13 @@ mlxsw_reg_sfd_mc_pack(char *payload, int rec_index,
 #define MLXSW_REG_SFN_LEN (MLXSW_REG_SFN_BASE_LEN +	\
 			   MLXSW_REG_SFN_REC_LEN * MLXSW_REG_SFN_REC_MAX_COUNT)
 
-MLXSW_REG_DEFINE(sfdat, MLXSW_REG_SFDAT_ID, MLXSW_REG_SFDAT_LEN);
+MLXSW_REG_DEFINE(sfn, MLXSW_REG_SFN_ID, MLXSW_REG_SFN_LEN);
 
 /* reg_sfn_swid
  * Switch partition ID.
-#define MLXSW_REG_SFD_LEN (MLXSW_REG_SFD_BASE_LEN +	\
-			   MLXSW_REG_SFD_REC_LEN * MLXSW_REG_SFD_REC_MAX_COUNT)
-
-MLXSW_REG_DEFINE(sfd, MLXSW_REG_SFD_ID, MLXSW_REG_SFD_LEN);
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sfn, swid, 0x00, 24, 8);
 
 /* reg_sfn_end
  * Forces the current session to end.
@@ -718,7 +688,7 @@ static inline void mlxsw_reg_sfn_mac_lag_unpack(char *payload, int rec_index,
 #define MLXSW_REG_SPMS_ID 0x200D
 #define MLXSW_REG_SPMS_LEN 0x404
 
-MLXSW_REG_DEFINE(sfn, MLXSW_REG_SFN_ID, MLXSW_REG_SFN_LEN);
+MLXSW_REG_DEFINE(spms, MLXSW_REG_SPMS_ID, MLXSW_REG_SPMS_LEN);
 
 /* reg_spms_local_port
  * Local port number.
@@ -755,6 +725,142 @@ static inline void mlxsw_reg_spms_vid_pack(char *payload, u16 vid,
 	mlxsw_reg_spms_state_set(payload, vid, state);
 }
 
+/* SPVID - Switch Port VID
+ * -----------------------
+ * The switch port VID configures the default VID for a port.
+ */
+#define MLXSW_REG_SPVID_ID 0x200E
+#define MLXSW_REG_SPVID_LEN 0x08
+
+MLXSW_REG_DEFINE(spvid, MLXSW_REG_SPVID_ID, MLXSW_REG_SPVID_LEN);
+
+/* reg_spvid_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
+
+/* reg_spvid_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
+
+/* reg_spvid_pvid
+ * Port default VID
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvid, pvid, 0x04, 0, 12);
+
+static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid)
+{
+	MLXSW_REG_ZERO(spvid, payload);
+	mlxsw_reg_spvid_local_port_set(payload, local_port);
+	mlxsw_reg_spvid_pvid_set(payload, pvid);
+}
+
+/* SPVM - Switch Port VLAN Membership
+ * ----------------------------------
+ * The Switch Port VLAN Membership register configures the VLAN membership
+ * of a port in a VLAN denoted by VID. VLAN membership is managed per
+ * virtual port. The register can be used to add and remove VID(s) from a port.
+ */
+#define MLXSW_REG_SPVM_ID 0x200F
+#define MLXSW_REG_SPVM_BASE_LEN 0x04 /* base length, without records */
+#define MLXSW_REG_SPVM_REC_LEN 0x04 /* record length */
+#define MLXSW_REG_SPVM_REC_MAX_COUNT 256
+#define MLXSW_REG_SPVM_LEN (MLXSW_REG_SPVM_BASE_LEN +	\
+		    MLXSW_REG_SPVM_REC_LEN * MLXSW_REG_SPVM_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(spvm, MLXSW_REG_SPVM_ID, MLXSW_REG_SPVM_LEN);
+
+/* reg_spvm_pt
+ * Priority tagged. If this bit is set, packets forwarded to the port with
+ * untagged VLAN membership (u bit is set) will be tagged with priority tag
+ * (VID=0)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvm, pt, 0x00, 31, 1);
+
+/* reg_spvm_pte
+ * Priority Tagged Update Enable. On Write operations, if this bit is cleared,
+ * the pt bit will NOT be updated. To update the pt bit, pte must be set.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, spvm, pte, 0x00, 30, 1);
+
+/* reg_spvm_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvm, local_port, 0x00, 16, 8);
+
+/* reg_spvm_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spvm, sub_port, 0x00, 8, 8);
+
+/* reg_spvm_num_rec
+ * Number of records to update. Each record contains: i, e, u, vid.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, spvm, num_rec, 0x00, 0, 8);
+
+/* reg_spvm_rec_i
+ * Ingress membership in VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_i,
+		     MLXSW_REG_SPVM_BASE_LEN, 14, 1,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+/* reg_spvm_rec_e
+ * Egress membership in VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_e,
+		     MLXSW_REG_SPVM_BASE_LEN, 13, 1,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+/* reg_spvm_rec_u
+ * Untagged - port is an untagged member - egress transmission uses untagged
+ * frames on VID<n>
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_u,
+		     MLXSW_REG_SPVM_BASE_LEN, 12, 1,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+/* reg_spvm_rec_vid
+ * Egress membership in VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvm, rec_vid,
+		     MLXSW_REG_SPVM_BASE_LEN, 0, 12,
+		     MLXSW_REG_SPVM_REC_LEN, 0, false);
+
+static inline void mlxsw_reg_spvm_pack(char *payload, u8 local_port,
+				       u16 vid_begin, u16 vid_end,
+				       bool is_member, bool untagged)
+{
+	int size = vid_end - vid_begin + 1;
+	int i;
+
+	MLXSW_REG_ZERO(spvm, payload);
+	mlxsw_reg_spvm_local_port_set(payload, local_port);
+	mlxsw_reg_spvm_num_rec_set(payload, size);
+
+	for (i = 0; i < size; i++) {
+		mlxsw_reg_spvm_rec_i_set(payload, i, is_member);
+		mlxsw_reg_spvm_rec_e_set(payload, i, is_member);
+		mlxsw_reg_spvm_rec_u_set(payload, i, untagged);
+		mlxsw_reg_spvm_rec_vid_set(payload, i, vid_begin + i);
+	}
+}
+
 /* SPAFT - Switch Port Acceptable Frame Types
  * ------------------------------------------
  * The Switch Port Acceptable Frame Types register configures the frame
@@ -763,7 +869,7 @@ static inline void mlxsw_reg_spms_vid_pack(char *payload, u16 vid,
 #define MLXSW_REG_SPAFT_ID 0x2010
 #define MLXSW_REG_SPAFT_LEN 0x08
 
-MLXSW_REG_DEFINE(spms, MLXSW_REG_SPMS_ID, MLXSW_REG_SPMS_LEN);
+MLXSW_REG_DEFINE(spaft, MLXSW_REG_SPAFT_ID, MLXSW_REG_SPAFT_LEN);
 
 /* reg_spaft_local_port
  * Local port number.
@@ -816,10 +922,7 @@ static inline void mlxsw_reg_spaft_pack(char *payload, u8 local_port,
 #define MLXSW_REG_SFGC_ID 0x2011
 #define MLXSW_REG_SFGC_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_sfgc = {
-	.id = MLXSW_REG_SFGC_ID,
-	.len = MLXSW_REG_SFGC_LEN,
-};
+MLXSW_REG_DEFINE(sfgc, MLXSW_REG_SFGC_ID, MLXSW_REG_SFGC_LEN);
 
 enum mlxsw_reg_sfgc_type {
 	MLXSW_REG_SFGC_TYPE_BROADCAST,
@@ -914,10 +1017,7 @@ mlxsw_reg_sfgc_pack(char *payload, enum mlxsw_reg_sfgc_type type,
 #define MLXSW_REG_SFTR_ID 0x2012
 #define MLXSW_REG_SFTR_LEN 0x420
 
-static const struct mlxsw_reg_info mlxsw_reg_sftr = {
-	.id = MLXSW_REG_SFTR_ID,
-	.len = MLXSW_REG_SFTR_LEN,
-};
+MLXSW_REG_DEFINE(sftr, MLXSW_REG_SFTR_ID, MLXSW_REG_SFTR_LEN);
 
 /* reg_sftr_swid
  * Switch partition ID with which to associate the port.
@@ -987,10 +1087,7 @@ static inline void mlxsw_reg_sftr_pack(char *payload,
 #define MLXSW_REG_SFDF_ID 0x2013
 #define MLXSW_REG_SFDF_LEN 0x14
 
-static const struct mlxsw_reg_info mlxsw_reg_sfdf = {
-	.id = MLXSW_REG_SFDF_ID,
-	.len = MLXSW_REG_SFDF_LEN,
-};
+MLXSW_REG_DEFINE(sfdf, MLXSW_REG_SFDF_ID, MLXSW_REG_SFDF_LEN);
 
 /* reg_sfdf_swid
  * Switch partition ID.
@@ -1074,10 +1171,7 @@ MLXSW_ITEM32(reg, sfdf, lag_fid_lag_id, 0x08, 0, 10);
 #define MLXSW_REG_SLDR_ID 0x2014
 #define MLXSW_REG_SLDR_LEN 0x0C /* counting in only one port in list */
 
-static const struct mlxsw_reg_info mlxsw_reg_sldr = {
-	.id = MLXSW_REG_SLDR_ID,
-	.len = MLXSW_REG_SLDR_LEN,
-};
+MLXSW_REG_DEFINE(sldr, MLXSW_REG_SLDR_ID, MLXSW_REG_SLDR_LEN);
 
 enum mlxsw_reg_sldr_op {
 	/* Indicates a creation of a new LAG-ID, lag_id must be valid */
@@ -1157,10 +1251,7 @@ static inline void mlxsw_reg_sldr_lag_remove_port_pack(char *payload, u8 lag_id,
 #define MLXSW_REG_SLCR_ID 0x2015
 #define MLXSW_REG_SLCR_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_slcr = {
-	.id = MLXSW_REG_SLCR_ID,
-	.len = MLXSW_REG_SLCR_LEN,
-};
+MLXSW_REG_DEFINE(slcr, MLXSW_REG_SLCR_ID, MLXSW_REG_SLCR_LEN);
 
 enum mlxsw_reg_slcr_pp {
 	/* Global Configuration (for all ports) */
@@ -1273,10 +1364,7 @@ static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
 #define MLXSW_REG_SLCOR_ID 0x2016
 #define MLXSW_REG_SLCOR_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_slcor = {
-	.id = MLXSW_REG_SLCOR_ID,
-	.len = MLXSW_REG_SLCOR_LEN,
-};
+MLXSW_REG_DEFINE(slcor, MLXSW_REG_SLCOR_ID, MLXSW_REG_SLCOR_LEN);
 
 enum mlxsw_reg_slcor_col {
 	/* Port is added with collector disabled */
@@ -1359,27 +1447,25 @@ static inline void mlxsw_reg_slcor_col_disable_pack(char *payload,
 #define MLXSW_REG_SPMLR_ID 0x2018
 #define MLXSW_REG_SPMLR_LEN 0x8
 
-MLXSW_REG_DEFINE(spvid, MLXSW_REG_SPVID_ID, MLXSW_REG_SPVID_LEN);
+MLXSW_REG_DEFINE(spmlr, MLXSW_REG_SPMLR_ID, MLXSW_REG_SPMLR_LEN);
 
 /* reg_spmlr_local_port
  * Local port number.
-#define MLXSW_REG_SPVM_LEN (MLXSW_REG_SPVM_BASE_LEN +	\
-		    MLXSW_REG_SPVM_REC_LEN * MLXSW_REG_SPVM_REC_MAX_COUNT)
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spmlr, local_port, 0x00, 16, 8);
 
-MLXSW_REG_DEFINE(spvm, MLXSW_REG_SPVM_ID, MLXSW_REG_SPVM_LEN);
+/* reg_spmlr_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, spmlr, sub_port, 0x00, 8, 8);
 
-#define MLXSW_REG_SPAFT_ID 0x2010
-#define MLXSW_REG_SPAFT_LEN 0x08
-
-MLXSW_REG_DEFINE(spaft, MLXSW_REG_SPAFT_ID, MLXSW_REG_SPAFT_LEN);
-
-#define MLXSW_REG_SFGC_ID 0x2011
-#define MLXSW_REG_SFGC_LEN 0x10
-
-MLXSW_REG_DEFINE(sfgc, MLXSW_REG_SFGC_ID, MLXSW_REG_SFGC_LEN);
-
-enum mlxsw_reg_sfgc_type {
-	MLXSW_REG_SFGC_TYPE_BROADCAST,
+enum mlxsw_reg_spmlr_learn_mode {
+	MLXSW_REG_SPMLR_LEARN_MODE_DISABLE = 0,
+	MLXSW_REG_SPMLR_LEARN_MODE_ENABLE = 2,
+	MLXSW_REG_SPMLR_LEARN_MODE_SEC = 3,
 };
 
 /* reg_spmlr_learn_mode
@@ -1404,6 +1490,129 @@ static inline void mlxsw_reg_spmlr_pack(char *payload, u8 local_port,
 	mlxsw_reg_spmlr_learn_mode_set(payload, mode);
 }
 
+/* SVFA - Switch VID to FID Allocation Register
+ * --------------------------------------------
+ * Controls the VID to FID mapping and {Port, VID} to FID mapping for
+ * virtualized ports.
+ */
+#define MLXSW_REG_SVFA_ID 0x201C
+#define MLXSW_REG_SVFA_LEN 0x10
+
+MLXSW_REG_DEFINE(svfa, MLXSW_REG_SVFA_ID, MLXSW_REG_SVFA_LEN);
+
+/* reg_svfa_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, svfa, swid, 0x00, 24, 8);
+
+/* reg_svfa_local_port
+ * Local port number.
+ * Access: Index
+ *
+ * Note: Reserved for 802.1Q FIDs.
+ */
+MLXSW_ITEM32(reg, svfa, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_svfa_mt {
+	MLXSW_REG_SVFA_MT_VID_TO_FID,
+	MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
+};
+
+/* reg_svfa_mapping_table
+ * Mapping table:
+ * 0 - VID to FID
+ * 1 - {Port, VID} to FID
+ * Access: Index
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, mapping_table, 0x00, 8, 3);
+
+/* reg_svfa_v
+ * Valid.
+ * Valid if set.
+ * Access: RW
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, v, 0x00, 0, 1);
+
+/* reg_svfa_fid
+ * Filtering ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, svfa, fid, 0x04, 16, 16);
+
+/* reg_svfa_vid
+ * VLAN ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, svfa, vid, 0x04, 0, 12);
+
+/* reg_svfa_counter_set_type
+ * Counter set type for flow counters.
+ * Access: RW
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, counter_set_type, 0x08, 24, 8);
+
+/* reg_svfa_counter_index
+ * Counter index for flow counters.
+ * Access: RW
+ *
+ * Note: Reserved for SwitchX-2.
+ */
+MLXSW_ITEM32(reg, svfa, counter_index, 0x08, 0, 24);
+
+static inline void mlxsw_reg_svfa_pack(char *payload, u8 local_port,
+				       enum mlxsw_reg_svfa_mt mt, bool valid,
+				       u16 fid, u16 vid)
+{
+	MLXSW_REG_ZERO(svfa, payload);
+	local_port = mt == MLXSW_REG_SVFA_MT_VID_TO_FID ? 0 : local_port;
+	mlxsw_reg_svfa_swid_set(payload, 0);
+	mlxsw_reg_svfa_local_port_set(payload, local_port);
+	mlxsw_reg_svfa_mapping_table_set(payload, mt);
+	mlxsw_reg_svfa_v_set(payload, valid);
+	mlxsw_reg_svfa_fid_set(payload, fid);
+	mlxsw_reg_svfa_vid_set(payload, vid);
+}
+
+/* SVPE - Switch Virtual-Port Enabling Register
+ * --------------------------------------------
+ * Enables port virtualization.
+ */
+#define MLXSW_REG_SVPE_ID 0x201E
+#define MLXSW_REG_SVPE_LEN 0x4
+
+MLXSW_REG_DEFINE(svpe, MLXSW_REG_SVPE_ID, MLXSW_REG_SVPE_LEN);
+
+/* reg_svpe_local_port
+ * Local port number
+ * Access: Index
+ *
+ * Note: CPU port is not supported (uses VLAN mode only).
+ */
+MLXSW_ITEM32(reg, svpe, local_port, 0x00, 16, 8);
+
+/* reg_svpe_vp_en
+ * Virtual port enable.
+ * 0 - Disable, VLAN mode (VID to FID).
+ * 1 - Enable, Virtual port mode ({Port, VID} to FID).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, svpe, vp_en, 0x00, 8, 1);
+
+static inline void mlxsw_reg_svpe_pack(char *payload, u8 local_port,
+				       bool enable)
+{
+	MLXSW_REG_ZERO(svpe, payload);
+	mlxsw_reg_svpe_local_port_set(payload, local_port);
+	mlxsw_reg_svpe_vp_en_set(payload, enable);
+}
+
 /* SFMR - Switch FID Management Register
  * -------------------------------------
  * Creates and configures FIDs.
@@ -1411,10 +1620,7 @@ static inline void mlxsw_reg_spmlr_pack(char *payload, u8 local_port,
 #define MLXSW_REG_SFMR_ID 0x201F
 #define MLXSW_REG_SFMR_LEN 0x18
 
-static const struct mlxsw_reg_info mlxsw_reg_sfmr = {
-	.id = MLXSW_REG_SFMR_ID,
-	.len = MLXSW_REG_SFMR_LEN,
-};
+MLXSW_REG_DEFINE(sfmr, MLXSW_REG_SFMR_ID, MLXSW_REG_SFMR_LEN);
 
 enum mlxsw_reg_sfmr_op {
 	MLXSW_REG_SFMR_OP_CREATE_FID,
@@ -1487,6 +1693,68 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 	mlxsw_reg_sfmr_fid_offset_set(payload, fid_offset);
 	mlxsw_reg_sfmr_vtfp_set(payload, false);
 	mlxsw_reg_sfmr_vv_set(payload, false);
+}
+
+/* SPVMLR - Switch Port VLAN MAC Learning Register
+ * -----------------------------------------------
+ * Controls the switch MAC learning policy per {Port, VID}.
+ */
+#define MLXSW_REG_SPVMLR_ID 0x2020
+#define MLXSW_REG_SPVMLR_BASE_LEN 0x04 /* base length, without records */
+#define MLXSW_REG_SPVMLR_REC_LEN 0x04 /* record length */
+#define MLXSW_REG_SPVMLR_REC_MAX_COUNT 256
+#define MLXSW_REG_SPVMLR_LEN (MLXSW_REG_SPVMLR_BASE_LEN + \
+			      MLXSW_REG_SPVMLR_REC_LEN * \
+			      MLXSW_REG_SPVMLR_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(spvmlr, MLXSW_REG_SPVMLR_ID, MLXSW_REG_SPVMLR_LEN);
+
+/* reg_spvmlr_local_port
+ * Local ingress port.
+ * Access: Index
+ *
+ * Note: CPU port is not supported.
+ */
+MLXSW_ITEM32(reg, spvmlr, local_port, 0x00, 16, 8);
+
+/* reg_spvmlr_num_rec
+ * Number of records to update.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, spvmlr, num_rec, 0x00, 0, 8);
+
+/* reg_spvmlr_rec_learn_enable
+ * 0 - Disable learning for {Port, VID}.
+ * 1 - Enable learning for {Port, VID}.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, spvmlr, rec_learn_enable, MLXSW_REG_SPVMLR_BASE_LEN,
+		     31, 1, MLXSW_REG_SPVMLR_REC_LEN, 0x00, false);
+
+/* reg_spvmlr_rec_vid
+ * VLAN ID to be added/removed from port or for querying.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, spvmlr, rec_vid, MLXSW_REG_SPVMLR_BASE_LEN, 0, 12,
+		     MLXSW_REG_SPVMLR_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
+					 u16 vid_begin, u16 vid_end,
+					 bool learn_enable)
+{
+	int num_rec = vid_end - vid_begin + 1;
+	int i;
+
+	WARN_ON(num_rec < 1 || num_rec > MLXSW_REG_SPVMLR_REC_MAX_COUNT);
+
+	MLXSW_REG_ZERO(spvmlr, payload);
+	mlxsw_reg_spvmlr_local_port_set(payload, local_port);
+	mlxsw_reg_spvmlr_num_rec_set(payload, num_rec);
+
+	for (i = 0; i < num_rec; i++) {
+		mlxsw_reg_spvmlr_rec_learn_enable_set(payload, i, learn_enable);
+		mlxsw_reg_spvmlr_rec_vid_set(payload, i, vid_begin + i);
+	}
 }
 
 /* PPBT - Policy-Engine Port Binding Table
@@ -2136,10 +2404,7 @@ static inline void mlxsw_reg_qpcr_pack(char *payload, u16 pid,
 #define MLXSW_REG_QTCT_ID 0x400A
 #define MLXSW_REG_QTCT_LEN 0x08
 
-static const struct mlxsw_reg_info mlxsw_reg_qtct = {
-	.id = MLXSW_REG_QTCT_ID,
-	.len = MLXSW_REG_QTCT_LEN,
-};
+MLXSW_REG_DEFINE(qtct, MLXSW_REG_QTCT_ID, MLXSW_REG_QTCT_LEN);
 
 /* reg_qtct_local_port
  * Local port number.
@@ -2188,10 +2453,7 @@ static inline void mlxsw_reg_qtct_pack(char *payload, u8 local_port,
 #define MLXSW_REG_QEEC_ID 0x400D
 #define MLXSW_REG_QEEC_LEN 0x1C
 
-static const struct mlxsw_reg_info mlxsw_reg_qeec = {
-	.id = MLXSW_REG_QEEC_ID,
-	.len = MLXSW_REG_QEEC_LEN,
-};
+MLXSW_REG_DEFINE(qeec, MLXSW_REG_QEEC_ID, MLXSW_REG_QEEC_LEN);
 
 /* reg_qeec_local_port
  * Local port number.
@@ -2313,10 +2575,7 @@ static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 #define MLXSW_REG_PMLP_ID 0x5002
 #define MLXSW_REG_PMLP_LEN 0x40
 
-static const struct mlxsw_reg_info mlxsw_reg_pmlp = {
-	.id = MLXSW_REG_PMLP_ID,
-	.len = MLXSW_REG_PMLP_LEN,
-};
+MLXSW_REG_DEFINE(pmlp, MLXSW_REG_PMLP_ID, MLXSW_REG_PMLP_LEN);
 
 /* reg_pmlp_rxtx
  * 0 - Tx value is used for both Tx and Rx.
@@ -2372,10 +2631,7 @@ static inline void mlxsw_reg_pmlp_pack(char *payload, u8 local_port)
 #define MLXSW_REG_PMTU_ID 0x5003
 #define MLXSW_REG_PMTU_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_pmtu = {
-	.id = MLXSW_REG_PMTU_ID,
-	.len = MLXSW_REG_PMTU_LEN,
-};
+MLXSW_REG_DEFINE(pmtu, MLXSW_REG_PMTU_ID, MLXSW_REG_PMTU_LEN);
 
 /* reg_pmtu_local_port
  * Local port number.
@@ -2429,10 +2685,7 @@ static inline void mlxsw_reg_pmtu_pack(char *payload, u8 local_port,
 #define MLXSW_REG_PTYS_ID 0x5004
 #define MLXSW_REG_PTYS_LEN 0x40
 
-static const struct mlxsw_reg_info mlxsw_reg_ptys = {
-	.id = MLXSW_REG_PTYS_ID,
-	.len = MLXSW_REG_PTYS_LEN,
-};
+MLXSW_REG_DEFINE(ptys, MLXSW_REG_PTYS_ID, MLXSW_REG_PTYS_LEN);
 
 /* reg_ptys_local_port
  * Local port number.
@@ -2617,10 +2870,7 @@ static inline void mlxsw_reg_ptys_ib_unpack(char *payload, u16 *p_ib_proto_cap,
 #define MLXSW_REG_PPAD_ID 0x5005
 #define MLXSW_REG_PPAD_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_ppad = {
-	.id = MLXSW_REG_PPAD_ID,
-	.len = MLXSW_REG_PPAD_LEN,
-};
+MLXSW_REG_DEFINE(ppad, MLXSW_REG_PPAD_ID, MLXSW_REG_PPAD_LEN);
 
 /* reg_ppad_single_base_mac
  * 0: base_mac, local port should be 0 and mac[7:0] is
@@ -2658,7 +2908,7 @@ static inline void mlxsw_reg_ppad_pack(char *payload, bool single_base_mac,
 #define MLXSW_REG_PAOS_ID 0x5006
 #define MLXSW_REG_PAOS_LEN 0x10
 
-MLXSW_REG_DEFINE(sftr, MLXSW_REG_SFTR_ID, MLXSW_REG_SFTR_LEN);
+MLXSW_REG_DEFINE(paos, MLXSW_REG_PAOS_ID, MLXSW_REG_PAOS_LEN);
 
 /* reg_paos_swid
  * Switch partition ID with which to associate the port.
@@ -2738,10 +2988,7 @@ static inline void mlxsw_reg_paos_pack(char *payload, u8 local_port,
 #define MLXSW_REG_PFCC_ID 0x5007
 #define MLXSW_REG_PFCC_LEN 0x20
 
-static const struct mlxsw_reg_info mlxsw_reg_pfcc = {
-	.id = MLXSW_REG_PFCC_ID,
-	.len = MLXSW_REG_PFCC_LEN,
-};
+MLXSW_REG_DEFINE(pfcc, MLXSW_REG_PFCC_ID, MLXSW_REG_PFCC_LEN);
 
 /* reg_pfcc_local_port
  * Local port number.
@@ -2877,10 +3124,7 @@ static inline void mlxsw_reg_pfcc_pack(char *payload, u8 local_port)
 #define MLXSW_REG_PPCNT_ID 0x5008
 #define MLXSW_REG_PPCNT_LEN 0x100
 
-static const struct mlxsw_reg_info mlxsw_reg_ppcnt = {
-	.id = MLXSW_REG_PPCNT_ID,
-	.len = MLXSW_REG_PPCNT_LEN,
-};
+MLXSW_REG_DEFINE(ppcnt, MLXSW_REG_PPCNT_ID, MLXSW_REG_PPCNT_LEN);
 
 /* reg_ppcnt_swid
  * For HCA: must be always 0.
@@ -3171,10 +3415,7 @@ MLXSW_ITEM32(reg, plib, ib_port, 0x00, 0, 8);
 #define MLXSW_REG_PPTB_ID 0x500B
 #define MLXSW_REG_PPTB_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_pptb = {
-	.id = MLXSW_REG_PPTB_ID,
-	.len = MLXSW_REG_PPTB_LEN,
-};
+MLXSW_REG_DEFINE(pptb, MLXSW_REG_PPTB_ID, MLXSW_REG_PPTB_LEN);
 
 enum {
 	MLXSW_REG_PPTB_MM_UM,
@@ -3260,12 +3501,116 @@ static inline void mlxsw_reg_pptb_prio_to_buff_pack(char *payload, u8 prio,
 	mlxsw_reg_pptb_prio_to_buff_msb_set(payload, prio, buff);
 }
 
-/* SBPM - Shared Buffer Port Management Register
- * ---------------------------------------------
- * The SBPM register configures and retrieves the shared buffer allocation
- * and configuration according to Port-Pool, including the definition
- * of the associated quota.
+/* PBMC - Port Buffer Management Control Register
+ * ----------------------------------------------
  * The PBMC register configures and retrieves the port packet buffer
+ * allocation for different Prios, and the Pause threshold management.
+ */
+#define MLXSW_REG_PBMC_ID 0x500C
+#define MLXSW_REG_PBMC_LEN 0x6C
+
+MLXSW_REG_DEFINE(pbmc, MLXSW_REG_PBMC_ID, MLXSW_REG_PBMC_LEN);
+
+/* reg_pbmc_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pbmc, local_port, 0x00, 16, 8);
+
+/* reg_pbmc_xoff_timer_value
+ * When device generates a pause frame, it uses this value as the pause
+ * timer (time for the peer port to pause in quota-512 bit time).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pbmc, xoff_timer_value, 0x04, 16, 16);
+
+/* reg_pbmc_xoff_refresh
+ * The time before a new pause frame should be sent to refresh the pause RW
+ * state. Using the same units as xoff_timer_value above (in quota-512 bit
+ * time).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pbmc, xoff_refresh, 0x04, 0, 16);
+
+#define MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX 11
+
+/* reg_pbmc_buf_lossy
+ * The field indicates if the buffer is lossy.
+ * 0 - Lossless
+ * 1 - Lossy
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_lossy, 0x0C, 25, 1, 0x08, 0x00, false);
+
+/* reg_pbmc_buf_epsb
+ * Eligible for Port Shared buffer.
+ * If epsb is set, packets assigned to buffer are allowed to insert the port
+ * shared buffer.
+ * When buf_lossy is MLXSW_REG_PBMC_LOSSY_LOSSY this field is reserved.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_epsb, 0x0C, 24, 1, 0x08, 0x00, false);
+
+/* reg_pbmc_buf_size
+ * The part of the packet buffer array is allocated for the specific buffer.
+ * Units are represented in cells.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_size, 0x0C, 0, 16, 0x08, 0x00, false);
+
+/* reg_pbmc_buf_xoff_threshold
+ * Once the amount of data in the buffer goes above this value, device
+ * starts sending PFC frames for all priorities associated with the
+ * buffer. Units are represented in cells. Reserved in case of lossy
+ * buffer.
+ * Access: RW
+ *
+ * Note: In Spectrum, reserved for buffer[9].
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xoff_threshold, 0x0C, 16, 16,
+		     0x08, 0x04, false);
+
+/* reg_pbmc_buf_xon_threshold
+ * When the amount of data in the buffer goes below this value, device
+ * stops sending PFC frames for the priorities associated with the
+ * buffer. Units are represented in cells. Reserved in case of lossy
+ * buffer.
+ * Access: RW
+ *
+ * Note: In Spectrum, reserved for buffer[9].
+ */
+MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xon_threshold, 0x0C, 0, 16,
+		     0x08, 0x04, false);
+
+static inline void mlxsw_reg_pbmc_pack(char *payload, u8 local_port,
+				       u16 xoff_timer_value, u16 xoff_refresh)
+{
+	MLXSW_REG_ZERO(pbmc, payload);
+	mlxsw_reg_pbmc_local_port_set(payload, local_port);
+	mlxsw_reg_pbmc_xoff_timer_value_set(payload, xoff_timer_value);
+	mlxsw_reg_pbmc_xoff_refresh_set(payload, xoff_refresh);
+}
+
+static inline void mlxsw_reg_pbmc_lossy_buffer_pack(char *payload,
+						    int buf_index,
+						    u16 size)
+{
+	mlxsw_reg_pbmc_buf_lossy_set(payload, buf_index, 1);
+	mlxsw_reg_pbmc_buf_epsb_set(payload, buf_index, 0);
+	mlxsw_reg_pbmc_buf_size_set(payload, buf_index, size);
+}
+
+static inline void mlxsw_reg_pbmc_lossless_buffer_pack(char *payload,
+						       int buf_index, u16 size,
+						       u16 threshold)
+{
+	mlxsw_reg_pbmc_buf_lossy_set(payload, buf_index, 0);
+	mlxsw_reg_pbmc_buf_epsb_set(payload, buf_index, 0);
+	mlxsw_reg_pbmc_buf_size_set(payload, buf_index, size);
+	mlxsw_reg_pbmc_buf_xoff_threshold_set(payload, buf_index, threshold);
+	mlxsw_reg_pbmc_buf_xon_threshold_set(payload, buf_index, threshold);
+}
+
 /* PSPA - Port Switch Partition Allocation
  * ---------------------------------------
  * Controls the association of a port with a switch partition and enables
@@ -3274,39 +3619,43 @@ static inline void mlxsw_reg_pptb_prio_to_buff_pack(char *payload, u8 prio,
 #define MLXSW_REG_PSPA_ID 0x500D
 #define MLXSW_REG_PSPA_LEN 0x8
 
-MLXSW_REG_DEFINE(sfdf, MLXSW_REG_SFDF_ID, MLXSW_REG_SFDF_LEN);
+MLXSW_REG_DEFINE(pspa, MLXSW_REG_PSPA_ID, MLXSW_REG_PSPA_LEN);
 
 /* reg_pspa_swid
  * Switch partition ID.
-#define MLXSW_REG_SLDR_ID 0x2014
-#define MLXSW_REG_SLDR_LEN 0x0C /* counting in only one port in list */
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pspa, swid, 0x00, 24, 8);
 
-MLXSW_REG_DEFINE(sldr, MLXSW_REG_SLDR_ID, MLXSW_REG_SLDR_LEN);
+/* reg_pspa_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pspa, local_port, 0x00, 16, 8);
 
-#define MLXSW_REG_SLCR_ID 0x2015
-#define MLXSW_REG_SLCR_LEN 0x10
+/* reg_pspa_sub_port
+ * Virtual port within the local port. Set to 0 when virtual ports are
+ * disabled on the local port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pspa, sub_port, 0x00, 8, 8);
 
-MLXSW_REG_DEFINE(slcr, MLXSW_REG_SLCR_ID, MLXSW_REG_SLCR_LEN);
+static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
+{
+	MLXSW_REG_ZERO(pspa, payload);
+	mlxsw_reg_pspa_swid_set(payload, swid);
+	mlxsw_reg_pspa_local_port_set(payload, local_port);
+	mlxsw_reg_pspa_sub_port_set(payload, 0);
+}
 
-#define MLXSW_REG_SLCOR_ID 0x2016
-#define MLXSW_REG_SLCOR_LEN 0x10
+/* HTGT - Host Trap Group Table
+ * ----------------------------
+ * Configures the properties for forwarding to CPU.
+ */
+#define MLXSW_REG_HTGT_ID 0x7002
+#define MLXSW_REG_HTGT_LEN 0x100
 
-MLXSW_REG_DEFINE(slcor, MLXSW_REG_SLCOR_ID, MLXSW_REG_SLCOR_LEN);
-
-#define MLXSW_REG_SPMLR_ID 0x2018
-#define MLXSW_REG_SPMLR_LEN 0x8
-
-MLXSW_REG_DEFINE(spmlr, MLXSW_REG_SPMLR_ID, MLXSW_REG_SPMLR_LEN);
-
-#define MLXSW_REG_SVFA_ID 0x201C
-#define MLXSW_REG_SVFA_LEN 0x10
-
-MLXSW_REG_DEFINE(svfa, MLXSW_REG_SVFA_ID, MLXSW_REG_SVFA_LEN);
-
-static const struct mlxsw_reg_info mlxsw_reg_htgt = {
-	.id = MLXSW_REG_HTGT_ID,
-	.len = MLXSW_REG_HTGT_LEN,
-};
+MLXSW_REG_DEFINE(htgt, MLXSW_REG_HTGT_ID, MLXSW_REG_HTGT_LEN);
 
 /* reg_htgt_swid
  * Switch partition ID.
@@ -3452,15 +3801,11 @@ static inline void mlxsw_reg_htgt_pack(char *payload, u8 group, u8 policer_id,
 #define MLXSW_REG_HPKT_ID 0x7003
 #define MLXSW_REG_HPKT_LEN 0x10
 
-static const struct mlxsw_reg_info mlxsw_reg_hpkt = {
-	.id = MLXSW_REG_HPKT_ID,
-	.len = MLXSW_REG_HPKT_LEN,
-};
+MLXSW_REG_DEFINE(hpkt, MLXSW_REG_HPKT_ID, MLXSW_REG_HPKT_LEN);
 
-/* shared direstion enum for SBPR, SBCM, SBPM */
-enum mlxsw_reg_sbxx_dir {
-	MLXSW_REG_SBXX_DIR_INGRESS,
-	MLXSW_REG_SBXX_DIR_EGRESS,
+enum {
+	MLXSW_REG_HPKT_ACK_NOT_REQUIRED,
+	MLXSW_REG_HPKT_ACK_REQUIRED,
 };
 
 /* reg_hpkt_ack
@@ -3549,10 +3894,7 @@ static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id,
 #define MLXSW_REG_RGCR_ID 0x8001
 #define MLXSW_REG_RGCR_LEN 0x28
 
-static const struct mlxsw_reg_info mlxsw_reg_rgcr = {
-	.id = MLXSW_REG_RGCR_ID,
-	.len = MLXSW_REG_RGCR_LEN,
-};
+MLXSW_REG_DEFINE(rgcr, MLXSW_REG_RGCR_ID, MLXSW_REG_RGCR_LEN);
 
 /* reg_rgcr_ipv4_en
  * IPv4 router enable.
@@ -3623,10 +3965,7 @@ static inline void mlxsw_reg_rgcr_pack(char *payload, bool ipv4_en)
 #define MLXSW_REG_RITR_ID 0x8002
 #define MLXSW_REG_RITR_LEN 0x40
 
-static const struct mlxsw_reg_info mlxsw_reg_ritr = {
-	.id = MLXSW_REG_RITR_ID,
-	.len = MLXSW_REG_RITR_LEN,
-};
+MLXSW_REG_DEFINE(ritr, MLXSW_REG_RITR_ID, MLXSW_REG_RITR_LEN);
 
 /* reg_ritr_enable
  * Enables routing on the router interface.
@@ -3826,10 +4165,7 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 #define MLXSW_REG_RATR_ID 0x8008
 #define MLXSW_REG_RATR_LEN 0x2C
 
-static const struct mlxsw_reg_info mlxsw_reg_ratr = {
-	.id = MLXSW_REG_RATR_ID,
-	.len = MLXSW_REG_RATR_LEN,
-};
+MLXSW_REG_DEFINE(ratr, MLXSW_REG_RATR_ID, MLXSW_REG_RATR_LEN);
 
 enum mlxsw_reg_ratr_op {
 	/* Read */
@@ -3956,10 +4292,7 @@ static inline void mlxsw_reg_ratr_eth_entry_pack(char *payload,
 #define MLXSW_REG_RALTA_ID 0x8010
 #define MLXSW_REG_RALTA_LEN 0x04
 
-static const struct mlxsw_reg_info mlxsw_reg_ralta = {
-	.id = MLXSW_REG_RALTA_ID,
-	.len = MLXSW_REG_RALTA_LEN,
-};
+MLXSW_REG_DEFINE(ralta, MLXSW_REG_RALTA_ID, MLXSW_REG_RALTA_LEN);
 
 /* reg_ralta_op
  * opcode (valid for Write, must be 0 on Read)
@@ -4011,10 +4344,7 @@ static inline void mlxsw_reg_ralta_pack(char *payload, bool alloc,
 #define MLXSW_REG_RALST_ID 0x8011
 #define MLXSW_REG_RALST_LEN 0x104
 
-static const struct mlxsw_reg_info mlxsw_reg_ralst = {
-	.id = MLXSW_REG_RALST_ID,
-	.len = MLXSW_REG_RALST_LEN,
-};
+MLXSW_REG_DEFINE(ralst, MLXSW_REG_RALST_ID, MLXSW_REG_RALST_LEN);
 
 /* reg_ralst_root_bin
  * The bin number of the root bin.
@@ -4081,10 +4411,7 @@ static inline void mlxsw_reg_ralst_bin_pack(char *payload, u8 bin_number,
 #define MLXSW_REG_RALTB_ID 0x8012
 #define MLXSW_REG_RALTB_LEN 0x04
 
-static const struct mlxsw_reg_info mlxsw_reg_raltb = {
-	.id = MLXSW_REG_RALTB_ID,
-	.len = MLXSW_REG_RALTB_LEN,
-};
+MLXSW_REG_DEFINE(raltb, MLXSW_REG_RALTB_ID, MLXSW_REG_RALTB_LEN);
 
 /* reg_raltb_virtual_router
  * Virtual Router ID
@@ -4125,10 +4452,7 @@ static inline void mlxsw_reg_raltb_pack(char *payload, u16 virtual_router,
 #define MLXSW_REG_RALUE_ID 0x8013
 #define MLXSW_REG_RALUE_LEN 0x38
 
-static const struct mlxsw_reg_info mlxsw_reg_ralue = {
-	.id = MLXSW_REG_RALUE_ID,
-	.len = MLXSW_REG_RALUE_LEN,
-};
+MLXSW_REG_DEFINE(ralue, MLXSW_REG_RALUE_ID, MLXSW_REG_RALUE_LEN);
 
 /* reg_ralue_protocol
  * Protocol.
@@ -4388,10 +4712,7 @@ mlxsw_reg_ralue_act_ip2me_pack(char *payload)
 #define MLXSW_REG_RAUHT_ID 0x8014
 #define MLXSW_REG_RAUHT_LEN 0x74
 
-static const struct mlxsw_reg_info mlxsw_reg_rauht = {
-	.id = MLXSW_REG_RAUHT_ID,
-	.len = MLXSW_REG_RAUHT_LEN,
-};
+MLXSW_REG_DEFINE(rauht, MLXSW_REG_RAUHT_ID, MLXSW_REG_RAUHT_LEN);
 
 enum mlxsw_reg_rauht_type {
 	MLXSW_REG_RAUHT_TYPE_IPV4,
@@ -4527,10 +4848,7 @@ static inline void mlxsw_reg_rauht_pack4(char *payload,
 #define MLXSW_REG_RALEU_ID 0x8015
 #define MLXSW_REG_RALEU_LEN 0x28
 
-static const struct mlxsw_reg_info mlxsw_reg_raleu = {
-	.id = MLXSW_REG_RALEU_ID,
-	.len = MLXSW_REG_RALEU_LEN,
-};
+MLXSW_REG_DEFINE(raleu, MLXSW_REG_RALEU_ID, MLXSW_REG_RALEU_LEN);
 
 /* reg_raleu_protocol
  * Protocol.
@@ -4602,10 +4920,7 @@ static inline void mlxsw_reg_raleu_pack(char *payload,
 		MLXSW_REG_RAUHTD_REC_MAX_NUM * MLXSW_REG_RAUHTD_REC_LEN)
 #define MLXSW_REG_RAUHTD_IPV4_ENT_PER_REC 4
 
-static const struct mlxsw_reg_info mlxsw_reg_rauhtd = {
-	.id = MLXSW_REG_RAUHTD_ID,
-	.len = MLXSW_REG_RAUHTD_LEN,
-};
+MLXSW_REG_DEFINE(rauhtd, MLXSW_REG_RAUHTD_ID, MLXSW_REG_RAUHTD_LEN);
 
 #define MLXSW_REG_RAUHTD_FILTER_A BIT(0)
 #define MLXSW_REG_RAUHTD_FILTER_RIF BIT(3)
@@ -4737,10 +5052,7 @@ static inline void mlxsw_reg_rauhtd_ent_ipv4_unpack(char *payload,
 #define MLXSW_REG_MFCR_ID 0x9001
 #define MLXSW_REG_MFCR_LEN 0x08
 
-static const struct mlxsw_reg_info mlxsw_reg_mfcr = {
-	.id = MLXSW_REG_MFCR_ID,
-	.len = MLXSW_REG_MFCR_LEN,
-};
+MLXSW_REG_DEFINE(mfcr, MLXSW_REG_MFCR_ID, MLXSW_REG_MFCR_LEN);
 
 enum mlxsw_reg_mfcr_pwm_frequency {
 	MLXSW_REG_MFCR_PWM_FEQ_11HZ = 0x00,
@@ -4800,10 +5112,7 @@ mlxsw_reg_mfcr_unpack(char *payload,
 #define MLXSW_REG_MFSC_ID 0x9002
 #define MLXSW_REG_MFSC_LEN 0x08
 
-static const struct mlxsw_reg_info mlxsw_reg_mfsc = {
-	.id = MLXSW_REG_MFSC_ID,
-	.len = MLXSW_REG_MFSC_LEN,
-};
+MLXSW_REG_DEFINE(mfsc, MLXSW_REG_MFSC_ID, MLXSW_REG_MFSC_LEN);
 
 /* reg_mfsc_pwm
  * Fan pwm to control / monitor.
@@ -4816,8 +5125,7 @@ MLXSW_ITEM32(reg, mfsc, pwm, 0x00, 24, 3);
  * represent duty cycle of 0%...100%.
  * Access: RW
  */
-#define MLXSW_REG_PBMC_ID 0x500C
-#define MLXSW_REG_PBMC_LEN 0x6C
+MLXSW_ITEM32(reg, mfsc, pwm_duty_cycle, 0x04, 0, 8);
 
 static inline void mlxsw_reg_mfsc_pack(char *payload, u8 pwm,
 				       u8 pwm_duty_cycle)
@@ -4827,18 +5135,7 @@ static inline void mlxsw_reg_mfsc_pack(char *payload, u8 pwm,
 	mlxsw_reg_mfsc_pwm_duty_cycle_set(payload, pwm_duty_cycle);
 }
 
-static inline void mlxsw_reg_pbmc_lossless_buffer_pack(char *payload,
-						       int buf_index, u16 size,
-						       u16 threshold)
-{
-	mlxsw_reg_pbmc_buf_lossy_set(payload, buf_index, 0);
-	mlxsw_reg_pbmc_buf_epsb_set(payload, buf_index, 0);
-	mlxsw_reg_pbmc_buf_size_set(payload, buf_index, size);
-	mlxsw_reg_pbmc_buf_xoff_threshold_set(payload, buf_index, threshold);
-	mlxsw_reg_pbmc_buf_xon_threshold_set(payload, buf_index, threshold);
-}
-
-/* PSPA - Port Switch Partition Allocation
+/* MFSM - Management Fan Speed Measurement
  * ---------------------------------------
  * This register controls the settings of the Tacho measurements and
  * enables reading the Tachometer measurements.
@@ -4846,10 +5143,7 @@ static inline void mlxsw_reg_pbmc_lossless_buffer_pack(char *payload,
 #define MLXSW_REG_MFSM_ID 0x9003
 #define MLXSW_REG_MFSM_LEN 0x08
 
-static const struct mlxsw_reg_info mlxsw_reg_mfsm = {
-	.id = MLXSW_REG_MFSM_ID,
-	.len = MLXSW_REG_MFSM_LEN,
-};
+MLXSW_REG_DEFINE(mfsm, MLXSW_REG_MFSM_ID, MLXSW_REG_MFSM_LEN);
 
 /* reg_mfsm_tacho
  * Fan tachometer index.
@@ -4863,11 +5157,6 @@ MLXSW_ITEM32(reg, mfsm, tacho, 0x00, 24, 4);
  */
 MLXSW_ITEM32(reg, mfsm, rpm, 0x04, 0, 16);
 
-#define MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX 11
-
-/* reg_pbmc_buf_lossy
- * The field indicates if the buffer is lossy.
- * 0 - Lossless
 static inline void mlxsw_reg_mfsm_pack(char *payload, u8 tacho)
 {
 	MLXSW_REG_ZERO(mfsm, payload);
@@ -4930,10 +5219,7 @@ static inline void mlxsw_reg_mfsl_unpack(char *payload, u8 tacho,
 #define MLXSW_REG_MTCAP_ID 0x9009
 #define MLXSW_REG_MTCAP_LEN 0x08
 
-static const struct mlxsw_reg_info mlxsw_reg_mtcap = {
-	.id = MLXSW_REG_MTCAP_ID,
-	.len = MLXSW_REG_MTCAP_LEN,
-};
+MLXSW_REG_DEFINE(mtcap, MLXSW_REG_MTCAP_ID, MLXSW_REG_MTCAP_LEN);
 
 /* reg_mtcap_sensor_count
  * Number of sensors supported by the device.
@@ -4951,10 +5237,7 @@ MLXSW_ITEM32(reg, mtcap, sensor_count, 0x00, 0, 7);
 #define MLXSW_REG_MTMP_ID 0x900A
 #define MLXSW_REG_MTMP_LEN 0x20
 
-static const struct mlxsw_reg_info mlxsw_reg_mtmp = {
-	.id = MLXSW_REG_MTMP_ID,
-	.len = MLXSW_REG_MTMP_LEN,
-};
+MLXSW_REG_DEFINE(mtmp, MLXSW_REG_MTMP_ID, MLXSW_REG_MTMP_LEN);
 
 /* reg_mtmp_sensor_index
  * Sensors index to access.
@@ -5037,10 +5320,7 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, unsigned int *p_temp,
 #define MLXSW_REG_MPAT_ID 0x901A
 #define MLXSW_REG_MPAT_LEN 0x78
 
-static const struct mlxsw_reg_info mlxsw_reg_mpat = {
-	.id = MLXSW_REG_MPAT_ID,
-	.len = MLXSW_REG_MPAT_LEN,
-};
+MLXSW_REG_DEFINE(mpat, MLXSW_REG_MPAT_ID, MLXSW_REG_MPAT_LEN);
 
 /* reg_mpat_pa_id
  * Port Analyzer ID.
@@ -5100,10 +5380,7 @@ static inline void mlxsw_reg_mpat_pack(char *payload, u8 pa_id,
 #define MLXSW_REG_MPAR_ID 0x901B
 #define MLXSW_REG_MPAR_LEN 0x08
 
-static const struct mlxsw_reg_info mlxsw_reg_mpar = {
-	.id = MLXSW_REG_MPAR_ID,
-	.len = MLXSW_REG_MPAR_LEN,
-};
+MLXSW_REG_DEFINE(mpar, MLXSW_REG_MPAR_ID, MLXSW_REG_MPAR_LEN);
 
 /* reg_mpar_local_port
  * The local port to mirror the packets from.
@@ -5153,10 +5430,7 @@ static inline void mlxsw_reg_mpar_pack(char *payload, u8 local_port,
 #define MLXSW_REG_MLCR_ID 0x902B
 #define MLXSW_REG_MLCR_LEN 0x0C
 
-static const struct mlxsw_reg_info mlxsw_reg_mlcr = {
-	.id = MLXSW_REG_MLCR_ID,
-	.len = MLXSW_REG_MLCR_LEN,
-};
+MLXSW_REG_DEFINE(mlcr, MLXSW_REG_MLCR_ID, MLXSW_REG_MLCR_LEN);
 
 /* reg_mlcr_local_port
  * Local port number.
@@ -5193,6 +5467,275 @@ static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
+ */
+#define MLXSW_REG_SBPR_ID 0xB001
+#define MLXSW_REG_SBPR_LEN 0x14
+
+MLXSW_REG_DEFINE(sbpr, MLXSW_REG_SBPR_ID, MLXSW_REG_SBPR_LEN);
+
+/* shared direstion enum for SBPR, SBCM, SBPM */
+enum mlxsw_reg_sbxx_dir {
+	MLXSW_REG_SBXX_DIR_INGRESS,
+	MLXSW_REG_SBXX_DIR_EGRESS,
+};
+
+/* reg_sbpr_dir
+ * Direction.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbpr, dir, 0x00, 24, 2);
+
+/* reg_sbpr_pool
+ * Pool index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbpr, pool, 0x00, 0, 4);
+
+/* reg_sbpr_size
+ * Pool size in buffer cells.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbpr, size, 0x04, 0, 24);
+
+enum mlxsw_reg_sbpr_mode {
+	MLXSW_REG_SBPR_MODE_STATIC,
+	MLXSW_REG_SBPR_MODE_DYNAMIC,
+};
+
+/* reg_sbpr_mode
+ * Pool quota calculation mode.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbpr, mode, 0x08, 0, 4);
+
+static inline void mlxsw_reg_sbpr_pack(char *payload, u8 pool,
+				       enum mlxsw_reg_sbxx_dir dir,
+				       enum mlxsw_reg_sbpr_mode mode, u32 size)
+{
+	MLXSW_REG_ZERO(sbpr, payload);
+	mlxsw_reg_sbpr_pool_set(payload, pool);
+	mlxsw_reg_sbpr_dir_set(payload, dir);
+	mlxsw_reg_sbpr_mode_set(payload, mode);
+	mlxsw_reg_sbpr_size_set(payload, size);
+}
+
+/* SBCM - Shared Buffer Class Management Register
+ * ----------------------------------------------
+ * The SBCM register configures and retrieves the shared buffer allocation
+ * and configuration according to Port-PG, including the binding to pool
+ * and definition of the associated quota.
+ */
+#define MLXSW_REG_SBCM_ID 0xB002
+#define MLXSW_REG_SBCM_LEN 0x28
+
+MLXSW_REG_DEFINE(sbcm, MLXSW_REG_SBCM_ID, MLXSW_REG_SBCM_LEN);
+
+/* reg_sbcm_local_port
+ * Local port number.
+ * For Ingress: excludes CPU port and Router port
+ * For Egress: excludes IP Router
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbcm, local_port, 0x00, 16, 8);
+
+/* reg_sbcm_pg_buff
+ * PG buffer - Port PG (dir=ingress) / traffic class (dir=egress)
+ * For PG buffer: range is 0..cap_max_pg_buffers - 1
+ * For traffic class: range is 0..cap_max_tclass - 1
+ * Note that when traffic class is in MC aware mode then the traffic
+ * classes which are MC aware cannot be configured.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbcm, pg_buff, 0x00, 8, 6);
+
+/* reg_sbcm_dir
+ * Direction.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbcm, dir, 0x00, 0, 2);
+
+/* reg_sbcm_min_buff
+ * Minimum buffer size for the limiter, in cells.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbcm, min_buff, 0x18, 0, 24);
+
+/* shared max_buff limits for dynamic threshold for SBCM, SBPM */
+#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN 1
+#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX 14
+
+/* reg_sbcm_max_buff
+ * When the pool associated to the port-pg/tclass is configured to
+ * static, Maximum buffer size for the limiter configured in cells.
+ * When the pool associated to the port-pg/tclass is configured to
+ * dynamic, the max_buff holds the "alpha" parameter, supporting
+ * the following values:
+ * 0: 0
+ * i: (1/128)*2^(i-1), for i=1..14
+ * 0xFF: Infinity
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbcm, max_buff, 0x1C, 0, 24);
+
+/* reg_sbcm_pool
+ * Association of the port-priority to a pool.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbcm, pool, 0x24, 0, 4);
+
+static inline void mlxsw_reg_sbcm_pack(char *payload, u8 local_port, u8 pg_buff,
+				       enum mlxsw_reg_sbxx_dir dir,
+				       u32 min_buff, u32 max_buff, u8 pool)
+{
+	MLXSW_REG_ZERO(sbcm, payload);
+	mlxsw_reg_sbcm_local_port_set(payload, local_port);
+	mlxsw_reg_sbcm_pg_buff_set(payload, pg_buff);
+	mlxsw_reg_sbcm_dir_set(payload, dir);
+	mlxsw_reg_sbcm_min_buff_set(payload, min_buff);
+	mlxsw_reg_sbcm_max_buff_set(payload, max_buff);
+	mlxsw_reg_sbcm_pool_set(payload, pool);
+}
+
+/* SBPM - Shared Buffer Port Management Register
+ * ---------------------------------------------
+ * The SBPM register configures and retrieves the shared buffer allocation
+ * and configuration according to Port-Pool, including the definition
+ * of the associated quota.
+ */
+#define MLXSW_REG_SBPM_ID 0xB003
+#define MLXSW_REG_SBPM_LEN 0x28
+
+MLXSW_REG_DEFINE(sbpm, MLXSW_REG_SBPM_ID, MLXSW_REG_SBPM_LEN);
+
+/* reg_sbpm_local_port
+ * Local port number.
+ * For Ingress: excludes CPU port and Router port
+ * For Egress: excludes IP Router
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbpm, local_port, 0x00, 16, 8);
+
+/* reg_sbpm_pool
+ * The pool associated to quota counting on the local_port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbpm, pool, 0x00, 8, 4);
+
+/* reg_sbpm_dir
+ * Direction.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbpm, dir, 0x00, 0, 2);
+
+/* reg_sbpm_buff_occupancy
+ * Current buffer occupancy in cells.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, sbpm, buff_occupancy, 0x10, 0, 24);
+
+/* reg_sbpm_clr
+ * Clear Max Buffer Occupancy
+ * When this bit is set, max_buff_occupancy field is cleared (and a
+ * new max value is tracked from the time the clear was performed).
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, sbpm, clr, 0x14, 31, 1);
+
+/* reg_sbpm_max_buff_occupancy
+ * Maximum value of buffer occupancy in cells monitored. Cleared by
+ * writing to the clr field.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, sbpm, max_buff_occupancy, 0x14, 0, 24);
+
+/* reg_sbpm_min_buff
+ * Minimum buffer size for the limiter, in cells.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbpm, min_buff, 0x18, 0, 24);
+
+/* reg_sbpm_max_buff
+ * When the pool associated to the port-pg/tclass is configured to
+ * static, Maximum buffer size for the limiter configured in cells.
+ * When the pool associated to the port-pg/tclass is configured to
+ * dynamic, the max_buff holds the "alpha" parameter, supporting
+ * the following values:
+ * 0: 0
+ * i: (1/128)*2^(i-1), for i=1..14
+ * 0xFF: Infinity
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbpm, max_buff, 0x1C, 0, 24);
+
+static inline void mlxsw_reg_sbpm_pack(char *payload, u8 local_port, u8 pool,
+				       enum mlxsw_reg_sbxx_dir dir, bool clr,
+				       u32 min_buff, u32 max_buff)
+{
+	MLXSW_REG_ZERO(sbpm, payload);
+	mlxsw_reg_sbpm_local_port_set(payload, local_port);
+	mlxsw_reg_sbpm_pool_set(payload, pool);
+	mlxsw_reg_sbpm_dir_set(payload, dir);
+	mlxsw_reg_sbpm_clr_set(payload, clr);
+	mlxsw_reg_sbpm_min_buff_set(payload, min_buff);
+	mlxsw_reg_sbpm_max_buff_set(payload, max_buff);
+}
+
+static inline void mlxsw_reg_sbpm_unpack(char *payload, u32 *p_buff_occupancy,
+					 u32 *p_max_buff_occupancy)
+{
+	*p_buff_occupancy = mlxsw_reg_sbpm_buff_occupancy_get(payload);
+	*p_max_buff_occupancy = mlxsw_reg_sbpm_max_buff_occupancy_get(payload);
+}
+
+/* SBMM - Shared Buffer Multicast Management Register
+ * --------------------------------------------------
+ * The SBMM register configures and retrieves the shared buffer allocation
+ * and configuration for MC packets according to Switch-Priority, including
+ * the binding to pool and definition of the associated quota.
+ */
+#define MLXSW_REG_SBMM_ID 0xB004
+#define MLXSW_REG_SBMM_LEN 0x28
+
+MLXSW_REG_DEFINE(sbmm, MLXSW_REG_SBMM_ID, MLXSW_REG_SBMM_LEN);
+
+/* reg_sbmm_prio
+ * Switch Priority.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbmm, prio, 0x00, 8, 4);
+
+/* reg_sbmm_min_buff
+ * Minimum buffer size for the limiter, in cells.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbmm, min_buff, 0x18, 0, 24);
+
+/* reg_sbmm_max_buff
+ * When the pool associated to the port-pg/tclass is configured to
+ * static, Maximum buffer size for the limiter configured in cells.
+ * When the pool associated to the port-pg/tclass is configured to
+ * dynamic, the max_buff holds the "alpha" parameter, supporting
+ * the following values:
+ * 0: 0
+ * i: (1/128)*2^(i-1), for i=1..14
+ * 0xFF: Infinity
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbmm, max_buff, 0x1C, 0, 24);
+
+/* reg_sbmm_pool
+ * Association of the port-priority to a pool.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbmm, pool, 0x24, 0, 4);
+
+static inline void mlxsw_reg_sbmm_pack(char *payload, u8 prio, u32 min_buff,
+				       u32 max_buff, u8 pool)
+{
+	MLXSW_REG_ZERO(sbmm, payload);
+	mlxsw_reg_sbmm_prio_set(payload, prio);
+	mlxsw_reg_sbmm_min_buff_set(payload, min_buff);
+	mlxsw_reg_sbmm_max_buff_set(payload, max_buff);
 	mlxsw_reg_sbmm_pool_set(payload, pool);
 }
 
@@ -5212,10 +5755,7 @@ static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
 			    MLXSW_REG_SBSR_REC_LEN *	\
 			    MLXSW_REG_SBSR_REC_MAX_COUNT)
 
-static const struct mlxsw_reg_info mlxsw_reg_sbsr = {
-	.id = MLXSW_REG_SBSR_ID,
-	.len = MLXSW_REG_SBSR_LEN,
-};
+MLXSW_REG_DEFINE(sbsr, MLXSW_REG_SBSR_ID, MLXSW_REG_SBSR_LEN);
 
 /* reg_sbsr_clr
  * Clear Max Buffer Occupancy. When this bit is set, the max_buff_occupancy
@@ -5305,296 +5845,28 @@ static inline void mlxsw_reg_sbsr_rec_unpack(char *payload, int rec_index,
 #define MLXSW_REG_SBIB_ID 0xB006
 #define MLXSW_REG_SBIB_LEN 0x10
 
-MLXSW_REG_DEFINE(svpe, MLXSW_REG_SVPE_ID, MLXSW_REG_SVPE_LEN);
-
-/* reg_sbib_local_port
- * Local port number
-#define MLXSW_REG_SFMR_ID 0x201F
-#define MLXSW_REG_SFMR_LEN 0x18
-
-MLXSW_REG_DEFINE(sfmr, MLXSW_REG_SFMR_ID, MLXSW_REG_SFMR_LEN);
-
-			      MLXSW_REG_SPVMLR_REC_LEN * \
-			      MLXSW_REG_SPVMLR_REC_MAX_COUNT)
-
-MLXSW_REG_DEFINE(spvmlr, MLXSW_REG_SPVMLR_ID, MLXSW_REG_SPVMLR_LEN);
-
-/* reg_spvmlr_local_port
- * Local ingress port.
-#define MLXSW_REG_QTCT_ID 0x400A
-#define MLXSW_REG_QTCT_LEN 0x08
-
-MLXSW_REG_DEFINE(qtct, MLXSW_REG_QTCT_ID, MLXSW_REG_QTCT_LEN);
-
-#define MLXSW_REG_QEEC_ID 0x400D
-#define MLXSW_REG_QEEC_LEN 0x1C
-
-MLXSW_REG_DEFINE(qeec, MLXSW_REG_QEEC_ID, MLXSW_REG_QEEC_LEN);
-
-#define MLXSW_REG_PMLP_ID 0x5002
-#define MLXSW_REG_PMLP_LEN 0x40
-
-MLXSW_REG_DEFINE(pmlp, MLXSW_REG_PMLP_ID, MLXSW_REG_PMLP_LEN);
-
-/* reg_pmlp_rxtx
- * 0 - Tx value is used for both Tx and Rx.
-#define MLXSW_REG_PMTU_ID 0x5003
-#define MLXSW_REG_PMTU_LEN 0x10
-
-MLXSW_REG_DEFINE(pmtu, MLXSW_REG_PMTU_ID, MLXSW_REG_PMTU_LEN);
-
-/* reg_pmtu_local_port
- * Local port number.
-#define MLXSW_REG_PTYS_ID 0x5004
-#define MLXSW_REG_PTYS_LEN 0x40
-
-MLXSW_REG_DEFINE(ptys, MLXSW_REG_PTYS_ID, MLXSW_REG_PTYS_LEN);
-
-/* reg_ptys_local_port
- * Local port number.
-#define MLXSW_REG_PPAD_ID 0x5005
-#define MLXSW_REG_PPAD_LEN 0x10
-
-MLXSW_REG_DEFINE(ppad, MLXSW_REG_PPAD_ID, MLXSW_REG_PPAD_LEN);
-
-/* reg_ppad_single_base_mac
- * 0: base_mac, local port should be 0 and mac[7:0] is
-#define MLXSW_REG_PAOS_ID 0x5006
-#define MLXSW_REG_PAOS_LEN 0x10
-
-MLXSW_REG_DEFINE(paos, MLXSW_REG_PAOS_ID, MLXSW_REG_PAOS_LEN);
-
-/* reg_paos_swid
- * Switch partition ID with which to associate the port.
-#define MLXSW_REG_PFCC_ID 0x5007
-#define MLXSW_REG_PFCC_LEN 0x20
-
-MLXSW_REG_DEFINE(pfcc, MLXSW_REG_PFCC_ID, MLXSW_REG_PFCC_LEN);
-
-/* reg_pfcc_local_port
- * Local port number.
-#define MLXSW_REG_PPCNT_ID 0x5008
-#define MLXSW_REG_PPCNT_LEN 0x100
-
-MLXSW_REG_DEFINE(ppcnt, MLXSW_REG_PPCNT_ID, MLXSW_REG_PPCNT_LEN);
-
-/* reg_ppcnt_swid
- * For HCA: must be always 0.
-#define MLXSW_REG_PPTB_ID 0x500B
-#define MLXSW_REG_PPTB_LEN 0x10
-
-MLXSW_REG_DEFINE(pptb, MLXSW_REG_PPTB_ID, MLXSW_REG_PPTB_LEN);
-
-enum {
-	MLXSW_REG_PPTB_MM_UM,
-#define MLXSW_REG_PBMC_ID 0x500C
-#define MLXSW_REG_PBMC_LEN 0x6C
-
-MLXSW_REG_DEFINE(pbmc, MLXSW_REG_PBMC_ID, MLXSW_REG_PBMC_LEN);
-
-/* reg_pbmc_local_port
- * Local port number.
-#define MLXSW_REG_PSPA_ID 0x500D
-#define MLXSW_REG_PSPA_LEN 0x8
-
-MLXSW_REG_DEFINE(pspa, MLXSW_REG_PSPA_ID, MLXSW_REG_PSPA_LEN);
-
-/* reg_pspa_swid
- * Switch partition ID.
-#define MLXSW_REG_HTGT_ID 0x7002
-#define MLXSW_REG_HTGT_LEN 0x100
-
-MLXSW_REG_DEFINE(htgt, MLXSW_REG_HTGT_ID, MLXSW_REG_HTGT_LEN);
-
-/* reg_htgt_swid
- * Switch partition ID.
-#define MLXSW_REG_HPKT_ID 0x7003
-#define MLXSW_REG_HPKT_LEN 0x10
-
-MLXSW_REG_DEFINE(hpkt, MLXSW_REG_HPKT_ID, MLXSW_REG_HPKT_LEN);
-
-enum {
-	MLXSW_REG_HPKT_ACK_NOT_REQUIRED,
-#define MLXSW_REG_RGCR_ID 0x8001
-#define MLXSW_REG_RGCR_LEN 0x28
-
-MLXSW_REG_DEFINE(rgcr, MLXSW_REG_RGCR_ID, MLXSW_REG_RGCR_LEN);
-
-/* reg_rgcr_ipv4_en
- * IPv4 router enable.
-#define MLXSW_REG_RITR_ID 0x8002
-#define MLXSW_REG_RITR_LEN 0x40
-
-MLXSW_REG_DEFINE(ritr, MLXSW_REG_RITR_ID, MLXSW_REG_RITR_LEN);
-
-/* reg_ritr_enable
- * Enables routing on the router interface.
-#define MLXSW_REG_RATR_ID 0x8008
-#define MLXSW_REG_RATR_LEN 0x2C
-
-MLXSW_REG_DEFINE(ratr, MLXSW_REG_RATR_ID, MLXSW_REG_RATR_LEN);
-
-enum mlxsw_reg_ratr_op {
-	/* Read */
-#define MLXSW_REG_RALTA_ID 0x8010
-#define MLXSW_REG_RALTA_LEN 0x04
-
-MLXSW_REG_DEFINE(ralta, MLXSW_REG_RALTA_ID, MLXSW_REG_RALTA_LEN);
-
-/* reg_ralta_op
- * opcode (valid for Write, must be 0 on Read)
-#define MLXSW_REG_RALST_ID 0x8011
-#define MLXSW_REG_RALST_LEN 0x104
-
-MLXSW_REG_DEFINE(ralst, MLXSW_REG_RALST_ID, MLXSW_REG_RALST_LEN);
-
-/* reg_ralst_root_bin
- * The bin number of the root bin.
-#define MLXSW_REG_RALTB_ID 0x8012
-#define MLXSW_REG_RALTB_LEN 0x04
-
-MLXSW_REG_DEFINE(raltb, MLXSW_REG_RALTB_ID, MLXSW_REG_RALTB_LEN);
-
-#define MLXSW_REG_RALUE_ID 0x8013
-#define MLXSW_REG_RALUE_LEN 0x38
-
-MLXSW_REG_DEFINE(ralue, MLXSW_REG_RALUE_ID, MLXSW_REG_RALUE_LEN);
-
-#define MLXSW_REG_RAUHT_ID 0x8014
-#define MLXSW_REG_RAUHT_LEN 0x74
-
-MLXSW_REG_DEFINE(rauht, MLXSW_REG_RAUHT_ID, MLXSW_REG_RAUHT_LEN);
-
-#define MLXSW_REG_RALEU_ID 0x8015
-#define MLXSW_REG_RALEU_LEN 0x28
-
-MLXSW_REG_DEFINE(raleu, MLXSW_REG_RALEU_ID, MLXSW_REG_RALEU_LEN);
-
-		MLXSW_REG_RAUHTD_REC_MAX_NUM * MLXSW_REG_RAUHTD_REC_LEN)
-#define MLXSW_REG_RAUHTD_IPV4_ENT_PER_REC 4
-
-MLXSW_REG_DEFINE(rauhtd, MLXSW_REG_RAUHTD_ID, MLXSW_REG_RAUHTD_LEN);
-
-#define MLXSW_REG_RAUHTD_FILTER_A BIT(0)
-#define MLXSW_REG_RAUHTD_FILTER_RIF BIT(3)
-#define MLXSW_REG_MFCR_ID 0x9001
-#define MLXSW_REG_MFCR_LEN 0x08
-
-MLXSW_REG_DEFINE(mfcr, MLXSW_REG_MFCR_ID, MLXSW_REG_MFCR_LEN);
-
-#define MLXSW_REG_MFSC_ID 0x9002
-#define MLXSW_REG_MFSC_LEN 0x08
-
-MLXSW_REG_DEFINE(mfsc, MLXSW_REG_MFSC_ID, MLXSW_REG_MFSC_LEN);
-
-/* reg_mfsc_pwm
- * Fan pwm to control / monitor.
-#define MLXSW_REG_MFSM_ID 0x9003
-#define MLXSW_REG_MFSM_LEN 0x08
-
-MLXSW_REG_DEFINE(mfsm, MLXSW_REG_MFSM_ID, MLXSW_REG_MFSM_LEN);
-
-/* reg_mfsm_tacho
- * Fan tachometer index.
-#define MLXSW_REG_MTCAP_ID 0x9009
-#define MLXSW_REG_MTCAP_LEN 0x08
-
-MLXSW_REG_DEFINE(mtcap, MLXSW_REG_MTCAP_ID, MLXSW_REG_MTCAP_LEN);
-
-#define MLXSW_REG_MTMP_ID 0x900A
-#define MLXSW_REG_MTMP_LEN 0x20
-
-MLXSW_REG_DEFINE(mtmp, MLXSW_REG_MTMP_ID, MLXSW_REG_MTMP_LEN);
-
-/* reg_mtmp_sensor_index
- * Sensors index to access.
-	MLXSW_REG_ZERO(sbcm, payload);
-#define MLXSW_REG_MPAT_ID 0x901A
-#define MLXSW_REG_MPAT_LEN 0x78
-
-MLXSW_REG_DEFINE(mpat, MLXSW_REG_MPAT_ID, MLXSW_REG_MPAT_LEN);
-
-/* reg_sbpm_dir
- * Direction.
- * Access: Index
-MLXSW_ITEM32(reg, sbpm, max_buff, 0x1C, 0, 24);
-
-static inline void mlxsw_reg_sbpm_pack(char *payload, u8 local_port, u8 pool,
-				       enum mlxsw_reg_sbxx_dir dir, bool clr,
-				       u32 min_buff, u32 max_buff)
-{
-	MLXSW_REG_ZERO(sbpm, payload);
-	mlxsw_reg_sbpm_local_port_set(payload, local_port);
-	mlxsw_reg_sbpm_pool_set(payload, pool);
-	mlxsw_reg_sbpm_dir_set(payload, dir);
-	mlxsw_reg_sbpm_clr_set(payload, clr);
-	mlxsw_reg_sbpm_min_buff_set(payload, min_buff);
-	mlxsw_reg_sbpm_max_buff_set(payload, max_buff);
-}
-
-static inline void mlxsw_reg_sbpm_unpack(char *payload, u32 *p_buff_occupancy,
-					 u32 *p_max_buff_occupancy)
-{
-	*p_buff_occupancy = mlxsw_reg_sbpm_buff_occupancy_get(payload);
-	*p_max_buff_occupancy = mlxsw_reg_sbpm_max_buff_occupancy_get(payload);
-}
-#define MLXSW_REG_MPAR_ID 0x901B
-#define MLXSW_REG_MPAR_LEN 0x08
-
-MLXSW_REG_DEFINE(mpar, MLXSW_REG_MPAR_ID, MLXSW_REG_MPAR_LEN);
-
-/* SBMM - Shared Buffer Multicast Management Register
- * --------------------------------------------------
- * The SBMM register configures and retrieves the shared buffer allocation
-#define MLXSW_REG_MLCR_ID 0x902B
-#define MLXSW_REG_MLCR_LEN 0x0C
-
-MLXSW_REG_DEFINE(mlcr, MLXSW_REG_MLCR_ID, MLXSW_REG_MLCR_LEN);
-
-/* reg_mlcr_local_port
- * Local port number.
-#define MLXSW_REG_SBPR_ID 0xB001
-#define MLXSW_REG_SBPR_LEN 0x14
-
-MLXSW_REG_DEFINE(sbpr, MLXSW_REG_SBPR_ID, MLXSW_REG_SBPR_LEN);
-
-/* shared direstion enum for SBPR, SBCM, SBPM */
-enum mlxsw_reg_sbxx_dir {
-#define MLXSW_REG_SBCM_ID 0xB002
-#define MLXSW_REG_SBCM_LEN 0x28
-
-MLXSW_REG_DEFINE(sbcm, MLXSW_REG_SBCM_ID, MLXSW_REG_SBCM_LEN);
-
-/* reg_sbcm_local_port
- * Local port number.
-#define MLXSW_REG_SBPM_ID 0xB003
-#define MLXSW_REG_SBPM_LEN 0x28
-
-MLXSW_REG_DEFINE(sbpm, MLXSW_REG_SBPM_ID, MLXSW_REG_SBPM_LEN);
-
-/* reg_sbpm_local_port
- * Local port number.
-#define MLXSW_REG_SBMM_ID 0xB004
-#define MLXSW_REG_SBMM_LEN 0x28
-
-MLXSW_REG_DEFINE(sbmm, MLXSW_REG_SBMM_ID, MLXSW_REG_SBMM_LEN);
-
-/* reg_sbmm_prio
- * Switch Priority.
-			    MLXSW_REG_SBSR_REC_LEN *	\
-			    MLXSW_REG_SBSR_REC_MAX_COUNT)
-
-MLXSW_REG_DEFINE(sbsr, MLXSW_REG_SBSR_ID, MLXSW_REG_SBSR_LEN);
-
-/* reg_sbsr_clr
- * Clear Max Buffer Occupancy. When this bit is set, the max_buff_occupancy
-#define MLXSW_REG_SBIB_ID 0xB006
-#define MLXSW_REG_SBIB_LEN 0x10
-
 MLXSW_REG_DEFINE(sbib, MLXSW_REG_SBIB_ID, MLXSW_REG_SBIB_LEN);
 
 /* reg_sbib_local_port
  * Local port number
+ * Not supported for CPU port and router port
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbib, local_port, 0x00, 16, 8);
+
+/* reg_sbib_buff_size
+ * Units represented in cells
+ * Allowed range is 0 to (cap_max_headroom_size - 1)
+ * Default is 0
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sbib, buff_size, 0x08, 0, 24);
+
+static inline void mlxsw_reg_sbib_pack(char *payload, u8 local_port,
+				       u32 buff_size)
+{
+	MLXSW_REG_ZERO(sbib, payload);
+	mlxsw_reg_sbib_local_port_set(payload, local_port);
 	mlxsw_reg_sbib_buff_size_set(payload, buff_size);
 }
 
@@ -5686,3 +5958,42 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 }
 
 /* PUDE - Port Up / Down Event
+ * ---------------------------
+ * Reports the operational state change of a port.
+ */
+#define MLXSW_REG_PUDE_LEN 0x10
+
+/* reg_pude_swid
+ * Switch partition ID with which to associate the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pude, swid, 0x00, 24, 8);
+
+/* reg_pude_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pude, local_port, 0x00, 16, 8);
+
+/* reg_pude_admin_status
+ * Port administrative state (the desired state).
+ * 1 - Up.
+ * 2 - Down.
+ * 3 - Up once. This means that in case of link failure, the port won't go
+ *     into polling mode, but will wait to be re-enabled by software.
+ * 4 - Disabled by system. Can only be set by hardware.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pude, admin_status, 0x00, 8, 4);
+
+/* reg_pude_oper_status
+ * Port operatioanl state.
+ * 1 - Up.
+ * 2 - Down.
+ * 3 - Down by port failure. This means that the device will not let the
+ *     port up again until explicitly specified by software.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pude, oper_status, 0x00, 0, 4);
+
+#endif

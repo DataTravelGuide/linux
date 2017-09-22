@@ -48,7 +48,7 @@
 unsigned int drm_debug = 0;
 EXPORT_SYMBOL(drm_debug);
 
-MODULE_AUTHOR("Gareth Hughes, Leif Delgass, JosÃÂ© Fonseca, Jon Smirl");
+MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
 MODULE_DESCRIPTION("DRM shared core routines");
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"

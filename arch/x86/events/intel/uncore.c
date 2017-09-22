@@ -23,6 +23,8 @@ static struct event_constraint uncore_constraint_fixed =
 struct event_constraint uncore_constraint_empty =
 	EVENT_CONSTRAINT(0, 0, 0);
 
+MODULE_LICENSE("GPL");
+
 static int uncore_pcibus_to_physid(struct pci_bus *bus)
 {
 	struct pci2phy_map *map;
@@ -762,7 +764,7 @@ static void uncore_pmu_unregister(struct intel_uncore_pmu *pmu)
 	pmu->registered = false;
 }
 
-static void __init __uncore_exit_boxes(struct intel_uncore_type *type, int cpu)
+static void __uncore_exit_boxes(struct intel_uncore_type *type, int cpu)
 {
 	struct intel_uncore_pmu *pmu = type->pmus;
 	struct intel_uncore_box *box;
@@ -778,7 +780,7 @@ static void __init __uncore_exit_boxes(struct intel_uncore_type *type, int cpu)
 	}
 }
 
-static void __init uncore_exit_boxes(void *dummy)
+static void uncore_exit_boxes(void *dummy)
 {
 	struct intel_uncore_type **types;
 
@@ -795,7 +797,7 @@ static void uncore_free_boxes(struct intel_uncore_pmu *pmu)
 	kfree(pmu->boxes);
 }
 
-static void __init uncore_type_exit(struct intel_uncore_type *type)
+static void uncore_type_exit(struct intel_uncore_type *type)
 {
 	struct intel_uncore_pmu *pmu = type->pmus;
 	int i;
@@ -812,7 +814,7 @@ static void __init uncore_type_exit(struct intel_uncore_type *type)
 	type->events_group = NULL;
 }
 
-static void __init uncore_types_exit(struct intel_uncore_type **types)
+static void uncore_types_exit(struct intel_uncore_type **types)
 {
 	for (; *types; types++)
 		uncore_type_exit(*types);
@@ -1014,46 +1016,6 @@ static int __init uncore_pci_init(void)
 	size_t size;
 	int ret;
 
-	switch (boot_cpu_data.x86_model) {
-	case 45: /* Sandy Bridge-EP */
-		ret = snbep_uncore_pci_init();
-		break;
-	case 62: /* Ivy Bridge-EP */
-		ret = ivbep_uncore_pci_init();
-		break;
-	case 63: /* Haswell-EP */
-		ret = hswep_uncore_pci_init();
-		break;
-	case 79: /* BDX-EP */
-	case 86: /* BDX-DE */
-		ret = bdx_uncore_pci_init();
-		break;
-	case 42: /* Sandy Bridge */
-		ret = snb_uncore_pci_init();
-		break;
-	case 58: /* Ivy Bridge */
-		ret = ivb_uncore_pci_init();
-		break;
-	case 60: /* Haswell */
-	case 69: /* Haswell Celeron */
-		ret = hsw_uncore_pci_init();
-		break;
-	case 61: /* Broadwell */
-		ret = bdw_uncore_pci_init();
-		break;
-	case 87: /* Knights Landing */
-		ret = knl_uncore_pci_init();
-		break;
-	case 94: /* SkyLake */
-		ret = skl_uncore_pci_init();
-		break;
-	default:
-		return -ENODEV;
-	}
-
-	if (ret)
-		return ret;
-
 	size = max_packages * sizeof(struct pci_extra_dev);
 	uncore_extra_pci_dev = kzalloc(size, GFP_KERNEL);
 	if (!uncore_extra_pci_dev) {
@@ -1085,7 +1047,7 @@ err:
 	return ret;
 }
 
-static void __init uncore_pci_exit(void)
+static void uncore_pci_exit(void)
 {
 	if (pcidrv_registered) {
 		pcidrv_registered = false;
@@ -1312,46 +1274,6 @@ static int __init uncore_cpu_init(void)
 {
 	int ret;
 
-	switch (boot_cpu_data.x86_model) {
-	case 26: /* Nehalem */
-	case 30:
-	case 37: /* Westmere */
-	case 44:
-		nhm_uncore_cpu_init();
-		break;
-	case 42: /* Sandy Bridge */
-	case 58: /* Ivy Bridge */
-	case 60: /* Haswell */
-	case 69: /* Haswell */
-	case 70: /* Haswell */
-	case 61: /* Broadwell */
-	case 71: /* Broadwell */
-		snb_uncore_cpu_init();
-		break;
-	case 45: /* Sandy Bridge-EP */
-		snbep_uncore_cpu_init();
-		break;
-	case 46: /* Nehalem-EX */
-	case 47: /* Westmere-EX aka. Xeon E7 */
-		nhmex_uncore_cpu_init();
-		break;
-	case 62: /* Ivy Bridge-EP */
-		ivbep_uncore_cpu_init();
-		break;
-	case 63: /* Haswell-EP */
-		hswep_uncore_cpu_init();
-		break;
-	case 79: /* BDX-EP */
-	case 86: /* BDX-DE */
-		bdx_uncore_cpu_init();
-		break;
-	case 87: /* Knights Landing */
-		knl_uncore_cpu_init();
-		break;
-	default:
-		return -ENODEV;
-	}
-
 	ret = uncore_types_init(uncore_msr_uncores, true);
 	if (ret)
 		goto err;
@@ -1387,6 +1309,84 @@ static int __init uncore_cpumask_init(bool msr)
 		/*
 		 * The first online cpu of each package allocates and takes
 		 * the refcounts for all other online cpus in that package.
+		 * If msrs are not enabled no allocation is required.
+		 */
+		if (msr) {
+			ret = uncore_cpu_prepare(cpu);
+			if (ret)
+				return ret;
+		}
+		uncore_event_init_cpu(cpu);
+		smp_call_function_single(cpu, uncore_cpu_setup, NULL, 1);
+	}
+	__register_cpu_notifier(&uncore_cpu_nb);
+	return 0;
+}
+
+#define X86_UNCORE_MODEL_MATCH(model, init)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&init }
+
+struct intel_uncore_init_fun {
+	void	(*cpu_init)(void);
+	int	(*pci_init)(void);
+};
+
+static const struct intel_uncore_init_fun nhm_uncore_init __initconst = {
+	.cpu_init = nhm_uncore_cpu_init,
+};
+
+static const struct intel_uncore_init_fun snb_uncore_init __initconst = {
+	.cpu_init = snb_uncore_cpu_init,
+	.pci_init = snb_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun ivb_uncore_init __initconst = {
+	.cpu_init = snb_uncore_cpu_init,
+	.pci_init = ivb_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun hsw_uncore_init __initconst = {
+	.cpu_init = snb_uncore_cpu_init,
+	.pci_init = hsw_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun bdw_uncore_init __initconst = {
+	.cpu_init = snb_uncore_cpu_init,
+	.pci_init = bdw_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun snbep_uncore_init __initconst = {
+	.cpu_init = snbep_uncore_cpu_init,
+	.pci_init = snbep_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun nhmex_uncore_init __initconst = {
+	.cpu_init = nhmex_uncore_cpu_init,
+};
+
+static const struct intel_uncore_init_fun ivbep_uncore_init __initconst = {
+	.cpu_init = ivbep_uncore_cpu_init,
+	.pci_init = ivbep_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun hswep_uncore_init __initconst = {
+	.cpu_init = hswep_uncore_cpu_init,
+	.pci_init = hswep_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun bdx_uncore_init __initconst = {
+	.cpu_init = bdx_uncore_cpu_init,
+	.pci_init = bdx_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun knl_uncore_init __initconst = {
+	.cpu_init = knl_uncore_cpu_init,
+	.pci_init = knl_uncore_pci_init,
+};
+
+static const struct intel_uncore_init_fun skl_uncore_init __initconst = {
+	.cpu_init = skl_uncore_cpu_init,
+	.pci_init = skl_uncore_pci_init,
 };
 
 static const struct intel_uncore_init_fun skx_uncore_init __initconst = {
@@ -1421,25 +1421,16 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	{},
 };
 
-		 * If msrs are not enabled no allocation is required.
-		 */
-		if (msr) {
-			ret = uncore_cpu_prepare(cpu);
-			if (ret)
-				return ret;
-		}
-		uncore_event_init_cpu(cpu);
-		smp_call_function_single(cpu, uncore_cpu_setup, NULL, 1);
-	}
-	__register_cpu_notifier(&uncore_cpu_nb);
-	return 0;
-}
+MODULE_DEVICE_TABLE(x86cpu, intel_uncore_match);
 
 static int __init intel_uncore_init(void)
 {
-	int pret, cret, ret;
+	const struct x86_cpu_id *id;
+	struct intel_uncore_init_fun *uncore_init;
+	int pret = 0, cret = 0, ret;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+	id = x86_match_cpu(intel_uncore_match);
+	if (!id)
 		return -ENODEV;
 
 	if (cpu_has_hypervisor)
@@ -1447,8 +1438,17 @@ static int __init intel_uncore_init(void)
 
 	max_packages = topology_max_packages();
 
-	pret = uncore_pci_init();
-	cret = uncore_cpu_init();
+	uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
+	if (uncore_init->pci_init) {
+		pret = uncore_init->pci_init();
+		if (!pret)
+			pret = uncore_pci_init();
+	}
+
+	if (uncore_init->cpu_init) {
+		uncore_init->cpu_init();
+		cret = uncore_cpu_init();
+	}
 
 	if (cret && pret)
 		return -ENODEV;
@@ -1468,4 +1468,14 @@ err:
 	cpu_notifier_register_done();
 	return ret;
 }
-device_initcall(intel_uncore_init);
+module_init(intel_uncore_init);
+
+static void __exit intel_uncore_exit(void)
+{
+	cpu_notifier_register_begin();
+	__unregister_cpu_notifier(&uncore_cpu_nb);
+	uncore_types_exit(uncore_msr_uncores);
+	uncore_pci_exit();
+	cpu_notifier_register_done();
+}
+module_exit(intel_uncore_exit);

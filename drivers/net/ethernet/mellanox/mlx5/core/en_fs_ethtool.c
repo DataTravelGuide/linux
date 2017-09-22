@@ -289,13 +289,6 @@ static struct mlx5_flow_handle *
 add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		      struct mlx5_flow_table *ft,
 		      struct ethtool_rx_flow_spec *fs)
-						  size - 1);
-}
-
-static struct mlx5_flow_handle *
-add_ethtool_flow_rule(struct mlx5e_priv *priv,
-		      struct mlx5_flow_table *ft,
-		      struct ethtool_rx_flow_spec *fs)
 {
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_flow_act flow_act = {0};

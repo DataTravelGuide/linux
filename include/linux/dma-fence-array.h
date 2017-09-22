@@ -5,7 +5,7 @@
  * Copyright (C) 2016 Advanced Micro Devices, Inc.
  * Authors:
  *	Gustavo Padovan <gustavo@padovan.org>
- *	Christian KÃÂ¶nig <christian.koenig@amd.com>
+ *	Christian König <christian.koenig@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by

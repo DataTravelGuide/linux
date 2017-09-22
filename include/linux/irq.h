@@ -414,6 +414,7 @@ extern void handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_edge_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_edge_eoi_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_simple_irq(unsigned int irq, struct irq_desc *desc);
+extern void handle_untracked_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_percpu_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_percpu_devid_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_bad_irq(unsigned int irq, struct irq_desc *desc);
@@ -481,13 +482,6 @@ static inline void irq_clear_status_flags(unsigned int irq, unsigned long clr)
 
 static inline void irq_set_noprobe(unsigned int irq)
 {
-extern void handle_edge_irq(struct irq_desc *desc);
-extern void handle_edge_eoi_irq(struct irq_desc *desc);
-extern void handle_simple_irq(struct irq_desc *desc);
-extern void handle_untracked_irq(struct irq_desc *desc);
-extern void handle_percpu_irq(struct irq_desc *desc);
-extern void handle_percpu_devid_irq(struct irq_desc *desc);
-extern void handle_bad_irq(struct irq_desc *desc);
 	irq_modify_status(irq, 0, IRQ_NOPROBE);
 }
 

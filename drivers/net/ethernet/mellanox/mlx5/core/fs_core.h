@@ -99,11 +99,6 @@ struct mlx5_flow_handle {
 	struct mlx5_flow_rule *rule[];
 };
 
-struct mlx5_flow_handle {
-	int num_rules;
-	struct mlx5_flow_rule *rule[];
-};
-
 /* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
 	struct fs_node			node;

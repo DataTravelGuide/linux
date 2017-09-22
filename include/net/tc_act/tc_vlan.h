@@ -19,7 +19,7 @@
 struct tcf_vlan {
 	struct tcf_common	common;
 	int			tcfv_action;
-	__be16			tcfv_push_vid;
+	u16			tcfv_push_vid;
 	__be16			tcfv_push_proto;
 	u8			tcfv_push_prio;
 };

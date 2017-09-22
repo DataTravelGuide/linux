@@ -249,7 +249,7 @@ static int __inode_security_revalidate(struct inode *inode,
 
 	might_sleep_if(may_sleep);
 
-	if (isec->initialized != LABEL_INITIALIZED) {
+	if (ss_initialized && isec->initialized != LABEL_INITIALIZED) {
 		if (!may_sleep)
 			return -ECHILD;
 
@@ -295,6 +295,13 @@ static struct inode_security_struct *backing_inode_security(struct dentry *dentr
 	struct inode *inode = d_backing_inode(dentry);
 
 	__inode_security_revalidate(inode, dentry, true);
+	return inode->i_security;
+}
+
+static struct inode_security_struct *backing_inode_security_novalidate(struct dentry *dentry)
+{
+	struct inode *inode = d_backing_inode(dentry);
+
 	return inode->i_security;
 }
 
@@ -652,7 +659,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *name = sb->s_type->name;
 	struct dentry *root = sbsec->sb->s_root;
-	struct inode_security_struct *root_isec = backing_inode_security(root);
+	struct inode_security_struct *root_isec;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
 	char **mount_options = opts->mnt_opts;
@@ -694,6 +701,8 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	if ((sbsec->flags & SE_SBINITIALIZED) && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
 	    && (num_opts == 0))
 		goto out;
+
+	root_isec = backing_inode_security_novalidate(root);
 
 	/*
 	 * parse the mount options, check if they are valid sids.
@@ -1775,7 +1784,6 @@ selinux_determine_inode_label(struct task_security_struct *tsec,
 				 u32 *_new_isid)
 {
 	const struct superblock_security_struct *sbsec = dir->i_sb->s_security;
-	const struct task_security_struct *tsec = current_security();
 
 	if ((sbsec->flags & SE_SBINITIALIZED) &&
 	    (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)) {
@@ -2226,10 +2234,6 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 	const struct task_security_struct *old_tsec;
 	struct task_security_struct *new_tsec;
 	struct inode_security_struct *isec;
-	u32 sid = task_sid(to);
-	struct file_security_struct *fsec = file->f_security;
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode_security_struct *isec;
 	struct common_audit_data ad;
 	struct inode *inode = file_inode(bprm->file);
 	int rc;
@@ -2524,9 +2528,7 @@ static inline int match_prefix(char *prefix, int plen, char *option, int olen)
 	if (plen > olen)
 		return 0;
 
-	isec = backing_inode_security(dentry);
-	return avc_has_perm(sid, isec->sid, isec->sclass, file_to_av(file),
-			    &ad);
+	return !memcmp(prefix, option, plen);
 }
 
 static inline int selinux_option(char *option, int len)
@@ -3028,7 +3030,7 @@ static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
 static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct inode *inode = dentry->d_inode;
 	struct inode_security_struct *isec;
 	struct superblock_security_struct *sbsec;
 	struct common_audit_data ad;
@@ -3106,7 +3108,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 					const void *value, size_t size,
 					int flags)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct inode *inode = dentry->d_inode;
 	struct inode_security_struct *isec;
 	u32 newsid;
 	int rc;
@@ -3184,9 +3186,6 @@ static int selinux_inode_getsecurity(struct inode *inode, const char *name, void
 	 */
 	error = selinux_capable(current_cred(), &init_user_ns, CAP_MAC_ADMIN,
 				SECURITY_CAP_NOAUDIT);
-	if (!error)
-		error = cred_has_capability(current_cred(), CAP_MAC_ADMIN,
-					    SECURITY_CAP_NOAUDIT);
 	isec = inode_security(inode);
 	if (!error)
 		error = security_sid_to_context_force(isec->sid, &context,
@@ -3208,12 +3207,8 @@ out_nofree:
 static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 				     const void *value, size_t size, int flags)
 {
-	struct common_audit_data ad;
-	struct file_security_struct *fsec = file->f_security;
-	struct inode *inode = file_inode(file);
-	struct inode_security_struct *isec;
-	struct lsm_ioctlop_audit ioctl;
-	u32 ssid = cred_sid(cred);
+	struct inode_security_struct *isec = inode_security_novalidate(inode);
+	u32 newsid;
 	int rc;
 
 	if (strcmp(name, XATTR_SELINUX_SUFFIX))
@@ -3313,10 +3308,6 @@ static int selinux_file_permission(struct file *file, int mask)
 		/* No change since file_open check. */
 		return 0;
 
-	isec = inode_security(inode);
-	rc = avc_has_extended_perms(ssid, isec->sid, isec->sclass,
-			requested, driver, xperm, &ad);
-out:
 	return selinux_revalidate_file_permission(file, mask);
 }
 
@@ -3470,23 +3461,12 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 			 * occur for text relocations.
 			 */
 			rc = file_has_perm(cred, vma->vm_file, FILE__EXECMOD);
-					SYSTEM__MODULE_LOAD, NULL);
-
-	/* finit_module */
-
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = file->f_path;
-
-	fsec = file->f_security;
-	if (sid != fsec->sid) {
-		rc = avc_has_perm(sid, fsec->sid, SECCLASS_FD, FD__USE, &ad);
+		}
 		if (rc)
 			return rc;
 	}
 
-	isec = inode_security(file_inode(file));
-	return avc_has_perm(sid, isec->sid, SECCLASS_SYSTEM,
-				SYSTEM__MODULE_LOAD, &ad);
+	return file_map_prot_check(vma->vm_file, prot, vma->vm_flags&VM_SHARED);
 }
 
 static int selinux_file_lock(struct file *file, unsigned int cmd)

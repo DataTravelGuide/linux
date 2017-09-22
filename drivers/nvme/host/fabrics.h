@@ -72,6 +72,8 @@ enum {
  *              subsystem which is adding a controller.
  * @trsvcid:	The transport-specific TRSVCID field for a port on the
  *              subsystem which is adding a controller.
+ * @host_traddr: A transport-specific field identifying the NVME host port
+ *              to use for the connection to the controller.
  * @queue_size: Number of IO queue elements.
  * @nr_io_queues: Number of controller IO queues that will be established.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
@@ -89,6 +91,7 @@ struct nvmf_ctrl_options {
 	char			*subsysnqn;
 	char			*traddr;
 	char			*trsvcid;
+	char			*host_traddr;
 	size_t			queue_size;
 	unsigned int		nr_io_queues;
 	unsigned int		reconnect_delay;

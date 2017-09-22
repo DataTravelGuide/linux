@@ -1269,9 +1269,6 @@ static int be_get_rxfh(struct net_device *netdev, u32 *indir, u8 *hkey,
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-
 	return 0;
 }
 
@@ -1281,10 +1278,6 @@ static int be_set_rxfh(struct net_device *netdev, const u32 *indir,
 	int rc = 0, i, j;
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
-
-	/* We do not allow change in unsupported parameters */
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
 
 	/* We do not allow change in unsupported parameters */
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)

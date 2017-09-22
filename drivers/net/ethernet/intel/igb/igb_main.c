@@ -385,7 +385,7 @@ static void igb_dump(struct igb_adapter *adapter)
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
 		pr_info("Device Name     state            trans_start      last_rx\n");
 		pr_info("%-15s %016lX %016lX %016lX\n", netdev->name,
-			netdev->state, netdev->trans_start, netdev->last_rx);
+			netdev->state, dev_trans_start(netdev), netdev->last_rx);
 	}
 
 	/* Print Registers */
@@ -2140,40 +2140,6 @@ igb_features_check(struct sk_buff *skb, struct net_device *dev,
 	return features;
 }
 
-#define IGB_MAX_MAC_HDR_LEN	127
-#define IGB_MAX_NETWORK_HDR_LEN	511
-
-static netdev_features_t
-igb_features_check(struct sk_buff *skb, struct net_device *dev,
-		   netdev_features_t features)
-{
-	unsigned int network_hdr_len, mac_hdr_len;
-
-	/* Make certain the headers can be described by a context descriptor */
-	mac_hdr_len = skb_network_header(skb) - skb->data;
-	if (unlikely(mac_hdr_len > IGB_MAX_MAC_HDR_LEN))
-		return features & ~(NETIF_F_HW_CSUM |
-				    NETIF_F_SCTP_CRC |
-				    NETIF_F_HW_VLAN_CTAG_TX |
-				    NETIF_F_TSO |
-				    NETIF_F_TSO6);
-
-	network_hdr_len = skb_checksum_start(skb) - skb_network_header(skb);
-	if (unlikely(network_hdr_len >  IGB_MAX_NETWORK_HDR_LEN))
-		return features & ~(NETIF_F_HW_CSUM |
-				    NETIF_F_SCTP_CRC |
-				    NETIF_F_TSO |
-				    NETIF_F_TSO6);
-
-	/* We can only support IPV4 TSO in tunnels if we can mangle the
-	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
-	 */
-	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
-		features &= ~NETIF_F_TSO;
-
-	return features;
-}
-
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_open		= igb_open,
@@ -2460,28 +2426,6 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	netdev->features |= NETIF_F_SG |
 			    NETIF_F_TSO |
-			    NETIF_F_TSO6 |
-			    NETIF_F_RXHASH |
-			    NETIF_F_RXCSUM |
-			    NETIF_F_HW_CSUM;
-
-	if (hw->mac.type >= e1000_82576)
-		netdev->features |= NETIF_F_SCTP_CRC;
-
-#define IGB_GSO_PARTIAL_FEATURES (NETIF_F_GSO_GRE | \
-				  NETIF_F_GSO_GRE_CSUM | \
-				  NETIF_F_GSO_IPIP | \
-				  NETIF_F_GSO_SIT | \
-				  NETIF_F_GSO_UDP_TUNNEL | \
-				  NETIF_F_GSO_UDP_TUNNEL_CSUM)
-
-	netdev->gso_partial_features = IGB_GSO_PARTIAL_FEATURES;
-	netdev->features |= NETIF_F_GSO_PARTIAL | IGB_GSO_PARTIAL_FEATURES;
-
-	/* copy netdev features into list of user selectable features */
-	netdev->hw_features |= netdev->features |
-			       NETIF_F_HW_VLAN_CTAG_RX |
-			       NETIF_F_HW_VLAN_CTAG_TX |
 			    NETIF_F_TSO6 |
 			    NETIF_F_RXHASH |
 			    NETIF_F_RXCSUM |
@@ -4973,19 +4917,6 @@ static int igb_tso(struct igb_ring *tx_ring,
 	int err;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-	union {
-		struct iphdr *v4;
-		struct ipv6hdr *v6;
-		unsigned char *hdr;
-	} ip;
-	union {
-		struct tcphdr *tcp;
-		unsigned char *hdr;
-	} l4;
-	u32 paylen, l4_offset;
-	int err;
-
-	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
 	if (!skb_is_gso(skb))
@@ -4994,9 +4925,6 @@ static int igb_tso(struct igb_ring *tx_ring,
 	err = skb_cow_head(skb, 0);
 	if (err < 0)
 		return err;
-
-	ip.hdr = skb_network_header(skb);
-	l4.hdr = skb_checksum_start(skb);
 
 	ip.hdr = skb_network_header(skb);
 	l4.hdr = skb_checksum_start(skb);
@@ -5029,13 +4957,6 @@ static int igb_tso(struct igb_ring *tx_ring,
 
 	/* determine offset of inner transport header */
 	l4_offset = l4.hdr - skb->data;
-
-	/* compute length of segmentation header */
-	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
-
-	/* remove payload length from inner checksum */
-	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
 
 	/* compute length of segmentation header */
 	*hdr_len = (l4.tcp->doff * 4) + l4_offset;

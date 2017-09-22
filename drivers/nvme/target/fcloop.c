@@ -492,16 +492,12 @@ fcloop_fcp_op(struct nvmet_fc_target_port *tgtport,
 	tgt_fcpreq->fcp_error = fcp_err;
 	tgt_fcpreq->done(tgt_fcpreq);
 
+	if ((!fcp_err) && (op == NVMET_FCOP_RSP ||
+			op == NVMET_FCOP_READDATA_RSP ||
+			op == NVMET_FCOP_ABORT))
+		schedule_work(&tfcp_req->work);
+
 	return 0;
-}
-
-static void
-fcloop_fcp_req_release(struct nvmet_fc_target_port *tgtport,
-			struct nvmefc_tgt_fcp_req *tgt_fcpreq)
-{
-	struct fcloop_fcpreq *tfcp_req = tgt_fcp_req_to_fcpreq(tgt_fcpreq);
-
-	schedule_work(&tfcp_req->work);
 }
 
 static void
@@ -574,15 +570,13 @@ struct nvmet_fc_target_template tgttemplate = {
 	.targetport_delete	= fcloop_targetport_delete,
 	.xmt_ls_rsp		= fcloop_xmt_ls_rsp,
 	.fcp_op			= fcloop_fcp_op,
-	.fcp_req_release	= fcloop_fcp_req_release,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,
 	.dma_boundary		= FCLOOP_DMABOUND_4G,
 	/* optional features */
-	.target_features	= NVMET_FCTGTFEAT_CMD_IN_ISR |
-				  NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED |
-				  NVMET_FCTGTFEAT_OPDONE_IN_ISR,
+	.target_features	= NVMET_FCTGTFEAT_READDATA_RSP |
+				  NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED,
 	/* sizes of additional private data for data structures */
 	.target_priv_sz		= sizeof(struct fcloop_tport),
 };
@@ -851,7 +845,7 @@ fcloop_create_remote_port(struct device *dev, struct device_attribute *attr,
 	rport->lport = nport->lport;
 	nport->rport = rport;
 
-	return ret ? ret : count;
+	return count;
 }
 
 
@@ -958,7 +952,7 @@ fcloop_create_target_port(struct device *dev, struct device_attribute *attr,
 	tport->lport = nport->lport;
 	nport->tport = tport;
 
-	return ret ? ret : count;
+	return count;
 }
 
 
@@ -1064,6 +1058,8 @@ static struct device *fcloop_device;
 static int __init fcloop_init(void)
 {
 	int ret;
+
+	mark_tech_preview("NVMe over FC", THIS_MODULE);
 
 	fcloop_class = class_create(THIS_MODULE, "fcloop");
 	if (IS_ERR(fcloop_class)) {

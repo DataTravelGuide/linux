@@ -44,6 +44,7 @@
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/transobj.h>
 #include <linux/rhashtable.h>
+#include <net/switchdev.h>
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
@@ -256,7 +257,6 @@ enum {
 	MLX5E_RQ_STATE_ENABLED,
 	MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS,
 	MLX5E_RQ_STATE_AM,
-	MLX5E_RQ_STATE_FLUSH_TIMEOUT,
 };
 
 struct mlx5e_cq {
@@ -514,6 +514,17 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_INDIR_TIRS = MLX5E_TT_ANY,
 };
 
+enum {
+	MLX5E_STATE_ASYNC_EVENTS_ENABLED,
+	MLX5E_STATE_OPENED,
+	MLX5E_STATE_DESTROYING,
+};
+
+struct mlx5e_vxlan_db {
+	spinlock_t			lock; /* protect vxlan table */
+	struct radix_tree_root		tree;
+};
+
 struct mlx5e_l2_rule {
 	u8  addr[ETH_ALEN + 2];
 	struct mlx5_flow_handle *rule;
@@ -527,47 +538,13 @@ struct mlx5e_flow_table {
 
 #define MLX5E_L2_ADDR_HASH_SIZE BIT(BITS_PER_BYTE)
 
-enum {
-	MLX5E_STATE_ASYNC_EVENTS_ENABLED,
-	MLX5E_STATE_OPENED,
-	MLX5E_STATE_DESTROYING,
-};
-
-struct mlx5e_vlan_db {
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	struct mlx5_flow_handle	*active_vlans_rule[VLAN_N_VID];
-	struct mlx5_flow_handle	*untagged_rule;
-	struct mlx5_flow_handle	*any_vlan_rule;
-	bool		filter_disabled;
-};
-
-struct mlx5e_vxlan_db {
-	spinlock_t			lock; /* protect vxlan table */
-	struct radix_tree_root		tree;
-};
-
-struct mlx5e_flow_table {
-	int num_groups;
-	struct mlx5_flow_table		*t;
-	struct mlx5_flow_group		**g;
-};
-
-struct mlx5e_tc_flow_table {
+struct mlx5e_tc_table {
 	struct mlx5_flow_table		*t;
 
 	struct rhashtable_params        ht_params;
 	struct rhashtable               ht;
 };
 
-struct mlx5e_tc_flow_table {
-	struct mlx5_flow_table		*t;
-
-	struct rhashtable_params        ht_params;
-	struct rhashtable               ht;
-};
-
-struct mlx5e_flow_tables {
-	struct mlx5_flow_namespace	*ns;
 struct mlx5e_vlan_table {
 	struct mlx5e_flow_table		ft;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -664,6 +641,11 @@ struct mlx5e_tir {
 	struct list_head  list;
 };
 
+enum {
+	MLX5E_TC_PRIO = 0,
+	MLX5E_NIC_PRIO
+};
+
 struct mlx5e_profile {
 	void	(*init)(struct mlx5_core_dev *mdev,
 			struct net_device *netdev,
@@ -752,9 +734,6 @@ void mlx5e_rx_am_work(struct work_struct *work);
 struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
-
-int mlx5e_create_flow_tables(struct mlx5e_priv *priv);
-void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv);
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);

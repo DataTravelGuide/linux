@@ -73,6 +73,9 @@
 #include <net/checksum.h>
 #include <linux/net_tstamp.h>
 
+#include <linux/rh_kabi.h>
+#include <net/tcp_states.h>
+
 struct cgroup;
 struct cgroup_subsys;
 #ifdef CONFIG_NET
@@ -414,7 +417,6 @@ struct sock {
 	void			*sk_protinfo;
 	struct timer_list	sk_timer;
 	ktime_t			sk_stamp;
-	u16			sk_tsflags;
 	struct socket		*sk_socket;
 	void			*sk_user_data;
 	struct page_frag	sk_frag;
@@ -723,7 +725,15 @@ enum sock_flags {
 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
 	SOCK_MEMALLOC, /* VM depends on this socket for swapping */
+	SOCK_RH_RESERVED_1, /* placeholders to avoid shifting the rest of
+			     * the SOCK_* flags
+			     */
+	SOCK_RH_RESERVED_2,
+	SOCK_RH_RESERVED_3,
 	SOCK_TIMESTAMPING_RX_SOFTWARE,  /* %SOF_TIMESTAMPING_RX_SOFTWARE */
+	SOCK_RH_RESERVED_4,
+	SOCK_RH_RESERVED_5,
+	SOCK_RH_RESERVED_6,
 	SOCK_FASYNC, /* fasync() active */
 	SOCK_RXQ_OVFL,
 	SOCK_ZEROCOPY, /* buffers from userspace */
@@ -2287,11 +2297,11 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 	 */
 	if (sock_flag(sk, SOCK_RCVTSTAMP) ||
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RX_SOFTWARE) ||
-	    (kt.tv64 &&
-	     (sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE ||
-	      skb_shinfo(skb)->tx_flags & SKBTX_ANY_SW_TSTAMP)) ||
+	    (kt.tv64 && sk->sk_tsflags & SOF_TIMESTAMPING_SOFTWARE) ||
 	    (hwtstamps->hwtstamp.tv64 &&
-	     (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE)))
+	     (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE)) ||
+	    (hwtstamps->syststamp.tv64 &&
+	     (sk->sk_tsflags & SOF_TIMESTAMPING_SYS_HARDWARE)))
 		__sock_recv_timestamp(msg, sk, skb);
 	else
 		sk->sk_stamp = kt;
@@ -2309,7 +2319,8 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 #define FLAGS_TS_OR_DROPS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP))
 #define TSFLAGS_ANY	  (SOF_TIMESTAMPING_SOFTWARE			| \
-			   SOF_TIMESTAMPING_RAW_HARDWARE)
+			   SOF_TIMESTAMPING_RAW_HARDWARE		| \
+			   SOF_TIMESTAMPING_SYS_HARDWARE)
 
 	if (sk->sk_flags & FLAGS_TS_OR_DROPS || sk->sk_tsflags & TSFLAGS_ANY)
 		__sock_recv_ts_and_drops(msg, sk, skb);

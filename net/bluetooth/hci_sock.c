@@ -26,6 +26,7 @@
 
 #include <linux/export.h>
 #include <linux/utsname.h>
+#include <linux/sched.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -37,6 +38,8 @@
 
 static LIST_HEAD(mgmt_chan_list);
 static DEFINE_MUTEX(mgmt_chan_list_lock);
+
+static DEFINE_IDA(sock_cookie_ida);
 
 static atomic_t monitor_promisc = ATOMIC_INIT(0);
 
@@ -52,6 +55,8 @@ struct hci_pinfo {
 	__u32             cmsg_mask;
 	unsigned short    channel;
 	unsigned long     flags;
+	__u32             cookie;
+	char              comm[TASK_COMM_LEN];
 };
 
 void hci_sock_set_flag(struct sock *sk, int nr)
@@ -72,6 +77,11 @@ int hci_sock_test_flag(struct sock *sk, int nr)
 unsigned short hci_sock_get_channel(struct sock *sk)
 {
 	return hci_pi(sk)->channel;
+}
+
+u32 hci_sock_get_cookie(struct sock *sk)
+{
+	return hci_pi(sk)->cookie;
 }
 
 static bool hci_sock_gen_cookie(struct sock *sk)
@@ -465,9 +475,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 	return skb;
 }
 
-static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
-						   u16 opcode, u16 len,
-						   const void *buf)
+static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 {
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
@@ -504,6 +512,75 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 		return NULL;
 
 	flags = hci_sock_test_flag(sk, HCI_SOCK_TRUSTED) ? 0x1 : 0x0;
+
+	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
+	put_unaligned_le16(format, skb_put(skb, 2));
+	memcpy(skb_put(skb, sizeof(ver)), ver, sizeof(ver));
+	put_unaligned_le32(flags, skb_put(skb, 4));
+	*skb_put(skb, 1) = TASK_COMM_LEN;
+	memcpy(skb_put(skb, TASK_COMM_LEN), hci_pi(sk)->comm, TASK_COMM_LEN);
+
+	__net_timestamp(skb);
+
+	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_OPEN);
+	if (hci_pi(sk)->hdev)
+		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
+	else
+		hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+	return skb;
+}
+
+static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
+{
+	struct hci_mon_hdr *hdr;
+	struct sk_buff *skb;
+
+	/* No message needed when cookie is not present */
+	if (!hci_pi(sk)->cookie)
+		return NULL;
+
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_RAW:
+	case HCI_CHANNEL_USER:
+	case HCI_CHANNEL_CONTROL:
+		break;
+	default:
+		/* No message for unsupported format */
+		return NULL;
+	}
+
+	skb = bt_skb_alloc(4, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
+
+	__net_timestamp(skb);
+
+	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_CLOSE);
+	if (hci_pi(sk)->hdev)
+		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
+	else
+		hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+	return skb;
+}
+
+static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
+						   u16 opcode, u16 len,
+						   const void *buf)
+{
+	struct hci_mon_hdr *hdr;
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(6 + len, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
 
 	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
 	put_unaligned_le16(opcode, skb_put(skb, 2));
@@ -545,11 +622,8 @@ send_monitor_note(struct sock *sk, const char *fmt, ...)
 	__net_timestamp(skb);
 
 	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
-	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_OPEN);
-	if (hci_pi(sk)->hdev)
-		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
-	else
-		hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->opcode = cpu_to_le16(HCI_MON_SYSTEM_NOTE);
+	hdr->index = cpu_to_le16(HCI_DEV_NONE);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	if (sock_queue_rcv_skb(sk, skb))
@@ -598,6 +672,26 @@ static void send_monitor_replay(struct sock *sk)
 	read_unlock(&hci_dev_list_lock);
 }
 
+static void send_monitor_control_replay(struct sock *mon_sk)
+{
+	struct sock *sk;
+
+	read_lock(&hci_sk_list.lock);
+
+	sk_for_each(sk, &hci_sk_list.head) {
+		struct sk_buff *skb;
+
+		skb = create_monitor_ctrl_open(sk);
+		if (!skb)
+			continue;
+
+		if (sock_queue_rcv_skb(mon_sk, skb))
+			kfree_skb(skb);
+	}
+
+	read_unlock(&hci_sk_list.lock);
+}
+
 /* Generate internal stack event */
 static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 {
@@ -605,21 +699,7 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	struct hci_ev_stack_internal *ev;
 	struct sk_buff *skb;
 
-	/* No message needed when cookie is not present */
-	if (!hci_pi(sk)->cookie)
-		return NULL;
-
-	switch (hci_pi(sk)->channel) {
-	case HCI_CHANNEL_RAW:
-	case HCI_CHANNEL_USER:
-	case HCI_CHANNEL_CONTROL:
-		break;
-	default:
-		/* No message for unsupported format */
-		return NULL;
-	}
-
-	skb = bt_skb_alloc(4, GFP_ATOMIC);
+	skb = bt_skb_alloc(HCI_EVENT_HDR_SIZE + sizeof(*ev) + dlen, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -685,9 +765,10 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event)
 	}
 }
 
-		skb = create_monitor_ctrl_open(sk);
-		if (!skb)
-			continue;
+static struct hci_mgmt_chan *__hci_mgmt_chan_find(unsigned short channel)
+{
+	struct hci_mgmt_chan *c;
+
 	list_for_each_entry(c, &mgmt_chan_list, list) {
 		if (c->channel == channel)
 			return c;
@@ -747,7 +828,8 @@ static int hci_sock_release(struct socket *sock)
 
 	hdev = hci_pi(sk)->hdev;
 
-	if (hci_pi(sk)->channel == HCI_CHANNEL_MONITOR)
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_MONITOR:
 		atomic_dec(&monitor_promisc);
 		break;
 	case HCI_CHANNEL_RAW:
@@ -756,6 +838,15 @@ static int hci_sock_release(struct socket *sock)
 		/* Send event to monitor */
 		skb = create_monitor_ctrl_close(sk);
 		if (skb) {
+			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+					    HCI_SOCK_TRUSTED, NULL);
+			kfree_skb(skb);
+		}
+
+		hci_sock_free_cookie(sk);
+		break;
+	}
+
 	bt_sock_unlink(&hci_sk_list, sk);
 
 	if (hdev) {
@@ -774,8 +865,8 @@ static int hci_sock_release(struct socket *sock)
 			mgmt_index_added(hdev);
 		}
 
-		hci_sock_free_cookie(sk);
-		break;
+		atomic_dec(&hdev->promisc);
+		hci_dev_put(hdev);
 	}
 
 	sock_orphan(sk);
@@ -836,7 +927,7 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
 		return -EOPNOTSUPP;
 
-	if (hdev->dev_type != HCI_BREDR)
+	if (hdev->dev_type != HCI_PRIMARY)
 		return -EOPNOTSUPP;
 
 	switch (cmd) {
@@ -1152,6 +1243,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		send_monitor_note(sk, "Bluetooth subsystem version %u.%u",
 				  BT_SUBSYS_VERSION, BT_SUBSYS_REVISION);
 		send_monitor_replay(sk);
+		send_monitor_control_replay(sk);
 
 		atomic_inc(&monitor_promisc);
 		break;
@@ -1201,7 +1293,30 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 * received by untrusted users. Example for such events
 		 * are changes to settings, class of device, name etc.
 		 */
-		if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
+		if (hci_pi(sk)->channel == HCI_CHANNEL_CONTROL) {
+			if (!hci_sock_gen_cookie(sk)) {
+				/* In the case when a cookie has already been
+				 * assigned, this socket will transtion from
+				 * a raw socket into a control socket. To
+				 * allow for a clean transtion, send the
+				 * close notification first.
+				 */
+				skb = create_monitor_ctrl_close(sk);
+				if (skb) {
+					hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+							    HCI_SOCK_TRUSTED, NULL);
+					kfree_skb(skb);
+				}
+			}
+
+			/* Send event to monitor */
+			skb = create_monitor_ctrl_open(sk);
+			if (skb) {
+				hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+						    HCI_SOCK_TRUSTED, NULL);
+				kfree_skb(skb);
+			}
+
 			hci_sock_set_flag(sk, HCI_MGMT_INDEX_EVENTS);
 			hci_sock_set_flag(sk, HCI_MGMT_UNCONF_INDEX_EVENTS);
 			hci_sock_set_flag(sk, HCI_MGMT_OPTION_EVENTS);
@@ -1212,15 +1327,6 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		break;
 	}
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
-	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_CLOSE);
-	if (hci_pi(sk)->hdev)
-		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
-	else
-		hdr->index = cpu_to_le16(HCI_DEV_NONE);
-	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
-
-	hci_pi(sk)->channel = haddr.hci_channel;
 	sk->sk_state = BT_BOUND;
 
 done:
@@ -1303,6 +1409,7 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied, err;
+	unsigned int skblen;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -1313,31 +1420,13 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return -EOPNOTSUPP;
 
 	if (sk->sk_state == BT_CLOSED)
-		 */
-		if (hci_pi(sk)->channel == HCI_CHANNEL_CONTROL) {
-			if (!hci_sock_gen_cookie(sk)) {
-				/* In the case when a cookie has already been
-				 * assigned, this socket will transtion from
-				 * a raw socket into a control socket. To
-				 * allow for a clean transtion, send the
-				 * close notification first.
-				 */
-				skb = create_monitor_ctrl_close(sk);
-				if (skb) {
-					hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
-							    HCI_SOCK_TRUSTED, NULL);
-					kfree_skb(skb);
-				}
-			}
-
-			/* Send event to monitor */
-			skb = create_monitor_ctrl_open(sk);
 		return 0;
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)
 		return err;
 
+	skblen = skb->len;
 	copied = skb->len;
 	if (len < copied) {
 		msg->msg_flags |= MSG_TRUNC;
@@ -1362,6 +1451,9 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	skb_free_datagram(sk, skb);
+
+	if (flags & MSG_TRUNC)
+		copied = skblen;
 
 	return err ? : copied;
 }
@@ -1722,6 +1814,9 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 
 	BT_DBG("sk %p, opt %d", sk, optname);
 
+	if (level != SOL_HCI)
+		return -ENOPROTOOPT;
+
 	lock_sock(sk);
 
 	if (hci_pi(sk)->channel != HCI_CHANNEL_RAW) {
@@ -1791,8 +1886,6 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	}
 
-	sk->sk_state = BT_BOUND;
-
 done:
 	release_sock(sk);
 	return err;
@@ -1806,6 +1899,9 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname,
 	int len, opt, err = 0;
 
 	BT_DBG("sk %p, opt %d", sk, optname);
+
+	if (level != SOL_HCI)
+		return -ENOPROTOOPT;
 
 	if (get_user(len, optlen))
 		return -EFAULT;

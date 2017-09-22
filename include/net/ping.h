@@ -30,18 +30,8 @@
 
 struct ping_table {
 	struct hlist_nulls_head	hash[PING_HTABLE_SIZE];
-struct pingv6_ops {
-	int (*ipv6_recv_error)(struct sock *sk, struct msghdr *msg, int len,
-			       int *addr_len);
-	void (*ip6_datagram_recv_common_ctl)(struct sock *sk,
-					     struct msghdr *msg,
-					     struct sk_buff *skb);
-	void (*ip6_datagram_recv_specific_ctl)(struct sock *sk,
-					       struct msghdr *msg,
-					       struct sk_buff *skb);
-	int (*icmpv6_err_convert)(u8 type, u8 code, int *err);
-	void (*ipv6_icmp_error)(struct sock *sk, struct sk_buff *skb, int err,
-				__be16 port, u32 info, u8 *payload);
+	rwlock_t		lock;
+};
 
 struct ping_iter_state {
 	struct seq_net_private  p;

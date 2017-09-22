@@ -7,6 +7,7 @@
 #include <linux/pkt_sched.h>
 #include <linux/pkt_cls.h>
 #include <linux/percpu.h>
+#include <linux/dynamic_queue_limits.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -219,7 +220,8 @@ struct tcf_proto_ops {
 			bool	(*destroy)(struct tcf_proto*, bool))
 
 	unsigned long		(*get)(struct tcf_proto*, u32 handle);
-	int			(*change)(struct net *net, struct sk_buff *,
+	RH_KABI_DEPRECATE_FN(void, put, struct tcf_proto*, unsigned long)
+	RH_KABI_REPLACE(int	(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
 					unsigned long *),

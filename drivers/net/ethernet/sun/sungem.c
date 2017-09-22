@@ -2176,7 +2176,7 @@ static int gem_do_start(struct net_device *dev)
 	}
 
 	/* Mark us as attached again if we come from resume(), this has
-	 * no effect if we weren't detached and needs to be done now.
+	 * no effect if we weren't detatched and needs to be done now.
 	 */
 	netif_device_attach(dev);
 
@@ -2795,7 +2795,7 @@ static void gem_remove_one(struct pci_dev *pdev)
 
 		unregister_netdev(dev);
 
-		/* Ensure reset task is truly gone */
+		/* Ensure reset task is truely gone */
 		cancel_work_sync(&gp->reset_task);
 
 		/* Free resources */

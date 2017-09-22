@@ -187,14 +187,13 @@ struct mlx5_eswitch_rep {
 					 struct mlx5_eswitch_rep *rep);
 	u16		       vport;
 	u8		       hw_id[ETH_ALEN];
-	void		      *priv_data;
+	struct net_device      *netdev;
 
 	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
 	u16		       vlan;
 	u32		       vlan_refcount;
 	bool		       valid;
-	u8		       hw_id[ETH_ALEN];
 };
 
 struct mlx5_esw_offload {
@@ -260,6 +259,7 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 struct ifla_vf_stats *vf_stats);
 
 struct mlx5_flow_spec;
+struct mlx5_esw_flow_attr;
 
 struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
@@ -274,29 +274,12 @@ struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
 
 enum {
+	SET_VLAN_STRIP	= BIT(0),
 	SET_VLAN_INSERT	= BIT(1)
 };
 
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x40
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x80
-
-struct mlx5_encap_info {
-	__be32 daddr;
-	__be32 tun_id;
-	__be16 tp_dst;
-};
-
-struct mlx5_encap_entry {
-	struct hlist_node encap_hlist;
-	struct list_head flows;
-	u32 encap_id;
-	struct neighbour *n;
-	struct mlx5_encap_info tun_info;
-	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
-
-	struct net_device *out_dev;
-	int tunnel_type;
-};
 
 struct mlx5_encap_info {
 	__be32 daddr;
@@ -342,8 +325,7 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 				     struct mlx5_eswitch_rep *rep);
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport_index);
-
-#define MLX5_DEBUG_ESWITCH_MASK BIT(3)
+struct net_device *mlx5_eswitch_get_uplink_netdev(struct mlx5_eswitch *esw);
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
@@ -351,9 +333,6 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  int vport, u16 vlan, u8 qos, u8 set_flags);
-
-int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
-int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 

@@ -155,7 +155,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	struct hlist_head *head = rds_conn_bucket(laddr, faddr);
 	struct rds_transport *loop_trans;
 	unsigned long flags;
-	int ret;
+	int ret, i;
 	struct rds_transport *otrans = trans;
 
 	if (!is_outgoing && otrans->t_type == RDS_TRANS_TCP)
@@ -215,6 +215,12 @@ new_conn:
 
 	conn->c_trans = trans;
 
+	init_waitqueue_head(&conn->c_hs_waitq);
+	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+		__rds_conn_path_init(conn, &conn->c_path[i],
+				     is_outgoing);
+		conn->c_path[i].cp_index = i;
+	}
 	ret = trans->conn_alloc(conn, gfp);
 	if (ret) {
 		kmem_cache_free(rds_conn_slab, conn);
@@ -267,14 +273,8 @@ new_conn:
 			kmem_cache_free(rds_conn_slab, conn);
 			conn = found;
 		} else {
-			int i;
-
-			for (i = 0; i < RDS_MPATH_WORKERS; i++) {
-				__rds_conn_path_init(conn, &conn->c_path[i],
-						     is_outgoing);
-				conn->c_path[i].cp_index = i;
-			}
-
+			conn->c_my_gen_num = rds_gen_num;
+			conn->c_peer_gen_num = 0;
 			hlist_add_head_rcu(&conn->c_hash_node, head);
 			rds_cong_add_conn(conn);
 			rds_conn_count++;
@@ -672,6 +672,7 @@ EXPORT_SYMBOL_GPL(rds_conn_path_drop);
 
 void rds_conn_drop(struct rds_connection *conn)
 {
+	WARN_ON(conn->c_trans->t_mp_capable);
 	rds_conn_path_drop(&conn->c_path[0]);
 }
 EXPORT_SYMBOL_GPL(rds_conn_drop);
@@ -686,6 +687,7 @@ void rds_conn_path_connect_if_down(struct rds_conn_path *cp)
 	    !test_and_set_bit(RDS_RECONNECT_PENDING, &cp->cp_flags))
 		queue_delayed_work(rds_wq, &cp->cp_conn_w, 0);
 }
+EXPORT_SYMBOL_GPL(rds_conn_path_connect_if_down);
 
 void rds_conn_connect_if_down(struct rds_connection *conn)
 {

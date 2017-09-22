@@ -937,13 +937,6 @@ void ping_proc_exit(void)
 	unregister_pernet_subsys(&ping_net_ops);
 }
 
-		if (inet6_sk(sk)->rxopt.all)
-			pingv6_ops.ip6_datagram_recv_common_ctl(sk, msg, skb);
-		if (skb->protocol == htons(ETH_P_IPV6) &&
-		    inet6_sk(sk)->rxopt.all)
-			pingv6_ops.ip6_datagram_recv_specific_ctl(sk, msg, skb);
-		else if (skb->protocol == htons(ETH_P_IP) && isk->cmsg_flags)
-			ip_cmsg_recv(msg, skb);
 #endif
 
 void __init ping_init(void)

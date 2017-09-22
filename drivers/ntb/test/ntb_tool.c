@@ -271,7 +271,14 @@ static ssize_t tool_spadfn_read(struct tool_ctx *tc, char __user *ubuf,
 	if (!spad_read_fn)
 		return -EINVAL;
 
-	buf_size = min_t(size_t, size, 0x100);
+	spad_count = ntb_spad_count(tc->ntb);
+
+	/*
+	 * We multiply the number of spads by 15 to get the buffer size
+	 * this is from 3 for the %d, 10 for the largest hex value
+	 * (0x00000000) and 2 for the tab and line feed.
+	 */
+	buf_size = min_t(size_t, size, spad_count * 15);
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
@@ -279,7 +286,6 @@ static ssize_t tool_spadfn_read(struct tool_ctx *tc, char __user *ubuf,
 
 	pos = 0;
 
-	spad_count = ntb_spad_count(tc->ntb);
 	for (i = 0; i < spad_count; ++i) {
 		pos += scnprintf(buf + pos, buf_size - pos, "%d\t%#x\n",
 				 i, spad_read_fn(tc->ntb, i));
@@ -300,7 +306,7 @@ static ssize_t tool_spadfn_write(struct tool_ctx *tc,
 {
 	int spad_idx;
 	u32 spad_val;
-	char *buf;
+	char *buf, *buf_ptr;
 	int pos, n;
 	ssize_t rc;
 
@@ -320,14 +326,15 @@ static ssize_t tool_spadfn_write(struct tool_ctx *tc,
 	}
 
 	buf[size] = 0;
-
-	n = sscanf(buf, "%d %i%n", &spad_idx, &spad_val, &pos);
+	buf_ptr = buf;
+	n = sscanf(buf_ptr, "%d %i%n", &spad_idx, &spad_val, &pos);
 	while (n == 2) {
+		buf_ptr += pos;
 		rc = spad_write_fn(tc->ntb, spad_idx, spad_val);
 		if (rc)
 			break;
 
-		n = sscanf(buf + pos, "%d %i%n", &spad_idx, &spad_val, &pos);
+		n = sscanf(buf_ptr, "%d %i%n", &spad_idx, &spad_val, &pos);
 	}
 
 	if (n < 0)

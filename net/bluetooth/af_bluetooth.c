@@ -32,6 +32,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <linux/proc_fs.h>
 
+#include "leds.h"
 #include "selftest.h"
 
 /* Bluetooth sockets */
@@ -216,6 +217,7 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	size_t copied;
+	size_t skblen;
 	int err;
 
 	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
@@ -231,6 +233,7 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return err;
 	}
 
+	skblen = skb->len;
 	copied = skb->len;
 	if (len < copied) {
 		msg->msg_flags |= MSG_TRUNC;
@@ -248,6 +251,9 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	skb_free_datagram(sk, skb);
+
+	if (flags & MSG_TRUNC)
+		copied = skblen;
 
 	return err ? : copied;
 }
@@ -726,6 +732,8 @@ static int __init bt_init(void)
 
 	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 
+	bt_leds_init();
+
 	err = bt_sysfs_init();
 	if (err < 0)
 		return err;
@@ -784,6 +792,8 @@ static void __exit bt_exit(void)
 	sock_unregister(PF_BLUETOOTH);
 
 	bt_sysfs_cleanup();
+
+	bt_leds_cleanup();
 
 	debugfs_remove_recursive(bt_debugfs);
 }

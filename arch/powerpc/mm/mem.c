@@ -122,6 +122,8 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
+	resize_hpt_for_hotplug(memblock_phys_mem_size());
+
 	pgdata = NODE_DATA(nid);
 
 	start = (unsigned long)__va(start);
@@ -156,6 +158,8 @@ int arch_remove_memory(u64 start, u64 size)
 	 * hit that section of memory
 	 */
 	vm_unmap_aliases();
+
+	resize_hpt_for_hotplug(memblock_phys_mem_size());
 
 	return ret;
 }

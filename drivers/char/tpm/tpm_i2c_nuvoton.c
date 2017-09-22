@@ -1,5 +1,5 @@
-/******************************************************************************
- * Nuvoton TPM I2C Device Driver Interface for WPCT301/NPCT501,
+ /******************************************************************************
+ * Nuvoton TPM I2C Device Driver Interface for WPCT301/NPCT501/NPCT6XX,
  * based on the TCG TPM Interface Spec version 1.2.
  * Specifications at www.trustedcomputinggroup.org
  *
@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
+#include <linux/of_device.h>
 #include "tpm.h"
 
 /* I2C interface offsets */
@@ -52,7 +53,8 @@
 #define TPM_I2C_RETRY_DELAY_SHORT      2       /* msec */
 #define TPM_I2C_RETRY_DELAY_LONG       10      /* msec */
 
-#define I2C_DRIVER_NAME "tpm_i2c_nuvoton"
+#define OF_IS_TPM2 ((void *)1)
+#define I2C_IS_TPM2 1
 
 struct priv_data {
 	int irq;
@@ -144,7 +146,7 @@ static void i2c_nuvoton_ready(struct tpm_chip *chip)
 static int i2c_nuvoton_get_burstcount(struct i2c_client *client,
 				      struct tpm_chip *chip)
 {
-	unsigned long stop = jiffies + chip->vendor.timeout_d;
+	unsigned long stop = jiffies + chip->timeout_d;
 	s32 status;
 	int burst_count = -1;
 	u8 data;
@@ -165,7 +167,7 @@ static int i2c_nuvoton_get_burstcount(struct i2c_client *client,
 }
 
 /*
- * WPCT301/NPCT501 SINT# supports only dataAvail
+ * WPCT301/NPCT501/NPCT6XX SINT# supports only dataAvail
  * any call to this function which is not waiting for dataAvail will
  * set queue to NULL to avoid waiting for interrupt
  */
@@ -239,7 +241,7 @@ static int i2c_nuvoton_recv_data(struct i2c_client *client,
 
 	while (size < count &&
 	       i2c_nuvoton_wait_for_data_avail(chip,
-					       chip->vendor.timeout_c,
+					       chip->timeout_c,
 					       &priv->read_queue) == 0) {
 		burst_count = i2c_nuvoton_get_burstcount(client, chip);
 		if (burst_count < 0) {
@@ -289,7 +291,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		 * tag, paramsize, and result
 		 */
 		status = i2c_nuvoton_wait_for_data_avail(
-			chip, chip->vendor.timeout_c, &priv->read_queue);
+			chip, chip->timeout_c, &priv->read_queue);
 		if (status != 0) {
 			dev_err(dev, "%s() timeout on dataAvail\n", __func__);
 			size = -ETIMEDOUT;
@@ -329,7 +331,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		}
 		if (i2c_nuvoton_wait_for_stat(
 			    chip, TPM_STS_VALID | TPM_STS_DATA_AVAIL,
-			    TPM_STS_VALID, chip->vendor.timeout_c,
+			    TPM_STS_VALID, chip->timeout_c,
 			    NULL)) {
 			dev_err(dev, "%s() error left over data\n", __func__);
 			size = -ETIMEDOUT;
@@ -362,7 +364,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		i2c_nuvoton_ready(chip);
 		if (i2c_nuvoton_wait_for_stat(chip, TPM_STS_COMMAND_READY,
 					      TPM_STS_COMMAND_READY,
-					      chip->vendor.timeout_b, NULL)) {
+					      chip->timeout_b, NULL)) {
 			dev_err(dev, "%s() timeout on commandReady\n",
 				__func__);
 			rc = -EIO;
@@ -394,7 +396,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 						       TPM_STS_EXPECT,
 						       TPM_STS_VALID |
 						       TPM_STS_EXPECT,
-						       chip->vendor.timeout_c,
+						       chip->timeout_c,
 						       NULL);
 			if (rc < 0) {
 				dev_err(dev, "%s() timeout on Expect\n",
@@ -419,7 +421,7 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		rc = i2c_nuvoton_wait_for_stat(chip,
 					       TPM_STS_VALID | TPM_STS_EXPECT,
 					       TPM_STS_VALID,
-					       chip->vendor.timeout_c, NULL);
+					       chip->timeout_c, NULL);
 		if (rc) {
 			dev_err(dev, "%s() timeout on Expect to clear\n",
 				__func__);
@@ -545,13 +547,23 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	if (!priv)
 		return -ENOMEM;
 
+	if (dev->of_node) {
+		const struct of_device_id *of_id;
+
+		of_id = of_match_device(dev->driver->of_match_table, dev);
+		if (of_id && of_id->data == OF_IS_TPM2)
+			chip->flags |= TPM_CHIP_FLAG_TPM2;
+	} else
+		if (id->driver_data == I2C_IS_TPM2)
+			chip->flags |= TPM_CHIP_FLAG_TPM2;
+
 	init_waitqueue_head(&priv->read_queue);
 
 	/* Default timeouts */
-	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
-	chip->vendor.timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
-	chip->vendor.timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
-	chip->vendor.timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_b = msecs_to_jiffies(TPM_I2C_LONG_TIMEOUT);
+	chip->timeout_c = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
+	chip->timeout_d = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
 
 	dev_set_drvdata(&chip->dev, priv);
 
@@ -580,7 +592,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 			rc = i2c_nuvoton_wait_for_stat(chip,
 						       TPM_STS_COMMAND_READY,
 						       TPM_STS_COMMAND_READY,
-						       chip->vendor.timeout_b,
+						       chip->timeout_b,
 						       NULL);
 			if (rc == 0) {
 				/*
@@ -620,7 +632,8 @@ static int i2c_nuvoton_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_nuvoton_id[] = {
-	{I2C_DRIVER_NAME, 0},
+	{"tpm_i2c_nuvoton"},
+	{"tpm2_i2c_nuvoton", .driver_data = I2C_IS_TPM2},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, i2c_nuvoton_id);
@@ -629,6 +642,7 @@ MODULE_DEVICE_TABLE(i2c, i2c_nuvoton_id);
 static const struct of_device_id i2c_nuvoton_of_match[] = {
 	{.compatible = "nuvoton,npct501"},
 	{.compatible = "winbond,wpct301"},
+	{.compatible = "nuvoton,npct601", .data = OF_IS_TPM2},
 	{},
 };
 MODULE_DEVICE_TABLE(of, i2c_nuvoton_of_match);
@@ -641,7 +655,7 @@ static struct i2c_driver i2c_nuvoton_driver = {
 	.probe = i2c_nuvoton_probe,
 	.remove = i2c_nuvoton_remove,
 	.driver = {
-		.name = I2C_DRIVER_NAME,
+		.name = "tpm_i2c_nuvoton",
 		.owner = THIS_MODULE,
 		.pm = &i2c_nuvoton_pm_ops,
 		.of_match_table = of_match_ptr(i2c_nuvoton_of_match),

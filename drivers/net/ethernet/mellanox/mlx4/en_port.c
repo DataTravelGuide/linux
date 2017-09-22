@@ -220,9 +220,6 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		priv->port_stats.rx_chksum_good += READ_ONCE(ring->csum_ok);
 		priv->port_stats.rx_chksum_none += READ_ONCE(ring->csum_none);
 		priv->port_stats.rx_chksum_complete += READ_ONCE(ring->csum_complete);
-		priv->xdp_stats.rx_xdp_drop	+= READ_ONCE(ring->xdp_drop);
-		priv->xdp_stats.rx_xdp_tx	+= READ_ONCE(ring->xdp_tx);
-		priv->xdp_stats.rx_xdp_tx_full	+= READ_ONCE(ring->xdp_tx_full);
 	}
 	priv->port_stats.tx_chksum_offload = 0;
 	priv->port_stats.queue_stopped = 0;

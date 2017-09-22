@@ -83,9 +83,6 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 	MLX5_SET(create_flow_table_in, in, decap_en, en_encap_decap);
 	MLX5_SET(create_flow_table_in, in, encap_en, en_encap_decap);
 
-	MLX5_SET(create_flow_table_in, in, decap_en, en_encap_decap);
-	MLX5_SET(create_flow_table_in, in, encap_en, en_encap_decap);
-
 	switch (op_mod) {
 	case FS_FT_OP_MOD_NORMAL:
 		if (next_ft) {

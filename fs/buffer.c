@@ -2936,15 +2936,15 @@ void guard_bio_eod(int rw, struct bio *bio)
 	if (unlikely(bio->bi_sector >= maxsector))
 		return;
 
-	maxsector -= bio->bi_iter.bi_sector;
-	if (likely((bio->bi_iter.bi_size >> 9) <= maxsector))
+	maxsector -= bio->bi_sector;
+	if (likely((bio->bi_size >> 9) <= maxsector))
 		return;
 
 	/* Uhhuh. We've got a bio that straddles the device size! */
-	truncated_bytes = bio->bi_iter.bi_size - (maxsector << 9);
+	truncated_bytes = bio->bi_size - (maxsector << 9);
 
 	/* Truncate the bio.. */
-	bio->bi_iter.bi_size -= truncated_bytes;
+	bio->bi_size -= truncated_bytes;
 	bvec->bv_len -= truncated_bytes;
 
 	/* ..and clear the end of the buffer for reads */

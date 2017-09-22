@@ -30,9 +30,12 @@
  * SOFTWARE.
  */
 
+#include <net/tc_act/tc_gact.h>
+#include <net/pkt_cls.h>
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
 #include "en.h"
+#include "en_tc.h"
 #include "eswitch.h"
 #include "vxlan.h"
 
@@ -284,18 +287,6 @@ free_out:
 
 static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 {
-				      &qcnt->rx_out_of_buffer);
-}
-
-void mlx5e_update_stats(struct mlx5e_priv *priv)
-{
-	mlx5e_update_q_counter(priv);
-	mlx5e_update_vport_counters(priv);
-	mlx5e_update_pport_counters(priv);
-	mlx5e_update_sw_counters(priv);
-}
-
-void mlx5e_update_stats_work(struct work_struct *work)
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
 
 	if (!priv->q_counter)
@@ -305,17 +296,26 @@ void mlx5e_update_stats_work(struct work_struct *work)
 				      &qcnt->rx_out_of_buffer);
 }
 
-void mlx5e_update_stats(struct mlx5e_priv *priv)
+static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
 {
-	mlx5e_update_q_counter(priv);
-	mlx5e_update_vport_counters(priv);
-	mlx5e_update_pport_counters(priv);
-	mlx5e_update_sw_counters(priv);
-}
+	struct mlx5e_pcie_stats *pcie_stats = &priv->stats.pcie;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int sz = MLX5_ST_SZ_BYTES(mpcnt_reg);
+	void *out;
+	u32 *in;
 
-void mlx5e_update_stats_work(struct work_struct *work)
-				      &qcnt->rx_out_of_buffer);
-				      &qcnt->rx_out_of_buffer);
+	if (!MLX5_CAP_MCAM_FEATURE(mdev, pcie_performance_group))
+		return;
+
+	in = mlx5_vzalloc(sz);
+	if (!in)
+		return;
+
+	out = pcie_stats->pcie_perf_counters;
+	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
+
+	kvfree(in);
 }
 
 void mlx5e_update_stats(struct mlx5e_priv *priv)
@@ -324,17 +324,6 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 	mlx5e_update_pport_counters(priv);
 	mlx5e_update_vport_counters(priv);
 	mlx5e_update_q_counter(priv);
-	mlx5e_update_sw_counters(priv);
-}
-
-void mlx5e_update_stats_work(struct work_struct *work)
-}
-
-void mlx5e_update_stats(struct mlx5e_priv *priv)
-{
-	mlx5e_update_q_counter(priv);
-	mlx5e_update_vport_counters(priv);
-	mlx5e_update_pport_counters(priv);
 	mlx5e_update_sw_counters(priv);
 }
 
@@ -2622,6 +2611,26 @@ static int mlx5e_setup_tc(struct net_device *netdev, u8 tc)
 static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
 			      __be16 proto, struct tc_to_netdev *tc)
 {
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
+		goto mqprio;
+
+	switch (tc->type) {
+	case TC_SETUP_CLSFLOWER:
+		switch (tc->cls_flower->command) {
+		case TC_CLSFLOWER_REPLACE:
+			return mlx5e_configure_flower(priv, proto, tc->cls_flower);
+		case TC_CLSFLOWER_DESTROY:
+			return mlx5e_delete_flower(priv, tc->cls_flower);
+		case TC_CLSFLOWER_STATS:
+			return mlx5e_stats_flower(priv, tc->cls_flower);
+		}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+mqprio:
 	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
@@ -2897,18 +2906,8 @@ static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
 		return mlx5e_hwstamp_set(dev, ifr);
-		goto mqprio;
-
-	switch (tc->type) {
-	case TC_SETUP_CLSFLOWER:
-		switch (tc->cls_flower->command) {
-		case TC_CLSFLOWER_REPLACE:
-			return mlx5e_configure_flower(priv, proto, tc->cls_flower);
-		case TC_CLSFLOWER_DESTROY:
-			return mlx5e_delete_flower(priv, tc->cls_flower);
-		case TC_CLSFLOWER_STATS:
-			return mlx5e_stats_flower(priv, tc->cls_flower);
-		}
+	case SIOCGHWTSTAMP:
+		return mlx5e_hwstamp_get(dev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3155,7 +3154,6 @@ static const struct net_device_ops mlx5e_netdev_ops_basic = {
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
-	.ndo_xdp		 = mlx5e_xdp,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller     = mlx5e_netpoll,
 #endif
@@ -3192,7 +3190,6 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 	.ndo_set_vf_link_state   = mlx5e_set_vf_link_state,
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
-	.ndo_xdp		 = mlx5e_xdp,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller     = mlx5e_netpoll,
 #endif
@@ -3497,13 +3494,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 #endif
 	}
 
-#define FT_CAP(f) MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.f)
-	if (FT_CAP(flow_modify_en) &&
-	    FT_CAP(modify_root) &&
-	    FT_CAP(identified_miss_table_mode) &&
-	    FT_CAP(flow_table_modify))
-		priv->netdev->hw_features      |= NETIF_F_HW_TC;
-
 	netdev->features         |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
@@ -3590,8 +3580,14 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 		goto err_destroy_direct_tirs;
 	}
 
+	err = mlx5e_tc_init(priv);
+	if (err)
+		goto err_destroy_flow_steering;
+
 	return 0;
 
+err_destroy_flow_steering:
+	mlx5e_destroy_flow_steering(priv);
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
@@ -3608,6 +3604,7 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
 	int i;
 
+	mlx5e_tc_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);
@@ -3648,7 +3645,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		rep.load = mlx5e_nic_rep_load;
 		rep.unload = mlx5e_nic_rep_unload;
 		rep.vport = FDB_UPLINK_VPORT;
-		rep.priv_data = priv;
+		rep.netdev = netdev;
 		mlx5_eswitch_register_vport_rep(esw, 0, &rep);
 	}
 

@@ -46,13 +46,6 @@ struct file_clone_range {
 	__u64 dest_offset;
 };
 
-struct file_clone_range {
-	__s64 src_fd;
-	__u64 src_offset;
-	__u64 src_length;
-	__u64 dest_offset;
-};
-
 struct fstrim_range {
 	__u64 start;
 	__u64 len;

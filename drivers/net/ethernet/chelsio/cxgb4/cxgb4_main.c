@@ -2092,37 +2092,10 @@ static void detach_ulds(struct adapter *adap)
 	mutex_unlock(&uld_mutex);
 }
 
-static int get_rss_table(struct net_device *dev, u32 *p, u8 *key, u8 *hfunc)
-{
-	const struct port_info *pi = netdev_priv(dev);
-	unsigned int n = pi->rss_size;
-
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!p)
-		return 0;
-	while (n--)
-		p[n] = pi->rss[n];
-	return 0;
-}
-
-static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
-			 const u8 hfunc)
+static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
 {
 	unsigned int i;
 
-	/* We require at least one supported parameter to be changed and no
-	 * change in any of the unsupported parameters
-	 */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
-	if (!p)
-		return 0;
-
-	for (i = 0; i < pi->rss_size; i++)
-		pi->rss[i] = p[i];
-	if (pi->adapter->flags & FULL_INIT_DONE)
 	mutex_lock(&uld_mutex);
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
 		if (adap->uld && adap->uld[i].handle)
@@ -2614,19 +2587,6 @@ static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 	return ret;
 }
 
-static int cxgb_get_vf_config(struct net_device *dev,
-			      int vf, struct ifla_vf_info *ivi)
-{
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adap = pi->adapter;
-
-	if (vf >= adap->num_vfs)
-		return -EINVAL;
-	ivi->vf = vf;
-	ether_addr_copy(ivi->mac, adap->vfinfo[vf].vf_mac_addr);
-	return 0;
-}
-
 static int cxgb_get_phys_port_id(struct net_device *dev,
 				 struct netdev_phys_item_id *ppid)
 {
@@ -2639,6 +2599,18 @@ static int cxgb_get_phys_port_id(struct net_device *dev,
 	return 0;
 }
 
+static int cxgb_get_vf_config(struct net_device *dev,
+			      int vf, struct ifla_vf_info *ivi)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+
+	if (vf >= adap->num_vfs)
+		return -EINVAL;
+	ivi->vf = vf;
+	ether_addr_copy(ivi->mac, adap->vfinfo[vf].vf_mac_addr);
+	return 0;
+}
 #endif
 
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
@@ -3769,7 +3741,7 @@ static int adap_init0(struct adapter *adap)
 		adap->tids.stid_base = val[1];
 		adap->tids.nstids = val[2] - val[1] + 1;
 		/*
-		 * Setup server filter region. Divide the available filter
+		 * Setup server filter region. Divide the availble filter
 		 * region into two parts. Regular filters get 1/3rd and server
 		 * filters get 2/3rd part. This is only enabled if workarond
 		 * path is enabled.
@@ -4596,8 +4568,7 @@ static int config_mgmt_dev(struct pci_dev *pdev)
 	int err;
 
 	snprintf(name, IFNAMSIZ, "mgmtpf%d%d", adap->adap_idx, adap->pf);
-	netdev = alloc_netdev(sizeof(struct port_info), name, NET_NAME_UNKNOWN,
-			      dummy_setup);
+	netdev = alloc_netdev(sizeof(struct port_info), name, dummy_setup);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -4794,10 +4765,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->tid_release_lock);
-	spin_lock_init(&adapter->win0_lock);
 	spin_lock_init(&adapter->mbox_lock);
 
 	INIT_LIST_HEAD(&adapter->mlist.list);
+
 
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);

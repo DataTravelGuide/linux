@@ -59,35 +59,11 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 		unsigned long dma_prep_flags = DMA_COMPL_SKIP_SRC_UNMAP |
 					       DMA_COMPL_SKIP_DEST_UNMAP;
 
-	if (unmap && is_dma_copy_aligned(device, src_offset, dest_offset, len)) {
-		unsigned long dma_prep_flags = DMA_COMPL_SKIP_SRC_UNMAP |
-					       DMA_COMPL_SKIP_DEST_UNMAP;
-
 		if (submit->cb_fn)
 			dma_prep_flags |= DMA_PREP_INTERRUPT;
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_prep_flags |= DMA_PREP_FENCE;
 
-		unmap->to_cnt = 1;
-		unmap->addr[0] = dma_map_page(device->dev, src, src_offset, len,
-					      DMA_TO_DEVICE);
-		unmap->from_cnt = 1;
-		unmap->addr[1] = dma_map_page(device->dev, dest, dest_offset, len,
-					      DMA_FROM_DEVICE);
-		unmap->len = len;
-
-		tx = device->device_prep_dma_memcpy(chan, unmap->addr[1],
-						    unmap->addr[0], len,
-						    dma_prep_flags);
-	}
-
-	if (tx) {
-		pr_debug("%s: (async) len: %zu\n", __func__, len);
-
-		dma_set_unmap(tx, unmap);
-		async_tx_submit(chan, tx, submit);
-	} else {
-		void *dest_buf, *src_buf;
 		unmap->to_cnt = 1;
 		unmap->addr[0] = dma_map_page(device->dev, src, src_offset, len,
 					      DMA_TO_DEVICE);
@@ -123,8 +99,6 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 
 		async_tx_sync_epilog(submit);
 	}
-
-	dmaengine_unmap_put(unmap);
 
 	dmaengine_unmap_put(unmap);
 

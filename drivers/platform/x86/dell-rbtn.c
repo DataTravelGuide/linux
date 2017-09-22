@@ -1,6 +1,6 @@
 /*
     Dell Airplane Mode Switch driver
-    Copyright (C) 2014-2015  Pali RohÃÂ¡r <pali.rohar@gmail.com>
+    Copyright (C) 2014-2015  Pali Rohár <pali.rohar@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -490,5 +490,5 @@ MODULE_PARM_DESC(auto_remove_rfkill, "Automatically remove rfkill devices when "
 				     "(default true)");
 MODULE_DEVICE_TABLE(acpi, rbtn_ids);
 MODULE_DESCRIPTION("Dell Airplane Mode Switch driver");
-MODULE_AUTHOR("Pali RohÃÂ¡r <pali.rohar@gmail.com>");
+MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
 MODULE_LICENSE("GPL");

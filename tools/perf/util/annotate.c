@@ -200,10 +200,6 @@ indirect_call:
 		return 0;
 	}
 
-	tok = strchr(endptr, '*');
-	if (tok == NULL)
-		return -1;
-
 	ops->target.addr = strtoull(tok + 1, NULL, 16);
 	return 0;
 }

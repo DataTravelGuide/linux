@@ -1,7 +1,4 @@
-/*
- * drivers/net/phy/phy_device.c
- *
- * Framework for finding and configuring PHYs.
+/* Framework for finding and configuring PHYs.
  * Also contains generic PHY driver
  *
  * Author: Andy Fleming
@@ -37,9 +34,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
 
 MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
@@ -71,13 +66,13 @@ static DEFINE_MUTEX(phy_fixup_lock);
  * phy_register_fixup - creates a new phy_fixup and adds it to the list
  * @bus_id: A string which matches phydev->dev.bus_id (or PHY_ANY_ID)
  * @phy_uid: Used to match against phydev->phy_id (the UID of the PHY)
- * 	It can also be PHY_ANY_UID
+ *	It can also be PHY_ANY_UID
  * @phy_uid_mask: Applied to phydev->phy_id and fixup->phy_uid before
- * 	comparison
+ *	comparison
  * @run: The actual code to be run when a matching PHY is found
  */
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
-		int (*run)(struct phy_device *))
+		       int (*run)(struct phy_device *))
 {
 	struct phy_fixup *fixup = kzalloc(sizeof(*fixup), GFP_KERNEL);
 
@@ -99,7 +94,7 @@ EXPORT_SYMBOL(phy_register_fixup);
 
 /* Registers a fixup to be run on any PHY with the UID in phy_uid */
 int phy_register_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask,
-		int (*run)(struct phy_device *))
+			       int (*run)(struct phy_device *))
 {
 	return phy_register_fixup(PHY_ANY_ID, phy_uid, phy_uid_mask, run);
 }
@@ -107,14 +102,13 @@ EXPORT_SYMBOL(phy_register_fixup_for_uid);
 
 /* Registers a fixup to be run on the PHY with id string bus_id */
 int phy_register_fixup_for_id(const char *bus_id,
-		int (*run)(struct phy_device *))
+			      int (*run)(struct phy_device *))
 {
 	return phy_register_fixup(bus_id, PHY_ANY_UID, 0xffffffff, run);
 }
 EXPORT_SYMBOL(phy_register_fixup_for_id);
 
-/*
- * Returns 1 if fixup matches phydev in bus_id and phy_uid.
+/* Returns 1 if fixup matches phydev in bus_id and phy_uid.
  * Fixups can be set to match any in one or more fields.
  */
 static int phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
@@ -124,7 +118,7 @@ static int phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
 			return 0;
 
 	if ((fixup->phy_uid & fixup->phy_uid_mask) !=
-			(phydev->phy_id & fixup->phy_uid_mask))
+	    (phydev->phy_id & fixup->phy_uid_mask))
 		if (fixup->phy_uid != PHY_ANY_UID)
 			return 0;
 
@@ -153,12 +147,12 @@ static int phy_scan_fixups(struct phy_device *phydev)
 }
 
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
-			bool is_c45, struct phy_c45_device_ids *c45_ids)
+				     bool is_c45,
+				     struct phy_c45_device_ids *c45_ids)
 {
 	struct phy_device *dev;
 
-	/* We allocate the device, and initialize the
-	 * default values */
+	/* We allocate the device, and initialize the default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (NULL == dev)
 		return (struct phy_device *)PTR_ERR((void *)-ENOMEM);
@@ -167,7 +161,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 
 	dev->speed = 0;
 	dev->duplex = -1;
-	dev->pause = dev->asym_pause = 0;
+	dev->pause = 0;
+	dev->asym_pause = 0;
 	dev->link = 1;
 	dev->interface = PHY_INTERFACE_MODE_GMII;
 
@@ -191,14 +186,15 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	INIT_WORK(&dev->phy_queue, phy_change);
 
 	/* Request the appropriate module unconditionally; don't
-	   bother trying to do so only if it isn't already loaded,
-	   because that gets complicated. A hotplug event would have
-	   done an unconditional modprobe anyway.
-	   We don't do normal hotplug because it won't work for MDIO
-	   -- because it relies on the device staying around for long
-	   enough for the driver to get loaded. With MDIO, the NIC
-	   driver will get bored and give up as soon as it finds that
-	   there's no driver _already_ loaded. */
+	 * bother trying to do so only if it isn't already loaded,
+	 * because that gets complicated. A hotplug event would have
+	 * done an unconditional modprobe anyway.
+	 * We don't do normal hotplug because it won't work for MDIO
+	 * -- because it relies on the device staying around for long
+	 * enough for the driver to get loaded. With MDIO, the NIC
+	 * driver will get bored and give up as soon as it finds that
+	 * there's no driver _already_ loaded.
+	 */
 	request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT, MDIO_ID_ARGS(phy_id));
 
 	device_initialize(&dev->dev);
@@ -298,8 +294,7 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 	if (is_c45)
 		return get_phy_c45_ids(bus, addr, phy_id, c45_ids);
 
-	/* Grab the bits from PHYIR1, and put them
-	 * in the upper half */
+	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
 	if (phy_reg < 0)
 		return -EIO;
@@ -317,7 +312,8 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 }
 
 /**
- * get_phy_device - reads the specified PHY device and returns its @phy_device struct
+ * get_phy_device - reads the specified PHY device and returns its @phy_device
+ *		    struct
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
  * @is_c45: If true the PHY uses the 802.3 clause 45 protocol
@@ -351,8 +347,7 @@ int phy_device_register(struct phy_device *phydev)
 {
 	int err;
 
-	/* Don't register a phy if one is already registered at this
-	 * address */
+	/* Don't register a phy if one is already registered at this address */
 	if (phydev->bus->phy_map[phydev->addr])
 		return -EINVAL;
 	phydev->bus->phy_map[phydev->addr] = phydev;
@@ -425,7 +420,7 @@ EXPORT_SYMBOL(phy_find_first);
  *   this function.
  */
 static void phy_prepare_link(struct phy_device *phydev,
-		void (*handler)(struct net_device *))
+			     void (*handler)(struct net_device *))
 {
 	phydev->adjust_link = handler;
 }
@@ -472,15 +467,16 @@ EXPORT_SYMBOL(phy_connect_direct);
  *   the desired functionality.
  */
 struct phy_device *phy_connect(struct net_device *dev, const char *bus_id,
-		void (*handler)(struct net_device *),
-		phy_interface_t interface)
+			       void (*handler)(struct net_device *),
+			       phy_interface_t interface)
 {
 	struct phy_device *phydev;
 	struct device *d;
 	int rc;
 
 	/* Search the list of PHY devices on the mdio bus for the
-	 * PHY with the requested name */
+	 * PHY with the requested name
+	 */
 	d = bus_find_device_by_name(&mdio_bus_type, NULL, bus_id);
 	if (!d) {
 		pr_err("PHY %s not found\n", bus_id);
@@ -497,7 +493,8 @@ struct phy_device *phy_connect(struct net_device *dev, const char *bus_id,
 EXPORT_SYMBOL(phy_connect);
 
 /**
- * phy_disconnect - disable interrupts, stop state machine, and detach a PHY device
+ * phy_disconnect - disable interrupts, stop state machine, and detach a PHY
+ *		    device
  * @phydev: target phy_device struct
  */
 void phy_disconnect(struct phy_device *phydev)
@@ -546,8 +543,7 @@ static int phy_poll_reset(struct phy_device *phydev)
 	if (ret & BMCR_RESET)
 		return -ETIMEDOUT;
 
-	/*
-	 * Some chips (smsc911x) may still need up to another 1ms after the
+	/* Some chips (smsc911x) may still need up to another 1ms after the
 	 * BMCR_RESET bit is cleared before they are usable.
 	 */
 	msleep(1);
@@ -613,7 +609,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	get_device(d);
 
 	/* Assume that if there is no driver, that it doesn't
-	 * exist, and we should use the genphy driver. */
+	 * exist, and we should use the genphy driver.
+	 */
 	if (NULL == d->driver) {
 		if (phydev->is_c45)
 			d->driver = &genphy_driver[GENPHY_DRV_10G].driver;
@@ -645,7 +642,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
-	 * (dev_flags and interface) */
+	 * (dev_flags and interface)
+	 */
 	err = phy_init_hw(phydev);
 	if (err)
 		phy_detach(phydev);
@@ -671,8 +669,8 @@ EXPORT_SYMBOL(phy_attach_direct);
  * Description: Same as phy_attach_direct() except that a PHY bus_id
  *     string is passed instead of a pointer to a struct phy_device.
  */
-struct phy_device *phy_attach(struct net_device *dev,
-		const char *bus_id, phy_interface_t interface)
+struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
+			      phy_interface_t interface)
 {
 	struct bus_type *bus = &mdio_bus_type;
 	struct phy_device *phydev;
@@ -680,7 +678,8 @@ struct phy_device *phy_attach(struct net_device *dev,
 	int rc;
 
 	/* Search the list of PHY devices on the mdio bus for the
-	 * PHY with the requested name */
+	 * PHY with the requested name
+	 */
 	d = bus_find_device_by_name(bus, NULL, bus_id);
 	if (!d) {
 		pr_err("PHY %s not found\n", bus_id);
@@ -780,8 +779,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 	int oldadv, adv;
 	int err, changed = 0;
 
-	/* Only allow advertising what
-	 * this PHY supports */
+	/* Only allow advertising what this PHY supports */
 	phydev->advertising &= phydev->supported;
 	advertise = phydev->advertising;
 
@@ -790,6 +788,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 	if (adv < 0)
 		return adv;
 
+	oldadv = adv;
 	adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP |
 		 ADVERTISE_PAUSE_ASYM);
 	adv |= ethtool_adv_to_mii_adv_t(advertise);
@@ -804,14 +803,12 @@ static int genphy_config_advert(struct phy_device *phydev)
 
 	/* Configure gigabit if it's supported */
 	if (phydev->supported & (SUPPORTED_1000baseT_Half |
-				SUPPORTED_1000baseT_Full)) {
-		oldadv = adv = phy_read(phydev, MII_CTRL1000);
-	if (phydev->supported & (SUPPORTED_1000baseT_Half |
 				 SUPPORTED_1000baseT_Full)) {
 		adv = phy_read(phydev, MII_CTRL1000);
 		if (adv < 0)
 			return adv;
 
+		oldadv = adv;
 		adv &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
 		adv |= ethtool_adv_to_mii_ctrl1000_t(advertise);
 
@@ -839,7 +836,8 @@ static int genphy_setup_forced(struct phy_device *phydev)
 {
 	int ctl = 0;
 
-	phydev->pause = phydev->asym_pause = 0;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
 
 	if (SPEED_1000 == phydev->speed)
 		ctl |= BMCR_SPEED1000;
@@ -864,10 +862,10 @@ int genphy_restart_aneg(struct phy_device *phydev)
 	if (ctl < 0)
 		return ctl;
 
-	ctl |= (BMCR_ANENABLE | BMCR_ANRESTART);
+	ctl |= BMCR_ANENABLE | BMCR_ANRESTART;
 
 	/* Don't isolate the PHY if we're negotiating */
-	ctl &= ~(BMCR_ISOLATE);
+	ctl &= ~BMCR_ISOLATE;
 
 	return phy_write(phydev, MII_BMCR, ctl);
 }
@@ -893,7 +891,8 @@ int genphy_config_aneg(struct phy_device *phydev)
 		return result;
 	if (result == 0) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
-		 * begin with?  Or maybe phy was isolated? */
+		 * begin with?  Or maybe phy was isolated?
+		 */
 		int ctl = phy_read(phydev, MII_BMCR);
 
 		if (ctl < 0)
@@ -904,7 +903,8 @@ int genphy_config_aneg(struct phy_device *phydev)
 	}
 
 	/* Only restart aneg if we are advertising something different
-	 * than we were before.	 */
+	 * than we were before.
+	 */
 	if (result > 0)
 		result = genphy_restart_aneg(phydev);
 
@@ -980,8 +980,7 @@ int genphy_read_status(struct phy_device *phydev)
 	int lpa;
 	int lpagb = 0;
 
-	/* Update the link, but return if there
-	 * was an error */
+	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
 	if (err)
 		return err;
@@ -1012,7 +1011,8 @@ int genphy_read_status(struct phy_device *phydev)
 
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_HALF;
-		phydev->pause = phydev->asym_pause = 0;
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
 
 		if (lpagb & (LPA_1000FULL | LPA_1000HALF)) {
 			phydev->speed = SPEED_1000;
@@ -1034,6 +1034,7 @@ int genphy_read_status(struct phy_device *phydev)
 		}
 	} else {
 		int bmcr = phy_read(phydev, MII_BMCR);
+
 		if (bmcr < 0)
 			return bmcr;
 
@@ -1049,7 +1050,8 @@ int genphy_read_status(struct phy_device *phydev)
 		else
 			phydev->speed = SPEED_10;
 
-		phydev->pause = phydev->asym_pause = 0;
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
 	}
 
 	return 0;
@@ -1089,7 +1091,8 @@ static int genphy_config_init(struct phy_device *phydev)
 	u32 features;
 
 	/* For now, I'll claim that the generic driver supports
-	 * all possible port types */
+	 * all possible port types
+	 */
 	features = (SUPPORTED_TP | SUPPORTED_MII
 			| SUPPORTED_AUI | SUPPORTED_FIBRE |
 			SUPPORTED_BNC);
@@ -1144,7 +1147,7 @@ int genphy_suspend(struct phy_device *phydev)
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, MII_BMCR);
-	phy_write(phydev, MII_BMCR, (value | BMCR_PDOWN));
+	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
 
 	mutex_unlock(&phydev->lock);
 
@@ -1164,7 +1167,7 @@ int genphy_resume(struct phy_device *phydev)
 	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, MII_BMCR);
-	phy_write(phydev, MII_BMCR, (value & ~BMCR_PDOWN));
+	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
 
 	mutex_unlock(&phydev->lock);
 
@@ -1198,7 +1201,7 @@ static int phy_probe(struct device *dev)
 	 * but the interrupt is still a valid one
 	 */
 	if (!(phydrv->flags & PHY_HAS_INTERRUPT) &&
-			phy_interrupt_is_valid(phydev))
+	    phy_interrupt_is_valid(phydev))
 		phydev->irq = PHY_POLL;
 
 	if (phydrv->flags & PHY_IS_INTERNAL)
@@ -1208,7 +1211,8 @@ static int phy_probe(struct device *dev)
 
 	/* Start out supporting everything. Eventually,
 	 * a controller will attach, and may modify one
-	 * or both of these values */
+	 * or both of these values
+	 */
 	phydev->supported = phydrv->features;
 	phydev->advertising = phydrv->features;
 
@@ -1221,7 +1225,6 @@ static int phy_probe(struct device *dev)
 	mutex_unlock(&phydev->lock);
 
 	return err;
-
 }
 
 static int phy_remove(struct device *dev)
@@ -1291,9 +1294,9 @@ EXPORT_SYMBOL(phy_driver_unregister);
 void phy_drivers_unregister(struct phy_driver *drv, int n)
 {
 	int i;
-	for (i = 0; i < n; i++) {
+
+	for (i = 0; i < n; i++)
 		phy_driver_unregister(drv + i);
-	}
 }
 EXPORT_SYMBOL(phy_drivers_unregister);
 

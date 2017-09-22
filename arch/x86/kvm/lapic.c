@@ -114,15 +114,14 @@ static inline int apic_enabled(struct kvm_lapic *apic)
 	(LVT_MASK | APIC_MODE_MASK | APIC_INPUT_POLARITY | \
 	 APIC_LVT_REMOTE_IRR | APIC_LVT_LEVEL_TRIGGER)
 
-static inline u32 kvm_apic_id(struct kvm_lapic *apic)
+static inline u8 kvm_xapic_id(struct kvm_lapic *apic)
 {
-	/* To avoid a race between apic_base and following APIC_ID update when
-	 * switching to x2apic_mode, the x2apic mode returns initial x2apic id.
-	 */
-	if (apic_x2apic_mode(apic))
-		return apic->vcpu->vcpu_id;
-
 	return kvm_lapic_get_reg(apic, APIC_ID) >> 24;
+}
+
+static inline u32 kvm_x2apic_id(struct kvm_lapic *apic)
+{
+	return apic->vcpu->vcpu_id;
 }
 
 static inline bool kvm_apic_map_get_logical_dest(struct kvm_apic_map *map,
@@ -169,13 +168,13 @@ static void recalculate_apic_map(struct kvm *kvm)
 	struct kvm_apic_map *new, *old = NULL;
 	struct kvm_vcpu *vcpu;
 	int i;
-	u32 max_id = 255;
+	u32 max_id = 255; /* enough space for any xAPIC ID */
 
 	mutex_lock(&kvm->arch.apic_map_lock);
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		if (kvm_apic_present(vcpu))
-			max_id = max(max_id, kvm_apic_id(vcpu->arch.apic));
+			max_id = max(max_id, kvm_x2apic_id(vcpu->arch.apic));
 
 	new = kvm_kvzalloc(sizeof(struct kvm_apic_map) +
 	                   sizeof(struct kvm_lapic *) * ((u64)max_id + 1));
@@ -211,9 +210,6 @@ static void recalculate_apic_map(struct kvm *kvm)
 			new->phys_map[xapic_id] = apic;
 
 		ldr = kvm_lapic_get_reg(apic, APIC_LDR);
-
-		if (aid <= new->max_apic_id)
-			new->phys_map[aid] = apic;
 
 		if (apic_x2apic_mode(apic)) {
 			new->mode |= KVM_APIC_MODE_X2APIC;
@@ -274,6 +270,8 @@ static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 static inline void kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 {
 	u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
+
+	WARN_ON_ONCE(id != apic->vcpu->vcpu_id);
 
 	kvm_lapic_set_reg(apic, APIC_ID, id);
 	kvm_lapic_set_reg(apic, APIC_LDR, ldr);
@@ -602,10 +600,8 @@ static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 
 static bool kvm_apic_broadcast(struct kvm_lapic *apic, u32 mda)
 {
-	if (apic_x2apic_mode(apic))
-		return mda == X2APIC_BROADCAST;
-
-	return GET_APIC_DEST_FIELD(mda) == APIC_BROADCAST;
+	return mda == (apic_x2apic_mode(apic) ?
+			X2APIC_BROADCAST : APIC_BROADCAST);
 }
 
 static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 mda)
@@ -614,7 +610,7 @@ static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 mda)
 		return true;
 
 	if (apic_x2apic_mode(apic))
-		return mda == kvm_apic_id(apic);
+		return mda == kvm_x2apic_id(apic);
 
 	/*
 	 * Hotplug hack: Make LAPIC in xAPIC mode also accept interrupts as if
@@ -642,7 +638,6 @@ static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 		       && (logical_id & mda & 0xffff) != 0;
 
 	logical_id = GET_APIC_LOGICAL_ID(logical_id);
-	mda = GET_APIC_DEST_FIELD(mda);
 
 	switch (kvm_lapic_get_reg(apic, APIC_DFR)) {
 	case APIC_DFR_FLAT:
@@ -659,9 +654,9 @@ static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 
 /* The KVM local APIC implementation has two quirks:
  *
- *  - the xAPIC MDA stores the destination at bits 24-31, while this
- *    is not true of struct kvm_lapic_irq's dest_id field.  This is
- *    just a quirk in the API and is not problematic.
+ *  - Real hardware delivers interrupts destined to x2APIC ID > 0xff to LAPICs
+ *    in xAPIC mode if the "destination & 0xff" matches its xAPIC ID.
+ *    KVM doesn't do that aliasing.
  *
  *  - in-kernel IOAPIC messages have to be delivered directly to
  *    x2APIC, because the kernel does not support interrupt remapping.
@@ -677,13 +672,12 @@ static u32 kvm_apic_mda(struct kvm_vcpu *vcpu, unsigned int dest_id,
 		struct kvm_lapic *source, struct kvm_lapic *target)
 {
 	bool ipi = source != NULL;
-	bool x2apic_mda = apic_x2apic_mode(ipi ? source : target);
 
 	if (!vcpu->kvm->arch.x2apic_broadcast_quirk_disabled &&
-	    !ipi && dest_id == APIC_BROADCAST && x2apic_mda)
+	    !ipi && dest_id == APIC_BROADCAST && apic_x2apic_mode(target))
 		return X2APIC_BROADCAST;
 
-	return x2apic_mda ? dest_id : SET_APIC_DEST_FIELD(dest_id);
+	return dest_id;
 }
 
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
@@ -1792,9 +1786,9 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vcpu->arch.apic_arb_prio = 0;
 	vcpu->arch.apic_attention = 0;
 
-	apic_debug("%s: vcpu=%p, id=%d, base_msr="
+	apic_debug("%s: vcpu=%p, id=0x%x, base_msr="
 		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __func__,
-		   vcpu, kvm_apic_id(apic),
+		   vcpu, kvm_lapic_get_reg(apic, APIC_ID),
 		   vcpu->arch.apic_base, apic->base_address);
 }
 

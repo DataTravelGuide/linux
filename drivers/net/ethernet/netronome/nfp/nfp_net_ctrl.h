@@ -191,10 +191,6 @@
 #define NFP_NET_CFG_VXLAN_SZ		  0x0008
 
 /**
- * BPF section
- * @NFP_NET_CFG_BPF_ABI:	BPF ABI version
- * @NFP_NET_CFG_BPF_CAP:	BPF capabilities
- * @NFP_NET_CFG_BPF_MAX_LEN:	Maximum size of JITed BPF code in bytes
  * 64B reserved for future use (0x0080 - 0x00c0)
  */
 #define NFP_NET_CFG_RESERVED            0x0080

@@ -21,8 +21,6 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <asm/unaligned.h>
-
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
@@ -262,6 +260,8 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		break;
 	}
 
+	kfree_skb(hdev->req_skb);
+	hdev->req_skb = NULL;
 	hdev->req_status = hdev->req_result = 0;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
@@ -969,58 +969,57 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
 }
 
-static u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
+u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 {
-	size_t complete_len;
 	size_t short_len;
-	int max_len;
+	size_t complete_len;
 
-	max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
+	/* no space left for name (+ NULL + type + len) */
+	if ((HCI_MAX_AD_LENGTH - ad_len) < HCI_MAX_SHORT_NAME_LENGTH + 3)
+		return ad_len;
+
+	/* use complete name if present and fits */
 	complete_len = strlen(hdev->dev_name);
+	if (complete_len && complete_len <= HCI_MAX_SHORT_NAME_LENGTH)
+		return eir_append_data(ptr, ad_len, EIR_NAME_COMPLETE,
+				       hdev->dev_name, complete_len + 1);
+
+	/* use short name if present */
 	short_len = strlen(hdev->short_name);
+	if (short_len)
+		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT,
+				       hdev->short_name, short_len + 1);
 
-	/* no space left for name */
-	if (max_len < 1)
-		return ad_len;
+	/* use shortened full name if present, we already know that name
+	 * is longer then HCI_MAX_SHORT_NAME_LENGTH
+	 */
+	if (complete_len) {
+		u8 name[HCI_MAX_SHORT_NAME_LENGTH + 1];
 
-	/* no name set */
-	if (!complete_len)
-		return ad_len;
+		memcpy(name, hdev->dev_name, HCI_MAX_SHORT_NAME_LENGTH);
+		name[HCI_MAX_SHORT_NAME_LENGTH] = '\0';
 
-	/* complete name fits and is eq to max short name len or smaller */
-	if (complete_len <= max_len &&
-	    complete_len <= HCI_MAX_SHORT_NAME_LENGTH) {
-		ptr[0] = complete_len + 1;
-		ptr[1] = EIR_NAME_COMPLETE;
-		memcpy(ptr + 2, hdev->dev_name, complete_len);
-
-		return ad_len + complete_len + 2;
-	}
-
-	/* short name set and fits */
-	if (short_len && short_len <= max_len) {
-		ptr[0] = short_len + 1;
-		ptr[1] = EIR_NAME_SHORT;
-		memcpy(ptr + 2, hdev->short_name, short_len);
-
-		return ad_len + short_len + 2;
-	}
-
-	/* no short name set so shorten complete name */
-	if (!short_len) {
-		ptr[0] = max_len + 1;
-		ptr[1] = EIR_NAME_SHORT;
-		memcpy(ptr + 2, hdev->dev_name, max_len);
-
-		return ad_len + max_len + 2;
+		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT, name,
+				       sizeof(name));
 	}
 
 	return ad_len;
 }
 
+static u8 append_appearance(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
+{
+	return eir_append_le16(ptr, ad_len, EIR_APPEARANCE, hdev->appearance);
+}
+
 static u8 create_default_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
 {
-	return append_local_name(hdev, ptr, 0);
+	u8 scan_rsp_len = 0;
+
+	if (hdev->appearance) {
+		scan_rsp_len = append_appearance(hdev, ptr, scan_rsp_len);
+	}
+
+	return append_local_name(hdev, ptr, scan_rsp_len);
 }
 
 static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
@@ -1037,18 +1036,13 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 	instance_flags = adv_instance->flags;
 
 	if ((instance_flags & MGMT_ADV_FLAG_APPEARANCE) && hdev->appearance) {
-		ptr[0] = 3;
-		ptr[1] = EIR_APPEARANCE;
-		put_unaligned_le16(hdev->appearance, ptr + 2);
-		scan_rsp_len += 4;
-		ptr += 4;
+		scan_rsp_len = append_appearance(hdev, ptr, scan_rsp_len);
 	}
 
-	memcpy(ptr, adv_instance->scan_rsp_data,
+	memcpy(&ptr[scan_rsp_len], adv_instance->scan_rsp_data,
 	       adv_instance->scan_rsp_len);
 
 	scan_rsp_len += adv_instance->scan_rsp_len;
-	ptr += adv_instance->scan_rsp_len;
 
 	if (instance_flags & MGMT_ADV_FLAG_LOCAL_NAME)
 		scan_rsp_len = append_local_name(hdev, ptr, scan_rsp_len);

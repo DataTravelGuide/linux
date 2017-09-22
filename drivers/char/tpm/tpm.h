@@ -34,6 +34,7 @@
 #include <linux/acpi.h>
 #include <linux/cdev.h>
 #include <linux/highmem.h>
+#include <linux/idr.h>
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -166,6 +167,10 @@ struct tpm_chip {
 	unsigned long timeout_a; /* jiffies */
 	unsigned long timeout_b; /* jiffies */
 	unsigned long timeout_c; /* jiffies */
+	unsigned long timeout_d; /* jiffies */
+	bool timeout_adjusted;
+	unsigned long duration[3]; /* jiffies */
+	bool duration_adjusted;
 
 	struct dentry **bios_dir;
 

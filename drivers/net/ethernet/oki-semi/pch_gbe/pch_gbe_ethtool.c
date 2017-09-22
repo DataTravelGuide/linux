@@ -393,7 +393,7 @@ static void pch_gbe_get_pauseparam(struct net_device *netdev,
 }
 
 /**
- * pch_gbe_set_pauseparam - Set pause parameters
+ * pch_gbe_set_pauseparam - Set pause paramters
  * @netdev:  Network interface device structure
  * @pause:   Pause parameters structure
  * Returns:

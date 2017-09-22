@@ -17,6 +17,8 @@
 #include <net/ip_fib.h>
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
+#define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
+#define SWITCHDEV_F_DEFER		BIT(2)
 
 struct switchdev_trans_item {
 	struct list_head list;
@@ -134,7 +136,7 @@ struct switchdev_ops {
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
 					   struct switchdev_attr *attr);
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
-					   struct switchdev_attr *attr,
+					   const struct switchdev_attr *attr,
 					   struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_add)(struct net_device *dev,
 					  const struct switchdev_obj *obj,
@@ -173,7 +175,7 @@ void switchdev_deferred_process(void);
 int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
-			    struct switchdev_attr *attr);
+			    const struct switchdev_attr *attr);
 int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj);
 int switchdev_port_obj_del(struct net_device *dev,
@@ -219,7 +221,7 @@ static inline int switchdev_port_attr_get(struct net_device *dev,
 }
 
 static inline int switchdev_port_attr_set(struct net_device *dev,
-					  struct switchdev_attr *attr)
+					  const struct switchdev_attr *attr)
 {
 	return -EOPNOTSUPP;
 }

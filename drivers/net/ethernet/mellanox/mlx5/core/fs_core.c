@@ -222,12 +222,6 @@ static void tree_put_node(struct fs_node *node)
 		if (parent_node)
 			list_del_init(&node->list);
 		if (node->remove_func)
-	return NULL;
-}
-
-static bool masked_memcmp(void *mask, void *val1, void *val2, size_t size)
-{
-	unsigned int i;
 			node->remove_func(node);
 		kfree(node);
 		node = NULL;
@@ -424,8 +418,7 @@ out:
 	kvfree(match_value);
 }
 
-static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
-					 struct mlx5_flow_destination *dest)
+static void del_fte(struct fs_node *node)
 {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
@@ -666,23 +659,8 @@ static int update_root_ft_create(struct mlx5_flow_table *ft, struct fs_prio
 	return err;
 }
 
-static void list_add_flow_table(struct mlx5_flow_table *ft,
-				struct fs_prio *prio)
-{
-	struct list_head *prev = &prio->node.children;
-	struct mlx5_flow_table *iter;
-
-	fs_for_each_ft(iter, prio) {
-		if (iter->level > ft->level)
-			break;
-		prev = &iter->node.list;
-	}
-	list_add(&ft->node.list, prev);
-}
-
-struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
-					       int prio, int max_fte,
-					       u32 level)
+static int _mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
+					 struct mlx5_flow_destination *dest)
 {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
@@ -705,28 +683,6 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 	unlock_ref_node(&fte->node);
 
 	return err;
-}
-
-int mlx5_modify_rule_destination(struct mlx5_flow_handle *handle,
-				 struct mlx5_flow_destination *new_dest,
-				 struct mlx5_flow_destination *old_dest)
-{
-	int i;
-
-	if (!old_dest) {
-		if (handle->num_rules != 1)
-			return -EINVAL;
-		return _mlx5_modify_rule_destination(handle->rule[0],
-						     new_dest);
-	}
-
-	for (i = 0; i < handle->num_rules; i++) {
-		if (mlx5_flow_dests_cmp(new_dest, &handle->rule[i]->dest_attr))
-			return _mlx5_modify_rule_destination(handle->rule[i],
-							     new_dest);
-	}
-
-	return -EINVAL;
 }
 
 int mlx5_modify_rule_destination(struct mlx5_flow_handle *handle,
@@ -854,14 +810,6 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	 */
 	level += fs_prio->start_level;
 	ft = alloc_flow_table(level,
-			      roundup_pow_of_two(max_fte),
-			      root->table_type);
-	if (!ft) {
-	/* The level is related to the
-	 * priority level range.
-	 */
-	level += fs_prio->start_level;
-	ft = alloc_flow_table(level,
 			      vport,
 			      max_fte ? roundup_pow_of_two(max_fte) : 0,
 			      root->table_type,
@@ -941,123 +889,6 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 	if (IS_ERR(ft))
 		return ft;
 
-	return rule;
-}
-
-static struct mlx5_flow_handle *alloc_handle(int num_rules)
-{
-	struct mlx5_flow_handle *handle;
-
-	handle = kzalloc(sizeof(*handle) + sizeof(handle->rule[0]) *
-			  num_rules, GFP_KERNEL);
-	if (!handle)
-		return NULL;
-
-	handle->num_rules = num_rules;
-
-	return handle;
-}
-
-static void destroy_flow_handle(struct fs_fte *fte,
-				struct mlx5_flow_handle *handle,
-				struct mlx5_flow_destination *dest,
-				int i)
-{
-	for (; --i >= 0;) {
-		if (atomic_dec_and_test(&handle->rule[i]->node.refcount)) {
-			fte->dests_size--;
-			list_del(&handle->rule[i]->node.list);
-			kfree(handle->rule[i]);
-		}
-	}
-	kfree(handle);
-}
-
-static struct mlx5_flow_handle *
-create_flow_handle(struct fs_fte *fte,
-		   struct mlx5_flow_destination *dest,
-		   int dest_num,
-		   int *modify_mask,
-		   bool *new_rule)
-{
-	struct mlx5_flow_handle *handle;
-	struct mlx5_flow_rule *rule = NULL;
-	static int count = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS);
-	static int dst = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
-	int type;
-	int i = 0;
-
-	handle = alloc_handle((dest_num) ? dest_num : 1);
-	if (!handle)
-		return ERR_PTR(-ENOMEM);
-
-	do {
-		if (dest) {
-			rule = find_flow_rule(fte, dest + i);
-			if (rule) {
-				atomic_inc(&rule->node.refcount);
-				goto rule_found;
-			}
-		}
-
-		*new_rule = true;
-		rule = alloc_rule(dest + i);
-		if (!rule)
-			goto free_rules;
-
-		/* Add dest to dests list- we need flow tables to be in the
-		 * end of the list for forward to next prio rules.
-		 */
-		tree_init_node(&rule->node, 1, del_rule);
-		if (dest &&
-		    dest[i].type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
-			list_add(&rule->node.list, &fte->node.children);
-		else
-			list_add_tail(&rule->node.list, &fte->node.children);
-		if (dest) {
-			fte->dests_size++;
-
-			type = dest[i].type ==
-				MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-			*modify_mask |= type ? count : dst;
-		}
-rule_found:
-		handle->rule[i] = rule;
-	} while (++i < dest_num);
-
-	return handle;
-
-free_rules:
-	destroy_flow_handle(fte, handle, dest, i);
-	return ERR_PTR(-ENOMEM);
-}
-
-/* fte should not be deleted while calling this function */
-static struct mlx5_flow_handle *
-add_rule_fte(struct fs_fte *fte,
-	     struct mlx5_flow_group *fg,
-	     struct mlx5_flow_destination *dest,
-	     int dest_num,
-	     bool update_action)
-{
-	struct mlx5_flow_handle *handle;
-	struct mlx5_flow_table *ft;
-	int modify_mask = 0;
-	int err;
-	bool new_rule = false;
-
-	handle = create_flow_handle(fte, dest, dest_num, &modify_mask,
-				    &new_rule);
-	if (IS_ERR(handle) || !new_rule)
-		goto out;
-
-	if (update_action)
-		modify_mask |= BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
-
-	fs_get_obj(ft, fg->node.parent);
-	if (!(fte->status & FS_FTE_STATUS_EXISTING))
-		err = mlx5_cmd_create_fte(get_dev(&ft->node),
-					  ft, fg->id, fte);
 	ft->autogroup.active = true;
 	ft->autogroup.required_groups = max_num_groups;
 
@@ -1131,26 +962,6 @@ static struct mlx5_flow_rule *alloc_rule(struct mlx5_flow_destination *dest)
 	return rule;
 }
 
-static bool dest_is_valid(struct mlx5_flow_destination *dest,
-			  u32 action,
-			  struct mlx5_flow_table *ft)
-{
-	if (!(action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
-		return true;
-
-	if (!dest || ((dest->type ==
-	    MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) &&
-	    (dest->ft->level <= ft->level)))
-		return false;
-	return true;
-}
-
-static struct mlx5_flow_rule *
-_mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		   struct mlx5_flow_spec *spec,
-		    u32 action,
-		    u32 flow_tag,
-		    struct mlx5_flow_destination *dest)
 static struct mlx5_flow_handle *alloc_handle(int num_rules)
 {
 	struct mlx5_flow_handle *handle;
@@ -1271,8 +1082,7 @@ add_rule_fte(struct fs_fte *fte,
 	if (err)
 		goto free_handle;
 
-	if (!dest_is_valid(dest, action, ft))
-		return ERR_PTR(-EINVAL);
+	fte->status |= FS_FTE_STATUS_EXISTING;
 
 out:
 	return handle;
@@ -1422,9 +1232,17 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	fs_for_each_fte(fte, fg) {
 		nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
 		if (compare_match_value(&fg->mask, match_value, &fte->val) &&
-		    (flow_act->action & fte->action) &&
-		    flow_act->flow_tag == fte->flow_tag) {
+		    (flow_act->action & fte->action)) {
 			int old_action = fte->action;
+
+			if (fte->flow_tag != flow_act->flow_tag) {
+				mlx5_core_warn(get_dev(&fte->node),
+					       "FTE flow tag %u already exists with different flow tag %u\n",
+					       fte->flow_tag,
+					       flow_act->flow_tag);
+				handle = ERR_PTR(-EEXIST);
+				goto unlock_fte;
+			}
 
 			fte->action |= flow_act->action;
 			handle = add_rule_fte(fte, fg, dest, dest_num,
@@ -1453,6 +1271,7 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
 	handle = add_rule_fte(fte, fg, dest, dest_num, false);
 	if (IS_ERR(handle)) {
+		unlock_ref_node(&fte->node);
 		kfree(fte);
 		goto unlock_fg;
 	}
@@ -1524,13 +1343,6 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		     struct mlx5_flow_destination *dest,
 		     int dest_num)
 
-static struct mlx5_flow_handle *
-_mlx5_add_flow_rules(struct mlx5_flow_table *ft,
-		     struct mlx5_flow_spec *spec,
-		     struct mlx5_flow_act *flow_act,
-		     struct mlx5_flow_destination *dest,
-		     int dest_num)
-
 {
 	struct mlx5_flow_group *g;
 	struct mlx5_flow_handle *rule;
@@ -1563,13 +1375,9 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 	rule = add_rule_fg(g, spec->match_value, flow_act, dest, dest_num);
 	if (IS_ERR(rule)) {
 		/* Remove assumes refcount > 0 and autogroup creates a group
-
-struct mlx5_flow_rule *
-mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		   struct mlx5_flow_spec *spec,
-		   u32 action,
-		   u32 flow_tag,
-		   struct mlx5_flow_destination *dest)
+		 * with a refcount = 0.
+		 */
+		unlock_ref_node(&ft->node);
 		tree_get_node(&g->node);
 		tree_remove_node(&g->node);
 		return rule;
@@ -2015,10 +1823,6 @@ static void set_prio_attrs(struct mlx5_flow_root_namespace *root_ns)
 
 #define ANCHOR_PRIO 0
 #define ANCHOR_SIZE 1
-#define ANCHOR_LEVEL 0
-static int create_anchor_flow_table(struct mlx5_core_dev
-							*dev)
-{
 #define ANCHOR_LEVEL 0
 static int create_anchor_flow_table(struct mlx5_flow_steering *steering)
 {

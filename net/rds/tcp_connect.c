@@ -34,7 +34,6 @@
 #include <linux/in.h>
 #include <net/tcp.h>
 
-#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -61,7 +60,19 @@ void rds_tcp_state_change(struct sock *sk)
 	case TCP_SYN_RECV:
 		break;
 	case TCP_ESTABLISHED:
-		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
+		/* Force the peer to reconnect so that we have the
+		 * TCP ports going from <smaller-ip>.<transient> to
+		 * <larger-ip>.<RDS_TCP_PORT>. We avoid marking the
+		 * RDS connection as RDS_CONN_UP until the reconnect,
+		 * to avoid RDS datagram loss.
+		 */
+		if (cp->cp_conn->c_laddr > cp->cp_conn->c_faddr &&
+		    rds_conn_path_transition(cp, RDS_CONN_CONNECTING,
+					     RDS_CONN_ERROR)) {
+			rds_conn_path_drop(cp);
+		} else {
+			rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
+		}
 		break;
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSE:
@@ -81,6 +92,12 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 	int ret;
 	struct rds_connection *conn = cp->cp_conn;
 	struct rds_tcp_connection *tc = cp->cp_transport_data;
+
+	/* for multipath rds,we only trigger the connection after
+	 * the handshake probe has determined the number of paths.
+	 */
+	if (cp->cp_index > 0 && cp->cp_conn->c_npaths < 2)
+		return -EAGAIN;
 
 	mutex_lock(&tc->t_conn_path_lock);
 

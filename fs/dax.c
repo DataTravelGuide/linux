@@ -257,8 +257,8 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 	memset(&bh, 0, sizeof(bh));
 	bh.b_bdev = inode->i_sb->s_bdev;
 
-	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ)
-		inode_lock(inode);
+	if ((flags & DIO_LOCKING) && (rw == READ))
+		mutex_lock(&inode->i_mutex);
 
 	/* Protects against truncate */
 	if (!(flags & DIO_SKIP_DIO_COUNT))

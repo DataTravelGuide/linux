@@ -175,7 +175,6 @@ alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
  * the objects in a batch of 4 for each lock/unlock cycle.
  */
 #define ODEBUG_FREE_BATCH	4
-
 static void free_obj_work(struct work_struct *work)
 {
 	struct debug_obj *objs[ODEBUG_FREE_BATCH];

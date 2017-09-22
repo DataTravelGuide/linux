@@ -1518,7 +1518,7 @@ out_end_io:
  * case the completion can be called in interrupt context, whereas if we have an
  * ioend we will always be called in task context (i.e. from a workqueue).
  */
-int
+void
 xfs_end_io_direct_write(
 	struct kiocb		*iocb,
 	loff_t			offset,
@@ -1541,33 +1541,6 @@ xfs_end_io_direct_write(
 	__xfs_end_io_direct_write(inode, ioend, offset, size);
 }
 
-static inline ssize_t
-xfs_vm_do_dio(
-	int			rw,
-	struct kiocb		*iocb,
-	const struct iovec	*iov,
-	loff_t			offset,
-	unsigned long		nr_segs,
-	void			(*endio)(struct kiocb	*iocb,
-					 loff_t		offset,
-					 ssize_t	size,
-					 void		*private,
-					 int		ret,
-					 bool		is_async),
-	int			flags)
-{
-	struct inode		*inode = iocb->ki_filp->f_mapping->host;
-	struct block_device	*bdev = xfs_find_bdev_for_inode(inode);
-
-	if (IS_DAX(inode))
-		return dax_do_io(rw, iocb, inode, iov, offset, nr_segs,
-				 xfs_get_blocks_direct, endio, 0);
-
-	return  __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
-				     offset, nr_segs, xfs_get_blocks_direct,
-				     endio, NULL, flags);
-}
-
 STATIC ssize_t
 xfs_vm_direct_IO(
 	int			rw,
@@ -1576,12 +1549,10 @@ xfs_vm_direct_IO(
 	loff_t			offset,
 	unsigned long		nr_segs)
 {
-
-	if (rw & WRITE)
-		return xfs_vm_do_dio(rw, iocb, iov, offset, nr_segs,
-				     xfs_end_io_direct_write, DIO_ASYNC_EXTEND);
-
-	return xfs_vm_do_dio(rw, iocb, iov, offset, nr_segs, NULL, 0);
+	/*
+	 * We just need the method present so that open/fcntl allow direct I/O.
+	 */
+	return -EINVAL;
 }
 
 /*
@@ -1602,22 +1573,6 @@ xfs_vm_kill_delalloc_range(
 	int			error;
 
 	start_fsb = XFS_B_TO_FSB(ip->i_mount, start);
-	return error;
-}
-
-STATIC ssize_t
-xfs_vm_direct_IO(
-	struct kiocb		*iocb,
-	struct iov_iter		*iter,
-	loff_t			offset)
-{
-	/*
-	 * We just need the method present so that open/fcntl allow direct I/O.
-	 */
-	return -EINVAL;
-}
-
-/*
 	end_fsb = XFS_B_TO_FSB(ip->i_mount, end);
 	if (end_fsb <= start_fsb)
 		return;

@@ -620,10 +620,11 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		/* calculate default added value:
 		 * formula is :
-		 * where, freq_div_ratio = clk_ptp_ref_i/50MHz
-		 * hence, addend = ((2^32) * 50MHz)/clk_ptp_ref_i;
-		 * NOTE: clk_ptp_ref_i should be >= 50MHz to
-		 *       achieve 20ns accuracy.
+		 * addend = (2^32)/freq_div_ratio;
+		 * where, freq_div_ratio = STMMAC_SYSCLOCK/50MHz
+		 * hence, addend = ((2^32) * 50MHz)/STMMAC_SYSCLOCK;
+		 * NOTE: STMMAC_SYSCLOCK should be >= 50MHz to
+		 *       achive 20ns accuracy.
 		 *
 		 * 2^x * y == (y << x), hence
 		 * 2^32 * 50000000 ==> (50000000 << 32)

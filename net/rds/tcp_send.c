@@ -81,7 +81,8 @@ static int rds_tcp_sendmsg(struct socket *sock, void *data, unsigned int len)
 int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 		 unsigned int hdr_off, unsigned int sg, unsigned int off)
 {
-	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct rds_conn_path *cp = rm->m_inc.i_conn_path;
+	struct rds_tcp_connection *tc = cp->cp_transport_data;
 	int done = 0;
 	int ret = 0;
 	int more;
@@ -98,6 +99,9 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 		smp_mb__before_clear_bit();
 		set_bit(RDS_MSG_HAS_ACK_SEQ, &rm->m_flags);
 		tc->t_last_expected_una = rm->m_ack_seq + 1;
+
+		if (test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags))
+			rm->m_inc.i_hdr.h_flags |= RDS_FLAG_RETRANSMITTED;
 
 		rdsdebug("rm %p tcp nxt %u ack_seq %llu\n",
 			 rm, rds_tcp_snd_nxt(tc),
@@ -150,10 +154,17 @@ out:
 			rds_tcp_stats_inc(s_tcp_sndbuf_full);
 			ret = 0;
 		} else {
-			printk(KERN_WARNING "RDS/tcp: send to %pI4 "
-			       "returned %d, disconnecting and reconnecting\n",
-			       &conn->c_faddr, ret);
-			rds_conn_drop(conn);
+			/* No need to disconnect/reconnect if path_drop
+			 * has already been triggered, because, e.g., of
+			 * an incoming RST.
+			 */
+			if (rds_conn_path_up(cp)) {
+				pr_warn("RDS/tcp: send to %pI4 on cp [%d]"
+					"returned %d, "
+					"disconnecting and reconnecting\n",
+					&conn->c_faddr, cp->cp_index, ret);
+				rds_conn_path_drop(cp);
+			}
 		}
 	}
 	if (done == 0)

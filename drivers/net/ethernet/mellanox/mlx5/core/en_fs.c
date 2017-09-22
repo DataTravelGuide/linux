@@ -37,14 +37,6 @@
 #include <linux/mlx5/fs.h>
 #include "en.h"
 
-enum {
-	MLX5E_VLAN_FT_LEVEL = 0,
-	MLX5E_MAIN_FT_LEVEL
-};
-
-#define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
-
-enum {
 static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_l2_rule *ai, int type);
 static void mlx5e_del_l2_flow_rule(struct mlx5e_priv *priv,
@@ -124,7 +116,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 	int i;
 
 	list_size = 0;
-	for_each_set_bit(vlan, priv->vlan.active_vlans, VLAN_N_VID)
+	for_each_set_bit(vlan, priv->fs.vlan.active_vlans, VLAN_N_VID)
 		list_size++;
 
 	max_list_size = 1 << MLX5_CAP_GEN(priv->mdev, log_max_vlan_list);
@@ -141,7 +133,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_set_bit(vlan, priv->vlan.active_vlans, VLAN_N_VID) {
+	for_each_set_bit(vlan, priv->fs.vlan.active_vlans, VLAN_N_VID) {
 		if (i >= list_size)
 			break;
 		vlans[i++] = vlan;
@@ -184,7 +176,7 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 
 	switch (rule_type) {
 	case MLX5E_VLAN_RULE_TYPE_UNTAGGED:
-		rule_p = &priv->vlan.untagged_rule;
+		rule_p = &priv->fs.vlan.untagged_rule;
 		break;
 	case MLX5E_VLAN_RULE_TYPE_ANY_VID:
 		rule_p = &priv->fs.vlan.any_vlan_rule;
@@ -256,21 +248,16 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 			priv->fs.vlan.active_vlans_rule[vid] = NULL;
 		}
 		mlx5e_vport_context_update_vlans(priv);
-		if (priv->vlan.active_vlans_rule[vid]) {
-			mlx5_del_flow_rule(priv->vlan.active_vlans_rule[vid]);
-			priv->vlan.active_vlans_rule[vid] = NULL;
-		}
-		mlx5e_vport_context_update_vlans(priv);
 		break;
 	}
 }
 
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
 {
-	if (!priv->vlan.filter_disabled)
+	if (!priv->fs.vlan.filter_disabled)
 		return;
 
-	priv->vlan.filter_disabled = false;
+	priv->fs.vlan.filter_disabled = false;
 	if (priv->netdev->flags & IFF_PROMISC)
 		return;
 	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
@@ -278,10 +265,10 @@ void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
 
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
 {
-	if (priv->vlan.filter_disabled)
+	if (priv->fs.vlan.filter_disabled)
 		return;
 
-	priv->vlan.filter_disabled = true;
+	priv->fs.vlan.filter_disabled = true;
 	if (priv->netdev->flags & IFF_PROMISC)
 		return;
 	mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
@@ -292,7 +279,7 @@ int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	set_bit(vid, priv->vlan.active_vlans);
+	set_bit(vid, priv->fs.vlan.active_vlans);
 
 	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
@@ -302,7 +289,7 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	clear_bit(vid, priv->vlan.active_vlans);
+	clear_bit(vid, priv->fs.vlan.active_vlans);
 
 	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 
@@ -531,7 +518,7 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 	if (disable_allmulti)
 		mlx5e_del_l2_flow_rule(priv, &ea->allmulti);
 	if (disable_promisc) {
-		if (!priv->vlan.filter_disabled)
+		if (!priv->fs.vlan.filter_disabled)
 			mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
 					    0);
 		mlx5e_del_l2_flow_rule(priv, &ea->promisc);
@@ -628,17 +615,6 @@ static struct {
 	[MLX5E_TT_ANY] = {
 		.etype = 0,
 		.proto = 0,
-	},
-};
-
-static struct mlx5_flow_handle *
-mlx5e_generate_ttc_rule(struct mlx5e_priv *priv,
-			struct mlx5_flow_table *ft,
-			struct mlx5_flow_destination *dest,
-			u16 etype,
-			u8 proto)
-{
-	struct mlx5_flow_act flow_act = {
 	},
 };
 
@@ -846,14 +822,6 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_table *ft = priv->fs.l2.ft.t;
 	struct mlx5_flow_destination dest;
 	struct mlx5_flow_spec *spec;
-	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
-		.encap_id = 0,
-	};
-	struct mlx5_flow_table *ft = priv->fs.l2.ft.t;
-	struct mlx5_flow_destination dest;
-	struct mlx5_flow_spec *spec;
 	int err = 0;
 	u8 *mc_dmac;
 	u8 *mv_dmac;
@@ -1014,8 +982,8 @@ err_destroy_flow_table:
 #define MLX5E_VLAN_TABLE_SIZE	(MLX5E_VLAN_GROUP0_SIZE +\
 				 MLX5E_VLAN_GROUP1_SIZE)
 
-static int __mlx5e_create_vlan_groups(struct mlx5e_flow_table *ft, u32 *in,
-				      int inlen)
+static int __mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft, u32 *in,
+					    int inlen)
 {
 	int err;
 	int ix = 0;
@@ -1054,7 +1022,7 @@ err_destroy_groups:
 	return err;
 }
 
-static int mlx5e_create_vlan_groups(struct mlx5e_flow_table *ft)
+static int mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft)
 {
 	u32 *in;
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
@@ -1064,15 +1032,15 @@ static int mlx5e_create_vlan_groups(struct mlx5e_flow_table *ft)
 	if (!in)
 		return -ENOMEM;
 
-	err = __mlx5e_create_vlan_groups(ft, in, inlen);
+	err = __mlx5e_create_vlan_table_groups(ft, in, inlen);
 
 	kvfree(in);
 	return err;
 }
 
-static int mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
+static int mlx5e_create_vlan_table(struct mlx5e_priv *priv)
 {
-	struct mlx5e_flow_table *ft = &priv->fts.vlan;
+	struct mlx5e_flow_table *ft = &priv->fs.vlan.ft;
 	int err;
 
 	ft->num_groups = 0;
@@ -1087,10 +1055,10 @@ static int mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 	ft->g = kcalloc(MLX5E_NUM_VLAN_GROUPS, sizeof(*ft->g), GFP_KERNEL);
 	if (!ft->g) {
 		err = -ENOMEM;
-		goto err_destroy_vlan_flow_table;
+		goto err_destroy_vlan_table;
 	}
 
-	err = mlx5e_create_vlan_groups(ft);
+	err = mlx5e_create_vlan_table_groups(ft);
 	if (err)
 		goto err_free_g;
 
@@ -1100,24 +1068,24 @@ static int mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 
 err_free_g:
 	kfree(ft->g);
-err_destroy_vlan_flow_table:
+err_destroy_vlan_table:
 	mlx5_destroy_flow_table(ft->t);
 	ft->t = NULL;
 
 	return err;
 }
 
-static void mlx5e_destroy_vlan_flow_table(struct mlx5e_priv *priv)
+static void mlx5e_destroy_vlan_table(struct mlx5e_priv *priv)
 {
 	mlx5e_del_vlan_rules(priv);
 	mlx5e_destroy_flow_table(&priv->fs.vlan.ft);
 }
 
-int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
+int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 {
 	int err;
 
-	priv->fts.ns = mlx5_get_flow_namespace(priv->mdev,
+	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
 					       MLX5_FLOW_NAMESPACE_KERNEL);
 
 	if (!priv->fs.ns)
@@ -1153,9 +1121,7 @@ int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
 
 	mlx5e_ethtool_init_steering(priv);
 
-	ft->num_groups = 0;
-	ft->t = mlx5_create_flow_table(priv->fts.ns, 1, MLX5E_VLAN_TABLE_SIZE,
-				       MLX5E_VLAN_FT_LEVEL);
+	return 0;
 
 err_destroy_l2_table:
 	mlx5e_destroy_l2_table(priv);
@@ -1165,50 +1131,13 @@ err_destroy_arfs_tables:
 	mlx5e_arfs_destroy_tables(priv);
 
 	return err;
-	if (err)
-		goto err_free_g;
+}
 
-	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
-	if (err)
-		goto err_destroy_vlan_flow_groups;
-
-	return 0;
-
-err_destroy_vlan_flow_groups:
-	mlx5e_destroy_groups(ft);
-err_free_g:
-	kfree(ft->g);
-err_destroy_vlan_flow_table:
-	mlx5_destroy_flow_table(ft->t);
-	ft->t = NULL;
-void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
+void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 {
 	mlx5e_destroy_vlan_table(priv);
 	mlx5e_destroy_l2_table(priv);
 	mlx5e_destroy_ttc_table(priv);
 	mlx5e_arfs_destroy_tables(priv);
 	mlx5e_ethtool_cleanup_steering(priv);
-}
-	if (!priv->fts.ns)
-		return -EINVAL;
-
-	err = mlx5e_create_main_flow_table(priv);
-	if (err)
-		return err;
-
-	err = mlx5e_create_vlan_flow_table(priv);
-	if (err)
-		goto err_destroy_main_flow_table;
-
-
-err_destroy_main_flow_table:
-	mlx5e_destroy_main_flow_table(priv);
-
-	return err;
-}
-void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
-{
-	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
-	mlx5e_destroy_vlan_flow_table(priv);
-	mlx5e_destroy_main_flow_table(priv);
 }

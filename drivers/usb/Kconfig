@@ -91,6 +91,8 @@ source "drivers/usb/storage/Kconfig"
 
 source "drivers/usb/image/Kconfig"
 
+source "drivers/usb/usbip/Kconfig"
+
 endif
 
 source "drivers/usb/musb/Kconfig"
@@ -146,7 +148,8 @@ source "drivers/usb/gadget/Kconfig"
 
 config USB_LED_TRIG
 	bool "USB LED Triggers"
-	depends on LEDS_CLASS && USB_COMMON && LEDS_TRIGGERS
+	depends on LEDS_CLASS && LEDS_TRIGGERS
+	select USB_COMMON
 	help
 	  This option adds LED triggers for USB host and/or gadget activity.
 
@@ -156,7 +159,7 @@ config USB_LED_TRIG
 
 config USB_ULPI_BUS
 	tristate "USB ULPI PHY interface support"
-	depends on USB_COMMON
+	select USB_COMMON
 	help
 	  UTMI+ Low Pin Interface (ULPI) is specification for a commonly used
 	  USB 2.0 PHY interface. The ULPI specification defines a standard set

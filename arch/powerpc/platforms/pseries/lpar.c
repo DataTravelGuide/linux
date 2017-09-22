@@ -26,7 +26,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/console.h>
 #include <linux/export.h>
-#include <linux/jump_label.h>
 #include <linux/delay.h>
 #include <linux/stop_machine.h>
 #include <asm/processor.h>
@@ -720,7 +719,7 @@ static int pseries_lpar_resize_hpt(unsigned long shift)
 	return 0;
 }
 
-void __init hpte_init_pseries(void)
+void __init hpte_init_lpar(void)
 {
 	ppc_md.hpte_invalidate	= pSeries_lpar_hpte_invalidate;
 	ppc_md.hpte_updatepp	= pSeries_lpar_hpte_updatepp;
@@ -728,10 +727,12 @@ void __init hpte_init_pseries(void)
 	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
 	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
 	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
-	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
-	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
-	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
-	mmu_hash_ops.resize_hpt		 = pseries_lpar_resize_hpt;
+	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
+	ppc_md.hpte_clear_all   = pseries_hpte_clear_all;
+	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+
+	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
+		ppc_md.resize_hpt =  pseries_lpar_resize_hpt;
 }
 
 #ifdef CONFIG_PPC_SMLPAR

@@ -250,15 +250,6 @@ static bool cls_cgroup_destroy(struct tcf_proto *tp, bool force)
 }
 
 static int cls_cgroup_delete(struct tcf_proto *tp, unsigned long arg)
-	if (head) {
-		tcf_exts_destroy(&head->exts);
-		tcf_em_tree_destroy(&head->ematches);
-		RCU_INIT_POINTER(tp->root, NULL);
-		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
-	}
-}
-
-static int cls_cgroup_delete(struct tcf_proto *tp, unsigned long arg)
 {
 	return -EOPNOTSUPP;
 }

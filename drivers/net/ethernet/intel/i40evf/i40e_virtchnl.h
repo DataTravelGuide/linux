@@ -167,10 +167,6 @@ struct i40e_virtchnl_vsi_resource {
 				    I40E_VIRTCHNL_VF_OFFLOAD_VLAN | \
 				    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)
 
-#define I40E_VF_BASE_MODE_OFFLOADS (I40E_VIRTCHNL_VF_OFFLOAD_L2 | \
-				    I40E_VIRTCHNL_VF_OFFLOAD_VLAN | \
-				    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)
-
 struct i40e_virtchnl_vf_resource {
 	u16 num_vsis;
 	u16 num_queue_pairs;

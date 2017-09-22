@@ -3463,14 +3463,6 @@ static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	/* Get the current configuration of the RSS indirection table */
 	bnx2x_get_rss_ind_table(&bp->rss_conf_obj, ind_table);
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!indir)
-		return 0;
-
-	/* Get the current configuration of the RSS indirection table */
-	bnx2x_get_rss_ind_table(&bp->rss_conf_obj, ind_table);
-
 	/*
 	 * We can't use a memcpy() as an internal storage of an
 	 * indirection table is a u8 array while indir->ring_index
@@ -3492,19 +3484,6 @@ static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
 
-	/* We require at least one supported parameter to be changed and no
-	 * change in any of the unsupported parameters
-	 */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
-
-	if (!indir)
-		return 0;
-
-	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
-		/*
-		 * The same as in bnx2x_get_rxfh: we can't use a memcpy()
 	/* We require at least one supported parameter to be changed and no
 	 * change in any of the unsupported parameters
 	 */

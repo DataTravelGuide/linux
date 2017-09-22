@@ -101,7 +101,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
 #define THRESHOLD_REPLY_COUNT 50
-#define RAID_1_10_RMW_CMDS 3
+#define RAID_1_PEER_CMDS 2
 #define JBOD_MAPS_COUNT	2
 
 enum MR_FUSION_ADAPTER_TYPE {
@@ -686,7 +686,7 @@ struct MPI2_IOC_INIT_REQUEST {
 	__le16			HeaderVersion;                  /* 0x0E */
 	u32                     Reserved5;                      /* 0x10 */
 	__le16			Reserved6;                      /* 0x14 */
-	u8                      Reserved7;                      /* 0x16 */
+	u8                      HostPageSize;                   /* 0x16 */
 	u8                      HostMSIxVectors;                /* 0x17 */
 	__le16			Reserved8;                      /* 0x18 */
 	__le16			SystemRequestFrameSize;         /* 0x1A */
@@ -1008,7 +1008,7 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 	u32 desc_table_size;  /* Total Size of desc table */
 	/* Total Number of elements in the desc table */
 	u32 desc_table_num_elements;
-	u64	pci_threshold_bandwidth;
+	u64	reserved1;
 	u32	reserved2[3];	/*future use */
 	/* timeout value used by driver in FP IOs */
 	u8 fp_pd_io_timeout_sec;
@@ -1316,7 +1316,8 @@ struct fusion_context {
 	struct MR_PD_CFG_SEQ_NUM_SYNC	*pd_seq_sync[JBOD_MAPS_COUNT];
 	dma_addr_t pd_seq_phys[JBOD_MAPS_COUNT];
 	u8 fast_path_io;
-	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
+	struct LD_LOAD_BALANCE_INFO *load_balance_info;
+	u32 load_balance_info_pages;
 	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 	u8 adapter_type;
 	struct LD_STREAM_DETECT **stream_detect_by_ld;

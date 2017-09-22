@@ -56,6 +56,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/ntb.h>
+#include <linux/sizes.h>
 
 #include "ntb_hw_amd.h"
 

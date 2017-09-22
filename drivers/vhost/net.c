@@ -62,6 +62,7 @@ enum {
 	VHOST_NET_FEATURES = VHOST_FEATURES |
 			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
 			 (1ULL << VIRTIO_NET_F_MRG_RXBUF) |
+			 (1ULL << VIRTIO_F_VERSION_1) |
 			 (1ULL << VIRTIO_F_IOMMU_PLATFORM)
 };
 
@@ -1266,22 +1267,38 @@ static long vhost_net_compat_ioctl(struct file *f, unsigned int ioctl,
 }
 #endif
 
-static ssize_t vhost_net_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
+static ssize_t vhost_net_aio_read(struct kiocb *iocb, const struct iovec *iv,
+			    unsigned long count, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	struct vhost_net *n = file->private_data;
 	struct vhost_dev *dev = &n->dev;
 	int noblock = file->f_flags & O_NONBLOCK;
+	ssize_t len, ret = 0;
 
-	return vhost_chr_read_iter(dev, to, noblock);
+	len = iov_length(iv, count);
+	if (len < 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = vhost_chr_read_iter(dev, iv, noblock);
+	ret = min_t(ssize_t, ret, len); /* XXX copied from tun.c. Why? */
+out:
+	return ret;
 }
 
-static ssize_t vhost_net_chr_write_iter(struct kiocb *iocb,
-					struct iov_iter *from)
+static ssize_t vhost_net_aio_write(struct kiocb *iocb,
+		const struct iovec *from, unsigned long count, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	struct vhost_net *n = file->private_data;
 	struct vhost_dev *dev = &n->dev;
+	ssize_t len;
+
+	len = iov_length(from, count);
+	if (len < 0)
+		return -EINVAL;
 
 	return vhost_chr_write_iter(dev, from);
 }
@@ -1297,8 +1314,8 @@ static unsigned int vhost_net_chr_poll(struct file *file, poll_table *wait)
 static const struct file_operations vhost_net_fops = {
 	.owner          = THIS_MODULE,
 	.release        = vhost_net_release,
-	.read_iter      = vhost_net_chr_read_iter,
-	.write_iter     = vhost_net_chr_write_iter,
+	.aio_read       = vhost_net_aio_read,
+	.aio_write      = vhost_net_aio_write,
 	.poll           = vhost_net_chr_poll,
 	.unlocked_ioctl = vhost_net_ioctl,
 #ifdef CONFIG_COMPAT

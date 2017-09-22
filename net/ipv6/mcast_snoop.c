@@ -1,5 +1,5 @@
 /* Copyright (C) 2010: YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
- * Copyright (C) 2015: Linus LÃÂ¼ssing <linus.luessing@c0d3.blue>
+ * Copyright (C) 2015: Linus Lüssing <linus.luessing@c0d3.blue>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public

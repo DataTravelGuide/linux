@@ -96,38 +96,6 @@
 #define I40E_DEFAULT_TRAFFIC_CLASS	BIT(0)
 #define I40E_DEFAULT_MSG_ENABLE		4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT	10
-#include "i40e_dcb.h"
-
-/* Useful i40e defaults */
-#define I40E_MAX_VEB			16
-
-#define I40E_MAX_NUM_DESCRIPTORS	4096
-#define I40E_MAX_CSR_SPACE		(4 * 1024 * 1024 - 64 * 1024)
-#define I40E_DEFAULT_NUM_DESCRIPTORS	512
-#define I40E_REQ_DESCRIPTOR_MULTIPLE	32
-#define I40E_MIN_NUM_DESCRIPTORS	64
-#define I40E_MIN_MSIX			2
-#define I40E_DEFAULT_NUM_VMDQ_VSI	8 /* max 256 VSIs */
-#define I40E_MIN_VSI_ALLOC		51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
-/* max 16 qps */
-#define i40e_default_queues_per_vmdq(pf) \
-		(((pf)->flags & I40E_FLAG_RSS_AQ_CAPABLE) ? 4 : 1)
-#define I40E_DEFAULT_QUEUES_PER_VF	4
-#define I40E_DEFAULT_QUEUES_PER_TC	1 /* should be a power of 2 */
-#define i40e_pf_get_max_q_per_tc(pf) \
-		(((pf)->flags & I40E_FLAG_128_QP_RSS_CAPABLE) ? 128 : 64)
-#define I40E_FDIR_RING			0
-#define I40E_FDIR_RING_COUNT		32
-#ifdef I40E_FCOE
-#define I40E_DEFAULT_FCOE		8 /* default number of QPs for FCoE */
-#define I40E_MINIMUM_FCOE		1 /* minimum number of QPs for FCoE */
-#endif /* I40E_FCOE */
-#define I40E_MAX_AQ_BUF_SIZE		4096
-#define I40E_AQ_LEN			256
-#define I40E_AQ_WORK_LIMIT		66 /* max number of VFs + a little */
-#define I40E_MAX_USER_PRIORITY		8
-#define I40E_DEFAULT_MSG_ENABLE		4
-#define I40E_QUEUE_WAIT_RETRY_LIMIT	10
 #define I40E_INT_NAME_STR_LEN		(IFNAMSIZ + 16)
 
 /* Ethtool Private Flags */
@@ -165,19 +133,6 @@
 
 /* default to trying for four seconds */
 #define I40E_TRY_LINK_TIMEOUT	(4 * HZ)
-
-/**
- * i40e_is_mac_710 - Return true if MAC is X710/XL710
- * @hw: ptr to the hardware info
- **/
-static inline bool i40e_is_mac_710(struct i40e_hw *hw)
-{
-	if ((hw->mac.type == I40E_MAC_X710) ||
-	    (hw->mac.type == I40E_MAC_XL710))
-		return true;
-
-	return false;
-}
 
 /* driver state flags */
 enum i40e_state_t {
@@ -631,13 +586,8 @@ struct i40e_vsi {
 	enum i40e_vsi_type type;  /* VSI type, e.g., LAN, FCoE, etc */
 	s16 vf_id;		/* Virtual function ID for SRIOV VSIs */
 
-	struct i40e_pf *back;	/* Backreference to associated PF */
-	u16 idx;		/* index in pf->vsi[] */
-	u16 veb_idx;		/* index of VEB parent */
-	struct kobject *kobj;	/* sysfs object */
-	bool current_isup;	/* Sync 'link up' logging */
-
-	void *priv;	/* client driver data reference. */
+	struct i40e_tc_configuration tc_config;
+	struct i40e_aqc_vsi_properties_data info;
 
 	/* VSI BW limit (absolute across all TCs) */
 	u16 bw_limit;		/* VSI BW Limit (0 = disabled) */

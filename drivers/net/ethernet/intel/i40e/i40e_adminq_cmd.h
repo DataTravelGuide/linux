@@ -467,14 +467,6 @@ struct i40e_aqc_arp_proxy_data {
 #define I40E_AQ_ARP_ENA		0x2000
 #define I40E_AQ_ARP_ADD_IPV4	0x4000
 #define I40E_AQ_ARP_DEL_IPV4	0x8000
-/* Set ARP Proxy command / response (indirect 0x0104) */
-struct i40e_aqc_arp_proxy_data {
-	__le16	command_flags;
-#define I40E_AQ_ARP_INIT_IPV4	0x0800
-#define I40E_AQ_ARP_UNSUP_CTL	0x1000
-#define I40E_AQ_ARP_ENA		0x2000
-#define I40E_AQ_ARP_ADD_IPV4	0x4000
-#define I40E_AQ_ARP_DEL_IPV4	0x8000
 	__le16	table_id;
 	__le32	enabled_offloads;
 #define I40E_AQ_ARP_DIRECTED_OFFLOAD_ENABLE	0x00000020
@@ -485,25 +477,6 @@ struct i40e_aqc_arp_proxy_data {
 };
 
 I40E_CHECK_STRUCT_LEN(0x14, i40e_aqc_arp_proxy_data);
-	__le16	table_idx_ipv6_0;
-	__le16	table_idx_ipv6_1;
-	__le16	control;
-#define I40E_AQ_NS_PROXY_ADD_0		0x0001
-#define I40E_AQ_NS_PROXY_DEL_0		0x0002
-#define I40E_AQ_NS_PROXY_ADD_1		0x0004
-#define I40E_AQ_NS_PROXY_DEL_1		0x0008
-#define I40E_AQ_NS_PROXY_ADD_IPV6_0	0x0010
-#define I40E_AQ_NS_PROXY_DEL_IPV6_0	0x0020
-#define I40E_AQ_NS_PROXY_ADD_IPV6_1	0x0040
-#define I40E_AQ_NS_PROXY_DEL_IPV6_1	0x0080
-#define I40E_AQ_NS_PROXY_COMMAND_SEQ	0x0100
-#define I40E_AQ_NS_PROXY_INIT_IPV6_TBL	0x0200
-#define I40E_AQ_NS_PROXY_INIT_MAC_TBL	0x0400
-#define I40E_AQ_NS_PROXY_OFFLOAD_ENABLE	0x0800
-#define I40E_AQ_NS_PROXY_DIRECTED_OFFLOAD_ENABLE	0x1000
-	u8	mac_addr_0[6];
-	u8	mac_addr_1[6];
-	u8	local_mac_addr[6];
 
 /* Set NS Proxy Table Entry Command (indirect 0x0105) */
 struct i40e_aqc_ns_proxy_data {
@@ -1698,24 +1671,6 @@ enum i40e_aq_hmc_profile {
 	I40E_HMC_PROFILE_EQUAL		= 3,
 };
 
-/* Get and set the active HMC resource profile and status.
- * (direct 0x0500) and (direct 0x0501)
- */
-struct i40e_aq_get_set_hmc_resource_profile {
-	u8	pm_profile;
-	u8	pe_vf_enabled;
-	u8	reserved[14];
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aq_get_set_hmc_resource_profile);
-
-enum i40e_aq_hmc_profile {
-	/* I40E_HMC_PROFILE_NO_CHANGE	= 0, reserved */
-	I40E_HMC_PROFILE_DEFAULT	= 1,
-	I40E_HMC_PROFILE_FAVOR_VF	= 2,
-	I40E_HMC_PROFILE_EQUAL		= 3,
-};
-
 /* Get PHY Abilities (indirect 0x0600) uses the generic indirect struct */
 
 /* set in param0 for get phy abilities to report qualified modules */
@@ -1826,25 +1781,6 @@ struct i40e_aq_get_phy_abilities_resp {
 	u8	phy_id[4];
 	u8	module_type[3];
 	u8	qualified_module_count;
-	u8	phy_type_ext;
-#define I40E_AQ_PHY_TYPE_EXT_25G_KR	0X01
-#define I40E_AQ_PHY_TYPE_EXT_25G_CR	0X02
-#define I40E_AQ_PHY_TYPE_EXT_25G_SR	0x04
-#define I40E_AQ_PHY_TYPE_EXT_25G_LR	0x08
-	u8	fec_cfg_curr_mod_ext_info;
-#define I40E_AQ_ENABLE_FEC_KR		0x01
-#define I40E_AQ_ENABLE_FEC_RS		0x02
-#define I40E_AQ_REQUEST_FEC_KR		0x04
-#define I40E_AQ_REQUEST_FEC_RS		0x08
-#define I40E_AQ_ENABLE_FEC_AUTO		0x10
-#define I40E_AQ_FEC
-#define I40E_AQ_MODULE_TYPE_EXT_MASK	0xE0
-#define I40E_AQ_MODULE_TYPE_EXT_SHIFT	5
-
-	u8	ext_comp_code;
-	u8	phy_id[4];
-	u8	module_type[3];
-	u8	qualified_module_count;
 #define I40E_AQ_PHY_MAX_QMS		16
 	struct i40e_aqc_module_desc	qualified_module[I40E_AQ_PHY_MAX_QMS];
 };
@@ -1863,23 +1799,6 @@ struct i40e_aq_set_phy_config { /* same bits as above in all */
 	__le16	eee_capability;
 	__le32	eeer;
 	u8	low_power_ctrl;
-	u8	phy_type_ext;
-#define I40E_AQ_PHY_TYPE_EXT_25G_KR	0X01
-#define I40E_AQ_PHY_TYPE_EXT_25G_CR	0X02
-#define I40E_AQ_PHY_TYPE_EXT_25G_SR	0x04
-#define I40E_AQ_PHY_TYPE_EXT_25G_LR	0x08
-	u8	fec_config;
-#define I40E_AQ_SET_FEC_ABILITY_KR	BIT(0)
-#define I40E_AQ_SET_FEC_ABILITY_RS	BIT(1)
-#define I40E_AQ_SET_FEC_REQUEST_KR	BIT(2)
-#define I40E_AQ_SET_FEC_REQUEST_RS	BIT(3)
-#define I40E_AQ_SET_FEC_AUTO		BIT(4)
-#define I40E_AQ_PHY_FEC_CONFIG_SHIFT	0x0
-#define I40E_AQ_PHY_FEC_CONFIG_MASK	(0x1F << I40E_AQ_PHY_FEC_CONFIG_SHIFT)
-	u8	reserved;
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aq_set_phy_config);
 	u8	phy_type_ext;
 #define I40E_AQ_PHY_TYPE_EXT_25G_KR	0X01
 #define I40E_AQ_PHY_TYPE_EXT_25G_CR	0X02
@@ -1973,16 +1892,6 @@ struct i40e_aqc_get_link_status {
 #define I40E_AQ_LINK_TX_DRAINED		0x01
 #define I40E_AQ_LINK_TX_FLUSHED		0x03
 #define I40E_AQ_LINK_FORCED_40G		0x10
-/* 25G Error Codes */
-#define I40E_AQ_25G_NO_ERR		0X00
-#define I40E_AQ_25G_NOT_PRESENT		0X01
-#define I40E_AQ_25G_NVM_CRC_ERR		0X02
-#define I40E_AQ_25G_SBUS_UCODE_ERR	0X03
-#define I40E_AQ_25G_SERDES_UCODE_ERR	0X04
-#define I40E_AQ_25G_NIMB_UCODE_ERR	0X05
-	u8	loopback; /* use defines from i40e_aqc_set_lb_mode */
-	__le16	max_frame_size;
-	u8	config;
 /* 25G Error Codes */
 #define I40E_AQ_25G_NO_ERR		0X00
 #define I40E_AQ_25G_NOT_PRESENT		0X01

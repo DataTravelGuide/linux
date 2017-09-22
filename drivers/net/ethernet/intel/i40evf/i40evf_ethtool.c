@@ -85,6 +85,14 @@ static int i40evf_get_settings(struct net_device *netdev,
 	case I40E_LINK_SPEED_40GB:
 		ethtool_cmd_speed_set(ecmd, SPEED_40000);
 		break;
+	case I40E_LINK_SPEED_25GB:
+#ifdef SPEED_25000
+		ethtool_cmd_speed_set(ecmd, SPEED_25000);
+#else
+		netdev_info(netdev,
+			    "Speed is 25G, display not supported by this version of ethtool.\n");
+#endif
+		break;
 	case I40E_LINK_SPEED_20GB:
 		ethtool_cmd_speed_set(ecmd, SPEED_20000);
 		break;
@@ -500,150 +508,6 @@ static int i40evf_set_per_queue_coalesce(struct net_device *netdev,
  * i40evf_get_rxnfc - command to get RX flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
- * i40evf_get_per_queue_coalesce - get coalesce values for specific queue
- * @netdev: netdev to read
- * @ec: coalesce settings from ethtool
- * @queue: the queue to read
- *
- * Read specific queue's coalesce settings.
- **/
-static int i40evf_get_per_queue_coalesce(struct net_device *netdev,
-					 u32 queue,
-					 struct ethtool_coalesce *ec)
-{
-	return __i40evf_get_coalesce(netdev, ec, queue);
-}
-
-/**
- * i40evf_set_itr_per_queue - set ITR values for specific queue
- * @vsi: the VSI to set values for
- * @ec: coalesce settings from ethtool
- * @queue: the queue to modify
- *
- * Change the ITR settings for a specific queue.
- **/
-static void i40evf_set_itr_per_queue(struct i40evf_adapter *adapter,
-				     struct ethtool_coalesce *ec,
-				     int queue)
-{
-	struct i40e_vsi *vsi = &adapter->vsi;
-	struct i40e_hw *hw = &adapter->hw;
-	struct i40e_q_vector *q_vector;
-	u16 vector;
-
-	adapter->rx_rings[queue].rx_itr_setting = ec->rx_coalesce_usecs;
-	adapter->tx_rings[queue].tx_itr_setting = ec->tx_coalesce_usecs;
-
-	if (ec->use_adaptive_rx_coalesce)
-		adapter->rx_rings[queue].rx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		adapter->rx_rings[queue].rx_itr_setting &= ~I40E_ITR_DYNAMIC;
-
-	if (ec->use_adaptive_tx_coalesce)
-		adapter->tx_rings[queue].tx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		adapter->tx_rings[queue].tx_itr_setting &= ~I40E_ITR_DYNAMIC;
-
-	q_vector = adapter->rx_rings[queue].q_vector;
-	q_vector->rx.itr = ITR_TO_REG(adapter->rx_rings[queue].rx_itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
-
-	q_vector = adapter->tx_rings[queue].q_vector;
-	q_vector->tx.itr = ITR_TO_REG(adapter->tx_rings[queue].tx_itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
-
-	i40e_flush(hw);
-}
-
-/**
- * __i40evf_set_coalesce - set coalesce settings for particular queue
- * @netdev: the netdev to change
- * @ec: ethtool coalesce settings
- * @queue: the queue to change
- *
- * Sets the coalesce settings for a particular queue.
- **/
-static int __i40evf_set_coalesce(struct net_device *netdev,
-				 struct ethtool_coalesce *ec,
-				 int queue)
-{
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	struct i40e_vsi *vsi = &adapter->vsi;
-	int i;
-
-	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
-		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
-
-	if (ec->rx_coalesce_usecs == 0) {
-		if (ec->use_adaptive_rx_coalesce)
-			netif_info(adapter, drv, netdev, "rx-usecs=0, need to disable adaptive-rx for a complete disable\n");
-	} else if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		   (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
-		netif_info(adapter, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
-		return -EINVAL;
-	}
-
-	else
-	if (ec->tx_coalesce_usecs == 0) {
-		if (ec->use_adaptive_tx_coalesce)
-			netif_info(adapter, drv, netdev, "tx-usecs=0, need to disable adaptive-tx for a complete disable\n");
-	} else if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		   (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
-		netif_info(adapter, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
-		return -EINVAL;
-	}
-
-	/* Rx and Tx usecs has per queue value. If user doesn't specify the
-	 * queue, apply to all queues.
-	 */
-	if (queue < 0) {
-		for (i = 0; i < adapter->num_active_queues; i++)
-			i40evf_set_itr_per_queue(adapter, ec, i);
-	} else if (queue < adapter->num_active_queues) {
-		i40evf_set_itr_per_queue(adapter, ec, queue);
-	} else {
-		netif_info(adapter, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
-			   adapter->num_active_queues - 1);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/**
- * i40evf_set_coalesce - Set interrupt coalescing settings
- * @netdev: network interface device structure
- * @ec: ethtool coalesce structure
- *
- * Change current coalescing settings for every queue.
- **/
-static int i40evf_set_coalesce(struct net_device *netdev,
-			       struct ethtool_coalesce *ec)
-{
-	return __i40evf_set_coalesce(netdev, ec, -1);
-}
-
-/**
- * i40evf_set_per_queue_coalesce - set specific queue's coalesce settings
- * @netdev: the netdev to change
- * @ec: ethtool's coalesce settings
- * @queue: the queue to modify
- *
- * Modifies a specific queue's coalesce settings.
- */
-static int i40evf_set_per_queue_coalesce(struct net_device *netdev,
-					 u32 queue,
-					 struct ethtool_coalesce *ec)
-{
-	return __i40evf_set_coalesce(netdev, ec, queue);
-}
-
-/**
- * i40evf_get_rxnfc - command to get RX flow classification rules
- * @netdev: network interface device structure
- * @cmd: ethtool rxnfc command
  *
  * Returns Success if the command is supported.
  **/
@@ -736,14 +600,6 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	if (!indir)
 		return 0;
 
-	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		hlut_val = rd32(hw, I40E_VFQF_HLUT(i));
-		indir[j++] = hlut_val & 0xff;
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!indir)
-		return 0;
-
 	memcpy(key, adapter->rss_key, adapter->rss_key_size);
 
 	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
@@ -768,16 +624,6 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	u16 i;
 
-	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
-	if (!indir)
-		return 0;
-
-	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		hlut_val = indir[j++];
-		hlut_val |= indir[j++] << 8;
 	/* We do not allow change in unsupported parameters */
 	if (key ||
 	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))

@@ -112,7 +112,7 @@
  *
  * This creates a new property with the selected support for transformations.
  *
- * Since a rotation by 180ÃÂ° degress is the same as reflecting both along the x
+ * Since a rotation by 180° degress is the same as reflecting both along the x
  * and the y axis the rotation property is somewhat redundant. Drivers can use
  * drm_rotation_simplify() to normalize values of this property.
  *

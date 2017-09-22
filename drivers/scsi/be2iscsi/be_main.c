@@ -3055,8 +3055,10 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 		eq_vaddress = pci_alloc_consistent(phba->pcidev,
 						   num_eq_pages * PAGE_SIZE,
 						   &paddr);
-		if (!eq_vaddress)
+		if (!eq_vaddress) {
+			ret = -ENOMEM;
 			goto create_eq_error;
+		}
 
 		mem->va = eq_vaddress;
 		ret = be_fill_queue(eq, phba->params.num_eq_entries,
@@ -5637,6 +5639,8 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	beiscsi_hba_attrs_init(phba);
 
 	phba->mac_addr_set = false;
+
+	pci_hw_vendor_status(beiscsi_pci_id_deprecated, pcidev);
 
 	switch (pcidev->device) {
 	case BE_DEVICE_ID1:

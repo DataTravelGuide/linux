@@ -359,7 +359,7 @@ static int __init wpan_phy_class_init(void)
 	if (rc)
 		goto err_sysfs;
 
-	rc = register_netdevice_notifier(&cfg802154_netdev_notifier);
+	rc = register_netdevice_notifier_rh(&cfg802154_netdev_notifier);
 	if (rc)
 		goto err_nl;
 

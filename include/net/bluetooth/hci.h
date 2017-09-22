@@ -63,9 +63,10 @@
 #define HCI_SDIO	6
 #define HCI_SPI		7
 #define HCI_I2C		8
+#define HCI_SMD		9
 
 /* HCI controller types */
-#define HCI_BREDR	0x00
+#define HCI_PRIMARY	0x00
 #define HCI_AMP		0x01
 
 /* First BR/EDR Controller shall have ID = 0 */
@@ -449,6 +450,7 @@ enum {
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_UNKNOWN_CONN_ID	0x02
 #define HCI_ERROR_AUTH_FAILURE		0x05
+#define HCI_ERROR_PIN_OR_KEY_MISSING	0x06
 #define HCI_ERROR_MEMORY_EXCEEDED	0x07
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
 #define HCI_ERROR_REJ_LIMITED_RESOURCES	0x0d

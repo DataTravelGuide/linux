@@ -2,7 +2,7 @@
  * Dell WMI hotkeys
  *
  * Copyright (C) 2008 Red Hat <mjg@redhat.com>
- * Copyright (C) 2014-2015 Pali RohÃÂ¡r <pali.rohar@gmail.com>
+ * Copyright (C) 2014-2015 Pali Rohár <pali.rohar@gmail.com>
  *
  * Portions based on wistron_btns.c:
  * Copyright (C) 2005 Miloslav Trmac <mitr@volny.cz>
@@ -39,7 +39,7 @@
 #include "dell-smbios.h"
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
-MODULE_AUTHOR("Pali RohÃÂ¡r <pali.rohar@gmail.com>");
+MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
 MODULE_DESCRIPTION("Dell laptop WMI hotkeys driver");
 MODULE_LICENSE("GPL");
 

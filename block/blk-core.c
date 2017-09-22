@@ -1281,7 +1281,7 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	if (q->mq_ops)
 		return blk_mq_alloc_request(q, rw,
-			(gfp_mask & __GFP_DIRECT_RECLAIM) ?
+			(gfp_mask & __GFP_WAIT) ?
 				0 : BLK_MQ_REQ_NOWAIT);
 	else
 		return blk_old_get_request(q, rw, gfp_mask);

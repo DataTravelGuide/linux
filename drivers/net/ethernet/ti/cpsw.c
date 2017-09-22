@@ -723,13 +723,7 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 }
 
 static inline int __show_stat(char *buf, int maxlen, const char *name, u32 val)
-		if (ndev_status && (status >= 0)) {
-			/* The packet received is for the interface which
-			 * is already down and the other interface is up
-			 * and running, instead of freeing which results
-			 * in reducing of the number of rx descriptor in
-			 * DMA engine, requeue skb back to cpdma.
-			 */
+{
 	static char *leader = "........................................";
 
 	if (!val)

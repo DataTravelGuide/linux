@@ -2214,7 +2214,7 @@ UNUSUAL_DEV( 0x1de1, 0xc102, 0x0000, 0xffff,
 		US_FL_IGNORE_DEVICE ),
 
 /*
- * Patch by Richard SchÃÂ¼tz <r.schtz@t-online.de>
+ * Patch by Richard Schütz <r.schtz@t-online.de>
  * This external hard drive enclosure uses a JMicron chip which
  * needs the US_FL_IGNORE_RESIDUE flag to work properly.
  */

@@ -2355,7 +2355,7 @@ void locks_remove_flock(struct file *filp)
 		struct file_lock fl = {
 			.fl_pid = current->tgid,
 			.fl_file = filp,
-			.fl_flags = FL_FLOCK,
+			.fl_flags = FL_FLOCK | FL_CLOSE,
 			.fl_type = F_UNLCK,
 			.fl_end = OFFSET_MAX,
 		};
@@ -2575,13 +2575,7 @@ static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 {
 	struct locks_iterator *iter = f->private;
 
-		.fl_owner = filp,
-		.fl_pid = current->tgid,
-		.fl_file = filp,
-		.fl_flags = FL_FLOCK | FL_CLOSE,
-		.fl_type = F_UNLCK,
-		.fl_end = OFFSET_MAX,
-	};
+	++iter->li_pos;
 	return seq_hlist_next_percpu(v, &file_lock_list, &iter->li_cpu, pos);
 }
 

@@ -2335,7 +2335,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (rc)
 		return rc;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2360,7 +2360,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	}
 
 	free_xid(xid);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return rc;
 }
 
@@ -2377,7 +2377,7 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (rc)
 		return rc;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2394,7 +2394,7 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	free_xid(xid);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return rc;
 }
 
@@ -2755,7 +2755,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 	 * with a brlock that prevents writing.
 	 */
 	down_read(&cinode->lock_sem);
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	if (file->f_flags & O_APPEND)
 		lock_pos = i_size_read(inode);
 	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_length(iov, nr_segs),
@@ -2763,7 +2763,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 				     CIFS_WRITE_OP)) {
 		rc = __generic_file_aio_write(iocb, iov, nr_segs,
 						&iocb->ki_pos);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		if (rc > 0) {
 			ssize_t err;
@@ -2773,7 +2773,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 				rc = err;
 		}
 	} else {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	up_read(&cinode->lock_sem);
 	return rc;

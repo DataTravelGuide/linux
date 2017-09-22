@@ -355,9 +355,9 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
  * 48000 secs, which is pretty large!
  *
  * In caln below:
- *	base may overflow, but since there isnÃ¢ÂÂt any additional division
- *	performed on base itÃ¢ÂÂs OK
- *	rem canÃ¢ÂÂt overflow because both are 32-bit values
+ *	base may overflow, but since there isn’t any additional division
+ *	performed on base it’s OK
+ *	rem can’t overflow because both are 32-bit values
  */
 
 #ifdef CONFIG_X86

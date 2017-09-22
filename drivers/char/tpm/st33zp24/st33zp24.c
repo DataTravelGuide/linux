@@ -155,7 +155,7 @@ static int request_locality(struct tpm_chip *chip)
 	if (ret < 0)
 		return ret;
 
-	stop = jiffies + chip->vendor.timeout_a;
+	stop = jiffies + chip->timeout_a;
 
 	/* Request locality is usually effective after the request */
 	do {
@@ -194,7 +194,7 @@ static int get_burstcount(struct tpm_chip *chip)
 	int burstcnt, status;
 	u8 temp;
 
-	stop = jiffies + chip->vendor.timeout_d;
+	stop = jiffies + chip->timeout_d;
 	do {
 		status = tpm_dev->ops->recv(tpm_dev->phy_id, TPM_STS + 1,
 					    &temp, 1);
@@ -322,7 +322,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	while (size < count &&
 	       wait_for_stat(chip,
 			     TPM_STS_DATA_AVAIL | TPM_STS_VALID,
-			     chip->vendor.timeout_c,
+			     chip->timeout_c,
 			     &tpm_dev->read_queue, true) == 0) {
 		burstcnt = get_burstcount(chip);
 		if (burstcnt < 0)
@@ -387,7 +387,7 @@ static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 	if ((status & TPM_STS_COMMAND_READY) == 0) {
 		st33zp24_cancel(chip);
 		if (wait_for_stat
-		    (chip, TPM_STS_COMMAND_READY, chip->vendor.timeout_b,
+		    (chip, TPM_STS_COMMAND_READY, chip->timeout_b,
 		     &tpm_dev->read_queue, false) < 0) {
 			ret = -ETIME;
 			goto out_err;
@@ -543,10 +543,10 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	tpm_dev->ops = ops;
 	dev_set_drvdata(&chip->dev, tpm_dev);
 
-	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
-	chip->vendor.timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);
-	chip->vendor.timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
-	chip->vendor.timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);
+	chip->timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
 	tpm_dev->locality = LOCALITY0;
 
@@ -647,7 +647,7 @@ int st33zp24_pm_resume(struct device *dev)
 	if (gpio_is_valid(tpm_dev->io_lpcpd)) {
 		gpio_set_value(tpm_dev->io_lpcpd, 1);
 		ret = wait_for_stat(chip,
-				TPM_STS_VALID, chip->vendor.timeout_b,
+				TPM_STS_VALID, chip->timeout_b,
 				&tpm_dev->read_queue, false);
 	} else {
 		ret = tpm_pm_resume(dev);

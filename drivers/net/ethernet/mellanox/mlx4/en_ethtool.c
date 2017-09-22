@@ -1139,8 +1139,7 @@ static u32 mlx4_en_get_rxfh_key_size(struct net_device *netdev)
 	return MLX4_EN_RSS_KEY_SIZE;
 }
 
-static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
-			    u8 *hfunc)
+static int mlx4_en_check_rxfh_func(struct net_device *dev, u8 hfunc)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
@@ -1173,16 +1172,15 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 	rss_rings = priv->prof->rss_rings ?: n;
 	rss_rings = rounddown_pow_of_two(rss_rings);
 
-	while (n--) {
+	for (i = 0; i < n; i++) {
 		if (!ring_index)
 			break;
-		ring_index[n] = rss_map->qps[n % rss_rings].qpn -
-			rss_map->base_qpn;
+		ring_index[i] = i % rss_rings;
 	}
 	if (key)
 		memcpy(key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
 	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+		*hfunc = priv->rss_hash_fn;
 	return err;
 }
 
@@ -1196,10 +1194,6 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	int err = 0;
 	int i;
 	int rss_rings = 0;
-
-	/* We do not allow change in unsupported parameters */
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
 
 	/* Calculate RSS table size and make sure flows are spread evenly
 	 * between rings

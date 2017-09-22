@@ -173,12 +173,12 @@ struct ctxt_eager_bufs {
 	u32 threshold;           /* head update threshold */
 	struct eager_buffer {
 		void *addr;
-		dma_addr_t phys;
+		dma_addr_t dma;
 		ssize_t len;
 	} *buffers;
 	struct {
 		void *addr;
-		dma_addr_t phys;
+		dma_addr_t dma;
 	} *rcvtids;
 };
 
@@ -209,8 +209,8 @@ struct hfi1_ctxtdata {
 	/* size of each of the rcvhdrq entries */
 	u16 rcvhdrqentsize;
 	/* mmap of hdrq, must fit in 44 bits */
-	dma_addr_t rcvhdrq_phys;
-	dma_addr_t rcvhdrqtailaddr_phys;
+	dma_addr_t rcvhdrq_dma;
+	dma_addr_t rcvhdrqtailaddr_dma;
 	struct ctxt_eager_bufs egrbufs;
 	/* this receive context's assigned PIO ACK send context */
 	struct send_context *sc;
@@ -352,7 +352,7 @@ struct hfi1_packet {
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
-	struct hfi1_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
@@ -1161,7 +1161,7 @@ struct hfi1_devdata {
 
 	/* receive context tail dummy address */
 	__le64 *rcvhdrtail_dummy_kvaddr;
-	dma_addr_t rcvhdrtail_dummy_physaddr;
+	dma_addr_t rcvhdrtail_dummy_dma;
 
 	u32 rcv_ovfl_cnt;
 	/* Serialize ASPM enable/disable between multiple verbs contexts */
@@ -1269,15 +1269,32 @@ static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 void receive_interrupt_work(struct work_struct *work);
 
 /* extract service channel from header and rhf */
-static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
+static inline int hdr2sc(struct ib_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
-	       ((!!(rhf & RHF_DC_INFO_SMASK)) << 4);
+	       ((!!(rhf_dc_info(rhf))) << 4);
 }
 
+#define HFI1_JKEY_WIDTH       16
+#define HFI1_JKEY_MASK        (BIT(16) - 1)
+#define HFI1_ADMIN_JKEY_RANGE 32
+
+/*
+ * J_KEYs are split and allocated in the following groups:
+ *   0 - 31    - users with administrator privileges
+ *  32 - 63    - kernel protocols using KDETH packets
+ *  64 - 65535 - all other users using KDETH packets
+ */
 static inline u16 generate_jkey(kuid_t uid)
 {
-	return from_kuid(current_user_ns(), uid) & 0xffff;
+	u16 jkey = from_kuid(current_user_ns(), uid) & HFI1_JKEY_MASK;
+
+	if (capable(CAP_SYS_ADMIN))
+		jkey &= HFI1_ADMIN_JKEY_RANGE - 1;
+	else if (jkey < 64)
+		jkey |= BIT(HFI1_JKEY_WIDTH - 1);
+
+	return jkey;
 }
 
 /*
@@ -1581,7 +1598,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
-	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	struct ib_other_headers *ohdr = pkt->ohdr;
 	u32 bth1;
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
@@ -1664,7 +1681,6 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 struct hfi1_devdata *hfi1_init_dd(struct pci_dev *,
 				  const struct pci_device_id *);
 void hfi1_free_devdata(struct hfi1_devdata *);
-void cc_state_reclaim(struct rcu_head *rcu);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
 /* LED beaconing functions */
@@ -1793,7 +1809,7 @@ extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
 extern unsigned int user_credit_return_threshold;
 extern int num_user_contexts;
-extern unsigned n_krcvqs;
+extern unsigned long n_krcvqs;
 extern uint krcvqs[];
 extern int krcvqsset;
 extern uint kdeth_qp;

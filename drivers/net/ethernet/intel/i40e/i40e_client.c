@@ -432,8 +432,9 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 	ldev->pf = pf;
 	INIT_LIST_HEAD(&ldev->list);
 	list_add(&ldev->list, &i40e_devices);
-	dev_info(&pf->pdev->dev, "Added LAN device PF%d bus=0x%02x func=0x%02x\n",
-		 pf->hw.pf_id, pf->hw.bus.device, pf->hw.bus.func);
+	dev_info(&pf->pdev->dev, "Added LAN device PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
+		 pf->hw.pf_id, pf->hw.bus.bus_id,
+		 pf->hw.bus.device, pf->hw.bus.func);
 
 	/* If a client has already been registered, we need to add an instance
 	 * of it to our new LAN device.
@@ -470,9 +471,9 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 	mutex_lock(&i40e_device_mutex);
 	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
 		if (ldev->pf == pf) {
-			dev_info(&pf->pdev->dev, "Deleted LAN device PF%d bus=0x%02x func=0x%02x\n",
-				 pf->hw.pf_id, pf->hw.bus.device,
-				 pf->hw.bus.func);
+			dev_info(&pf->pdev->dev, "Deleted LAN device PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
+				 pf->hw.pf_id, pf->hw.bus.bus_id,
+				 pf->hw.bus.device, pf->hw.bus.func);
 			list_del(&ldev->list);
 			kfree(ldev);
 			ret = 0;

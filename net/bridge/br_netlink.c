@@ -188,7 +188,10 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	    nla_put_u16(skb, IFLA_BRPORT_DESIGNATED_PORT, p->designated_port) ||
 	    nla_put_u16(skb, IFLA_BRPORT_DESIGNATED_COST, p->designated_cost) ||
 	    nla_put_u16(skb, IFLA_BRPORT_ID, p->port_id) ||
-	    nla_put_u16(skb, IFLA_BRPORT_NO, p->port_no))
+	    nla_put_u16(skb, IFLA_BRPORT_NO, p->port_no) ||
+	    nla_put_u8(skb, IFLA_BRPORT_TOPOLOGY_CHANGE_ACK,
+		       p->topology_change_ack) ||
+	    nla_put_u8(skb, IFLA_BRPORT_CONFIG_PENDING, p->config_pending))
 		return -EMSGSIZE;
 
 	timerval = br_timer_value(&p->message_age_timer);
@@ -203,6 +206,12 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	if (nla_put_u64_64bit(skb, IFLA_BRPORT_HOLD_TIMER, timerval,
 			      IFLA_BRPORT_PAD))
 		return -EMSGSIZE;
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (nla_put_u8(skb, IFLA_BRPORT_MULTICAST_ROUTER,
+		       p->multicast_router))
+		return -EMSGSIZE;
+#endif
 
 	return 0;
 }
@@ -252,7 +261,7 @@ static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
 	 * if vlaninfo represents a range
 	 */
 	pvid = br_get_pvid(vg);
-	list_for_each_entry(v, &vg->vlan_list, vlist) {
+	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		flags = 0;
 		if (!br_vlan_should_use(v))
 			continue;
@@ -302,7 +311,7 @@ static int br_fill_ifvlaninfo(struct sk_buff *skb,
 	u16 pvid;
 
 	pvid = br_get_pvid(vg);
-	list_for_each_entry(v, &vg->vlan_list, vlist) {
+	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		if (!br_vlan_should_use(v))
 			continue;
 
@@ -385,22 +394,27 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		struct nlattr *af;
 		int err;
 
+		/* RCU needed because of the VLAN locking rules (rcu || rtnl) */
+		rcu_read_lock();
 		if (port)
-			vg = nbp_vlan_group(port);
+			vg = nbp_vlan_group_rcu(port);
 		else
-			vg = br_vlan_group(br);
+			vg = br_vlan_group_rcu(br);
 
-		if (!vg || !vg->num_vlans)
+		if (!vg || !vg->num_vlans) {
+			rcu_read_unlock();
 			goto done;
-
+		}
 		af = nla_nest_start(skb, IFLA_AF_SPEC);
-		if (!af)
+		if (!af) {
+			rcu_read_unlock();
 			goto nla_put_failure;
-
+		}
 		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
 			err = br_fill_ifvlaninfo_compressed(skb, vg);
 		else
 			err = br_fill_ifvlaninfo(skb, vg);
+		rcu_read_unlock();
 		if (err)
 			goto nla_put_failure;
 		nla_nest_end(skb, af);
@@ -646,6 +660,15 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 	if (tb[IFLA_BRPORT_FLUSH])
 		br_fdb_delete_by_port(p->br, p, 0, 0);
 
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (tb[IFLA_BRPORT_MULTICAST_ROUTER]) {
+		u8 mcast_router = nla_get_u8(tb[IFLA_BRPORT_MULTICAST_ROUTER]);
+
+		err = br_multicast_set_port_router(p, mcast_router);
+		if (err)
+			return err;
+	}
+#endif
 	br_port_flags_change(p, old_flags ^ p->flags);
 	return 0;
 }
@@ -984,6 +1007,12 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		br->multicast_last_member_count = val;
 	}
 
+	if (data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]) {
+		u32 val = nla_get_u32(data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]);
+
+		br->multicast_startup_query_count = val;
+	}
+
 	if (data[IFLA_BR_MCAST_LAST_MEMBER_INTVL]) {
 		u64 val = nla_get_u64(data[IFLA_BR_MCAST_LAST_MEMBER_INTVL]);
 
@@ -1091,9 +1120,6 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_BRIDGE_ID */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_ROOT_PORT */
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_ROOT_PATH_COST */
-	       nla_total_size(sizeof(u8)) +    /* IFLA_BR_TOPOLOGY_CHANGE */
-	       nla_total_size(sizeof(u8)) +    /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
-	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_ROOT_PATH_COST */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
 	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_HELLO_TIMER */
@@ -1190,7 +1216,9 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 			br->hash_elasticity) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_LAST_MEMBER_CNT,
-			br->multicast_last_member_count))
+			br->multicast_last_member_count) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_STARTUP_QUERY_CNT,
+			br->multicast_startup_query_count))
 		return -EMSGSIZE;
 
 	clockval = jiffies_to_clock_t(br->multicast_last_member_interval);

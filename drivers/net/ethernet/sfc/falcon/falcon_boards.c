@@ -27,16 +27,16 @@
 #define FALCON_BOARD_SFE4003 0x03
 #define FALCON_BOARD_SFN4112F 0x52
 
-/* Board temperature is about 15ÃÂ°C above ambient when air flow is
+/* Board temperature is about 15°C above ambient when air flow is
  * limited.  The maximum acceptable ambient temperature varies
  * depending on the PHY specifications but the critical temperature
- * above which we should shut down to avoid damage is 80ÃÂ°C. */
+ * above which we should shut down to avoid damage is 80°C. */
 #define FALCON_BOARD_TEMP_BIAS	15
 #define FALCON_BOARD_TEMP_CRIT	(80 + FALCON_BOARD_TEMP_BIAS)
 
 /* SFC4000 datasheet says: 'The maximum permitted junction temperature
- * is 125ÃÂ°C; the thermal design of the environment for the SFC4000
- * should aim to keep this well below 100ÃÂ°C.' */
+ * is 125°C; the thermal design of the environment for the SFC4000
+ * should aim to keep this well below 100°C.' */
 #define FALCON_JUNC_TEMP_MIN	0
 #define FALCON_JUNC_TEMP_MAX	90
 #define FALCON_JUNC_TEMP_CRIT	125

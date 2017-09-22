@@ -79,8 +79,6 @@ include ../scripts/utilities.mak
 #
 # Define NO_AUXTRACE if you do not want AUX area tracing support
 #
-# Define NO_LIBBPF if you do not want BPF support
-#
 # Define NO_SDT if you do not want to define SDT event in perf tools,
 # note that it doesn't disable SDT scanning support.
 #
@@ -397,54 +395,6 @@ export JEVENTS
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): prepare FORCE
-	$(Q)$(MAKE) $(build)=perf
-
-$(JEVENTS_IN): FORCE
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
-
-$(PERF_IN): prepare FORCE
-	@(test -f ../../include/uapi/linux/perf_event.h && ( \
-         (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
-         || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/powerpc/include/uapi/asm/perf_regs.h && ( \
-         (diff -B ../arch/powerpc/include/uapi/asm/perf_regs.h ../../arch/powerpc/include/uapi/asm/perf_regs.h >/dev/null) \
-         || echo "Warning: tools/arch/powerpc/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/perf_regs.h && ( \
-         (diff -B ../arch/x86/include/uapi/asm/perf_regs.h ../../arch/x86/include/uapi/asm/perf_regs.h >/dev/null) \
-         || echo "Warning: tools/arch/x86/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/linux/hw_breakpoint.h && ( \
-         (diff -B ../include/uapi/linux/hw_breakpoint.h ../../include/uapi/linux/hw_breakpoint.h >/dev/null) \
-         || echo "Warning: tools/include/uapi/linux/hw_breakpoint.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/kvm.h && ( \
-         (diff -B ../arch/x86/include/uapi/asm/kvm.h ../../arch/x86/include/uapi/asm/kvm.h >/dev/null) \
-         || echo "Warning: tools/arch/x86/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/kvm_perf.h && ( \
-         (diff -B ../arch/x86/include/uapi/asm/kvm_perf.h ../../arch/x86/include/uapi/asm/kvm_perf.h >/dev/null) \
-         || echo "Warning: tools/arch/x86/include/uapi/asm/kvm_perf.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/svm.h && ( \
-         (diff -B ../arch/x86/include/uapi/asm/svm.h ../../arch/x86/include/uapi/asm/svm.h >/dev/null) \
-         || echo "Warning: tools/arch/x86/include/uapi/asm/svm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/vmx.h && ( \
-         (diff -B ../arch/x86/include/uapi/asm/vmx.h ../../arch/x86/include/uapi/asm/vmx.h >/dev/null) \
-         || echo "Warning: tools/arch/x86/include/uapi/asm/vmx.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/powerpc/include/uapi/asm/kvm.h && ( \
-         (diff -B ../arch/powerpc/include/uapi/asm/kvm.h ../../arch/powerpc/include/uapi/asm/kvm.h >/dev/null) \
-         || echo "Warning: tools/arch/powerpc/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/kvm.h && ( \
-         (diff -B ../arch/s390/include/uapi/asm/kvm.h ../../arch/s390/include/uapi/asm/kvm.h >/dev/null) \
-         || echo "Warning: tools/arch/s390/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
-         (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
-         || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/asm-generic/mman-common.h && ( \
-	(diff -B ../include/uapi/asm-generic/mman-common.h ../../include/uapi/asm-generic/mman-common.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/asm-generic/mman-common.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/asm-generic/mman.h && ( \
-	(diff -B -I "^#include <\(uapi/\)*asm-generic/mman-common.h>$$" ../include/uapi/asm-generic/mman.h ../../include/uapi/asm-generic/mman.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/asm-generic/mman.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/linux/mman.h && ( \
-	(diff -B -I "^#include <\(uapi/\)*asm/mman.h>$$" ../include/uapi/linux/mman.h ../../include/uapi/linux/mman.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(JEVENTS_IN): FORCE

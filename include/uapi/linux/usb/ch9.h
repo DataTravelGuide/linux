@@ -1007,7 +1007,7 @@ struct usb_pd_cap_battery_info_descriptor {
 	/*
 	 * Shall contain the Battery Charge value above which this
 	 * battery is considered to be fully charged but not necessarily
-	 * Ã¢ÂÂtopped off.Ã¢ÂÂ
+	 * “topped off.”
 	 */
 	__le32 dwChargedThreshold; /* in mWh */
 	/*

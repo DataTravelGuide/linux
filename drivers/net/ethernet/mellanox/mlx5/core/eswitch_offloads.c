@@ -46,7 +46,7 @@ enum {
 struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
-				u32 action, u32 src_vport, u32 dst_vport)
+				struct mlx5_esw_flow_attr *attr)
 {
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {0};
@@ -70,19 +70,13 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		counter = mlx5_fc_create(esw->dev, true);
 		if (IS_ERR(counter))
 			return ERR_CAST(counter);
-		dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-		dest.vport_num = dst_vport;
-		action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	} else if (action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(esw->dev, true);
-		if (IS_ERR(counter))
-			return ERR_CAST(counter);
-		dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest.counter = counter;
+		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		dest[i].counter = counter;
+		i++;
 	}
 
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
-	MLX5_SET(fte_match_set_misc, misc, source_port, src_vport);
+	MLX5_SET(fte_match_set_misc, misc, source_port, attr->in_rep->vport);
 
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
 	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
@@ -91,12 +85,6 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				      MLX5_MATCH_MISC_PARAMETERS;
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DECAP)
 		spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
-
-	if (attr->encap)
-		flow_act.encap_id = attr->encap->encap_id;
-
-	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
-				   spec, action, 0, &dest, 1);
 
 	if (attr->encap)
 		flow_act.encap_id = attr->encap->encap_id;
@@ -1033,7 +1021,13 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 
 	rep = &offloads->vport_reps[vport_index];
 
-	memcpy(rep, __rep, sizeof(struct mlx5_eswitch_rep));
+	memset(rep, 0, sizeof(*rep));
+
+	rep->load   = __rep->load;
+	rep->unload = __rep->unload;
+	rep->vport  = __rep->vport;
+	rep->netdev = __rep->netdev;
+	ether_addr_copy(rep->hw_id, __rep->hw_id);
 
 	INIT_LIST_HEAD(&rep->vport_sqs_list);
 	rep->valid = true;
@@ -1051,4 +1045,14 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 		rep->unload(esw, rep);
 
 	rep->valid = false;
+}
+
+struct net_device *mlx5_eswitch_get_uplink_netdev(struct mlx5_eswitch *esw)
+{
+#define UPLINK_REP_INDEX 0
+	struct mlx5_esw_offload *offloads = &esw->offloads;
+	struct mlx5_eswitch_rep *rep;
+
+	rep = &offloads->vport_reps[UPLINK_REP_INDEX];
+	return rep->netdev;
 }

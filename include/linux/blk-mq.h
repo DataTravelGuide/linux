@@ -80,8 +80,8 @@ struct blk_mq_hw_ctx {
 	RH_KABI_EXTEND(struct srcu_struct	queue_rq_srcu)
 };
 
-struct blk_mq_tag_set {
-	unsigned int		*mq_map;
+#ifdef __GENKSYMS__
+struct blk_mq_reg {
 	struct blk_mq_ops	*ops;
 	unsigned int		nr_hw_queues;
 	unsigned int		queue_depth;	/* max hw supported */
@@ -107,6 +107,7 @@ struct blk_mq_tag_set {
 
 	struct mutex		tag_list_lock;
 	struct list_head	tag_list;
+	unsigned int		*mq_map;
 };
 #endif
 
@@ -140,9 +141,7 @@ typedef int (reinit_request_fn)(void *, struct request *);
 typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 		bool);
 typedef void (busy_tag_iter_fn)(struct request *, void *, bool);
-typedef int (poll_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
-
 
 struct blk_mq_ops {
 	/*
@@ -181,6 +180,9 @@ struct blk_mq_ops {
 	 */
 	init_request_fn		*init_request;
 	exit_request_fn		*exit_request;
+	reinit_request_fn	*reinit_request;
+
+	map_queues_fn		*map_queues;
 #endif
 
 	/*
@@ -188,11 +190,8 @@ struct blk_mq_ops {
 	 * set up, allowing the driver to allocate/init matching structures.
 	 * Ditto for exit/teardown.
 	 */
-	init_request_fn		*init_request;
-	exit_request_fn		*exit_request;
-	reinit_request_fn	*reinit_request;
-
-	map_queues_fn		*map_queues;
+	init_hctx_fn		*init_hctx;
+	exit_hctx_fn		*exit_hctx;
 };
 
 enum {

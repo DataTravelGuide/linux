@@ -56,6 +56,7 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/sizes.h>
 
 #include "nfp_cpp.h"
 

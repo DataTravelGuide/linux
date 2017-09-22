@@ -62,8 +62,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	}
 
 	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & features;
-	segs = skb_mac_gso_segment(skb, enc_features);
+	segs = skb_mac_gso_segment(skb, features);
 	if (IS_ERR_OR_NULL(segs)) {
 		skb_gso_error_unwind(skb, protocol, tnl_hlen, mac_offset,
 				     mac_len);

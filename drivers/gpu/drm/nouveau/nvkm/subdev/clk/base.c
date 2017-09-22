@@ -306,7 +306,7 @@ nvkm_pstate_work(struct work_struct *work)
 		return;
 	clk->pwrsrc = power_supply_is_system_supplied();
 
-	nvkm_trace(subdev, "P %d PWR %d U(AC) %d U(DC) %d A %d T %dÃÂ°C D %d\n",
+	nvkm_trace(subdev, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d°C D %d\n",
 		   clk->pstate, clk->pwrsrc, clk->ustate_ac, clk->ustate_dc,
 		   clk->astate, clk->temp, clk->dstate);
 

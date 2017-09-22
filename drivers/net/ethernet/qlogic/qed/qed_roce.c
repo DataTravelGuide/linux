@@ -2856,11 +2856,6 @@ static int qed_roce_ll2_stop(struct qed_dev *cdev)
 	struct qed_roce_ll2_info *roce_ll2 = hwfn->ll2;
 	int rc;
 
-	if (!cdev) {
-		DP_ERR(cdev, "qed roce ll2 stop: invalid cdev\n");
-		return -EINVAL;
-	}
-
 	if (roce_ll2->handle == QED_LL2_UNUSED_HANDLE) {
 		DP_ERR(cdev, "qed roce ll2 stop: cannot stop an unused LL2\n");
 		return -EINVAL;
@@ -2897,7 +2892,7 @@ static int qed_roce_ll2_tx(struct qed_dev *cdev,
 	int rc;
 	int i;
 
-	if (!cdev || !pkt || !params) {
+	if (!pkt || !params) {
 		DP_ERR(cdev,
 		       "roce ll2 tx: failed tx because one of the following is NULL - drv=%p, pkt=%p, params=%p\n",
 		       cdev, pkt, params);
@@ -2995,7 +2990,7 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.roce_ll2_stats = &qed_roce_ll2_stats,
 };
 
-const struct qed_rdma_ops *qed_get_rdma_ops()
+const struct qed_rdma_ops *qed_get_rdma_ops(void)
 {
 	return &qed_rdma_ops_pass;
 }

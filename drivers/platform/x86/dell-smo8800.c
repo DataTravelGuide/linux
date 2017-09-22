@@ -2,7 +2,7 @@
  *  dell-smo8800.c - Dell Latitude ACPI SMO88XX freefall sensor driver
  *
  *  Copyright (C) 2012 Sonal Santan <sonal.santan@gmail.com>
- *  Copyright (C) 2014 Pali RohÃÂ¡r <pali.rohar@gmail.com>
+ *  Copyright (C) 2014 Pali Rohár <pali.rohar@gmail.com>
  *
  *  This is loosely based on lis3lv02d driver.
  *
@@ -236,4 +236,4 @@ module_acpi_driver(smo8800_driver);
 
 MODULE_DESCRIPTION("Dell Latitude freefall driver (ACPI SMO88XX)");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sonal Santan, Pali RohÃÂ¡r");
+MODULE_AUTHOR("Sonal Santan, Pali Rohár");

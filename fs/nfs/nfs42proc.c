@@ -331,16 +331,30 @@ static void
 nfs42_layoutstat_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct nfs_server *server = NFS_SERVER(data->args.inode);
+	struct inode *inode = data->inode;
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct pnfs_layout_hdr *lo;
 
+	spin_lock(&inode->i_lock);
+	lo = NFS_I(inode)->layout;
+	if (!pnfs_layout_is_valid(lo)) {
+		spin_unlock(&inode->i_lock);
+		rpc_exit(task, 0);
+		return;
+	}
+	nfs4_stateid_copy(&data->args.stateid, &lo->plh_stateid);
+	spin_unlock(&inode->i_lock);
 	nfs41_setup_sequence(nfs4_get_session(server), &data->args.seq_args,
 			     &data->res.seq_res, task);
+
 }
 
 static void
 nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
+	struct inode *inode = data->inode;
+	struct pnfs_layout_hdr *lo;
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return;
@@ -348,12 +362,46 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		break;
+	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_STALE_STATEID:
+	case -NFS4ERR_BAD_STATEID:
+		spin_lock(&inode->i_lock);
+		lo = NFS_I(inode)->layout;
+		if (pnfs_layout_is_valid(lo) &&
+		    nfs4_stateid_match(&data->args.stateid,
+					     &lo->plh_stateid)) {
+			LIST_HEAD(head);
+
+			/*
+			 * Mark the bad layout state as invalid, then retry
+			 * with the current stateid.
+			 */
+			pnfs_mark_layout_stateid_invalid(lo, &head);
+			spin_unlock(&inode->i_lock);
+			pnfs_free_lseg_list(&head);
+		} else
+			spin_unlock(&inode->i_lock);
+		break;
+	case -NFS4ERR_OLD_STATEID:
+		spin_lock(&inode->i_lock);
+		lo = NFS_I(inode)->layout;
+		if (pnfs_layout_is_valid(lo) &&
+		    nfs4_stateid_match_other(&data->args.stateid,
+					&lo->plh_stateid)) {
+			/* Do we need to delay before resending? */
+			if (!nfs4_stateid_is_newer(&lo->plh_stateid,
+						&data->args.stateid))
+				rpc_delay(task, HZ);
+			rpc_restart_call_prepare(task);
+		}
+		spin_unlock(&inode->i_lock);
+		break;
 	case -ENOTSUPP:
 	case -EOPNOTSUPP:
-		NFS_SERVER(data->inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
-	default:
-		dprintk("%s server returns %d\n", __func__, task->tk_status);
+		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	}
+
+	dprintk("%s server returns %d\n", __func__, task->tk_status);
 }
 
 static void
@@ -362,13 +410,7 @@ nfs42_layoutstat_release(void *calldata)
 	struct nfs42_layoutstat_data *data = calldata;
 	struct nfs_server *nfss = NFS_SERVER(data->args.inode);
 
-			 * with the current stateid.
-			 */
-			set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
-			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
-			spin_unlock(&inode->i_lock);
-			pnfs_free_lseg_list(&head);
-		} else
+	if (nfss->pnfs_curr_ld->cleanup_layoutstats)
 		nfss->pnfs_curr_ld->cleanup_layoutstats(data);
 
 	pnfs_put_layout_hdr(NFS_I(data->args.inode)->layout);

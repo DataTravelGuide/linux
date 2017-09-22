@@ -42,6 +42,7 @@
 
 #include <linux/ctype.h>
 #include <linux/types.h>
+#include <linux/err.h>
 
 #ifndef NFP_SUBSYS
 #define NFP_SUBSYS "nfp"

@@ -688,14 +688,6 @@ vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
 	for (i = 0; i < rssConf->indTableSize; i++)
 		rssConf->indTable[i] = p[i];
 
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
-	if (!p)
-		return 0;
-	for (i = 0; i < rssConf->indTableSize; i++)
-		rssConf->indTable[i] = p[i];
-
 	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_RSSIDT);

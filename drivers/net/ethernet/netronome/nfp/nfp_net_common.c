@@ -269,7 +269,8 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update)
  * @nn:       NFP Network structure
  * @entry_nr: MSI-X table entry
  *
- * Clear the ICR for the IRQ entry.
+ * If MSI-X auto-masking is enabled clear the mask bit, otherwise
+ * clear the ICR for the entry.
  */
 static void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr)
 {
@@ -1318,6 +1319,20 @@ static void nfp_net_set_hash(struct net_device *netdev, struct sk_buff *skb,
 }
 
 static void
+nfp_net_set_hash_desc(struct net_device *netdev, struct sk_buff *skb,
+		      struct nfp_net_rx_desc *rxd)
+{
+	struct nfp_net_rx_hash *rx_hash;
+
+	if (!(rxd->rxd.flags & PCIE_DESC_RX_RSS))
+		return;
+
+	rx_hash = (struct nfp_net_rx_hash *)(skb->data - sizeof(*rx_hash));
+
+	nfp_net_set_hash(netdev, skb, rxd);
+}
+
+static void
 nfp_net_rx_drop(struct nfp_net_r_vector *r_vec, struct nfp_net_rx_ring *rx_ring,
 		struct nfp_net_rx_buf *rxbuf, struct sk_buff *skb)
 {
@@ -1399,8 +1414,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			pkt_off = nn->rx_offset;
 		data_off = NFP_NET_RX_BUF_HEADROOM + pkt_off;
 
-		nfp_net_set_hash(nn->netdev, skb, rxd);
-
 		/* Stats update */
 		u64_stats_update_begin(&r_vec->rx_sync);
 		r_vec->rx_pkts++;
@@ -1412,6 +1425,9 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			nfp_net_rx_drop(r_vec, rx_ring, rxbuf, NULL);
 			continue;
 		}
+
+		nfp_net_set_hash(nn->netdev, skb, rxd);
+
 		new_frag = nfp_net_napi_alloc_one(nn, &new_dma_addr);
 		if (unlikely(!new_frag)) {
 			nfp_net_rx_drop(r_vec, rx_ring, rxbuf, skb);
@@ -1426,19 +1442,15 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		skb_reserve(skb, data_off);
 		skb_put(skb, pkt_len);
 
-		if (nn->fw_ver.major <= 3) {
-			nfp_net_set_hash_desc(nn->netdev, skb, rxd);
-		} else if (meta_len) {
+		nfp_net_set_hash_desc(nn->netdev, skb, rxd);
+
 		skb_record_rx_queue(skb, rx_ring->idx);
 		skb->protocol = eth_type_trans(skb, nn->netdev);
 
-			end = nfp_net_parse_meta(nn->netdev, skb, meta_len);
-			if (unlikely(end != skb->data)) {
-				nn_warn_ratelimit(nn, "invalid RX packet metadata\n");
-				nfp_net_rx_drop(r_vec, rx_ring, NULL, skb);
-				continue;
-			}
-		}
+		nfp_net_rx_csum(nn, r_vec, rxd, skb);
+
+		if (rxd->rxd.flags & PCIE_DESC_RX_VLAN)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       le16_to_cpu(rxd->rxd.vlan));
 
 		napi_gro_receive(&rx_ring->r_vec->napi, skb);

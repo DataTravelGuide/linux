@@ -42,7 +42,7 @@ struct gadget_info {
 	struct config_group functions_group;
 	struct config_group configs_group;
 	struct config_group strings_group;
-	struct config_group os_desc_group;
+	struct config_group *default_groups[4];
 
 	struct mutex lock;
 	struct usb_gadget_strings *gstrings[MAX_USB_STRING_LANGS + 1];
@@ -60,6 +60,7 @@ struct gadget_info {
 struct config_usb_cfg {
 	struct config_group group;
 	struct config_group strings_group;
+	struct config_group *default_groups[2];
 	struct list_head string_list;
 	struct usb_configuration c;
 	struct list_head func_list;
@@ -664,12 +665,13 @@ static struct config_group *config_desc_make(
 	INIT_LIST_HEAD(&cfg->string_list);
 	INIT_LIST_HEAD(&cfg->func_list);
 
+	cfg->group.default_groups = cfg->default_groups;
+	cfg->default_groups[0] = &cfg->strings_group;
+
 	config_group_init_type_name(&cfg->group, name,
 				&gadget_config_type);
-
 	config_group_init_type_name(&cfg->strings_group, "strings",
 			&gadget_config_name_strings_type);
-	configfs_add_default_group(&cfg->strings_group, &cfg->group);
 
 	ret = usb_add_config_only(&gi->cdev, &cfg->c);
 	if (ret)
@@ -989,66 +991,17 @@ static struct configfs_subsystem gadget_subsys = {
 
 static int __init gadget_cfs_init(void)
 {
-	struct config_group *os_desc_group;
-	struct config_item_type *os_desc_type, *interface_type;
+	int ret;
 
-	vla_group(data_chunk);
-	vla_item(data_chunk, struct config_group, os_desc_group, 1);
-	vla_item(data_chunk, struct config_item_type, os_desc_type, 1);
-	vla_item(data_chunk, struct config_item_type, interface_type, 1);
+	config_group_init(&gadget_subsys.su_group);
 
 	ret = configfs_register_subsystem(&gadget_subsys);
 	return ret;
 }
 module_init(gadget_cfs_init);
 
-	if (!vlabuf)
-		return -ENOMEM;
-
-	os_desc_group = vla_ptr(vlabuf, data_chunk, os_desc_group);
-	os_desc_type = vla_ptr(vlabuf, data_chunk, os_desc_type);
-	interface_type = vla_ptr(vlabuf, data_chunk, interface_type);
-
-	os_desc_type->ct_owner = owner;
-	config_group_init_type_name(os_desc_group, "os_desc", os_desc_type);
-	configfs_add_default_group(os_desc_group, parent);
-
-	interface_type->ct_group_ops = &interf_grp_ops;
-	interface_type->ct_attrs = interf_grp_attrs;
-	interface_type->ct_owner = owner;
-		config_group_init_type_name(&d->group, "", interface_type);
-		config_item_set_name(&d->group.cg_item, "interface.%s",
-				     names[n_interf]);
-		configfs_add_default_group(&d->group, os_desc_group);
-	}
-
-	return 0;
-	if (!gi)
-		return ERR_PTR(-ENOMEM);
-
-	config_group_init_type_name(&gi->group, name, &gadget_root_type);
-
-	config_group_init_type_name(&gi->functions_group, "functions",
-			&functions_type);
-	configfs_add_default_group(&gi->functions_group, &gi->group);
-
-	config_group_init_type_name(&gi->configs_group, "configs",
-			&config_desc_type);
-	configfs_add_default_group(&gi->configs_group, &gi->group);
-
-	config_group_init_type_name(&gi->strings_group, "strings",
-			&gadget_strings_strings_type);
-	configfs_add_default_group(&gi->strings_group, &gi->group);
-
-	config_group_init_type_name(&gi->os_desc_group, "os_desc",
-			&os_desc_type);
-	configfs_add_default_group(&gi->os_desc_group, &gi->group);
-
-	gi->composite.bind = configfs_do_nothing;
-	gi->composite.unbind = configfs_do_nothing;
-	if (!gi->composite.gadget_driver.function)
-		goto err;
-
-	return &gi->group;
-err:
-	kfree(gi);
+static void __exit gadget_cfs_exit(void)
+{
+	configfs_unregister_subsystem(&gadget_subsys);
+}
+module_exit(gadget_cfs_exit);

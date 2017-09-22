@@ -12605,19 +12605,6 @@ static int tg3_set_rxfh(struct net_device *dev, const u32 *indir, const u8 *key,
 	for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++)
 		tp->rss_ind_tbl[i] = indir[i];
 
-	/* We require at least one supported parameter to be changed and no
-	 * change in any of the unsupported parameters
-	 */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
-
-	if (!indir)
-		return 0;
-
-	for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++)
-		tp->rss_ind_tbl[i] = indir[i];
-
 	if (!netif_running(dev) || !tg3_flag(tp, ENABLE_RSS))
 		return 0;
 

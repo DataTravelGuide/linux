@@ -264,6 +264,7 @@ extern int submit_bio_wait(int rw, struct bio *bio);
 extern void bio_advance(struct bio *, unsigned);
 
 extern void bio_init(struct bio *);
+extern void bio_init_aux(struct bio *bio, struct bio_aux *bio_aux);
 extern void bio_reset(struct bio *);
 void bio_chain(struct bio *, struct bio *);
 

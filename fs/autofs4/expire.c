@@ -310,26 +310,29 @@ struct dentry *autofs4_expire_direct(struct super_block *sb,
 	now = jiffies;
 	timeout = sbi->exp_timeout;
 
-	spin_lock(&sbi->fs_lock);
-	ino = autofs4_dentry_ino(root);
-	/* No point expiring a pending mount */
-	if (ino->flags & AUTOFS_INF_PENDING)
-		goto out;
 	if (!autofs4_direct_busy(mnt, root, timeout, do_now)) {
+		spin_lock(&sbi->fs_lock);
+		ino = autofs4_dentry_ino(root);
+		/* No point expiring a pending mount */
+		if (ino->flags & AUTOFS_INF_PENDING) {
+			spin_unlock(&sbi->fs_lock);
+			goto out;
+		}
 		ino->flags |= AUTOFS_INF_WANT_EXPIRE;
 		spin_unlock(&sbi->fs_lock);
 		synchronize_rcu();
-		spin_lock(&sbi->fs_lock);
 		if (!autofs4_direct_busy(mnt, root, timeout, do_now)) {
+			spin_lock(&sbi->fs_lock);
 			ino->flags |= AUTOFS_INF_EXPIRING;
 			init_completion(&ino->expire_complete);
 			spin_unlock(&sbi->fs_lock);
 			return root;
 		}
+		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_WANT_EXPIRE;
+		spin_unlock(&sbi->fs_lock);
 	}
 out:
-	spin_unlock(&sbi->fs_lock);
 	dput(root);
 
 	return NULL;
@@ -593,7 +596,7 @@ int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 
 	if (dentry) {
 		struct autofs_info *ino = autofs4_dentry_ino(dentry);
-		struct path path = { .mnt = mnt, .dentry = dentry };
+		const struct path path = { .mnt = mnt, .dentry = dentry };
 
 		/* This is synchronous because it makes the daemon a
 		 * little easier

@@ -258,5 +258,5 @@ SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-top[1],
 linkperf:perf-record[1],
-http://www.intel.com/sdm/[IntelÃÂ® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
-http://support.amd.com/us/Processor_TechDocs/24593_APM_v2.pdf[AMD64 Architecture ProgrammerÃ¢ÂÂs Manual Volume 2: System Programming]
+http://www.intel.com/sdm/[Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
+http://support.amd.com/us/Processor_TechDocs/24593_APM_v2.pdf[AMD64 Architecture Programmer’s Manual Volume 2: System Programming]

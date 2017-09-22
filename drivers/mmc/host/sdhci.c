@@ -2170,25 +2170,6 @@ out_unlock:
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	return err;
-out:
-	if (tuning_count) {
-		/*
-		 * In case tuning fails, host controllers which support
-		 * re-tuning can try tuning again at a later time, when the
-		 * re-tuning timer expires.  So for these controllers, we
-		 * return 0. Since there might be other controllers who do not
-		 * have this capability, we return error for them.
-		 */
-		err = 0;
-	}
-
-	host->mmc->retune_period = err ? 0 : tuning_count;
-
-	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
-	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
-out_unlock:
-	spin_unlock_irqrestore(&host->lock, flags);
-	return err;
 }
 EXPORT_SYMBOL_GPL(sdhci_execute_tuning);
 

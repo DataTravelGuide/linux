@@ -2481,6 +2481,18 @@ static int iboe_tos_to_sl(struct net_device *ndev, int tos)
 	return 0;
 }
 
+static enum ib_gid_type cma_route_gid_type(enum rdma_network_type network_type,
+					   unsigned long supported_gids,
+					   enum ib_gid_type default_gid)
+{
+	if ((network_type == RDMA_NETWORK_IPV4 ||
+	     network_type == RDMA_NETWORK_IPV6) &&
+	    test_bit(IB_GID_TYPE_ROCE_UDP_ENCAP, &supported_gids))
+		return IB_GID_TYPE_ROCE_UDP_ENCAP;
+
+	return default_gid;
+}
+
 static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 {
 	struct rdma_route *route = &id_priv->id.route;
@@ -2506,24 +2518,37 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->num_paths = 1;
 
 	if (addr->dev_addr.bound_dev_if) {
+		unsigned long supported_gids;
+
 		ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
-		if (!ndev)
-			return -ENODEV;
+		if (!ndev) {
+			ret = -ENODEV;
+			goto err2;
+		}
 
 		if (ndev->flags & IFF_LOOPBACK) {
 			dev_put(ndev);
-			if (!id_priv->id.device->get_netdev)
-				return -EOPNOTSUPP;
+			if (!id_priv->id.device->get_netdev) {
+				ret = -EOPNOTSUPP;
+				goto err2;
+			}
 
 			ndev = id_priv->id.device->get_netdev(id_priv->id.device,
 							      id_priv->id.port_num);
-			if (!ndev)
-				return -ENODEV;
+			if (!ndev) {
+				ret = -ENODEV;
+				goto err2;
+			}
 		}
 
 		route->path_rec->net = &init_net;
 		route->path_rec->ifindex = ndev->ifindex;
-		route->path_rec->gid_type = id_priv->gid_type;
+		supported_gids = roce_gid_type_mask_support(id_priv->id.device,
+							    id_priv->id.port_num);
+		route->path_rec->gid_type =
+			cma_route_gid_type(addr->dev_addr.network,
+					   supported_gids,
+					   id_priv->gid_type);
 	}
 	if (!ndev) {
 		ret = -ENODEV;
@@ -2947,7 +2972,7 @@ static int cma_alloc_any_port(enum rdma_port_space ps,
 
 	inet_get_local_port_range(net, &low, &high);
 	remaining = (high - low) + 1;
-	rover = net_random() % remaining + low;
+	rover = prandom_u32() % remaining + low;
 retry:
 	if (last_used_port != rover &&
 	    !cma_ps_find(net, ps, (unsigned short)rover)) {

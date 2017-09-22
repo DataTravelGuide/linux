@@ -131,10 +131,6 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 }
 
-		/* It is recommended to double check the TMODE field in the
-		 * TCSR register to be cleared before the first compare counter
-		 * is written into TCCR register. Just add a double check.
-		 */
 /**
  * fec_ptp_adjfreq - adjust ptp cycle frequency
  * @ptp: the ptp clock structure

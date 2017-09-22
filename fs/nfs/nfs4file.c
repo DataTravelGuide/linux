@@ -180,33 +180,6 @@ static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 		ret = nfs42_proc_llseek(filep, offset, whence);
 		if (ret != -ENOTSUPP)
 			return ret;
-	return nfs42_proc_allocate(filep, offset, len);
-}
-
-static int nfs42_clone_file_range(struct file *src_file, loff_t src_off,
-		struct file *dst_file, loff_t dst_off, u64 count)
-{
-	struct inode *dst_inode = file_inode(dst_file);
-	struct nfs_server *server = NFS_SERVER(dst_inode);
-	struct inode *src_inode = file_inode(src_file);
-	unsigned int bs = server->clone_blksize;
-	bool same_inode = false;
-	int ret;
-
-	/* check alignment w.r.t. clone_blksize */
-	ret = -EINVAL;
-	if (bs) {
-		if (!IS_ALIGNED(src_off, bs) || !IS_ALIGNED(dst_off, bs))
-			goto out;
-		if (!IS_ALIGNED(count, bs) && i_size_read(src_inode) != (src_off + count))
-			goto out;
-	}
-
-	if (src_inode == dst_inode)
-		same_inode = true;
-
-	/* XXX: do we lock at all? what if server needs CB_RECALL_LAYOUT? */
-	if (same_inode) {
 	default:
 		return nfs_file_llseek(filep, offset, whence);
 	}
@@ -304,15 +277,6 @@ const struct file_operations_extend nfs4_file_operations = {
 		.aio_write	= nfs_file_write,
 		.mmap		= nfs_file_mmap,
 		.open		= nfs4_file_open,
-		mutex_unlock(&dst_inode->i_mutex);
-		mutex_unlock(&src_inode->i_mutex);
-	}
-out:
-	return ret;
-}
-#endif /* CONFIG_NFS_V4_2 */
-
-const struct file_operations nfs4_file_operations = {
 		.flush		= nfs4_file_flush,
 		.release	= nfs_file_release,
 		.fsync		= nfs4_file_fsync,
@@ -325,10 +289,6 @@ const struct file_operations nfs4_file_operations = {
 #ifdef CONFIG_NFS_V4_2
 		.llseek		= nfs4_file_llseek,
 		.fallocate	= nfs42_fallocate,
-#ifdef CONFIG_NFS_V4_2
-	.llseek		= nfs4_file_llseek,
-	.fallocate	= nfs42_fallocate,
-	.clone_file_range = nfs42_clone_file_range,
 #else
 		.llseek		= nfs_file_llseek,
 #endif

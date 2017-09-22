@@ -2384,7 +2384,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	u64 tail_len;
 	u64 orig_start = offset;
 	u64 cur_offset;
-	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
+	u64 min_size = btrfs_calc_trans_metadata_size(root, 1);
 	u64 drop_end;
 	int ret = 0;
 	int err = 0;
@@ -2531,7 +2531,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		ret = -ENOMEM;
 		goto out_free;
 	}
-	rsv->size = btrfs_calc_trunc_metadata_size(root, 1);
+	rsv->size = btrfs_calc_trans_metadata_size(root, 1);
 	rsv->failfast = 1;
 
 	/*
@@ -3030,23 +3030,26 @@ out:
 	return offset;
 }
 
-const struct file_operations btrfs_file_operations = {
-	.llseek		= btrfs_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read       = generic_file_aio_read,
-	.splice_read	= generic_file_splice_read,
-	.aio_write	= btrfs_file_aio_write,
-	.mmap		= btrfs_file_mmap,
-	.open		= generic_file_open,
-	.release	= btrfs_release_file,
-	.fsync		= btrfs_sync_file,
-	.fallocate	= btrfs_fallocate,
-	.unlocked_ioctl	= btrfs_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= btrfs_compat_ioctl,
+const struct file_operations_extend btrfs_file_operations = {
+	.kabi_fops = {
+		.llseek		= btrfs_file_llseek,
+		.read		= do_sync_read,
+		.write		= do_sync_write,
+		.aio_read       = generic_file_aio_read,
+		.splice_read	= generic_file_splice_read,
+		.aio_write	= btrfs_file_aio_write,
+		.mmap		= btrfs_file_mmap,
+		.open		= generic_file_open,
+		.release	= btrfs_release_file,
+		.fsync		= btrfs_sync_file,
+		.fallocate	= btrfs_fallocate,
+		.unlocked_ioctl	= btrfs_ioctl,
+#ifdef 	CONFIG_COMPAT
+		.compat_ioctl	= btrfs_ioctl,
 #endif
+	},
 	.copy_file_range = btrfs_copy_file_range,
+	.clone_file_range = btrfs_clone_file_range,
 };
 
 void btrfs_auto_defrag_exit(void)

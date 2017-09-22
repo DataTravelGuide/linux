@@ -370,9 +370,7 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		return NULL;
 	}
 
-		ether_addr_copy(fdb->addr, addr);
-		fdb->vid = vid;
-		fdb->ndm_state = is_static ? NUD_NOARP : NUD_REACHABLE;
+	netif_carrier_off(slave_dev);
 
 	if (p->phy != NULL) {
 		phy_attach(slave_dev, dev_name(&p->phy->dev),

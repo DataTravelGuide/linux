@@ -94,7 +94,8 @@ struct config_group {
 	struct config_item		cg_item;
 	struct list_head		cg_children;
 	struct configfs_subsystem 	*cg_subsys;
-	struct list_head		default_groups;
+	struct config_group		**default_groups;
+	struct list_head		default_groups_list;
 	struct list_head		group_entry;
 };
 
@@ -121,11 +122,10 @@ static inline void config_group_put(struct config_group *group)
 extern struct config_item *config_group_find_item(struct config_group *,
 						  const char *);
 
-
 static inline void configfs_add_default_group(struct config_group *new_group,
 		struct config_group *group)
 {
-	list_add_tail(&new_group->group_entry, &group->default_groups);
+	list_add_tail(&new_group->group_entry, &group->default_groups_list);
 }
 
 struct configfs_attribute {
@@ -263,11 +263,6 @@ struct configfs_item_operations {
 	int (*drop_link)(struct config_item *src, struct config_item *target);
 };
 
-void configfs_remove_default_groups(struct config_group *group);
-
-struct config_group *
-configfs_register_default_group(struct config_group *parent_group,
-				const char *name,
 struct configfs_group_operations {
 	struct config_item *(*make_item)(struct config_group *group, const char *name);
 	struct config_group *(*make_group)(struct config_group *group, const char *name);
@@ -290,6 +285,9 @@ static inline struct configfs_subsystem *to_configfs_subsystem(struct config_gro
 
 int configfs_register_subsystem(struct configfs_subsystem *subsys);
 void configfs_unregister_subsystem(struct configfs_subsystem *subsys);
+
+void configfs_remove_default_groups(struct config_group *group);
+
 
 /* These functions can sleep and can alloc with GFP_KERNEL */
 /* WARNING: These cannot be called underneath configfs callbacks!! */

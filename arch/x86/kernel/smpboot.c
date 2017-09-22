@@ -111,7 +111,6 @@ atomic_t init_deasserted;
 /* Logical package management. We might want to allocate that dynamically */
 static int *physical_to_logical_pkg __read_mostly;
 static unsigned long *physical_package_map __read_mostly;;
-static unsigned long *logical_package_map  __read_mostly;
 static unsigned int max_physical_pkg_id __read_mostly;
 unsigned int __max_logical_packages __read_mostly;
 EXPORT_SYMBOL(__max_logical_packages);
@@ -331,6 +330,7 @@ static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 	}
 
 	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
+	logical_packages = 0;
 
 	/*
 	 * Possibly larger than what we need as the number of apic ids per
@@ -354,10 +354,6 @@ static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 	memset(physical_to_logical_pkg, 0xff, size);
 	size = BITS_TO_LONGS(max_physical_pkg_id) * sizeof(unsigned long);
 	physical_package_map = kzalloc(size, GFP_KERNEL);
-	size = BITS_TO_LONGS(__max_logical_packages) * sizeof(unsigned long);
-	logical_package_map = kzalloc(size, GFP_KERNEL);
-
-	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
 

@@ -837,7 +837,10 @@ set_rcvbuf:
 		break;
 
 	case SO_TIMESTAMPING:
-		if (val & ~SOF_TIMESTAMPING_MASK) {
+		if (val & ~SOF_TIMESTAMPING_MASK ||
+		    val & __RH_RESERVED_SOF_TIMESTAMPING_OPT_ID ||
+		    val & __RH_RESERVED_SOF_TIMESTAMPING_TX_SCHED ||
+		    val & __RH_RESERVED_SOF_TIMESTAMPING_TX_ACK) {
 			ret = -EINVAL;
 			break;
 		}

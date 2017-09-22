@@ -15,50 +15,58 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/phy/phy.h>
+
+#include <mach/da8xx.h>
 #include <linux/platform_data/usb-davinci.h>
 
 #ifndef CONFIG_ARCH_DAVINCI_DA8XX
 #error "This file is DA8xx bus glue.  Define CONFIG_ARCH_DAVINCI_DA8XX."
 #endif
 
+#define CFGCHIP2	DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG)
+
 static struct clk *usb11_clk;
-static struct phy *usb11_phy;
+static struct clk *usb20_clk;
 
 /* Over-current indicator change bitmask */
 static volatile u16 ocic_mask;
 
-static int ohci_da8xx_enable(void)
+static void ohci_da8xx_clock(int on)
 {
-	int ret;
+	u32 cfgchip2;
 
-	ret = clk_prepare_enable(usb11_clk);
-	if (ret)
-		return ret;
+	cfgchip2 = __raw_readl(CFGCHIP2);
+	if (on) {
+		clk_enable(usb11_clk);
 
-	ret = phy_init(usb11_phy);
-	if (ret)
-		goto err_phy_init;
+		/*
+		 * If USB 1.1 reference clock is sourced from USB 2.0 PHY, we
+		 * need to enable the USB 2.0 module clocking, start its PHY,
+		 * and not allow it to stop the clock during USB 2.0 suspend.
+		 */
+		if (!(cfgchip2 & CFGCHIP2_USB1PHYCLKMUX)) {
+			clk_enable(usb20_clk);
 
-	ret = phy_power_on(usb11_phy);
-	if (ret)
-		goto err_phy_power_on;
+			cfgchip2 &= ~(CFGCHIP2_RESET | CFGCHIP2_PHYPWRDN);
+			cfgchip2 |= CFGCHIP2_PHY_PLLON;
+			__raw_writel(cfgchip2, CFGCHIP2);
 
-	return 0;
+			pr_info("Waiting for USB PHY clock good...\n");
+			while (!(__raw_readl(CFGCHIP2) & CFGCHIP2_PHYCLKGD))
+				cpu_relax();
+		}
 
-err_phy_power_on:
-	phy_exit(usb11_phy);
-err_phy_init:
-	clk_disable_unprepare(usb11_clk);
+		/* Enable USB 1.1 PHY */
+		cfgchip2 |= CFGCHIP2_USB1SUSPENDM;
+	} else {
+		clk_disable(usb11_clk);
+		if (!(cfgchip2 & CFGCHIP2_USB1PHYCLKMUX))
+			clk_disable(usb20_clk);
 
-	return ret;
-}
-
-static void ohci_da8xx_disable(void)
-{
-	phy_power_off(usb11_phy);
-	phy_exit(usb11_phy);
-	clk_disable_unprepare(usb11_clk);
+		/* Disable USB 1.1 PHY */
+		cfgchip2 &= ~CFGCHIP2_USB1SUSPENDM;
+	}
+	__raw_writel(cfgchip2, CFGCHIP2);
 }
 
 /*
@@ -84,9 +92,7 @@ static int ohci_da8xx_init(struct usb_hcd *hcd)
 
 	dev_dbg(dev, "starting USB controller\n");
 
-	result = ohci_da8xx_enable();
-	if (result < 0)
-		return result;
+	ohci_da8xx_clock(1);
 
 	/*
 	 * DA8xx only have 1 port connected to the pins but the HC root hub
@@ -95,10 +101,8 @@ static int ohci_da8xx_init(struct usb_hcd *hcd)
 	ohci->num_ports = 1;
 
 	result = ohci_init(ohci);
-	if (result < 0) {
-		ohci_da8xx_disable();
+	if (result < 0)
 		return result;
-	}
 
 	/*
 	 * Since we're providing a board-specific root hub port power control
@@ -125,7 +129,7 @@ static int ohci_da8xx_init(struct usb_hcd *hcd)
 static void ohci_da8xx_stop(struct usb_hcd *hcd)
 {
 	ohci_stop(hcd);
-	ohci_da8xx_disable();
+	ohci_da8xx_clock(0);
 }
 
 static int ohci_da8xx_start(struct usb_hcd *hcd)
@@ -296,19 +300,9 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	if (hub == NULL)
 		return -ENODEV;
 
-	usb11_clk = devm_clk_get(&pdev->dev, "usb11");
-	if (IS_ERR(usb11_clk)) {
-		if (PTR_ERR(usb11_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get clock.\n");
+	usb11_clk = clk_get(&pdev->dev, "usb11");
+	if (IS_ERR(usb11_clk))
 		return PTR_ERR(usb11_clk);
-	}
-
-	usb11_phy = devm_phy_get(&pdev->dev, "usb-phy");
-	if (IS_ERR(usb11_phy)) {
-		if (PTR_ERR(usb11_phy) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get phy.\n");
-		return PTR_ERR(usb11_phy);
-	}
 
 	usb20_clk = clk_get(&pdev->dev, "usb20");
 	if (IS_ERR(usb20_clk)) {
@@ -325,11 +319,7 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		error = -ENODEV;
-	hcd->regs = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(hcd->regs)) {
-		error = PTR_ERR(hcd->regs);
-		dev_err(&pdev->dev, "failed to map ohci.\n");
-		goto err;
+		goto err2;
 	}
 	hcd->rsrc_start = mem->start;
 	hcd->rsrc_len = resource_size(mem);
@@ -426,7 +416,7 @@ static int ohci_da8xx_suspend(struct platform_device *dev, pm_message_t message)
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	ohci_da8xx_disable();
+	ohci_da8xx_clock(0);
 	hcd->state = HC_STATE_SUSPENDED;
 	dev->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
@@ -436,19 +426,14 @@ static int ohci_da8xx_resume(struct platform_device *dev)
 {
 	struct usb_hcd	*hcd	= platform_get_drvdata(dev);
 	struct ohci_hcd	*ohci	= hcd_to_ohci(hcd);
-	int ret;
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	ret = ohci_da8xx_enable();
-	if (ret)
-		return ret;
-
+	ohci_da8xx_clock(1);
 	dev->dev.power.power_state = PMSG_ON;
 	usb_hcd_resume_root_hub(hcd);
-
 	return 0;
 }
 #endif

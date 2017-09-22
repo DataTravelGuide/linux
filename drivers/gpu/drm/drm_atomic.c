@@ -1878,7 +1878,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *
- * "IN_FENCE_FDÃ¢ÂÂ:
+ * "IN_FENCE_FD”:
  *	Use this property to pass a fence that DRM should wait on before
  *	proceeding with the Atomic Commit request and show the framebuffer for
  *	the plane on the screen. The fence can be either a normal fence or a
@@ -1895,7 +1895,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	to make sure there's consistent behaviour between drivers in precedence
  *	of implicit vs. explicit fencing.
  *
- * "OUT_FENCE_PTRÃ¢ÂÂ:
+ * "OUT_FENCE_PTR”:
  *	Use this property to pass a file descriptor pointer to DRM. Once the
  *	Atomic Commit request call returns OUT_FENCE_PTR will be filled with
  *	the file descriptor number of a Sync File. This Sync File contains the

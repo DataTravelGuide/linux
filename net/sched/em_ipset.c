@@ -45,7 +45,7 @@ static void em_ipset_destroy(struct tcf_ematch *em)
 {
 	const struct xt_set_info *set = (const void *) em->data;
 	if (set) {
-		ip_set_nfnl_put(em->net, set->index);
+		ip_set_nfnl_put(set->index);
 		kfree((void *) em->data);
 	}
 }

@@ -462,6 +462,30 @@ struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 EXPORT_SYMBOL(pci_find_parent_resource);
 
 /**
+ * pci_find_pcie_root_port - return PCIe Root Port
+ * @dev: PCI device to query
+ *
+ * Traverse up the parent chain and return the PCIe Root Port PCI Device
+ * for a given PCI Device.
+ */
+struct pci_dev *pci_find_pcie_root_port(struct pci_dev *dev)
+{
+	struct pci_dev *bridge, *highest_pcie_bridge = NULL;
+
+	bridge = pci_upstream_bridge(dev);
+	while (bridge && pci_is_pcie(bridge)) {
+		highest_pcie_bridge = bridge;
+		bridge = pci_upstream_bridge(bridge);
+	}
+
+	if (pci_pcie_type(highest_pcie_bridge) != PCI_EXP_TYPE_ROOT_PORT)
+		return NULL;
+
+	return highest_pcie_bridge;
+}
+EXPORT_SYMBOL(pci_find_pcie_root_port);
+
+/**
  * pci_wait_for_pending - wait for @mask bit(s) to clear in status word @pos
  * @dev: the PCI device to operate on
  * @pos: config space offset of status word
@@ -2346,7 +2370,7 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	int ent_size, ent_offset = offset;
 	resource_size_t start, end;
 	unsigned long flags;
-	u32 dw0, base, max_offset;
+	u32 dw0, bei, base, max_offset;
 	u8 prop;
 	bool support_64 = (sizeof(resource_size_t) >= 8);
 
@@ -2359,20 +2383,21 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	if (!(dw0 & PCI_EA_ENABLE)) /* Entry not enabled */
 		goto out;
 
-	prop = PCI_EA_PP(dw0);
+	bei = (dw0 & PCI_EA_BEI) >> 4;
+	prop = (dw0 & PCI_EA_PP) >> 8;
+
 	/*
 	 * If the Property is in the reserved range, try the Secondary
 	 * Property instead.
 	 */
 	if (prop > PCI_EA_P_BRIDGE_IO && prop < PCI_EA_P_MEM_RESERVED)
-		prop = PCI_EA_SP(dw0);
+		prop = (dw0 & PCI_EA_SP) >> 16;
 	if (prop > PCI_EA_P_BRIDGE_IO)
 		goto out;
 
-	res = pci_ea_get_resource(dev, PCI_EA_BEI(dw0), prop);
+	res = pci_ea_get_resource(dev, bei, prop);
 	if (!res) {
-		dev_err(&dev->dev, "Unsupported EA entry BEI: %u\n",
-			PCI_EA_BEI(dw0));
+		dev_err(&dev->dev, "Unsupported EA entry BEI: %u\n", bei);
 		goto out;
 	}
 

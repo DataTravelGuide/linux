@@ -1789,11 +1789,18 @@ static void fib_leaf_notify(struct net *net, struct key_vector *l,
 		if (!fi)
 			continue;
 
+#if 0
 		/* local and main table can share the same trie,
 		 * so don't notify twice for the same entry.
+		 *
+		 * RHEL note: This cannot happen because there is not
+		 * backported 0ddcf43d5d4a ("ipv4: FIB Local/MAIN table
+		 * collapse") in RHEL. Local and main tables cannot share
+		 * a trie. Leaving the code and this note for future.
 		 */
 		if (tb->tb_id != fa->tb_id)
 			continue;
+#endif
 
 		call_fib_entry_notifier(nb, net, event_type, l->key,
 					KEYLENGTH - fa->fa_slen, fi, fa->fa_tos,

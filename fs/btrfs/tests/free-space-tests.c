@@ -36,59 +36,59 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 	test_msg("Running extent only tests\n");
 
 	/* First just make sure we can remove an entire entry */
-	ret = btrfs_add_free_space(cache, 0, 4 * 1024 * 1024);
+	ret = btrfs_add_free_space(cache, 0, SZ_4M);
 	if (ret) {
 		test_msg("Error adding initial extents %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 0, 4 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, 0, SZ_4M);
 	if (ret) {
 		test_msg("Error removing extent %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 0, 4 * 1024 * 1024)) {
+	if (test_check_exists(cache, 0, SZ_4M)) {
 		test_msg("Full remove left some lingering space\n");
 		return -1;
 	}
 
 	/* Ok edge and middle cases now */
-	ret = btrfs_add_free_space(cache, 0, 4 * 1024 * 1024);
+	ret = btrfs_add_free_space(cache, 0, SZ_4M);
 	if (ret) {
 		test_msg("Error adding half extent %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 3 * 1024 * 1024, 1 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, 3 * SZ_1M, SZ_1M);
 	if (ret) {
 		test_msg("Error removing tail end %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 0, 1 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, 0, SZ_1M);
 	if (ret) {
 		test_msg("Error removing front end %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 2 * 1024 * 1024, 4096);
+	ret = btrfs_remove_free_space(cache, SZ_2M, 4096);
 	if (ret) {
 		test_msg("Error removing middle piece %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 0, 1 * 1024 * 1024)) {
+	if (test_check_exists(cache, 0, SZ_1M)) {
 		test_msg("Still have space at the front\n");
 		return -1;
 	}
 
-	if (test_check_exists(cache, 2 * 1024 * 1024, 4096)) {
+	if (test_check_exists(cache, SZ_2M, 4096)) {
 		test_msg("Still have space in the middle\n");
 		return -1;
 	}
 
-	if (test_check_exists(cache, 3 * 1024 * 1024, 1 * 1024 * 1024)) {
+	if (test_check_exists(cache, 3 * SZ_1M, SZ_1M)) {
 		test_msg("Still have space at the end\n");
 		return -1;
 	}
@@ -107,30 +107,30 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache,
 
 	test_msg("Running bitmap only tests\n");
 
-	ret = test_add_free_space_entry(cache, 0, 4 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, 0, SZ_4M, 1);
 	if (ret) {
 		test_msg("Couldn't create a bitmap entry %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 0, 4 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, 0, SZ_4M);
 	if (ret) {
 		test_msg("Error removing bitmap full range %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 0, 4 * 1024 * 1024)) {
+	if (test_check_exists(cache, 0, SZ_4M)) {
 		test_msg("Left some space in bitmap\n");
 		return -1;
 	}
 
-	ret = test_add_free_space_entry(cache, 0, 4 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, 0, SZ_4M, 1);
 	if (ret) {
 		test_msg("Couldn't add to our bitmap entry %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 1 * 1024 * 1024, 2 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, SZ_1M, SZ_2M);
 	if (ret) {
 		test_msg("Couldn't remove middle chunk %d\n", ret);
 		return ret;
@@ -143,23 +143,21 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache,
 	next_bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
 
 	/* Test a bit straddling two bitmaps */
-	ret = test_add_free_space_entry(cache, next_bitmap_offset -
-				   (2 * 1024 * 1024), 4 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, next_bitmap_offset - SZ_2M,
+					SZ_4M, 1);
 	if (ret) {
 		test_msg("Couldn't add space that straddles two bitmaps %d\n",
 				ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, next_bitmap_offset -
-				      (1 * 1024 * 1024), 2 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, next_bitmap_offset - SZ_1M, SZ_2M);
 	if (ret) {
 		test_msg("Couldn't remove overlapping space %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, next_bitmap_offset - (1 * 1024 * 1024),
-			 2 * 1024 * 1024)) {
+	if (test_check_exists(cache, next_bitmap_offset - SZ_1M, SZ_2M)) {
 		test_msg("Left some space when removing overlapping\n");
 		return -1;
 	}
@@ -183,43 +181,43 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	 * bitmap, but the free space completely in the extent and then
 	 * completely in the bitmap.
 	 */
-	ret = test_add_free_space_entry(cache, 4 * 1024 * 1024, 1 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, SZ_4M, SZ_1M, 1);
 	if (ret) {
 		test_msg("Couldn't create bitmap entry %d\n", ret);
 		return ret;
 	}
 
-	ret = test_add_free_space_entry(cache, 0, 1 * 1024 * 1024, 0);
+	ret = test_add_free_space_entry(cache, 0, SZ_1M, 0);
 	if (ret) {
 		test_msg("Couldn't add extent entry %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 0, 1 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, 0, SZ_1M);
 	if (ret) {
 		test_msg("Couldn't remove extent entry %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 0, 1 * 1024 * 1024)) {
+	if (test_check_exists(cache, 0, SZ_1M)) {
 		test_msg("Left remnants after our remove\n");
 		return -1;
 	}
 
 	/* Now to add back the extent entry and remove from the bitmap */
-	ret = test_add_free_space_entry(cache, 0, 1 * 1024 * 1024, 0);
+	ret = test_add_free_space_entry(cache, 0, SZ_1M, 0);
 	if (ret) {
 		test_msg("Couldn't re-add extent entry %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 4 * 1024 * 1024, 1 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, SZ_4M, SZ_1M);
 	if (ret) {
 		test_msg("Couldn't remove from bitmap %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 4 * 1024 * 1024, 1 * 1024 * 1024)) {
+	if (test_check_exists(cache, SZ_4M, SZ_1M)) {
 		test_msg("Left remnants in the bitmap\n");
 		return -1;
 	}
@@ -228,19 +226,19 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	 * Ok so a little more evil, extent entry and bitmap at the same offset,
 	 * removing an overlapping chunk.
 	 */
-	ret = test_add_free_space_entry(cache, 1 * 1024 * 1024, 4 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, SZ_1M, SZ_4M, 1);
 	if (ret) {
 		test_msg("Couldn't add to a bitmap %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 512 * 1024, 3 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, SZ_512K, 3 * SZ_1M);
 	if (ret) {
 		test_msg("Couldn't remove overlapping space %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 512 * 1024, 3 * 1024 * 1024)) {
+	if (test_check_exists(cache, SZ_512K, 3 * SZ_1M)) {
 		test_msg("Left over pieces after removing overlapping\n");
 		return -1;
 	}
@@ -248,25 +246,25 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	__btrfs_remove_free_space_cache(cache->free_space_ctl);
 
 	/* Now with the extent entry offset into the bitmap */
-	ret = test_add_free_space_entry(cache, 4 * 1024 * 1024, 4 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, SZ_4M, SZ_4M, 1);
 	if (ret) {
 		test_msg("Couldn't add space to the bitmap %d\n", ret);
 		return ret;
 	}
 
-	ret = test_add_free_space_entry(cache, 2 * 1024 * 1024, 2 * 1024 * 1024, 0);
+	ret = test_add_free_space_entry(cache, SZ_2M, SZ_2M, 0);
 	if (ret) {
 		test_msg("Couldn't add extent to the cache %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 3 * 1024 * 1024, 4 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, 3 * SZ_1M, SZ_4M);
 	if (ret) {
 		test_msg("Problem removing overlapping space %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, 3 * 1024 * 1024, 4 * 1024 * 1024)) {
+	if (test_check_exists(cache, 3 * SZ_1M, SZ_4M)) {
 		test_msg("Left something behind when removing space");
 		return -1;
 	}
@@ -282,29 +280,26 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	 *        [ del ]
 	 */
 	__btrfs_remove_free_space_cache(cache->free_space_ctl);
-	ret = test_add_free_space_entry(cache, bitmap_offset + 4 * 1024 * 1024,
-				   4 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, bitmap_offset + SZ_4M, SZ_4M, 1);
 	if (ret) {
 		test_msg("Couldn't add bitmap %d\n", ret);
 		return ret;
 	}
 
-	ret = test_add_free_space_entry(cache, bitmap_offset - 1 * 1024 * 1024,
-				   5 * 1024 * 1024, 0);
+	ret = test_add_free_space_entry(cache, bitmap_offset - SZ_1M,
+					5 * SZ_1M, 0);
 	if (ret) {
 		test_msg("Couldn't add extent entry %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, bitmap_offset + 1 * 1024 * 1024,
-				      5 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, bitmap_offset + SZ_1M, 5 * SZ_1M);
 	if (ret) {
 		test_msg("Failed to free our space %d\n", ret);
 		return ret;
 	}
 
-	if (test_check_exists(cache, bitmap_offset + 1 * 1024 * 1024,
-			 5 * 1024 * 1024)) {
+	if (test_check_exists(cache, bitmap_offset + SZ_1M, 5 * SZ_1M)) {
 		test_msg("Left stuff over\n");
 		return -1;
 	}
@@ -317,19 +312,19 @@ static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
 	 * to return -EAGAIN back from btrfs_remove_extent, make sure this
 	 * doesn't happen.
 	 */
-	ret = test_add_free_space_entry(cache, 1 * 1024 * 1024, 2 * 1024 * 1024, 1);
+	ret = test_add_free_space_entry(cache, SZ_1M, SZ_2M, 1);
 	if (ret) {
 		test_msg("Couldn't add bitmap entry %d\n", ret);
 		return ret;
 	}
 
-	ret = test_add_free_space_entry(cache, 3 * 1024 * 1024, 1 * 1024 * 1024, 0);
+	ret = test_add_free_space_entry(cache, 3 * SZ_1M, SZ_1M, 0);
 	if (ret) {
 		test_msg("Couldn't add extent entry %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_remove_free_space(cache, 1 * 1024 * 1024, 3 * 1024 * 1024);
+	ret = btrfs_remove_free_space(cache, SZ_1M, 3 * SZ_1M);
 	if (ret) {
 		test_msg("Error removing bitmap and extent overlapping %d\n", ret);
 		return ret;
@@ -445,16 +440,15 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	/*
 	 * Extent entry covering free space range [128Mb - 256Kb, 128Mb - 128Kb[
 	 */
-	ret = test_add_free_space_entry(cache, 128 * 1024 * 1024 - 256 * 1024,
-					128 * 1024, 0);
+	ret = test_add_free_space_entry(cache, SZ_128M - SZ_256K, SZ_128K, 0);
 	if (ret) {
 		test_msg("Couldn't add extent entry %d\n", ret);
 		return ret;
 	}
 
 	/* Bitmap entry covering free space range [128Mb + 512Kb, 256Mb[ */
-	ret = test_add_free_space_entry(cache, 128 * 1024 * 1024 + 512 * 1024,
-					128 * 1024 * 1024 - 512 * 1024, 1);
+	ret = test_add_free_space_entry(cache, SZ_128M + SZ_512K,
+					SZ_128M - SZ_512K, 1);
 	if (ret) {
 		test_msg("Couldn't add bitmap entry %d\n", ret);
 		return ret;
@@ -472,21 +466,19 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * [128Mb + 512Kb, 128Mb + 768Kb[
 	 */
 	ret = btrfs_remove_free_space(cache,
-				      128 * 1024 * 1024 + 768 * 1024,
-				      128 * 1024 * 1024 - 768 * 1024);
+				      SZ_128M + 768 * SZ_1K,
+				      SZ_128M - 768 * SZ_1K);
 	if (ret) {
 		test_msg("Failed to free part of bitmap space %d\n", ret);
 		return ret;
 	}
 
 	/* Confirm that only those 2 ranges are marked as free. */
-	if (!test_check_exists(cache, 128 * 1024 * 1024 - 256 * 1024,
-			       128 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M - SZ_256K, SZ_128K)) {
 		test_msg("Free space range missing\n");
 		return -ENOENT;
 	}
-	if (!test_check_exists(cache, 128 * 1024 * 1024 + 512 * 1024,
-			       256 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M + SZ_512K, SZ_256K)) {
 		test_msg("Free space range missing\n");
 		return -ENOENT;
 	}
@@ -495,8 +487,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * Confirm that the bitmap range [128Mb + 768Kb, 256Mb[ isn't marked
 	 * as free anymore.
 	 */
-	if (test_check_exists(cache, 128 * 1024 * 1024 + 768 * 1024,
-			      128 * 1024 * 1024 - 768 * 1024)) {
+	if (test_check_exists(cache, SZ_128M + 768 * SZ_1K,
+			      SZ_128M - 768 * SZ_1K)) {
 		test_msg("Bitmap region not removed from space cache\n");
 		return -EINVAL;
 	}
@@ -505,8 +497,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * Confirm that the region [128Mb + 256Kb, 128Mb + 512Kb[, which is
 	 * covered by the bitmap, isn't marked as free.
 	 */
-	if (test_check_exists(cache, 128 * 1024 * 1024 + 256 * 1024,
-			      256 * 1024)) {
+	if (test_check_exists(cache, SZ_128M + SZ_256K, SZ_256K)) {
 		test_msg("Invalid bitmap region marked as free\n");
 		return -EINVAL;
 	}
@@ -515,8 +506,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * Confirm that the region [128Mb, 128Mb + 256Kb[, which is covered
 	 * by the bitmap too, isn't marked as free either.
 	 */
-	if (test_check_exists(cache, 128 * 1024 * 1024,
-			      256 * 1024)) {
+	if (test_check_exists(cache, SZ_128M, SZ_256K)) {
 		test_msg("Invalid bitmap region marked as free\n");
 		return -EINVAL;
 	}
@@ -526,13 +516,13 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * lets make sure the free space cache marks it as free in the bitmap,
 	 * and doesn't insert a new extent entry to represent this region.
 	 */
-	ret = btrfs_add_free_space(cache, 128 * 1024 * 1024, 512 * 1024);
+	ret = btrfs_add_free_space(cache, SZ_128M, SZ_512K);
 	if (ret) {
 		test_msg("Error adding free space: %d\n", ret);
 		return ret;
 	}
 	/* Confirm the region is marked as free. */
-	if (!test_check_exists(cache, 128 * 1024 * 1024, 512 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M, SZ_512K)) {
 		test_msg("Bitmap region not marked as free\n");
 		return -ENOENT;
 	}
@@ -570,15 +560,13 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * expand the range covered by the existing extent entry that represents
 	 * the free space [128Mb - 256Kb, 128Mb - 128Kb[.
 	 */
-	ret = btrfs_add_free_space(cache, 128 * 1024 * 1024 - 128 * 1024,
-				   128 * 1024);
+	ret = btrfs_add_free_space(cache, SZ_128M - SZ_128K, SZ_128K);
 	if (ret) {
 		test_msg("Error adding free space: %d\n", ret);
 		return ret;
 	}
 	/* Confirm the region is marked as free. */
-	if (!test_check_exists(cache, 128 * 1024 * 1024 - 128 * 1024,
-			       128 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M - SZ_128K, SZ_128K)) {
 		test_msg("Extent region not marked as free\n");
 		return -ENOENT;
 	}
@@ -606,8 +594,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * that represents the 1Mb free space, and therefore we're able to
 	 * allocate the whole free space at once.
 	 */
-	if (!test_check_exists(cache, 128 * 1024 * 1024 - 256 * 1024,
-			       1 * 1024 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M - SZ_256K, SZ_1M)) {
 		test_msg("Expected region not marked as free\n");
 		return -ENOENT;
 	}
@@ -618,9 +605,9 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	}
 
 	offset = btrfs_find_space_for_alloc(cache,
-					    0, 1 * 1024 * 1024, 0,
+					    0, SZ_1M, 0,
 					    &max_extent_size);
-	if (offset != (128 * 1024 * 1024 - 256 * 1024)) {
+	if (offset != (SZ_128M - SZ_256K)) {
 		test_msg("Failed to allocate 1Mb from space cache, returned offset is: %llu\n",
 			 offset);
 		return -EINVAL;
@@ -663,16 +650,14 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	/*
 	 * Extent entry covering free space range [128Mb + 128Kb, 128Mb + 256Kb[
 	 */
-	ret = test_add_free_space_entry(cache, 128 * 1024 * 1024 + 128 * 1024,
-					128 * 1024, 0);
+	ret = test_add_free_space_entry(cache, SZ_128M + SZ_128K, SZ_128K, 0);
 	if (ret) {
 		test_msg("Couldn't add extent entry %d\n", ret);
 		return ret;
 	}
 
 	/* Bitmap entry covering free space range [0, 128Mb - 512Kb[ */
-	ret = test_add_free_space_entry(cache, 0,
-					128 * 1024 * 1024 - 512 * 1024, 1);
+	ret = test_add_free_space_entry(cache, 0, SZ_128M - SZ_512K, 1);
 	if (ret) {
 		test_msg("Couldn't add bitmap entry %d\n", ret);
 		return ret;
@@ -689,22 +674,18 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * [128Mb + 128b, 128Mb + 256Kb[
 	 * [128Mb - 768Kb, 128Mb - 512Kb[
 	 */
-	ret = btrfs_remove_free_space(cache,
-				      0,
-				      128 * 1024 * 1024 - 768 * 1024);
+	ret = btrfs_remove_free_space(cache, 0, SZ_128M - 768 * SZ_1K);
 	if (ret) {
 		test_msg("Failed to free part of bitmap space %d\n", ret);
 		return ret;
 	}
 
 	/* Confirm that only those 2 ranges are marked as free. */
-	if (!test_check_exists(cache, 128 * 1024 * 1024 + 128 * 1024,
-			       128 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M + SZ_128K, SZ_128K)) {
 		test_msg("Free space range missing\n");
 		return -ENOENT;
 	}
-	if (!test_check_exists(cache, 128 * 1024 * 1024 - 768 * 1024,
-			       256 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M - 768 * SZ_1K, SZ_256K)) {
 		test_msg("Free space range missing\n");
 		return -ENOENT;
 	}
@@ -713,8 +694,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * Confirm that the bitmap range [0, 128Mb - 768Kb[ isn't marked
 	 * as free anymore.
 	 */
-	if (test_check_exists(cache, 0,
-			      128 * 1024 * 1024 - 768 * 1024)) {
+	if (test_check_exists(cache, 0, SZ_128M - 768 * SZ_1K)) {
 		test_msg("Bitmap region not removed from space cache\n");
 		return -EINVAL;
 	}
@@ -723,8 +703,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * Confirm that the region [128Mb - 512Kb, 128Mb[, which is
 	 * covered by the bitmap, isn't marked as free.
 	 */
-	if (test_check_exists(cache, 128 * 1024 * 1024 - 512 * 1024,
-			      512 * 1024)) {
+	if (test_check_exists(cache, SZ_128M - SZ_512K, SZ_512K)) {
 		test_msg("Invalid bitmap region marked as free\n");
 		return -EINVAL;
 	}
@@ -734,15 +713,13 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * lets make sure the free space cache marks it as free in the bitmap,
 	 * and doesn't insert a new extent entry to represent this region.
 	 */
-	ret = btrfs_add_free_space(cache, 128 * 1024 * 1024 - 512 * 1024,
-				   512 * 1024);
+	ret = btrfs_add_free_space(cache, SZ_128M - SZ_512K, SZ_512K);
 	if (ret) {
 		test_msg("Error adding free space: %d\n", ret);
 		return ret;
 	}
 	/* Confirm the region is marked as free. */
-	if (!test_check_exists(cache, 128 * 1024 * 1024 - 512 * 1024,
-			       512 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M - SZ_512K, SZ_512K)) {
 		test_msg("Bitmap region not marked as free\n");
 		return -ENOENT;
 	}
@@ -772,13 +749,13 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * expand the range covered by the existing extent entry that represents
 	 * the free space [128Mb + 128Kb, 128Mb + 256Kb[.
 	 */
-	ret = btrfs_add_free_space(cache, 128 * 1024 * 1024, 128 * 1024);
+	ret = btrfs_add_free_space(cache, SZ_128M, SZ_128K);
 	if (ret) {
 		test_msg("Error adding free space: %d\n", ret);
 		return ret;
 	}
 	/* Confirm the region is marked as free. */
-	if (!test_check_exists(cache, 128 * 1024 * 1024, 128 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M, SZ_128K)) {
 		test_msg("Extent region not marked as free\n");
 		return -ENOENT;
 	}
@@ -806,8 +783,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	 * that represents the 1Mb free space, and therefore we're able to
 	 * allocate the whole free space at once.
 	 */
-	if (!test_check_exists(cache, 128 * 1024 * 1024 - 768 * 1024,
-			       1 * 1024 * 1024)) {
+	if (!test_check_exists(cache, SZ_128M - 768 * SZ_1K, SZ_1M)) {
 		test_msg("Expected region not marked as free\n");
 		return -ENOENT;
 	}
@@ -817,10 +793,9 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 		return -EINVAL;
 	}
 
-	offset = btrfs_find_space_for_alloc(cache,
-					    0, 1 * 1024 * 1024, 0,
+	offset = btrfs_find_space_for_alloc(cache, 0, SZ_1M, 0,
 					    &max_extent_size);
-	if (offset != (128 * 1024 * 1024 - 768 * 1024)) {
+	if (offset != (SZ_128M - 768 * SZ_1K)) {
 		test_msg("Failed to allocate 1Mb from space cache, returned offset is: %llu\n",
 			 offset);
 		return -EINVAL;

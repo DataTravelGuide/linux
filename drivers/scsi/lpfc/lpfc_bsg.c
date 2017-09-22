@@ -1,11 +1,9 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * Ã¢ÂÂBroadcomÃ¢ÂÂ refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2009-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.broadcom.com                                                *
+ * www.emulex.com                                                  *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
  * modify it under the terms of version 2 of the GNU General       *
@@ -1684,7 +1682,6 @@ lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	struct Scsi_Host *shost;
 	struct lpfc_sli *psli;
-	struct lpfc_queue *qp = NULL;
 	struct lpfc_sli_ring *pring;
 	int i = 0;
 
@@ -1692,6 +1689,9 @@ lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba)
 	if (!psli)
 		return -ENODEV;
 
+	pring = &psli->ring[LPFC_FCP_RING];
+	if (!pring)
+		return -ENODEV;
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
 	    (psli->sli_flag & LPFC_BLOCK_MGMT_IO) ||
@@ -1710,18 +1710,10 @@ lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba)
 		scsi_block_requests(shost);
 	}
 
-	if (phba->sli_rev != LPFC_SLI_REV4) {
-		pring = &psli->sli3_ring[LPFC_FCP_RING];
-		lpfc_emptyq_wait(phba, &pring->txcmplq, &phba->hbalock);
-		return 0;
-	}
-	list_for_each_entry(qp, &phba->sli4_hba.lpfc_wq_list, wq_list) {
-		pring = qp->pring;
-		if (!pring || (pring->ringno != LPFC_FCP_RING))
-			continue;
-		if (!lpfc_emptyq_wait(phba, &pring->txcmplq,
-				      &pring->ring_lock))
+	while (!list_empty(&pring->txcmplq)) {
+		if (i++ > 500)  /* wait up to 5 seconds */
 			break;
+		msleep(10);
 	}
 	return 0;
 }
@@ -2677,7 +2669,7 @@ err_get_xri_exit:
  * lpfc_bsg_dma_page_alloc - allocate a bsg mbox page sized dma buffers
  * @phba: Pointer to HBA context object
  *
- * This function allocates BSG_MBOX_SIZE (4KB) page size dma buffer and
+ * This function allocates BSG_MBOX_SIZE (4KB) page size dma buffer and.
  * returns the pointer to the buffer.
  **/
 static struct lpfc_dmabuf *
@@ -2850,7 +2842,8 @@ out:
 static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 			     size_t len)
 {
-	struct lpfc_sli_ring *pring;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	struct lpfc_iocbq *cmdiocbq;
 	IOCB_t *cmd = NULL;
 	struct list_head head, *curr, *next;
@@ -2863,8 +2856,6 @@ static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 	int ret_val = 0;
 	int iocb_stat;
 	int i = 0;
-
-	pring = lpfc_phba_elsring(phba);
 
 	cmdiocbq = lpfc_sli_get_iocbq(phba);
 	rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
@@ -5338,14 +5329,12 @@ lpfc_bsg_timeout(struct fc_bsg_job *job)
 	struct lpfc_vport *vport = (struct lpfc_vport *)job->shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_iocbq *cmdiocb;
-	struct lpfc_sli_ring *pring;
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	struct bsg_job_data *dd_data;
 	unsigned long flags;
 	int rc = 0;
 	LIST_HEAD(completions);
 	struct lpfc_iocbq *check_iocb, *next_iocb;
-
-	pring = lpfc_phba_elsring(phba);
 
 	/* if job's driver data is NULL, the command completed or is in the
 	 * the process of completing.  In this case, return status to request

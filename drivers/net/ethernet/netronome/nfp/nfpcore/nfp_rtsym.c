@@ -42,7 +42,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
 
 #include "nfp.h"
 #include "nfp_cpp.h"

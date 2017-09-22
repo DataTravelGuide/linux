@@ -152,9 +152,9 @@ struct vhost_virtqueue {
 };
 
 struct vhost_msg_node {
-  struct vhost_msg msg;
-  struct vhost_virtqueue *vq;
-  struct list_head node;
+	struct vhost_msg msg;
+	struct vhost_virtqueue *vq;
+	struct list_head node;
 };
 
 struct vhost_dev {
@@ -218,10 +218,10 @@ struct vhost_msg_node *vhost_dequeue_msg(struct vhost_dev *dev,
 					 struct list_head *head);
 unsigned int vhost_chr_poll(struct file *file, struct vhost_dev *dev,
 			    poll_table *wait);
-ssize_t vhost_chr_read_iter(struct vhost_dev *dev, struct iov_iter *to,
+ssize_t vhost_chr_read_iter(struct vhost_dev *dev, const struct iovec *to,
 			    int noblock);
 ssize_t vhost_chr_write_iter(struct vhost_dev *dev,
-			     struct iov_iter *from);
+			     const struct iovec *from);
 int vhost_init_device_iotlb(struct vhost_dev *d, bool enabled);
 
 #define vq_err(vq, fmt, ...) do {                                  \

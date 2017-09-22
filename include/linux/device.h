@@ -842,6 +842,7 @@ struct device_rh {
 	RH_KABI_EXTEND(struct dev_pin_info *pins)
 #endif
 	RH_KABI_EXTEND(struct fwnode_handle *fwnode)
+	RH_KABI_EXTEND(struct dma_map_ops *dma_ops)
 };
 /* allocator for device_rh */
 extern void device_rh_alloc(struct device *dev);

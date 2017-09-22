@@ -268,6 +268,8 @@ int pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
 				const struct pnfs_layout_range *recall_range,
 				u32 seq);
+int pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
+		struct list_head *lseg_list);
 bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
@@ -358,7 +360,7 @@ void nfs4_pnfs_ds_put(struct nfs4_pnfs_ds *ds);
 struct nfs4_pnfs_ds *nfs4_pnfs_ds_add(struct list_head *dsaddrs,
 				      gfp_t gfp_flags);
 void nfs4_pnfs_v3_ds_connect_unload(void);
-void nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
+int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 			  struct nfs4_deviceid_node *devid, unsigned int timeo,
 			  unsigned int retrans, u32 version, u32 minor_version,
 			  rpc_authflavor_t au_flavor);
@@ -373,6 +375,11 @@ void pnfs_layout_mark_request_commit(struct nfs_page *req,
 static inline bool nfs_have_layout(struct inode *inode)
 {
 	return NFS_I(inode)->layout != NULL;
+}
+
+static inline bool pnfs_layout_is_valid(const struct pnfs_layout_hdr *lo)
+{
+	return test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) == 0;
 }
 
 static inline struct nfs4_deviceid_node *
@@ -390,6 +397,12 @@ pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 		smp_mb__after_atomic_inc();
 	}
 	return lseg;
+}
+
+static inline bool
+pnfs_is_valid_lseg(struct pnfs_layout_segment *lseg)
+{
+	return test_bit(NFS_LSEG_VALID, &lseg->pls_flags) != 0;
 }
 
 /* Return true if a layout driver is being used for this mountpoint */
@@ -537,6 +550,13 @@ pnfs_calc_offset_length(u64 offset, u64 end)
 	if (end == NFS4_MAX_UINT64 || end <= offset)
 		return NFS4_MAX_UINT64;
 	return 1 + end - offset;
+}
+
+static inline void
+pnfs_copy_range(struct pnfs_layout_range *dst,
+		const struct pnfs_layout_range *src)
+{
+	memcpy(dst, src, sizeof(*dst));
 }
 
 static inline u64

@@ -218,9 +218,6 @@ static int sdio_card_irq_put(struct mmc_card *card)
 	if (host->sdio_irqs < 1)
 		return -EINVAL;
 
-	if (host->sdio_irqs < 1)
-		return -EINVAL;
-
 	if (!--host->sdio_irqs) {
 		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD)) {
 			atomic_set(&host->sdio_irq_thread_abort, 1);

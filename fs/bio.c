@@ -277,7 +277,7 @@ void bio_init(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_init);
 
-static void bio_init_aux(struct bio *bio, struct bio_aux *bio_aux)
+void bio_init_aux(struct bio *bio, struct bio_aux *bio_aux)
 {
 	if (WARN_ON_ONCE(!bio_aux))
 		return;
@@ -286,6 +286,7 @@ static void bio_init_aux(struct bio *bio, struct bio_aux *bio_aux)
 	bio->bio_aux = bio_aux;
 	atomic_set(&bio->bio_aux->__bi_remaining, 1);
 }
+EXPORT_SYMBOL(bio_init_aux);
 
 /**
  * bio_reset - reinitialize a bio

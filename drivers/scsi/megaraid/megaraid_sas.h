@@ -745,7 +745,6 @@ struct megasas_pd_list {
 	u16             tid;
 	u8             driveType;
 	u8             driveState;
-	u8             interface;
 } __packed;
 
  /*
@@ -1404,8 +1403,6 @@ struct megasas_ctrl_info {
 
 #define MEGASAS_FW_BUSY				1
 
-#define VD_EXT_DEBUG 0
-
 /* Driver's internal Logging levels*/
 #define OCR_LOGS    (1 << 0)
 
@@ -1494,8 +1491,6 @@ enum FW_BOOT_CONTEXT {
 #define MFI_1068_FW_HANDSHAKE_OFFSET		0x64
 #define MFI_1068_FW_READY			0xDDDD0000
 
-#define MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL HZ
-
 #define MR_MAX_REPLY_QUEUES_OFFSET              0X0000001F
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET          0X003FC000
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
@@ -1549,8 +1544,8 @@ struct megasas_register_set {
 	u32 	outbound_scratch_pad ;		/*00B0h*/
 	u32	outbound_scratch_pad_2;         /*00B4h*/
 	u32	outbound_scratch_pad_3;         /*00B8h*/
+	u32	outbound_scratch_pad_4;         /*00BCh*/
 
-	u32	reserved_4;			/*00BCh*/
 
 	u32 	inbound_low_queue_port ;	/*00C0h*/
 
@@ -2076,17 +2071,24 @@ struct MR_DRV_SYSTEM_INFO {
 };
 
 enum MR_PD_TYPE {
-		 UNKNOWN_DRIVE = 0,
-		 PARALLEL_SCSI = 1,
-		 SAS_PD = 2,
-		 SATA_PD = 3,
-		 FC_PD = 4,
+	UNKNOWN_DRIVE = 0,
+	PARALLEL_SCSI = 1,
+	SAS_PD = 2,
+	SATA_PD = 3,
+	FC_PD = 4,
+	NVME_PD = 5,
 };
 
 /* JBOD Queue depth definitions */
 #define MEGASAS_SATA_QD	32
 #define MEGASAS_SAS_QD	64
 #define MEGASAS_DEFAULT_PD_QD	64
+#define MEGASAS_NVME_QD		32
+
+#define MR_DEFAULT_NVME_PAGE_SIZE	4096
+#define MR_DEFAULT_NVME_PAGE_SHIFT	12
+#define MR_DEFAULT_NVME_MDTS_KB		128
+#define MR_NVME_PAGE_SIZE_MASK		0x000000FF
 
 struct megasas_instance {
 
@@ -2180,10 +2182,6 @@ struct megasas_instance {
 	atomic_t sge_holes_type2;
 	atomic_t sge_holes_type3;
 
-	atomic64_t bytes_wrote; /* used for raid1 fast path enable or disable */
-	atomic_t r1_write_fp_capable;
-
-
 	struct megasas_instance_template *instancet;
 	struct tasklet_struct isr_tasklet;
 	struct work_struct work_init;
@@ -2226,7 +2224,6 @@ struct megasas_instance {
 	long reset_flags;
 	struct mutex reset_mutex;
 	struct timer_list sriov_heartbeat_timer;
-	struct timer_list r1_fp_hold_timer;
 	char skip_heartbeat_timer_del;
 	u8 requestorId;
 	char PlasmaFW111;
@@ -2240,6 +2237,7 @@ struct megasas_instance {
 	u8 is_rdpq;
 	bool dev_handle;
 	bool fw_sync_cache_support;
+	u32 mfi_frame_size;
 	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;
@@ -2338,8 +2336,8 @@ struct megasas_instance_template {
 			    struct megasas_cmd *cmd);
 };
 
-#define MEGASAS_IS_LOGICAL(scp)						\
-	((scp->device->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
+#define MEGASAS_IS_LOGICAL(sdev)					\
+	((sdev->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
 
 #define MEGASAS_DEV_INDEX(scp)						\
 	(((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +	\
@@ -2450,7 +2448,7 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 		    struct IO_REQUEST_INFO *io_info,
 		    struct RAID_CONTEXT *pRAID_Context,
 		    struct MR_DRV_RAID_MAP_ALL *map, u8 **raidLUN);
-u8 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_DRV_RAID_MAP_ALL *map);
+u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_DRV_RAID_MAP_ALL *map);
 struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_DRV_RAID_MAP_ALL *map);
 u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_DRV_RAID_MAP_ALL *map);
 u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_DRV_RAID_MAP_ALL *map);
@@ -2467,6 +2465,7 @@ int megasas_get_ctrl_info(struct megasas_instance *instance);
 /* PD sequence */
 int
 megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend);
+void megasas_set_dynamic_target_properties(struct scsi_device *sdev);
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);
@@ -2489,4 +2488,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason);
 int megasas_task_abort_fusion(struct scsi_cmnd *scmd);
 int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 u32 mega_mod64(u64 dividend, u32 divisor);
+int megasas_alloc_fusion_context(struct megasas_instance *instance);
+void megasas_free_fusion_context(struct megasas_instance *instance);
 #endif				/*LSI_MEGARAID_SAS_H */

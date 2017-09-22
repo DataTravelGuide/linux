@@ -178,20 +178,14 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 	if (!checksumdata)
 		return GSS_S_FAILURE;
 
-	md5 = crypto_alloc_ahash("md5", 0, CRYPTO_ALG_ASYNC);
+	md5 = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(md5))
 		goto out_free_cksum;
 
-	hmac_md5 = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0,
+	hmac_md5 = crypto_alloc_hash(kctx->gk5e->cksum_name, 0,
 				      CRYPTO_ALG_ASYNC);
 	if (IS_ERR(hmac_md5))
 		goto out_free_md5;
-
-	req = ahash_request_alloc(md5, GFP_KERNEL);
-	if (!req)
-		goto out_free_hmac_md5;
-
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
 	desc.tfm = md5;
 	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -235,8 +229,11 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 	memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
 	cksumout->len = kctx->gk5e->cksumlength;
 out:
-	crypto_free_hash(md5);
 	crypto_free_hash(hmac_md5);
+out_free_md5:
+	crypto_free_hash(md5);
+out_free_cksum:
+	kfree(checksumdata);
 	return err ? GSS_S_FAILURE : 0;
 }
 
@@ -252,8 +249,8 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 {
 	struct hash_desc                desc;
 	struct scatterlist              sg[1];
-	int err;
-	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	int err = -1;
+	u8 *checksumdata;
 	unsigned int checksumlen;
 
 	if (kctx->gk5e->ctype == CKSUMTYPE_HMAC_MD5_ARCFOUR)
@@ -261,16 +258,19 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 					      body, body_offset,
 					      cksumkey, usage, cksumout);
 
-	ahash_request_free(req);
-	req = ahash_request_alloc(hmac_md5, GFP_KERNEL);
-	if (!req)
-		goto out_free_hmac_md5;
+	if (cksumout->len < kctx->gk5e->cksumlength) {
+		dprintk("%s: checksum buffer length, %u, too small for %s\n",
+			__func__, cksumout->len, kctx->gk5e->name);
+		return GSS_S_FAILURE;
+	}
 
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
+	if (checksumdata == NULL)
+		return GSS_S_FAILURE;
 
 	desc.tfm = crypto_alloc_hash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(desc.tfm))
-		return GSS_S_FAILURE;
+		goto out_free_cksum;
 	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	checksumlen = crypto_hash_digestsize(desc.tfm);
@@ -316,11 +316,7 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	}
 	cksumout->len = kctx->gk5e->cksumlength;
 out:
-	ahash_request_free(req);
-out_free_hmac_md5:
-	crypto_free_ahash(hmac_md5);
-out_free_md5:
-	crypto_free_ahash(md5);
+	crypto_free_hash(desc.tfm);
 out_free_cksum:
 	kfree(checksumdata);
 	return err ? GSS_S_FAILURE : 0;
@@ -336,9 +332,10 @@ out_free_cksum:
 u32
 make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		 struct xdr_buf *body, int body_offset, u8 *cksumkey,
-	struct crypto_ahash *tfm;
-	struct ahash_request *req;
-	struct scatterlist              sg[1];
+		 unsigned int usage, struct xdr_netobj *cksumout)
+{
+	struct hash_desc desc;
+	struct scatterlist sg[1];
 	int err = -1;
 	u8 *checksumdata;
 	unsigned int checksumlen;
@@ -348,25 +345,20 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 			__func__, kctx->gk5e->name);
 		return GSS_S_FAILURE;
 	}
+	if (cksumkey == NULL) {
+		dprintk("%s: no key supplied for %s\n",
+			__func__, kctx->gk5e->name);
+		return GSS_S_FAILURE;
+	}
 
 	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
-	if (checksumdata == NULL)
+	if (!checksumdata)
 		return GSS_S_FAILURE;
-
-	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
-		goto out_free_cksum;
-
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		goto out_free_ahash;
-
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
 	desc.tfm = crypto_alloc_hash(kctx->gk5e->cksum_name, 0,
 							CRYPTO_ALG_ASYNC);
 	if (IS_ERR(desc.tfm))
-		return GSS_S_FAILURE;
+		goto out_free_cksum;
 	checksumlen = crypto_hash_digestsize(desc.tfm);
 	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
@@ -404,9 +396,7 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		break;
 	}
 out:
-	ahash_request_free(req);
-out_free_ahash:
-	crypto_free_ahash(tfm);
+	crypto_free_hash(desc.tfm);
 out_free_cksum:
 	kfree(checksumdata);
 	return err ? GSS_S_FAILURE : 0;
@@ -627,14 +617,17 @@ gss_krb5_cts_crypt(struct crypto_blkcipher *cipher, struct xdr_buf *buf,
 	u32 ret;
 	struct scatterlist sg[1];
 	struct blkcipher_desc desc = { .tfm = cipher, .info = iv };
-	u8 data[GSS_KRB5_MAX_BLOCKSIZE * 2];
+	u8 *data;
 	struct page **save_pages;
 	u32 len = buf->len - offset;
 
-	if (len > ARRAY_SIZE(data)) {
+	if (len > GSS_KRB5_MAX_BLOCKSIZE * 2) {
 		WARN_ON(0);
 		return -ENOMEM;
 	}
+	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_NOFS);
+	if (!data)
+		return -ENOMEM;
 
 	/*
 	 * For encryption, we want to read from the cleartext
@@ -663,6 +656,7 @@ gss_krb5_cts_crypt(struct crypto_blkcipher *cipher, struct xdr_buf *buf,
 	ret = write_bytes_to_xdr_buf(buf, offset, data, len);
 
 out:
+	kfree(data);
 	return ret;
 }
 
@@ -883,59 +877,25 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
 	struct crypto_hash *hmac;
 	struct hash_desc desc;
 	struct scatterlist sg[1];
-	int err = -1;
-	u8 *checksumdata;
-	unsigned int checksumlen;
+	u8 Kseq[GSS_KRB5_MAX_KEYLEN];
+	u32 zeroconstant = 0;
+	int err;
 
-		return GSS_S_FAILURE;
+	dprintk("%s: entered\n", __func__);
+
+	hmac = crypto_alloc_hash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hmac)) {
+		dprintk("%s: error %ld, allocating hash '%s'\n",
+			__func__, PTR_ERR(hmac), kctx->gk5e->cksum_name);
+		return PTR_ERR(hmac);
 	}
 
-	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
-	if (!checksumdata)
-		return GSS_S_FAILURE;
+	desc.tfm = hmac;
+	desc.flags = 0;
 
-	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
-		goto out_free_cksum;
-	checksumlen = crypto_ahash_digestsize(tfm);
-
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req)
-		goto out_free_ahash;
-
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
-
-	}
-out:
-	ahash_request_free(req);
-out_free_ahash:
-	crypto_free_ahash(tfm);
-out_free_cksum:
-	kfree(checksumdata);
-	return err ? GSS_S_FAILURE : 0;
-}
-
-	u32 ret;
-	struct scatterlist sg[1];
-	SKCIPHER_REQUEST_ON_STACK(req, cipher);
-	u8 *data;
-	struct page **save_pages;
-	u32 len = buf->len - offset;
-
-	if (len > GSS_KRB5_MAX_BLOCKSIZE * 2) {
-		WARN_ON(0);
-		return -ENOMEM;
-	}
-	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_NOFS);
-	if (!data)
-		return -ENOMEM;
-
-	ret = write_bytes_to_xdr_buf(buf, offset, data, len);
-
-out:
-	kfree(data);
-	return ret;
-}
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out_err;
 
 	/* Compute intermediate Kseq from session key */
 	err = crypto_hash_setkey(hmac, kctx->Ksess, kctx->gk5e->keylength);

@@ -1,9 +1,6 @@
 #
 # MMC core configuration
-
-	  This driver can also be built as a module. If so, the module
-	  will be called pwrseq_simple.
-
+#
 config MMC_BLOCK
 	tristate "MMC block device driver"
 	depends on BLOCK

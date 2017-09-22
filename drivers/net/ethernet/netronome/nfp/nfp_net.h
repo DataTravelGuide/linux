@@ -565,12 +565,25 @@ struct nfp_net_ring_set {
 /* Functions to read/write from/to a BAR
  * Performs any endian conversion necessary.
  */
+static inline u16 nn_readb(struct nfp_net *nn, int off)
+{
+	return readb(nn->ctrl_bar + off);
+}
+
 static inline void nn_writeb(struct nfp_net *nn, int off, u8 val)
 {
 	writeb(val, nn->ctrl_bar + off);
 }
 
-/* NFP-3200 can't handle 16-bit accesses too well - hence no readw/writew */
+static inline u16 nn_readw(struct nfp_net *nn, int off)
+{
+	return readw(nn->ctrl_bar + off);
+}
+
+static inline void nn_writew(struct nfp_net *nn, int off, u16 val)
+{
+	writew(val, nn->ctrl_bar + off);
+}
 
 static inline u32 nn_readl(struct nfp_net *nn, int off)
 {
@@ -587,15 +600,15 @@ static inline u64 nn_readq(struct nfp_net *nn, int off)
 	return readq(nn->ctrl_bar + off);
 }
 
-static inline u16 nn_readw(struct nfp_net *nn, int off)
+static inline void nn_writeq(struct nfp_net *nn, int off, u64 val)
 {
-	return readw(nn->ctrl_bar + off);
+	writeq(val, nn->ctrl_bar + off);
 }
 
 /* Flush posted PCI writes by reading something without side effects */
 static inline void nn_pci_flush(struct nfp_net *nn)
 {
-	writew(val, nn->ctrl_bar + off);
+	nn_readl(nn, NFP_NET_CFG_VERSION);
 }
 
 /* Queue Controller Peripheral access functions and definitions.
