@@ -761,7 +761,8 @@ static void cached_dev_read_done(struct closure *cl)
 	bio_complete(s);
 
 	if (s->iop.bio &&
-	    !test_bit(CACHE_SET_STOPPING, &s->iop.c->flags)) {
+	    !test_bit(CACHE_SET_STOPPING, &s->iop.c->flags) &&
+	    !bch_is_gc_moving(dc->disk.c)) {
 		BUG_ON(!s->iop.replace);
 		closure_call(&s->iop.cl, bch_data_insert, NULL, cl);
 	}
