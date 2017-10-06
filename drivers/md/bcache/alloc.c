@@ -340,6 +340,7 @@ static int bch_allocator_thread(void *arg)
 
 			if (ca->set->gc_stats.in_use > CUTOFF_WRITEBACK_SYNC &&
 			    ca->set->copy_gc_enabled &&
+			    ca->set->copy_gc_dirty_only &&
 			    !bch_is_gc_moving(ca->set)) {
 				atomic_set(&ca->set->movinggc, 1);
 				ca->invalidate_needs_gc = 1;
@@ -437,6 +438,7 @@ out:
 	BUG_ON(atomic_read(&b->pin) != 1);
 
 	SET_GC_SECTORS_USED(b, ca->sb.bucket_size);
+	SET_GC_DIRTY_USED(b, ca->sb.bucket_size);
 
 	if (reserve <= RESERVE_PRIO) {
 		SET_GC_MARK(b, GC_MARK_METADATA);
@@ -455,6 +457,7 @@ void __bch_bucket_free(struct cache *ca, struct bucket *b)
 {
 	SET_GC_MARK(b, 0);
 	SET_GC_SECTORS_USED(b, 0);
+	SET_GC_DIRTY_USED(b, 0);
 }
 
 void bch_bucket_free(struct cache_set *c, struct bkey *k)
