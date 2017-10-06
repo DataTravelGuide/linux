@@ -1196,15 +1196,16 @@ static uint8_t __bch_btree_mark_key(struct cache_set *c, int level,
 			SET_GC_MARK(g, GC_MARK_METADATA);
 		else if (KEY_DIRTY(k)) {
 			SET_GC_MARK(g, GC_MARK_DIRTY);
-
-			/* guard against overflow */
-			SET_GC_SECTORS_USED(g, min_t(unsigned,
-						     GC_SECTORS_USED(g) + KEY_SIZE(k),
-						     MAX_GC_SECTORS_USED));
-
-			BUG_ON(!GC_SECTORS_USED(g));
+			SET_GC_DIRTY_USED(g, GC_DIRTY_USED(g) + KEY_SIZE(k));
 		} else if (!GC_MARK(g))
 			SET_GC_MARK(g, GC_MARK_RECLAIMABLE);
+
+		/* guard against overflow */
+		SET_GC_SECTORS_USED(g, min_t(unsigned,
+					     GC_SECTORS_USED(g) + KEY_SIZE(k),
+					     MAX_GC_SECTORS_USED));
+
+		BUG_ON(!GC_SECTORS_USED(g));
 	}
 
 	return stale;
@@ -1636,8 +1637,9 @@ static void btree_gc_start(struct cache_set *c)
 			b->last_gc = b->gen;
 			if (!atomic_read(&b->pin)) {
 				SET_GC_MARK(b, 0);
+				SET_GC_SECTORS_USED(b, 0);
 			}
-			SET_GC_SECTORS_USED(b, 0);
+			SET_GC_DIRTY_USED(b, 0);
 		}
 
 	mutex_unlock(&c->bucket_lock);

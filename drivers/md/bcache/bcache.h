@@ -197,6 +197,8 @@ struct bucket {
 	uint8_t		gen;
 	uint8_t		last_gc; /* Most out of date gen in the btree */
 	uint16_t	gc_mark; /* Bitfield used by GC. See below for field */
+	uint16_t	gc_dirty; /* Bitfield used by dirty GC */
+	struct cache	*ca;
 };
 
 /*
@@ -212,6 +214,7 @@ BITMASK(GC_MARK,	 struct bucket, gc_mark, 0, 2);
 #define MAX_GC_SECTORS_USED	(~(~0ULL << GC_SECTORS_USED_SIZE))
 BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, GC_SECTORS_USED_SIZE);
 BITMASK(GC_MOVE, struct bucket, gc_mark, 15, 1);
+BITMASK(GC_DIRTY_USED, struct bucket, gc_dirty, 0, 16);
 
 #include "journal.h"
 #include "stats.h"
@@ -677,6 +680,7 @@ struct cache_set {
 	unsigned		gc_always_rewrite:1;
 	unsigned		shrinker_disabled:1;
 	unsigned		copy_gc_enabled:1;
+	unsigned		copy_gc_dirty_only:1;
 
 #define BUCKET_HASH_BITS	12
 	struct hlist_head	bucket_hash[1 << BUCKET_HASH_BITS];
