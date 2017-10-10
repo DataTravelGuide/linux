@@ -475,11 +475,8 @@ out:
 		ret = zone_blocks;
 	}
 
-out_free:
-	kfree(buf);
-
-	return ret;
-}
+	sdkp->zone_blocks = zone_blocks;
+	sdkp->zone_shift = ilog2(zone_blocks);
 
 /**
  * sd_zbc_alloc_zone_bitmap - Allocate a zone bitmap (one bit per zone).
@@ -603,57 +600,23 @@ static int sd_zbc_setup(struct scsi_disk *sdkp, u32 zone_blocks)
 	u32 nr_zones;
 	int ret;
 
+	/* READ16/WRITE16 is mandatory for ZBC disks */
+	sdkp->device->use_16_for_rw = 1;
+	sdkp->device->use_10_for_rw = 0;
+
 	/* chunk_sectors indicates the zone size */
-	blk_queue_chunk_sectors(q,
-			logical_to_sectors(sdkp->device, zone_blocks));
-	nr_zones = round_up(sdkp->capacity, zone_blocks) >> zone_shift;
+	blk_queue_chunk_sectors(sdkp->disk->queue,
+			logical_to_sectors(sdkp->device, sdkp->zone_blocks));
+	sdkp->nr_zones = sdkp->capacity >> sdkp->zone_shift;
+	if (sdkp->capacity & (sdkp->zone_blocks - 1))
+		sdkp->nr_zones++;
 
-	/*
-	 * Initialize the device request queue information if the number
-	 * of zones changed.
-	 */
-	if (nr_zones != sdkp->nr_zones || nr_zones != q->nr_zones) {
-		unsigned long *seq_zones_wlock = NULL, *seq_zones_bitmap = NULL;
-		size_t zone_bitmap_size;
-
-		if (nr_zones) {
-			seq_zones_wlock = sd_zbc_alloc_zone_bitmap(nr_zones,
-								   q->node);
-			if (!seq_zones_wlock) {
-				ret = -ENOMEM;
-				goto err;
-			}
-
-			seq_zones_bitmap = sd_zbc_setup_seq_zones_bitmap(sdkp,
-							zone_shift, nr_zones);
-			if (IS_ERR(seq_zones_bitmap)) {
-				ret = PTR_ERR(seq_zones_bitmap);
-				kfree(seq_zones_wlock);
-				goto err;
-			}
-		}
-		zone_bitmap_size = BITS_TO_LONGS(nr_zones) *
-			sizeof(unsigned long);
-		blk_mq_freeze_queue(q);
-		if (q->nr_zones != nr_zones) {
-			/* READ16/WRITE16 is mandatory for ZBC disks */
-			sdkp->device->use_16_for_rw = 1;
-			sdkp->device->use_10_for_rw = 0;
-
-			sdkp->zone_blocks = zone_blocks;
-			sdkp->zone_shift = zone_shift;
-			sdkp->nr_zones = nr_zones;
-			q->nr_zones = nr_zones;
-			swap(q->seq_zones_wlock, seq_zones_wlock);
-			swap(q->seq_zones_bitmap, seq_zones_bitmap);
-		} else if (memcmp(q->seq_zones_bitmap, seq_zones_bitmap,
-				  zone_bitmap_size) != 0) {
-			memcpy(q->seq_zones_bitmap, seq_zones_bitmap,
-			       zone_bitmap_size);
-		}
-		blk_mq_unfreeze_queue(q);
-		kfree(seq_zones_wlock);
-		kfree(seq_zones_bitmap);
+	if (!sdkp->zones_wlock) {
+		sdkp->zones_wlock = kcalloc(BITS_TO_LONGS(sdkp->nr_zones),
+					    sizeof(unsigned long),
+					    GFP_KERNEL);
+		if (!sdkp->zones_wlock)
+			return -ENOMEM;
 	}
 
 	return 0;
