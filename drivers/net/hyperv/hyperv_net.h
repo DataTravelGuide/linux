@@ -688,9 +688,6 @@ struct net_device_context {
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
-	struct netvsc_stats __percpu *tx_stats;
-	struct netvsc_stats __percpu *rx_stats;
-
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
@@ -714,6 +711,9 @@ struct netvsc_channel {
 	struct multi_send_data msd;
 	struct multi_recv_comp mrc;
 	atomic_t queue_sends;
+
+	struct netvsc_stats tx_stats;
+	struct netvsc_stats rx_stats;
 };
 
 /* Per netvsc device */
