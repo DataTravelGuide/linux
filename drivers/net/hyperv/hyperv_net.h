@@ -688,6 +688,8 @@ struct net_device_context {
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
+	u32 tx_send_table[VRSS_SEND_TAB_SIZE];
+
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
@@ -746,7 +748,6 @@ struct netvsc_device {
 
 	struct nvsp_message revoke_packet;
 
-	u32 send_table[VRSS_SEND_TAB_SIZE];
 	u32 max_chn;
 	u32 num_chn;
 	spinlock_t sc_lock; /* Protects num_sc_offered variable */
