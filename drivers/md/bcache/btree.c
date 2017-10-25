@@ -1666,19 +1666,19 @@ static void shift_keys(struct btree *b, struct bkey *where, struct bkey *insert)
 	bch_bset_fix_lookup_table(b, where);
 }
 
-void bch_subtract_dirty(struct bkey *k, struct cache_set *c, int sectors)
-{
-	struct bcache_device *d = c->devices[KEY_INODE(k)];
-
-	if (KEY_DIRTY(k) && d)
-		atomic_long_sub(sectors, &d->sectors_dirty);
-}
-
 static bool fix_overlapping_extents(struct btree *b,
 				    struct bkey *insert,
 				    struct btree_iter *iter,
 				    struct btree_op *op)
 {
+	void subtract_dirty(struct bkey *k, int sectors)
+	{
+		struct bcache_device *d = b->c->devices[KEY_INODE(k)];
+
+		if (KEY_DIRTY(k) && d)
+			atomic_long_sub(sectors, &d->sectors_dirty);
+	}
+
 	unsigned old_size, sectors_found = 0;
 
 	while (1) {
@@ -1745,7 +1745,7 @@ static bool fix_overlapping_extents(struct btree *b,
 
 			struct bkey *top;
 
-			bch_subtract_dirty(k, b->c, KEY_SIZE(insert));
+			subtract_dirty(k, KEY_SIZE(insert));
 
 			if (bkey_written(b, k)) {
 				/*
@@ -1792,7 +1792,7 @@ static bool fix_overlapping_extents(struct btree *b,
 			}
 		}
 
-		bch_subtract_dirty(k, b->c, old_size - KEY_SIZE(k));
+		subtract_dirty(k, old_size - KEY_SIZE(k));
 	}
 
 check_failed:
