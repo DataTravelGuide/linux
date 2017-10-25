@@ -14,7 +14,6 @@
 #include <linux/buffer_head.h>
 #include <linux/debugfs.h>
 #include <linux/genhd.h>
-#include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
@@ -57,13 +56,11 @@ struct mutex bch_register_lock;
 LIST_HEAD(bch_cache_sets);
 static LIST_HEAD(uncached_devices);
 
-static int bcache_major;
-static DEFINE_IDA(bcache_minor);
+static int bcache_major, bcache_minor;
 static wait_queue_head_t unregister_wait;
 struct workqueue_struct *bcache_wq;
 
 #define BTREE_MAX_PAGES		(256 * 1024 / PAGE_SIZE)
-#define BCACHE_MINORS		16 /* partition support */
 
 static void bio_split_pool_free(struct bio_split_pool *p)
 {
@@ -739,11 +736,8 @@ static void bcache_device_free(struct bcache_device *d)
 		del_gendisk(d->disk);
 	if (d->disk && d->disk->queue)
 		blk_cleanup_queue(d->disk->queue);
-	if (d->disk) {
-		ida_simple_remove(&bcache_minor, 
-				d->disk->first_minor / BCACHE_MINORS);
+	if (d->disk)
 		put_disk(d->disk);
-	}
 
 	bio_split_pool_free(&d->bio_split_hook);
 	if (d->unaligned_bvec)
@@ -757,33 +751,21 @@ static void bcache_device_free(struct bcache_device *d)
 static int bcache_device_init(struct bcache_device *d, unsigned block_size)
 {
 	struct request_queue *q;
-	int minor;
-
-	minor = ida_simple_get(&bcache_minor, 0, MINORMASK + 1, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
-
-	minor *= BCACHE_MINORS;
 
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
 	    !(d->unaligned_bvec = mempool_create_kmalloc_pool(1,
 				sizeof(struct bio_vec) * BIO_MAX_PAGES)) ||
 	    bio_split_pool_init(&d->bio_split_hook) ||
-	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
-		ida_simple_remove(&bcache_minor, minor / BCACHE_MINORS);
+	    !(d->disk = alloc_disk(1)) ||
+	    !(q = blk_alloc_queue(GFP_KERNEL)))
 		return -ENOMEM;
-	}
 
-	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", minor);
+	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", bcache_minor);
 
 	d->disk->major		= bcache_major;
-	d->disk->first_minor    = minor;
+	d->disk->first_minor	= bcache_minor++;
 	d->disk->fops		= &bcache_ops;
 	d->disk->private_data	= d;
-
-	q = blk_alloc_queue(GFP_KERNEL);
-	if (!q)
-		return -ENOMEM;
 
 	blk_queue_make_request(q, NULL);
 	d->disk->queue			= q;
@@ -1312,9 +1294,6 @@ static void cache_set_flush(struct closure *cl)
 	/* Shut down allocator threads */
 	set_bit(CACHE_SET_STOPPING_2, &c->flags);
 	wake_up(&c->alloc_wait);
-
-	if (!c)
-		closure_return(cl);
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1980,10 +1959,8 @@ static int __init bcache_init(void)
 	closure_debug_init();
 
 	bcache_major = register_blkdev(0, "bcache");
-	if (bcache_major < 0) {
-		unregister_reboot_notifier(&reboot);
+	if (bcache_major < 0)
 		return bcache_major;
-	}
 
 	if (!(bcache_wq = create_workqueue("bcache")) ||
 	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||
