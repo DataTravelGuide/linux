@@ -873,7 +873,7 @@ void bch_cached_dev_run(struct cached_dev *dc)
 	struct bcache_device *d = &dc->disk;
 	char buf[SB_LABEL_SIZE + 1];
 	char *env[] = {
-		"DRIVER=bcache",
+		"DRIVER=escache",
 		kasprintf(GFP_KERNEL, "CACHED_UUID=%pU", dc->sb.uuid),
 		NULL,
 		NULL,
@@ -908,7 +908,7 @@ void bch_cached_dev_run(struct cached_dev *dc)
 	kfree(env[2]);
 
 	if (sysfs_create_link(&d->kobj, &disk_to_dev(d->disk)->kobj, "dev") ||
-	    sysfs_create_link(&disk_to_dev(d->disk)->kobj, &d->kobj, "bcache"))
+	    sysfs_create_link(&disk_to_dev(d->disk)->kobj, &d->kobj, "escache"))
 		pr_debug("error creating sysfs link");
 }
 
@@ -1189,7 +1189,7 @@ static void register_bdev(struct cache_sb *sb, struct page *sb_page,
 
 	err = "error creating kobject";
 	if (kobject_add(&dc->disk.kobj, &part_to_dev(bdev->bd_part)->kobj,
-			"bcache"))
+			"escache"))
 		goto err;
 	if (bch_cache_accounting_add_kobjs(&dc->accounting, &dc->disk.kobj))
 		goto err;
@@ -1258,7 +1258,7 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 	bch_flash_dev_request_init(d);
 	add_disk(d->disk);
 
-	if (kobject_add(&d->kobj, &disk_to_dev(d->disk)->kobj, "bcache"))
+	if (kobject_add(&d->kobj, &disk_to_dev(d->disk)->kobj, "escache"))
 		goto err;
 
 	bcache_device_link(d, c, "volume");
@@ -1903,7 +1903,7 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 		goto err;
 	}
 
-	if (kobject_add(&ca->kobj, &part_to_dev(bdev->bd_part)->kobj, "bcache")) {
+	if (kobject_add(&ca->kobj, &part_to_dev(bdev->bd_part)->kobj, "escache")) {
 		err = "error calling kobject_add";
 		ret = -ENOMEM;
 		goto out;
@@ -2115,7 +2115,7 @@ static void bcache_exit(void)
 	if (bcache_wq)
 		destroy_workqueue(bcache_wq);
 	if (bcache_major)
-		unregister_blkdev(bcache_major, "bcache");
+		unregister_blkdev(bcache_major, "escache");
 	unregister_reboot_notifier(&reboot);
 }
 
@@ -2132,14 +2132,14 @@ static int __init bcache_init(void)
 	register_reboot_notifier(&reboot);
 	closure_debug_init();
 
-	bcache_major = register_blkdev(0, "bcache");
+	bcache_major = register_blkdev(0, "escache");
 	if (bcache_major < 0) {
 		unregister_reboot_notifier(&reboot);
 		return bcache_major;
 	}
 
 	if (!(bcache_wq = alloc_workqueue("bcache", WQ_MEM_RECLAIM, 0)) ||
-	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||
+	    !(bcache_kobj = kobject_create_and_add("escache", fs_kobj)) ||
 	    sysfs_create_files(bcache_kobj, files) ||
 	    bch_request_init() ||
 	    bch_debug_init(bcache_kobj))
