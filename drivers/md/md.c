@@ -248,21 +248,8 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
  * call has finished, the bio has been linked into some internal structure
  * and so is visible to ->quiesce(), so we don't need the refcount any more.
  */
-static void md_make_request(struct request_queue *q, struct bio *bio)
+void md_handle_request(struct mddev *mddev, struct bio *bio)
 {
-	const int rw = bio_data_dir(bio);
-	struct mddev *mddev = q->queuedata;
-	int cpu;
-	unsigned int sectors;
-
-	if (mddev == NULL || mddev->pers == NULL) {
-		bio_io_error(bio);
-		return;
-	}
-	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
-		bio_endio(bio, bio_sectors(bio) == 0 ? 0 : -EROFS);
-		return;
-	}
 check_suspended:
 	smp_rmb(); /* Ensure implications of  'active' are visible */
 	rcu_read_lock();
@@ -282,24 +269,45 @@ check_suspended:
 	atomic_inc(&mddev->active_io);
 	rcu_read_unlock();
 
-	/*
-	 * save the sectors now since our bio can
-	 * go away inside make_request
-	 */
-	sectors = bio_sectors(bio);
 	if (!mddev->pers->make_request(mddev, bio)) {
 		atomic_dec(&mddev->active_io);
 		wake_up(&mddev->sb_wait);
 		goto check_suspended;
 	}
 
+	if (atomic_dec_and_test(&mddev->active_io) && mddev->suspended)
+		wake_up(&mddev->sb_wait);
+}
+EXPORT_SYMBOL(md_handle_request);
+
+static void md_make_request(struct request_queue *q, struct bio *bio)
+{
+	const int rw = bio_data_dir(bio);
+	struct mddev *mddev = q->queuedata;
+	int cpu;
+	unsigned int sectors;
+
+	if (mddev == NULL || mddev->pers == NULL) {
+		bio_io_error(bio);
+		return;
+	}
+	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
+		bio_endio(bio, bio_sectors(bio) == 0 ? 0 : -EROFS);
+		return;
+	}
+
+	/*
+	 * save the sectors now since our bio can
+	 * go away inside make_request
+	 */
+	sectors = bio_sectors(bio);
+
+	md_handle_request(mddev, bio);
+
 	cpu = part_stat_lock();
 	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
 	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw], sectors);
 	part_stat_unlock();
-
-	if (atomic_dec_and_test(&mddev->active_io) && mddev->suspended)
-		wake_up(&mddev->sb_wait);
 }
 
 /* mddev_suspend makes sure no new requests are submitted
