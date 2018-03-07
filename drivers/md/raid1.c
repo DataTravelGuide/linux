@@ -1415,9 +1415,8 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			if (r1_bio->bios[j])
 				rdev_dec_pending(conf->mirrors[j].rdev, mddev);
 		r1_bio->state = 0;
-		allow_barrier(conf, bio->bi_sector);
+		allow_barrier(conf, r1_bio->sector);
 		md_wait_for_blocked_rdev(blocked_rdev, mddev);
-		wait_barrier(conf, bio->bi_sector);
 		goto retry_write;
 	}
 
