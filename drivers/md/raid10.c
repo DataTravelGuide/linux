@@ -311,6 +311,9 @@ static void raid_end_bio_io(struct r10bio *r10_bio)
 	if (!test_bit(R10BIO_Uptodate, &r10_bio->state))
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
 	if (done) {
+
+		if (bio_data_dir(bio) == WRITE)
+			md_write_end(r10_bio->mddev);
 		bio_endio(bio, 0);
 		/*
 		 * Wake up any possible resync thread that waits for the device
@@ -421,7 +424,6 @@ static void close_write(struct r10bio *r10_bio)
 			r10_bio->sectors,
 			!test_bit(R10BIO_Degraded, &r10_bio->state),
 			0);
-	md_write_end(r10_bio->mddev);
 }
 
 static void one_write_done(struct r10bio *r10_bio)
