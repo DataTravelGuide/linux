@@ -1202,13 +1202,13 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	int max_sectors;
 	int rdisk;
 
+read_again:
 	/*
 	 * Still need barrier for READ in case that whole
 	 * array is frozen.
 	 */
-	wait_read_barrier(conf, bio->bi_sector);
+	wait_read_barrier(conf, r1_bio->sector);
 
-read_again:
 	rdisk = read_balance(conf, r1_bio, &max_sectors);
 
 	if (rdisk < 0) {
@@ -1323,7 +1323,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		}
 		finish_wait(&conf->wait_barrier, &w);
 	}
-	wait_barrier(conf, bio->bi_sector);
 
 	if (conf->pending_count >= max_queued_requests) {
 		md_wakeup_thread(mddev->thread);
@@ -1343,6 +1342,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 	disks = conf->raid_disks * 2;
  retry_write:
+	wait_barrier(conf, r1_bio->sector);
 	blocked_rdev = NULL;
 	rcu_read_lock();
 	max_sectors = r1_bio->sectors;
@@ -1508,9 +1508,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	 */
 	if (sectors_handled < bio_sectors(bio)) {
 		/* We need another r1_bio, which must be counted */
-		sector_t sect = bio->bi_sector + sectors_handled;
-
-		inc_pending(conf, sect);
 		bio_inc_remaining(bio);
 		spin_lock_irq(&conf->device_lock);
 		if (bio->bi_phys_segments == 0)
