@@ -338,6 +338,7 @@ struct cached_dev {
 	 * shared lock to set and exclusive lock to clear.
 	 */
 	atomic_t		has_dirty;
+	atomic_t		wb_err_count;
 
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;

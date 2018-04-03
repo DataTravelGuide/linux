@@ -169,9 +169,19 @@ static void dirty_endio(struct bio *bio, int error)
 {
 	struct keybuf_key *w = bio->bi_private;
 	struct dirty_io *io = w->private;
+	char *envp[] = { "DRIVER=escache", NULL };
 
-	if (error)
+	if (error) {
 		SET_KEY_DIRTY(&w->key, false);
+
+		// send uevent when backing dev error
+		if (bio->bi_rw == WRITE && !atomic_read(&io->dc->wb_err_count)) {
+			atomic_set(&io->dc->wb_err_count, 1);
+			kobject_uevent_env(
+				&disk_to_dev(io->dc->bdev->bd_disk)->kobj, KOBJ_OFFLINE, envp);
+		}
+	} else if (bio->bi_rw == WRITE)
+		atomic_set(&io->dc->wb_err_count, 0);
 
 	closure_put(&io->cl);
 }

@@ -1048,6 +1048,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	 * cached_dev_get()
 	 */
 	atomic_set(&dc->count, 1);
+	atomic_set(&dc->wb_err_count, 0);
 
 	/* Block writeback thread, but spawn it */
 	down_write(&dc->writeback_lock);
