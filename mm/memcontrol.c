@@ -3222,7 +3222,6 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
 	if (memcg) {
 		s->memcg_params->memcg = memcg;
 		s->memcg_params->root_cache = root_cache;
-		css_get(&memcg->css);
 	} else
 		s->memcg_params->is_root_cache = true;
 
@@ -3235,7 +3234,6 @@ void memcg_free_cache_params(struct kmem_cache *s)
 		return;
 	if (!s->memcg_params->is_root_cache) {
 		mem_cgroup_put(s->memcg_params->memcg);
-		css_put(&s->memcg_params->memcg->css);
 	}
 	kfree(s->memcg_params);
 }
