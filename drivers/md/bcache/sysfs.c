@@ -589,6 +589,9 @@ STORE(__bch_cache_set)
 	if (attr == &sysfs_stop)
 		bch_cache_set_stop(c);
 
+	if (attr == &sysfs_detach)
+		bch_cache_set_detach(c);
+
 	if (attr == &sysfs_synchronous) {
 		bool sync = strtoul_or_return(buf);
 
@@ -679,6 +682,7 @@ static void bch_cache_set_internal_release(struct kobject *k)
 static struct attribute *bch_cache_set_files[] = {
 	&sysfs_unregister,
 	&sysfs_stop,
+	&sysfs_detach,
 	&sysfs_synchronous,
 	&sysfs_journal_delay_ms,
 	&sysfs_flash_vol_create,

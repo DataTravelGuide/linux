@@ -510,6 +510,7 @@ struct cache_set {
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
 	struct closure		caching;
+	struct closure		detaching;
 
 	struct closure		sb_write;
 	struct semaphore	sb_write_mutex;
@@ -936,6 +937,7 @@ void bcache_device_stop(struct bcache_device *);
 
 void bch_cache_set_unregister(struct cache_set *);
 void bch_cache_set_stop(struct cache_set *);
+void bch_cache_set_detach(struct cache_set *);
 
 struct cache_set *bch_cache_set_alloc(struct cache_sb *);
 void bch_btree_cache_free(struct cache_set *);

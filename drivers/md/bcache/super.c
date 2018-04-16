@@ -1462,10 +1462,34 @@ static void __cache_set_unregister(struct closure *cl)
 	continue_at(cl, cache_set_flush, system_wq);
 }
 
+static void __cache_set_detach(struct closure *cl)
+{
+	struct cache_set *c = container_of(cl, struct cache_set, detaching);
+	struct cached_dev *dc;
+	size_t i;
+
+	mutex_lock(&bch_register_lock);
+
+	for (i = 0; i < c->nr_uuids; i++)
+		if (c->devices[i]) {
+			dc = container_of(c->devices[i], struct cached_dev, disk);
+			bcache_device_stop(c->devices[i]);
+		}
+
+	mutex_unlock(&bch_register_lock);
+
+	set_closure_fn(&c->detaching, __cache_set_detach, system_wq);
+}
+
 void bch_cache_set_stop(struct cache_set *c)
 {
 	if (!test_and_set_bit(CACHE_SET_STOPPING, &c->flags))
 		closure_queue(&c->caching);
+}
+
+void bch_cache_set_detach(struct cache_set *c)
+{
+	closure_queue(&c->detaching);
 }
 
 void bch_cache_set_unregister(struct cache_set *c)
@@ -1490,6 +1514,9 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	closure_init(&c->caching, &c->cl);
 	set_closure_fn(&c->caching, __cache_set_unregister, system_wq);
+
+	closure_init(&c->detaching, NULL);
+	set_closure_fn(&c->detaching, __cache_set_detach, system_wq);
 
 	/* Maybe create continue_at_noreturn() and use it here? */
 	closure_set_stopped(&c->cl);
