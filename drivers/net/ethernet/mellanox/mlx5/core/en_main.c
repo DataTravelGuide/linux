@@ -45,7 +45,7 @@
 #include "en_accel/tls.h"
 #include "accel/ipsec.h"
 #include "accel/tls.h"
-#include "vxlan.h"
+#include "lib/vxlan.h"
 #include "en/port.h"
 #include "en/xdp.h"
 
@@ -2946,7 +2946,7 @@ int mlx5e_open(struct net_device *netdev)
 		mlx5_set_port_admin_status(priv->mdev, MLX5_PORT_UP);
 	mutex_unlock(&priv->state_lock);
 
-	if (mlx5_vxlan_allowed(priv->vxlan))
+	if (mlx5_vxlan_allowed(priv->mdev->vxlan))
 		udp_tunnel_get_rx_info(netdev);
 
 	return err;
@@ -3956,7 +3956,7 @@ static void mlx5e_vxlan_add_work(struct work_struct *work)
 	u16 port = vxlan_work->port;
 
 	mutex_lock(&priv->state_lock);
-	mlx5_vxlan_add_port(priv->vxlan, port);
+	mlx5_vxlan_add_port(priv->mdev->vxlan, port);
 	mutex_unlock(&priv->state_lock);
 
 	kfree(vxlan_work);
@@ -3970,7 +3970,7 @@ static void mlx5e_vxlan_del_work(struct work_struct *work)
 	u16 port = vxlan_work->port;
 
 	mutex_lock(&priv->state_lock);
-	mlx5_vxlan_del_port(priv->vxlan, port);
+	mlx5_vxlan_del_port(priv->mdev->vxlan, port);
 	mutex_unlock(&priv->state_lock);
 	kfree(vxlan_work);
 }
@@ -4001,7 +4001,7 @@ static void mlx5e_add_vxlan_port(struct net_device *netdev,
 	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
 		return;
 
-	if (!mlx5_vxlan_allowed(priv->vxlan))
+	if (!mlx5_vxlan_allowed(priv->mdev->vxlan))
 		return;
 
 	mlx5e_vxlan_queue_work(priv, be16_to_cpu(ti->port), 1);
@@ -4015,7 +4015,7 @@ static void mlx5e_del_vxlan_port(struct net_device *netdev,
 	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
 		return;
 
-	if (!mlx5_vxlan_allowed(priv->vxlan))
+	if (!mlx5_vxlan_allowed(priv->mdev->vxlan))
 		return;
 
 	mlx5e_vxlan_queue_work(priv, be16_to_cpu(ti->port), 0);
@@ -4049,7 +4049,7 @@ static netdev_features_t mlx5e_tunnel_features_check(struct mlx5e_priv *priv,
 		port = be16_to_cpu(udph->dest);
 
 		/* Verify if UDP port is being offloaded by HW */
-		if (mlx5_vxlan_lookup_port(priv->vxlan, port))
+		if (mlx5_vxlan_lookup_port(priv->mdev->vxlan, port))
 			return features;
 	}
 
@@ -4621,7 +4621,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
 
-	if (mlx5_vxlan_allowed(priv->vxlan) || MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
+	if (mlx5_vxlan_allowed(mdev->vxlan) || MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
 		netdev->hw_enc_features |= NETIF_F_IP_CSUM;
 		netdev->hw_enc_features |= NETIF_F_IPV6_CSUM;
 		netdev->hw_enc_features |= NETIF_F_TSO;
@@ -4629,7 +4629,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 		netdev->hw_enc_features |= NETIF_F_GSO_PARTIAL;
 	}
 
-	if (mlx5_vxlan_allowed(priv->vxlan)) {
+	if (mlx5_vxlan_allowed(mdev->vxlan)) {
 		netdev->hw_features     |= NETIF_F_GSO_UDP_TUNNEL |
 					   NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL |
@@ -4731,8 +4731,6 @@ static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
-	priv->vxlan = mlx5_vxlan_create(mdev);
-
 	mlx5e_build_nic_netdev_priv(mdev, netdev, profile, ppriv);
 	err = mlx5e_ipsec_init(priv);
 	if (err)
@@ -4746,7 +4744,6 @@ static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 
 static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 {
-	mlx5_vxlan_destroy(priv->vxlan);
 	mlx5e_tls_cleanup(priv);
 	mlx5e_ipsec_cleanup(priv);
 }
