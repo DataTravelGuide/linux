@@ -3412,6 +3412,12 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
 	mutex_lock(&memcg_slab_mutex);
 	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
 		cachep = memcg_params_to_cache(params);
+		/*
+		 * Set per-cpu and per-node partial list length limit to zero,
+		 * after shrink, the slab will empty if no object inuse.
+		 */
+		cachep->min_partial = 0;
+		cachep->cpu_partial = 0;
 		kmem_cache_shrink(cachep);
 		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
 			memcg_kmem_destroy_cache(cachep);

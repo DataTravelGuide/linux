@@ -1876,7 +1876,7 @@ redo:
 
 	new.frozen = 0;
 
-	if (!new.inuse && n->nr_partial > s->min_partial)
+	if (!new.inuse && (n->nr_partial > s->min_partial || !s->min_partial))
 		m = M_FREE;
 	else if (new.freelist) {
 		m = M_PARTIAL;
@@ -1986,7 +1986,8 @@ static void unfreeze_partials(struct kmem_cache *s,
 				new.freelist, new.counters,
 				"unfreezing slab"));
 
-		if (unlikely(!new.inuse && n->nr_partial > s->min_partial)) {
+		if (unlikely(!new.inuse && (n->nr_partial > s->min_partial ||
+						!s->min_partial))) {
 			page->next = discard_page;
 			discard_page = page;
 		} else {
@@ -2023,6 +2024,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 	int pages;
 	int pobjects;
 
+	preempt_disable();
 	do {
 		pages = 0;
 		pobjects = 0;
@@ -2055,6 +2057,18 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 		page->next = oldpage;
 
 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+
+	/*
+	 * If per-cpu partial list is set to zero, don't leave any slab in
+	 * the list.
+	 */
+	if (unlikely(!s->cpu_partial)) {
+		unsigned long flags;
+		local_irq_save(flags);
+		unfreeze_partials(s, this_cpu_ptr(s->cpu_slab))	;
+		local_irq_restore(flags);
+	}
+	preempt_enable();
 }
 
 static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
@@ -2633,7 +2647,12 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
                 return;
         }
 
-	if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
+	/*
+	 * If per-node partial list limit set to zero, don't leave one slab
+	 * cache in the list.
+	 */
+	if (unlikely(!new.inuse && (n->nr_partial > s->min_partial ||
+					!s->min_partial)))
 		goto slab_empty;
 
 	/*
