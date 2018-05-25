@@ -389,6 +389,27 @@ CEPH_DEFINE_SHOW_FUNC(monc_show)
 CEPH_DEFINE_SHOW_FUNC(osdc_show)
 CEPH_DEFINE_SHOW_FUNC(client_options_show)
 
+static int osd_request_timeout_get(void *data, u64 *val)
+{
+	struct ceph_client *client = data;
+
+	*val = client->options->osd_request_timeout;
+	return 0;
+}
+
+static int osd_request_timeout_set(void *data, u64 val)
+{
+	struct ceph_client *client = data;
+
+	client->options->osd_request_timeout = val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(client_osd_req_timeout_fops,
+			osd_request_timeout_get,
+			osd_request_timeout_set,
+			"%lld\n");
+
 int __init ceph_debugfs_init(void)
 {
 	ceph_debugfs_dir = debugfs_create_dir("ceph", NULL);
@@ -457,6 +478,14 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	if (!client->debugfs_options)
 		goto out;
 
+	client->debugfs_osd_req_timeout = debugfs_create_file("osd_request_timeout",
+					  0600,
+					  client->debugfs_dir,
+					  client,
+					  &client_osd_req_timeout_fops);
+	if (!client->debugfs_osd_req_timeout)
+		goto out;
+
 	return 0;
 
 out:
@@ -467,6 +496,7 @@ out:
 void ceph_debugfs_client_cleanup(struct ceph_client *client)
 {
 	dout("ceph_debugfs_client_cleanup %p\n", client);
+	debugfs_remove(client->debugfs_osd_req_timeout);
 	debugfs_remove(client->debugfs_options);
 	debugfs_remove(client->debugfs_osdmap);
 	debugfs_remove(client->debugfs_monmap);
