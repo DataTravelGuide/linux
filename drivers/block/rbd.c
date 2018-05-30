@@ -3612,8 +3612,12 @@ again:
 		goto again; /* treat this as a dead client */
 	} else if (ret < 0) {
 		rbd_warn(rbd_dev, "error requesting lock: %d", ret);
-		mod_delayed_work(rbd_dev->task_wq, &rbd_dev->lock_dwork,
-				 RBD_RETRY_DELAY);
+		spin_lock_irq(&rbd_dev->lock);
+		if (!test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags)) {
+			mod_delayed_work(rbd_dev->task_wq, &rbd_dev->lock_dwork,
+					 RBD_RETRY_DELAY);
+		}
+		spin_unlock_irq(&rbd_dev->lock);
 	} else {
 		/*
 		 * lock owner acked, but resend if we don't see them
@@ -3621,8 +3625,12 @@ again:
 		 */
 		dout("%s rbd_dev %p requeueing lock_dwork\n", __func__,
 		     rbd_dev);
-		mod_delayed_work(rbd_dev->task_wq, &rbd_dev->lock_dwork,
-		    msecs_to_jiffies(2 * RBD_NOTIFY_TIMEOUT * MSEC_PER_SEC));
+		spin_lock_irq(&rbd_dev->lock);
+		if (!test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags)) {
+			mod_delayed_work(rbd_dev->task_wq, &rbd_dev->lock_dwork,
+			    msecs_to_jiffies(2 * RBD_NOTIFY_TIMEOUT * MSEC_PER_SEC));
+		}
+		spin_unlock_irq(&rbd_dev->lock);
 	}
 }
 
