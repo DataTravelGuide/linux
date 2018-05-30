@@ -3495,9 +3495,13 @@ static void rbd_reregister_watch(struct work_struct *work)
 			set_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags);
 			wake_requests(rbd_dev, true);
 		} else {
-			queue_delayed_work(rbd_dev->task_wq,
-					   &rbd_dev->watch_dwork,
-					   RBD_RETRY_DELAY);
+			spin_lock_irq(&rbd_dev->lock);
+			if (!test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags)) {
+				queue_delayed_work(rbd_dev->task_wq,
+						   &rbd_dev->watch_dwork,
+						   RBD_RETRY_DELAY);
+			}
+			spin_unlock_irq(&rbd_dev->lock);
 		}
 		mutex_unlock(&rbd_dev->watch_mutex);
 		return;
