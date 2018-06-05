@@ -3091,31 +3091,8 @@
 			See header of drivers/block/paride/pcd.c.
 			See also Documentation/blockdev/paride.txt.
 
-	pci=option[,option...]	[PCI] various PCI subsystem options.
-
-				Some options herein operate on a specific device
-				or a set of devices (<pci_dev>). These are
-				specified in one of the following formats:
-
-				[<domain>:]<bus>:<dev>.<func>[/<dev>.<func>]*
-				pci:<vendor>:<device>[:<subvendor>:<subdevice>]
-
-				Note: the first format specifies a PCI
-				bus/device/function address which may change
-				if new hardware is inserted, if motherboard
-				firmware changes, or due to changes caused
-				by other kernel parameters. If the
-				domain is left unspecified, it is
-				taken to be zero. Optionally, a path
-				to a device through multiple device/function
-				addresses can be specified after the base
-				address (this is more robust against
-				renumbering issues).  The second format
-				selects devices using IDs from the
-				configuration space which may match multiple
-				devices in the system.
-
-		earlydump	[X86] dump PCI config space before the kernel
+	pci=option[,option...]	[PCI] various PCI subsystem options:
+		earlydump	dump PCI config space before the kernel
 				changes anything
 		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
