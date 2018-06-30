@@ -45,16 +45,7 @@
 #include "main.h"
 #include "../nfp_net_repr.h"
 
-/* The kernel versions of TUNNEL_* are not ABI and therefore vulnerable
- * to change. Such changes will break our FW ABI.
- */
-#define NFP_FL_TUNNEL_CSUM			cpu_to_be16(0x01)
-#define NFP_FL_TUNNEL_KEY			cpu_to_be16(0x04)
-#define NFP_FL_TUNNEL_GENEVE_OPT		cpu_to_be16(0x0800)
-#define NFP_FL_SUPPORTED_TUNNEL_INFO_FLAGS	IP_TUNNEL_INFO_TX
-#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(NFP_FL_TUNNEL_CSUM | \
-						 NFP_FL_TUNNEL_KEY | \
-						 NFP_FL_TUNNEL_GENEVE_OPT)
+#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(TUNNEL_CSUM | TUNNEL_KEY)
 
 static void nfp_fl_pop_vlan(struct nfp_fl_pop_vlan *pop_vlan)
 {
@@ -287,6 +278,13 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 			set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
 		}
 	}
+
+	set_tun->tos = ip_tun->key.tos;
+
+	if (!(ip_tun->key.tun_flags & TUNNEL_KEY) ||
+	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS)
+		return -EOPNOTSUPP;
+	set_tun->tun_flags = ip_tun->key.tun_flags;
 
 	/* Complete pre_tunnel action. */
 	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
