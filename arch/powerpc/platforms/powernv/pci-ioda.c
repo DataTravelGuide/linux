@@ -2004,7 +2004,7 @@ static int pnv_ioda1_tce_build(struct iommu_table *tbl, long index,
 static int pnv_ioda1_tce_xchg(struct iommu_table *tbl, long index,
 		unsigned long *hpa, enum dma_data_direction *direction)
 {
-	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
+	long ret = pnv_tce_xchg(tbl, index, hpa, direction, true);
 
 	if (!ret)
 		pnv_pci_p7ioc_tce_invalidate(tbl, index, 1, false);
@@ -2015,7 +2015,7 @@ static int pnv_ioda1_tce_xchg(struct iommu_table *tbl, long index,
 static int pnv_ioda1_tce_xchg_rm(struct iommu_table *tbl, long index,
 		unsigned long *hpa, enum dma_data_direction *direction)
 {
-	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
+	long ret = pnv_tce_xchg(tbl, index, hpa, direction, false);
 
 	if (!ret)
 		pnv_pci_p7ioc_tce_invalidate(tbl, index, 1, true);
@@ -2169,7 +2169,7 @@ static int pnv_ioda2_tce_build(struct iommu_table *tbl, long index,
 static int pnv_ioda2_tce_xchg(struct iommu_table *tbl, long index,
 		unsigned long *hpa, enum dma_data_direction *direction)
 {
-	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
+	long ret = pnv_tce_xchg(tbl, index, hpa, direction, true);
 
 	if (!ret)
 		pnv_pci_ioda2_tce_invalidate(tbl, index, 1, false);
@@ -2180,7 +2180,7 @@ static int pnv_ioda2_tce_xchg(struct iommu_table *tbl, long index,
 static int pnv_ioda2_tce_xchg_rm(struct iommu_table *tbl, long index,
 		unsigned long *hpa, enum dma_data_direction *direction)
 {
-	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
+	long ret = pnv_tce_xchg(tbl, index, hpa, direction, false);
 
 	if (!ret)
 		pnv_pci_ioda2_tce_invalidate(tbl, index, 1, true);
