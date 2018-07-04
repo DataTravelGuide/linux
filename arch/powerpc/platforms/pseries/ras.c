@@ -379,7 +379,9 @@ static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 
 		error_log_length = 8 + rtas_error_extended_log_length(h);
 		len = min_t(int, error_log_length, RTAS_ERROR_LOG_MAX);
-		memcpy(local_paca->mce_data_buf, h, len);
+		memset(global_mce_data_buf, 0, RTAS_ERROR_LOG_MAX);
+		memcpy(global_mce_data_buf, h, len);
+		errhdr = (struct rtas_error_log *)global_mce_data_buf;
 	}
 
 	return (struct rtas_error_log *)local_paca->mce_data_buf;
