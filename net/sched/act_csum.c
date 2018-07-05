@@ -597,9 +597,8 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct tcf_csum_params *params;
 	struct tc_csum opt = {
 		.index   = p->tcf_index,
-		.refcnt  = p->tcf_refcnt - ref,
-		.bindcnt = p->tcf_bindcnt - bind,
-		.action  = p->tcf_action,
+		.refcnt  = refcount_read(&p->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&p->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
