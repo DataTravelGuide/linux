@@ -370,7 +370,10 @@ int pciehp_sysfs_enable_slot(struct slot *p_slot)
 	mutex_lock(&p_slot->lock);
 	switch (p_slot->state) {
 	case BLINKINGON_STATE:
-	case OFF_STATE:
+		cancel_delayed_work(&p_slot->work);
+		/* fall through */
+	case STATIC_STATE:
+		p_slot->state = POWERON_STATE;
 		mutex_unlock(&p_slot->lock);
 		/*
 		 * The IRQ thread becomes a no-op if the user pulls out the
@@ -408,7 +411,10 @@ int pciehp_sysfs_disable_slot(struct slot *p_slot)
 	mutex_lock(&p_slot->lock);
 	switch (p_slot->state) {
 	case BLINKINGOFF_STATE:
-	case ON_STATE:
+		cancel_delayed_work(&p_slot->work);
+		/* fall through */
+	case STATIC_STATE:
+		p_slot->state = POWEROFF_STATE;
 		mutex_unlock(&p_slot->lock);
 		pciehp_request(ctrl, DISABLE_SLOT);
 		wait_event(ctrl->requester,
