@@ -5685,8 +5685,7 @@ xfs_bmap_collapse_extents(
 	xfs_fileoff_t		*next_fsb,
 	xfs_fileoff_t		offset_shift_fsb,
 	bool			*done,
-	xfs_fsblock_t		*firstblock,
-	struct xfs_defer_ops	*dfops)
+	xfs_fsblock_t		*firstblock)
 {
 	int			whichfork = XFS_DATA_FORK;
 	struct xfs_mount	*mp = ip->i_mount;
@@ -5720,7 +5719,7 @@ xfs_bmap_collapse_extents(
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
 		cur->bc_private.b.firstblock = *firstblock;
-		cur->bc_private.b.dfops = dfops;
+		cur->bc_private.b.dfops = tp->t_dfops;
 		cur->bc_private.b.flags = 0;
 	}
 
@@ -5741,7 +5740,7 @@ xfs_bmap_collapse_extents(
 		if (xfs_bmse_can_merge(&prev, &got, offset_shift_fsb)) {
 			error = xfs_bmse_merge(ip, whichfork, offset_shift_fsb,
 					&icur, &got, &prev, cur, &logflags,
-					dfops);
+					tp->t_dfops);
 			if (error)
 				goto del_cursor;
 			goto done;
@@ -5754,7 +5753,7 @@ xfs_bmap_collapse_extents(
 	}
 
 	error = xfs_bmap_shift_update_extent(ip, whichfork, &icur, &got, cur,
-			&logflags, dfops, new_startoff);
+			&logflags, tp->t_dfops, new_startoff);
 	if (error)
 		goto del_cursor;
 
@@ -5808,8 +5807,7 @@ xfs_bmap_insert_extents(
 	xfs_fileoff_t		offset_shift_fsb,
 	bool			*done,
 	xfs_fileoff_t		stop_fsb,
-	xfs_fsblock_t		*firstblock,
-	struct xfs_defer_ops	*dfops)
+	xfs_fsblock_t		*firstblock)
 {
 	int			whichfork = XFS_DATA_FORK;
 	struct xfs_mount	*mp = ip->i_mount;
@@ -5843,7 +5841,7 @@ xfs_bmap_insert_extents(
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
 		cur->bc_private.b.firstblock = *firstblock;
-		cur->bc_private.b.dfops = dfops;
+		cur->bc_private.b.dfops = tp->t_dfops;
 		cur->bc_private.b.flags = 0;
 	}
 
@@ -5886,7 +5884,7 @@ xfs_bmap_insert_extents(
 	}
 
 	error = xfs_bmap_shift_update_extent(ip, whichfork, &icur, &got, cur,
-			&logflags, dfops, new_startoff);
+			&logflags, tp->t_dfops, new_startoff);
 	if (error)
 		goto del_cursor;
 
