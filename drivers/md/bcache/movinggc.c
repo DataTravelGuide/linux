@@ -296,5 +296,6 @@ void bch_moving_init_cache_set(struct cache_set *c)
 int bch_is_gc_moving(struct cache_set *c)
 {
 	return atomic_read(&c->movinggc) ||
-		    !(c->gc_thread->state & TASK_INTERRUPTIBLE);
+		    (!(c->gc_thread->state & TASK_INTERRUPTIBLE) &&
+		     c->copy_gc_enabled && c->copy_gc_dirty_only);
 }
