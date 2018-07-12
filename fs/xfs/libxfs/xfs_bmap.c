@@ -4513,7 +4513,6 @@ xfs_bmapi_remap(
 	xfs_fileoff_t		bno,
 	xfs_filblks_t		len,
 	xfs_fsblock_t		startblock,
-	struct xfs_defer_ops	*dfops,
 	int			flags)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -4563,7 +4562,7 @@ xfs_bmapi_remap(
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
 		cur->bc_private.b.firstblock = firstblock;
-		cur->bc_private.b.dfops = dfops;
+		cur->bc_private.b.dfops = tp->t_dfops;
 		cur->bc_private.b.flags = 0;
 	}
 
@@ -4576,7 +4575,7 @@ xfs_bmapi_remap(
 		got.br_state = XFS_EXT_NORM;
 
 	error = xfs_bmap_add_extent_hole_real(tp, ip, whichfork, &icur,
-			&cur, &got, &firstblock, dfops, &logflags, flags);
+			&cur, &got, &firstblock, tp->t_dfops, &logflags, flags);
 	if (error)
 		goto error0;
 
@@ -6187,8 +6186,9 @@ xfs_bmap_finish_one(
 
 	switch (type) {
 	case XFS_BMAP_MAP:
+		ASSERT(dfops == tp->t_dfops);
 		error = xfs_bmapi_remap(tp, ip, startoff, *blockcount,
-				startblock, dfops, 0);
+				startblock, 0);
 		*blockcount = 0;
 		break;
 	case XFS_BMAP_UNMAP:
