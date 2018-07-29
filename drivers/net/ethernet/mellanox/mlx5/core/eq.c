@@ -40,6 +40,8 @@
 #include "mlx5_core.h"
 #include "fpga/core.h"
 #include "eswitch.h"
+#include "lib/clock.h"
+#include "diag/fw_tracer.h"
 
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
