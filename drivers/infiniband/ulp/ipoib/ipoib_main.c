@@ -2074,7 +2074,6 @@ static void ipoib_build_priv(struct net_device *dev)
 	spin_lock_init(&priv->lock);
 	init_rwsem(&priv->vlan_rwsem);
 	mutex_init(&priv->mcast_mutex);
-	mutex_init(&priv->sysfs_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -2471,10 +2470,7 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ipoib_parent_unregister_pre(priv->dev);
 
-		/* Wrap rtnl_lock/unlock with mutex to protect sysfs calls */
-		mutex_lock(&priv->sysfs_mutex);
 		unregister_netdev(priv->dev);
-		mutex_unlock(&priv->sysfs_mutex);
 	}
 
 	kfree(dev_list);
@@ -2522,8 +2518,7 @@ static int __init ipoib_init_module(void)
 	 * its private workqueue, and we only queue up flush events
 	 * on our global flush workqueue.  This avoids the deadlocks.
 	 */
-	ipoib_workqueue = alloc_ordered_workqueue("ipoib_flush",
-						  WQ_MEM_RECLAIM);
+	ipoib_workqueue = alloc_ordered_workqueue("ipoib_flush", 0);
 	if (!ipoib_workqueue) {
 		ret = -ENOMEM;
 		goto err_fs;
