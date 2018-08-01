@@ -4288,7 +4288,6 @@ xfs_bmapi_write(
 	bma.ip = ip;
 	bma.total = total;
 	bma.datatype = 0;
-	ASSERT(!tp || tp->t_dfops);
 
 	while (bno < end && n < *nmap) {
 		bool			need_alloc = false, wasdelay = false;
