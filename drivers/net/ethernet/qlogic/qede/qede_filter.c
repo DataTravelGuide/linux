@@ -1982,3 +1982,291 @@ unlock:
 	__qede_unlock(edev);
 	return count;
 }
+
+static int qede_parse_actions(struct qede_dev *edev,
+			      struct tcf_exts *exts)
+{
+	int rc = -EINVAL, num_act = 0, i;
+	const struct tc_action *a;
+	bool is_drop = false;
+
+	if (!tcf_exts_has_actions(exts)) {
+		DP_NOTICE(edev, "No tc actions received\n");
+		return rc;
+	}
+
+	tcf_exts_for_each_action(i, a, exts) {
+		num_act++;
+
+		if (is_tcf_gact_shot(a))
+			is_drop = true;
+	}
+
+	if (num_act == 1 && is_drop)
+		return 0;
+
+	return rc;
+}
+
+static int
+qede_tc_parse_ports(struct qede_dev *edev,
+		    struct tc_cls_flower_offload *f,
+		    struct qede_arfs_tuple *t)
+{
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_dissector_key_ports *key, *mask;
+
+		key = skb_flow_dissector_target(f->dissector,
+						FLOW_DISSECTOR_KEY_PORTS,
+						f->key);
+		mask = skb_flow_dissector_target(f->dissector,
+						 FLOW_DISSECTOR_KEY_PORTS,
+						 f->mask);
+
+		if ((key->src && mask->src != U16_MAX) ||
+		    (key->dst && mask->dst != U16_MAX)) {
+			DP_NOTICE(edev, "Do not support ports masks\n");
+			return -EINVAL;
+		}
+
+		t->src_port = key->src;
+		t->dst_port = key->dst;
+	}
+
+	return 0;
+}
+
+static int
+qede_tc_parse_v6_common(struct qede_dev *edev,
+			struct tc_cls_flower_offload *f,
+			struct qede_arfs_tuple *t)
+{
+	struct in6_addr zero_addr, addr;
+
+	memset(&zero_addr, 0, sizeof(addr));
+	memset(&addr, 0xff, sizeof(addr));
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		struct flow_dissector_key_ipv6_addrs *key, *mask;
+
+		key = skb_flow_dissector_target(f->dissector,
+						FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+						f->key);
+		mask = skb_flow_dissector_target(f->dissector,
+						 FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+						 f->mask);
+
+		if ((memcmp(&key->src, &zero_addr, sizeof(addr)) &&
+		     memcmp(&mask->src, &addr, sizeof(addr))) ||
+		    (memcmp(&key->dst, &zero_addr, sizeof(addr)) &&
+		     memcmp(&mask->dst, &addr, sizeof(addr)))) {
+			DP_NOTICE(edev,
+				  "Do not support IPv6 address prefix/mask\n");
+			return -EINVAL;
+		}
+
+		memcpy(&t->src_ipv6, &key->src, sizeof(addr));
+		memcpy(&t->dst_ipv6, &key->dst, sizeof(addr));
+	}
+
+	if (qede_tc_parse_ports(edev, f, t))
+		return -EINVAL;
+
+	return qede_set_v6_tuple_to_profile(edev, t, &zero_addr);
+}
+
+static int
+qede_tc_parse_v4_common(struct qede_dev *edev,
+			struct tc_cls_flower_offload *f,
+			struct qede_arfs_tuple *t)
+{
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		struct flow_dissector_key_ipv4_addrs *key, *mask;
+
+		key = skb_flow_dissector_target(f->dissector,
+						FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						f->key);
+		mask = skb_flow_dissector_target(f->dissector,
+						 FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						 f->mask);
+
+		if ((key->src && mask->src != U32_MAX) ||
+		    (key->dst && mask->dst != U32_MAX)) {
+			DP_NOTICE(edev, "Do not support ipv4 prefix/masks\n");
+			return -EINVAL;
+		}
+
+		t->src_ipv4 = key->src;
+		t->dst_ipv4 = key->dst;
+	}
+
+	if (qede_tc_parse_ports(edev, f, t))
+		return -EINVAL;
+
+	return qede_set_v4_tuple_to_profile(edev, t);
+}
+
+static int
+qede_tc_parse_tcp_v6(struct qede_dev *edev,
+		     struct tc_cls_flower_offload *f,
+		     struct qede_arfs_tuple *tuple)
+{
+	tuple->ip_proto = IPPROTO_TCP;
+	tuple->eth_proto = htons(ETH_P_IPV6);
+
+	return qede_tc_parse_v6_common(edev, f, tuple);
+}
+
+static int
+qede_tc_parse_tcp_v4(struct qede_dev *edev,
+		     struct tc_cls_flower_offload *f,
+		     struct qede_arfs_tuple *tuple)
+{
+	tuple->ip_proto = IPPROTO_TCP;
+	tuple->eth_proto = htons(ETH_P_IP);
+
+	return qede_tc_parse_v4_common(edev, f, tuple);
+}
+
+static int
+qede_tc_parse_udp_v6(struct qede_dev *edev,
+		     struct tc_cls_flower_offload *f,
+		     struct qede_arfs_tuple *tuple)
+{
+	tuple->ip_proto = IPPROTO_UDP;
+	tuple->eth_proto = htons(ETH_P_IPV6);
+
+	return qede_tc_parse_v6_common(edev, f, tuple);
+}
+
+static int
+qede_tc_parse_udp_v4(struct qede_dev *edev,
+		     struct tc_cls_flower_offload *f,
+		     struct qede_arfs_tuple *tuple)
+{
+	tuple->ip_proto = IPPROTO_UDP;
+	tuple->eth_proto = htons(ETH_P_IP);
+
+	return qede_tc_parse_v4_common(edev, f, tuple);
+}
+
+static int
+qede_parse_flower_attr(struct qede_dev *edev, __be16 proto,
+		       struct tc_cls_flower_offload *f,
+		       struct qede_arfs_tuple *tuple)
+{
+	int rc = -EINVAL;
+	u8 ip_proto = 0;
+
+	memset(tuple, 0, sizeof(*tuple));
+
+	if (f->dissector->used_keys &
+	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
+		DP_NOTICE(edev, "Unsupported key set:0x%x\n",
+			  f->dissector->used_keys);
+		return -EOPNOTSUPP;
+	}
+
+	if (proto != htons(ETH_P_IP) &&
+	    proto != htons(ETH_P_IPV6)) {
+		DP_NOTICE(edev, "Unsupported proto=0x%x\n", proto);
+		return -EPROTONOSUPPORT;
+	}
+
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_dissector_key_basic *key;
+
+		key = skb_flow_dissector_target(f->dissector,
+						FLOW_DISSECTOR_KEY_BASIC,
+						f->key);
+		ip_proto = key->ip_proto;
+	}
+
+	if (ip_proto == IPPROTO_TCP && proto == htons(ETH_P_IP))
+		rc = qede_tc_parse_tcp_v4(edev, f, tuple);
+	else if (ip_proto == IPPROTO_TCP && proto == htons(ETH_P_IPV6))
+		rc = qede_tc_parse_tcp_v6(edev, f, tuple);
+	else if (ip_proto == IPPROTO_UDP && proto == htons(ETH_P_IP))
+		rc = qede_tc_parse_udp_v4(edev, f, tuple);
+	else if (ip_proto == IPPROTO_UDP && proto == htons(ETH_P_IPV6))
+		rc = qede_tc_parse_udp_v6(edev, f, tuple);
+	else
+		DP_NOTICE(edev, "Invalid tc protocol request\n");
+
+	return rc;
+}
+
+int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
+			    struct tc_cls_flower_offload *f)
+{
+	struct qede_arfs_fltr_node *n;
+	int min_hlen, rc = -EINVAL;
+	struct qede_arfs_tuple t;
+
+	__qede_lock(edev);
+
+	if (!edev->arfs) {
+		rc = -EPERM;
+		goto unlock;
+	}
+
+	/* parse flower attribute and prepare filter */
+	if (qede_parse_flower_attr(edev, proto, f, &t))
+		goto unlock;
+
+	/* Validate profile mode and number of filters */
+	if ((edev->arfs->filter_count && edev->arfs->mode != t.mode) ||
+	    edev->arfs->filter_count == QEDE_RFS_MAX_FLTR) {
+		DP_NOTICE(edev,
+			  "Filter configuration invalidated, filter mode=0x%x, configured mode=0x%x, filter count=0x%x\n",
+			  t.mode, edev->arfs->mode, edev->arfs->filter_count);
+		goto unlock;
+	}
+
+	/* parse tc actions and get the vf_id */
+	if (qede_parse_actions(edev, f->exts))
+		goto unlock;
+
+	if (qede_flow_find_fltr(edev, &t)) {
+		rc = -EEXIST;
+		goto unlock;
+	}
+
+	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	if (!n) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
+
+	min_hlen = qede_flow_get_min_header_size(&t);
+
+	n->data = kzalloc(min_hlen, GFP_KERNEL);
+	if (!n->data) {
+		kfree(n);
+		rc = -ENOMEM;
+		goto unlock;
+	}
+
+	memcpy(&n->tuple, &t, sizeof(n->tuple));
+
+	n->buf_len = min_hlen;
+	n->b_is_drop = true;
+	n->sw_id = f->cookie;
+
+	n->tuple.build_hdr(&n->tuple, n->data);
+
+	rc = qede_enqueue_fltr_and_config_searcher(edev, n, 0);
+	if (rc)
+		goto unlock;
+
+	qede_configure_arfs_fltr(edev, n, n->rxq_id, true);
+	rc = qede_poll_arfs_filter_config(edev, n);
+
+unlock:
+	__qede_unlock(edev);
+	return rc;
+}
