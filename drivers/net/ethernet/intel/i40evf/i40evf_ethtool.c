@@ -6,232 +6,12 @@
 
 #include <linux/uaccess.h>
 
-/* ethtool statistics helpers */
+#include "i40e_ethtool_stats.h"
 
-/**
- * struct i40e_stats - definition for an ethtool statistic
- * @stat_string: statistic name to display in ethtool -S output
- * @sizeof_stat: the sizeof() the stat, must be no greater than sizeof(u64)
- * @stat_offset: offsetof() the stat from a base pointer
- *
- * This structure defines a statistic to be added to the ethtool stats buffer.
- * It defines a statistic as offset from a common base pointer. Stats should
- * be defined in constant arrays using the I40E_STAT macro, with every element
- * of the array using the same _type for calculating the sizeof_stat and
- * stat_offset.
- *
- * The @sizeof_stat is expected to be sizeof(u8), sizeof(u16), sizeof(u32) or
- * sizeof(u64). Other sizes are not expected and will produce a WARN_ONCE from
- * the i40e_add_ethtool_stat() helper function.
- *
- * The @stat_string is interpreted as a format string, allowing formatted
- * values to be inserted while looping over multiple structures for a given
- * statistics array. Thus, every statistic string in an array should have the
- * same type and number of format specifiers, to be formatted by variadic
- * arguments to the i40e_add_stat_string() helper function.
- **/
-struct i40e_stats {
-	char stat_string[ETH_GSTRING_LEN];
-	int sizeof_stat;
-	int stat_offset;
-};
+#define I40EVF_STAT(_name, _stat) \
+	I40E_STAT(struct i40evf_adapter, _name, _stat)
 
-/* Helper macro to define an i40e_stat structure with proper size and type.
- * Use this when defining constant statistics arrays. Note that @_type expects
- * only a type name and is used multiple times.
- */
-#define I40E_STAT(_type, _name, _stat) { \
-	.stat_string = _name, \
-	.sizeof_stat = FIELD_SIZEOF(_type, _stat), \
-	.stat_offset = offsetof(_type, _stat) \
-}
-
-/* Helper macro for defining some statistics directly copied from the netdev
- * stats structure.
- */
-#define I40E_NETDEV_STAT(_net_stat) \
-	I40E_STAT(struct rtnl_link_stats64, #_net_stat, _net_stat)
-
-/* Helper macro for defining some statistics related to queues */
-#define I40E_QUEUE_STAT(_name, _stat) \
-	I40E_STAT(struct i40e_ring, _name, _stat)
-
-/* Stats associated with a Tx or Rx ring */
-static const struct i40e_stats i40e_gstrings_queue_stats[] = {
-	I40E_QUEUE_STAT("%s-%u.packets", stats.packets),
-	I40E_QUEUE_STAT("%s-%u.bytes", stats.bytes),
-};
-
-/**
- * i40evf_add_one_ethtool_stat - copy the stat into the supplied buffer
- * @data: location to store the stat value
- * @pointer: basis for where to copy from
- * @stat: the stat definition
- *
- * Copies the stat data defined by the pointer and stat structure pair into
- * the memory supplied as data. Used to implement i40e_add_ethtool_stats and
- * i40evf_add_queue_stats. If the pointer is null, data will be zero'd.
- */
-static void
-i40evf_add_one_ethtool_stat(u64 *data, void *pointer,
-			    const struct i40e_stats *stat)
-{
-	char *p;
-
-	if (!pointer) {
-		/* ensure that the ethtool data buffer is zero'd for any stats
-		 * which don't have a valid pointer.
-		 */
-		*data = 0;
-		return;
-	}
-
-	p = (char *)pointer + stat->stat_offset;
-	switch (stat->sizeof_stat) {
-	case sizeof(u64):
-		*data = *((u64 *)p);
-		break;
-	case sizeof(u32):
-		*data = *((u32 *)p);
-		break;
-	case sizeof(u16):
-		*data = *((u16 *)p);
-		break;
-	case sizeof(u8):
-		*data = *((u8 *)p);
-		break;
-	default:
-		WARN_ONCE(1, "unexpected stat size for %s",
-			  stat->stat_string);
-		*data = 0;
-	}
-}
-
-/**
- * __i40evf_add_ethtool_stats - copy stats into the ethtool supplied buffer
- * @data: ethtool stats buffer
- * @pointer: location to copy stats from
- * @stats: array of stats to copy
- * @size: the size of the stats definition
- *
- * Copy the stats defined by the stats array using the pointer as a base into
- * the data buffer supplied by ethtool. Updates the data pointer to point to
- * the next empty location for successive calls to __i40evf_add_ethtool_stats.
- * If pointer is null, set the data values to zero and update the pointer to
- * skip these stats.
- **/
-static void
-__i40evf_add_ethtool_stats(u64 **data, void *pointer,
-			   const struct i40e_stats stats[],
-			   const unsigned int size)
-{
-	unsigned int i;
-
-	for (i = 0; i < size; i++)
-		i40evf_add_one_ethtool_stat((*data)++, pointer, &stats[i]);
-}
-
-/**
- * i40e_add_ethtool_stats - copy stats into ethtool supplied buffer
- * @data: ethtool stats buffer
- * @pointer: location where stats are stored
- * @stats: static const array of stat definitions
- *
- * Macro to ease the use of __i40evf_add_ethtool_stats by taking a static
- * constant stats array and passing the ARRAY_SIZE(). This avoids typos by
- * ensuring that we pass the size associated with the given stats array.
- *
- * The parameter @stats is evaluated twice, so parameters with side effects
- * should be avoided.
- **/
-#define i40e_add_ethtool_stats(data, pointer, stats) \
-	__i40evf_add_ethtool_stats(data, pointer, stats, ARRAY_SIZE(stats))
-
-/**
- * i40evf_add_queue_stats - copy queue statistics into supplied buffer
- * @data: ethtool stats buffer
- * @ring: the ring to copy
- *
- * Queue statistics must be copied while protected by
- * u64_stats_fetch_begin_irq, so we can't directly use i40e_add_ethtool_stats.
- * Assumes that queue stats are defined in i40e_gstrings_queue_stats. If the
- * ring pointer is null, zero out the queue stat values and update the data
- * pointer. Otherwise safely copy the stats from the ring into the supplied
- * buffer and update the data pointer when finished.
- *
- * This function expects to be called while under rcu_read_lock().
- **/
-static void
-i40evf_add_queue_stats(u64 **data, struct i40e_ring *ring)
-{
-	const unsigned int size = ARRAY_SIZE(i40e_gstrings_queue_stats);
-	const struct i40e_stats *stats = i40e_gstrings_queue_stats;
-	unsigned int start;
-	unsigned int i;
-
-	/* To avoid invalid statistics values, ensure that we keep retrying
-	 * the copy until we get a consistent value according to
-	 * u64_stats_fetch_retry_irq. But first, make sure our ring is
-	 * non-null before attempting to access its syncp.
-	 */
-	do {
-		start = !ring ? 0 : u64_stats_fetch_begin_irq(&ring->syncp);
-		for (i = 0; i < size; i++) {
-			i40evf_add_one_ethtool_stat(&(*data)[i], ring,
-						    &stats[i]);
-		}
-	} while (ring && u64_stats_fetch_retry_irq(&ring->syncp, start));
-
-	/* Once we successfully copy the stats in, update the data pointer */
-	*data += size;
-}
-
-/**
- * __i40e_add_stat_strings - copy stat strings into ethtool buffer
- * @p: ethtool supplied buffer
- * @stats: stat definitions array
- * @size: size of the stats array
- *
- * Format and copy the strings described by stats into the buffer pointed at
- * by p.
- **/
-static void __i40e_add_stat_strings(u8 **p, const struct i40e_stats stats[],
-				    const unsigned int size, ...)
-{
-	unsigned int i;
-
-	for (i = 0; i < size; i++) {
-		va_list args;
-
-		va_start(args, size);
-		vsnprintf(*p, ETH_GSTRING_LEN, stats[i].stat_string, args);
-		*p += ETH_GSTRING_LEN;
-		va_end(args);
-	}
-}
-
-/**
- * 40e_add_stat_strings - copy stat strings into ethtool buffer
- * @p: ethtool supplied buffer
- * @stats: stat definitions array
- *
- * Format and copy the strings described by the const static stats value into
- * the buffer pointed at by p.
- *
- * The parameter @stats is evaluated twice, so parameters with side effects
- * should be avoided. Additionally, stats must be an array such that
- * ARRAY_SIZE can be called on it.
- **/
-#define i40e_add_stat_strings(p, stats, ...) \
-	__i40e_add_stat_strings(p, stats, ARRAY_SIZE(stats), ## __VA_ARGS__)
-
-#define I40EVF_STAT(_name, _stat) { \
-	.stat_string = _name, \
-	.stat_offset = offsetof(struct i40evf_adapter, _stat) \
-}
-
-/* All stats are u64, so we don't need to track the size of the field. */
-static const struct i40evf_stats i40evf_gstrings_stats[] = {
+static const struct i40e_stats i40evf_gstrings_stats[] = {
 	I40EVF_STAT("rx_bytes", current_stats.rx_bytes),
 	I40EVF_STAT("rx_unicast", current_stats.rx_unicast),
 	I40EVF_STAT("rx_multicast", current_stats.rx_multicast),
@@ -246,13 +26,9 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 	I40EVF_STAT("tx_errors", current_stats.tx_errors),
 };
 
-#define I40EVF_GLOBAL_STATS_LEN ARRAY_SIZE(i40evf_gstrings_stats)
-#define I40EVF_QUEUE_STATS_LEN(_dev) \
-	(((struct i40evf_adapter *)\
-		netdev_priv(_dev))->num_active_queues \
-		  * 2 * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
-#define I40EVF_STATS_LEN(_dev) \
-	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
+#define I40EVF_STATS_LEN	ARRAY_SIZE(i40evf_gstrings_stats)
+
+#define I40EVF_QUEUE_STATS_LEN	ARRAY_SIZE(i40e_gstrings_queue_stats)
 
 /* For now we have one and only one private flag and it is only defined
  * when we have support for the SKIP_CPU_SYNC DMA attribute.  Instead
@@ -331,13 +107,13 @@ static int i40evf_get_link_ksettings(struct net_device *netdev,
  * @netdev: network interface device structure
  * @sset: id of string set
  *
- * Reports size of string table. This driver only supports
- * strings for statistics.
+ * Reports size of various string tables.
  **/
 static int i40evf_get_sset_count(struct net_device *netdev, int sset)
 {
 	if (sset == ETH_SS_STATS)
-		return I40EVF_STATS_LEN(netdev);
+		return I40EVF_STATS_LEN +
+			(I40EVF_QUEUE_STATS_LEN * 2 * I40EVF_MAX_REQ_QUEUES);
 	else if (sset == ETH_SS_PRIV_FLAGS)
 		return I40EVF_PRIV_FLAGS_STR_LEN;
 	else
@@ -356,20 +132,66 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	unsigned int i, j;
-	char *p;
+	unsigned int i;
 
-	for (i = 0; i < I40EVF_GLOBAL_STATS_LEN; i++) {
-		p = (char *)adapter + i40evf_gstrings_stats[i].stat_offset;
-		data[i] =  *(u64 *)p;
+	i40e_add_ethtool_stats(&data, adapter, i40evf_gstrings_stats);
+
+	rcu_read_lock();
+	for (i = 0; i < I40EVF_MAX_REQ_QUEUES; i++) {
+		struct i40e_ring *ring;
+
+		/* Avoid accessing un-allocated queues */
+		ring = (i < adapter->num_active_queues ?
+			&adapter->tx_rings[i] : NULL);
+		i40evf_add_queue_stats(&data, ring);
+
+		/* Avoid accessing un-allocated queues */
+		ring = (i < adapter->num_active_queues ?
+			&adapter->rx_rings[i] : NULL);
+		i40evf_add_queue_stats(&data, ring);
 	}
-	for (j = 0; j < adapter->num_active_queues; j++) {
-		data[i++] = adapter->tx_rings[j].stats.packets;
-		data[i++] = adapter->tx_rings[j].stats.bytes;
+	rcu_read_unlock();
+}
+
+/**
+ * i40evf_get_priv_flag_strings - Get private flag strings
+ * @netdev: network interface device structure
+ * @data: buffer for string data
+ *
+ * Builds the private flags string table
+ **/
+static void i40evf_get_priv_flag_strings(struct net_device *netdev, u8 *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "%s",
+			 i40evf_gstrings_priv_flags[i].flag_string);
+		data += ETH_GSTRING_LEN;
 	}
-	for (j = 0; j < adapter->num_active_queues; j++) {
-		data[i++] = adapter->rx_rings[j].stats.packets;
-		data[i++] = adapter->rx_rings[j].stats.bytes;
+}
+
+/**
+ * i40evf_get_stat_strings - Get stat strings
+ * @netdev: network interface device structure
+ * @data: buffer for string data
+ *
+ * Builds the statistics string table
+ **/
+static void i40evf_get_stat_strings(struct net_device *netdev, u8 *data)
+{
+	unsigned int i;
+
+	i40e_add_stat_strings(&data, i40evf_gstrings_stats);
+
+	/* Queues are always allocated in pairs, so we just use num_tx_queues
+	 * for both Tx and Rx queues.
+	 */
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		i40e_add_stat_strings(&data, i40e_gstrings_queue_stats,
+				      "tx", i);
+		i40e_add_stat_strings(&data, i40e_gstrings_queue_stats,
+				      "rx", i);
 	}
 }
 
@@ -379,38 +201,19 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
  * @sset: id of string set
  * @data: buffer for string data
  *
- * Builds stats string table.
+ * Builds string tables for various string sets
  **/
 static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 {
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	u8 *p = data;
-	int i;
-
-	if (sset == ETH_SS_STATS) {
-		for (i = 0; i < (int)I40EVF_GLOBAL_STATS_LEN; i++) {
-			memcpy(p, i40evf_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < adapter->num_active_queues; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "tx-%u.packets", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "tx-%u.bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < adapter->num_active_queues; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "rx-%u.packets", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "rx-%u.bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-	} else if (sset == ETH_SS_PRIV_FLAGS) {
-		for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "%s",
-				 i40evf_gstrings_priv_flags[i].flag_string);
-			p += ETH_GSTRING_LEN;
-		}
+	switch (sset) {
+	case ETH_SS_STATS:
+		i40evf_get_stat_strings(netdev, data);
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		i40evf_get_priv_flag_strings(netdev, data);
+		break;
+	default:
+		break;
 	}
 }
 
