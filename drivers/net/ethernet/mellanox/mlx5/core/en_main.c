@@ -1785,7 +1785,7 @@ static int mlx5e_open_sqs(struct mlx5e_channel *c,
 			  struct mlx5e_channel_param *cparam)
 {
 	struct mlx5e_priv *priv = c->priv;
-	int err, tc, max_nch = priv->profile->max_nch(priv->mdev);
+	int err, tc, max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 
 	for (tc = 0; tc < params->num_tc; tc++) {
 		int txq_ix = c->ix + tc * max_nch;
@@ -2408,7 +2408,7 @@ int mlx5e_create_direct_rqts(struct mlx5e_priv *priv)
 	int err;
 	int ix;
 
-	for (ix = 0; ix < priv->profile->max_nch(priv->mdev); ix++) {
+	for (ix = 0; ix < mlx5e_get_netdev_max_channels(priv->netdev); ix++) {
 		rqt = &priv->direct_tir[ix].rqt;
 		err = mlx5e_create_rqt(priv, 1 /*size */, rqt);
 		if (err)
@@ -2429,7 +2429,7 @@ void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv)
 {
 	int i;
 
-	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++)
+	for (i = 0; i < mlx5e_get_netdev_max_channels(priv->netdev); i++)
 		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
 }
 
@@ -2523,7 +2523,7 @@ static void mlx5e_redirect_rqts(struct mlx5e_priv *priv,
 		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
 	}
 
-	for (ix = 0; ix < priv->profile->max_nch(priv->mdev); ix++) {
+	for (ix = 0; ix < mlx5e_get_netdev_max_channels(priv->netdev); ix++) {
 		struct mlx5e_redirect_rqt_param direct_rrp = {
 			.is_rss = false,
 			{
@@ -2724,7 +2724,7 @@ static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
 			goto free_in;
 	}
 
-	for (ix = 0; ix < priv->profile->max_nch(priv->mdev); ix++) {
+	for (ix = 0; ix < mlx5e_get_netdev_max_channels(priv->netdev); ix++) {
 		err = mlx5_core_modify_tir(mdev, priv->direct_tir[ix].tirn,
 					   in, inlen);
 		if (err)
@@ -2824,7 +2824,7 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 
 static void mlx5e_build_tc2txq_maps(struct mlx5e_priv *priv)
 {
-	int max_nch = priv->profile->max_nch(priv->mdev);
+	int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i, tc;
 
 	for (i = 0; i < max_nch; i++)
@@ -3216,7 +3216,7 @@ err_destroy_inner_tirs:
 
 int mlx5e_create_direct_tirs(struct mlx5e_priv *priv)
 {
-	int nch = priv->profile->max_nch(priv->mdev);
+	int nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	struct mlx5e_tir *tir;
 	void *tirc;
 	int inlen;
@@ -3269,7 +3269,7 @@ void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv)
 
 void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv)
 {
-	int nch = priv->profile->max_nch(priv->mdev);
+	int nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i;
 
 	for (i = 0; i < nch; i++)
@@ -4700,7 +4700,7 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 		return err;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params,
-			       profile->max_nch(mdev), netdev->mtu);
+			       mlx5e_get_netdev_max_channels(netdev), netdev->mtu);
 
 	mlx5e_timestamp_init(priv);
 
@@ -4869,7 +4869,6 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.enable		   = mlx5e_nic_enable,
 	.disable	   = mlx5e_nic_disable,
 	.update_stats	   = mlx5e_update_ndo_stats,
-	.max_nch	   = mlx5e_get_max_num_channels,
 	.update_carrier	   = mlx5e_update_carrier,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
@@ -4920,9 +4919,9 @@ void mlx5e_netdev_cleanup(struct net_device *netdev, struct mlx5e_priv *priv)
 
 struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 				       const struct mlx5e_profile *profile,
+				       int nch,
 				       void *ppriv)
 {
-	int nch = profile->max_nch(mdev);
 	struct net_device *netdev;
 	int err;
 
@@ -5059,6 +5058,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 	void *rpriv = NULL;
 	void *priv;
 	int err;
+	int nch;
 
 	err = mlx5e_check_required_hca_cap(mdev);
 	if (err)
@@ -5074,7 +5074,8 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 	}
 #endif
 
-	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, rpriv);
+	nch = mlx5e_get_max_num_channels(mdev);
+	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, nch, rpriv);
 	if (!netdev) {
 		mlx5_core_err(mdev, "mlx5e_create_netdev failed\n");
 		goto err_free_rpriv;
