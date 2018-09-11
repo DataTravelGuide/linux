@@ -177,7 +177,7 @@ struct bio {
 	 * Optional css associated with this bio.  Put on bio
 	 * release.  Read comment on top of bio_associate_current().
 	 */
-	struct cgroup_subsys_state *bi_css;
+	struct io_context	*bi_ioc;
 	struct blkcg_gq		*bi_blkg;
 	struct bio_issue	bi_issue;
 #endif
