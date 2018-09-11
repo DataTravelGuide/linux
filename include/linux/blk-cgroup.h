@@ -891,6 +891,12 @@ static inline bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg
 				  struct bio *bio) { return false; }
 #endif
 
+
+static inline void blkcg_bio_issue_init(struct bio *bio)
+{
+	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
+}
+
 static inline bool blkcg_bio_issue_check(struct request_queue *q,
 					 struct bio *bio)
 {
@@ -922,6 +928,9 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 		blkg_rwstat_add(&blkg->stat_ios, bio->bi_opf, 1);
 	}
 
+	blkcg_bio_issue_init(bio);
+
+	rcu_read_unlock();
 	return !throtl;
 }
 
@@ -1027,6 +1036,13 @@ static inline char *blkg_path(struct blkcg_gq *blkg) { return NULL; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }
 
+static inline struct request_list *blk_get_rl(struct request_queue *q,
+					      struct bio *bio) { return &q->root_rl; }
+static inline void blk_put_rl(struct request_list *rl) { }
+static inline void blk_rq_set_rl(struct request *rq, struct request_list *rl) { }
+static inline struct request_list *blk_rq_rl(struct request *rq) { return &rq->q->root_rl; }
+
+static inline void blkcg_bio_issue_init(struct bio *bio) { }
 static inline bool blkcg_bio_issue_check(struct request_queue *q,
 					 struct bio *bio) { return true; }
 
