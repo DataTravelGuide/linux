@@ -1974,9 +1974,10 @@ EXPORT_SYMBOL(bioset_init_from_src);
  */
 static void __bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
 {
-	bio_disassociate_blkg(bio);
-
-	bio->bi_blkg = blkg_try_get_closest(blkg);
+	if (unlikely(bio->bi_blkg))
+		return -EBUSY;
+	bio->bi_blkg = blkg_tryget_closest(blkg);
+	return 0;
 }
 
 /**
