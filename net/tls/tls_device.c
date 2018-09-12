@@ -552,7 +552,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto free_marker_record;
 	}
 
-	crypto_info = &ctx->crypto_send;
+	crypto_info = &ctx->crypto_send.info;
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
 		nonce_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
@@ -650,7 +650,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	ctx->priv_ctx_tx = offload_ctx;
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_TX,
-					     &ctx->crypto_send,
+					     &ctx->crypto_send.info,
 					     tcp_sk(sk)->write_seq);
 	if (rc)
 		goto release_netdev;
@@ -688,6 +688,105 @@ free_marker_record:
 	kfree(start_marker_record);
 out:
 	return rc;
+}
+
+int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
+{
+	struct tls_offload_context_rx *context;
+	struct net_device *netdev;
+	int rc = 0;
+
+	/* We support starting offload on multiple sockets
+	 * concurrently, so we only need a read lock here.
+	 * This lock must precede get_netdev_for_sock to prevent races between
+	 * NETDEV_DOWN and setsockopt.
+	 */
+	down_read(&device_offload_lock);
+	netdev = get_netdev_for_sock(sk);
+	if (!netdev) {
+		pr_err_ratelimited("%s: netdev not found\n", __func__);
+		rc = -EINVAL;
+		goto release_lock;
+	}
+
+	if (!(netdev->features & NETIF_F_HW_TLS_RX)) {
+		pr_err_ratelimited("%s: netdev %s with no TLS offload\n",
+				   __func__, netdev->name);
+		rc = -ENOTSUPP;
+		goto release_netdev;
+	}
+
+	/* Avoid offloading if the device is down
+	 * We don't want to offload new flows after
+	 * the NETDEV_DOWN event
+	 */
+	if (!(netdev->flags & IFF_UP)) {
+		rc = -EINVAL;
+		goto release_netdev;
+	}
+
+	context = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_RX, GFP_KERNEL);
+	if (!context) {
+		rc = -ENOMEM;
+		goto release_netdev;
+	}
+
+	ctx->priv_ctx_rx = context;
+	rc = tls_set_sw_offload(sk, ctx, 0);
+	if (rc)
+		goto release_ctx;
+
+	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_RX,
+					     &ctx->crypto_recv.info,
+					     tcp_sk(sk)->copied_seq);
+	if (rc) {
+		pr_err_ratelimited("%s: The netdev has refused to offload this socket\n",
+				   __func__);
+		goto free_sw_resources;
+	}
+
+	tls_device_attach(ctx, sk, netdev);
+	goto release_netdev;
+
+free_sw_resources:
+	tls_sw_free_resources_rx(sk);
+release_ctx:
+	ctx->priv_ctx_rx = NULL;
+release_netdev:
+	dev_put(netdev);
+release_lock:
+	up_read(&device_offload_lock);
+	return rc;
+}
+
+void tls_device_offload_cleanup_rx(struct sock *sk)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	struct net_device *netdev;
+
+	down_read(&device_offload_lock);
+	netdev = tls_ctx->netdev;
+	if (!netdev)
+		goto out;
+
+	if (!(netdev->features & NETIF_F_HW_TLS_RX)) {
+		pr_err_ratelimited("%s: device is missing NETIF_F_HW_TLS_RX cap\n",
+				   __func__);
+		goto out;
+	}
+
+	netdev->tlsdev_ops->tls_dev_del(netdev, tls_ctx,
+					TLS_OFFLOAD_CTX_DIR_RX);
+
+	if (tls_ctx->tx_conf != TLS_HW) {
+		dev_put(netdev);
+		tls_ctx->netdev = NULL;
+	}
+out:
+	up_read(&device_offload_lock);
+	kfree(tls_ctx->rx.rec_seq);
+	kfree(tls_ctx->rx.iv);
+	tls_sw_release_resources_rx(sk);
 }
 
 static int tls_device_down(struct net_device *netdev)
