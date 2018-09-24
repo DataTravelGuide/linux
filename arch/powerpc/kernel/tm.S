@@ -175,15 +175,7 @@ _GLOBAL(tm_reclaim)
 	std	r1, PACATMSCRATCH(r13)
 	ld	r1, PACAR1(r13)
 
-	/* Store the PPR in r11 and reset to decent value */
 	std	r11, GPR11(r1)			/* Temporary stash */
-
-	/*
-	 * Move the saved user r1 to the kernel stack in case PACATMSCRATCH is
-	 * clobbered by an exception once we turn on MSR_RI below.
-	 */
-	ld	r11, PACATMSCRATCH(r13)
-	std	r11, GPR1(r1)
 
 	/*
 	 * Store r13 away so we can free up the scratch SPR for the SLB fault
@@ -196,6 +188,7 @@ _GLOBAL(tm_reclaim)
 	li	r11, MSR_RI
 	mtmsrd	r11, 1
 
+	/* Store the PPR in r11 and reset to decent value */
 	mfspr	r11, SPRN_PPR
 	HMT_MEDIUM
 
@@ -224,7 +217,7 @@ _GLOBAL(tm_reclaim)
 	ld	r4, GPR7(r1)			/* user r7 */
 	ld	r5, GPR11(r1)			/* user r11 */
 	ld	r6, GPR12(r1)			/* user r12 */
-	GET_SCRATCH0(8)				/* user r13 */
+	ld	r8, GPR13(r1)			/* user r13 */
 	std	r3, GPR1(r7)
 	std	r4, GPR7(r7)
 	std	r5, GPR11(r7)
