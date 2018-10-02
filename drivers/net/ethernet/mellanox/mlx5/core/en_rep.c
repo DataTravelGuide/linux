@@ -970,21 +970,26 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->max_mtu = MLX5E_HW2SW_MTU(&priv->channels.params, max_mtu);
 }
 
-static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
-			   struct net_device *netdev,
-			   const struct mlx5e_profile *profile,
-			   void *ppriv)
+static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
+			  struct net_device *netdev,
+			  const struct mlx5e_profile *profile,
+			  void *ppriv)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err;
 
 	priv->mdev                         = mdev;
 	priv->netdev                       = netdev;
 	priv->profile                      = profile;
 	priv->ppriv                        = ppriv;
 
-	mutex_init(&priv->state_lock);
+	err = mlx5e_netdev_init(netdev, priv);
+	if (err)
+		return err;
 
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
+
+	mutex_init(&priv->state_lock);
 
 	priv->channels.params.num_channels = profile->max_nch(mdev);
 
@@ -992,6 +997,13 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	mlx5e_build_rep_netdev(netdev);
 
 	mlx5e_timestamp_init(priv);
+
+	return 0;
+}
+
+static void mlx5e_cleanup_rep(struct mlx5e_priv *priv)
+{
+	mlx5e_netdev_cleanup(priv->netdev, priv);
 }
 
 static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
@@ -1059,6 +1071,7 @@ static int mlx5e_get_rep_max_num_channels(struct mlx5_core_dev *mdev)
 
 static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init			= mlx5e_init_rep,
+	.cleanup		= mlx5e_cleanup_rep,
 	.init_rx		= mlx5e_init_rep_rx,
 	.cleanup_rx		= mlx5e_cleanup_rep_rx,
 	.init_tx		= mlx5e_init_rep_tx,
