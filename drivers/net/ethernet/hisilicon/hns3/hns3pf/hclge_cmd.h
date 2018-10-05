@@ -190,6 +190,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_VLAN_REMOVE	    = 0x1001,
 	HCLGE_OPC_MAC_VLAN_TYPE_ID	    = 0x1002,
 	HCLGE_OPC_MAC_VLAN_INSERT	    = 0x1003,
+	HCLGE_OPC_MAC_VLAN_ALLOCATE	    = 0x1004,
 	HCLGE_OPC_MAC_ETHTYPE_ADD	    = 0x1010,
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
 	HCLGE_OPC_MAC_VLAN_MASK_SET	= 0x1012,
@@ -410,6 +411,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_RSS_SIZE_M	GENMASK(31, 24)
 #define HCLGE_CFG_SPEED_ABILITY_S	0
 #define HCLGE_CFG_SPEED_ABILITY_M	GENMASK(7, 0)
+#define HCLGE_CFG_UMV_TBL_SPACE_S	16
+#define HCLGE_CFG_UMV_TBL_SPACE_M	GENMASK(31, 16)
 
 struct hclge_cfg_param_cmd {
 	__le32 offset;
@@ -599,13 +602,12 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	u8      rsv2[6];
 };
 
-#define HCLGE_VLAN_MASK_EN_B		0x0
-struct hclge_mac_vlan_mask_entry_cmd {
-	u8 rsv0[2];
-	u8 vlan_mask;
-	u8 rsv1;
-	u8 mac_mask[6];
-	u8 rsv2[14];
+#define HCLGE_UMV_SPC_ALC_B	0
+struct hclge_umv_spc_alc_cmd {
+	u8 allocate;
+	u8 rsv1[3];
+	__le32 space_size;
+	u8 rsv2[16];
 };
 
 #define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)
