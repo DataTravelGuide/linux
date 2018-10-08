@@ -143,4 +143,16 @@ struct kvm_vcpu;
 void _kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 void _kvmppc_save_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 
+/* Patch sites */
+extern s32 patch__call_flush_count_cache;
+extern s32 patch__flush_count_cache_return;
+extern s32 patch__memset_nocache, patch__memcpy_nocache;
+
+extern long flush_count_cache;
+
+void kvmhv_save_host_pmu(void);
+void kvmhv_load_host_pmu(void);
+void kvmhv_save_guest_pmu(struct kvm_vcpu *vcpu, bool pmu_in_use);
+void kvmhv_load_guest_pmu(struct kvm_vcpu *vcpu);
+
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */
