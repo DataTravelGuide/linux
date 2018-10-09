@@ -349,6 +349,41 @@ struct t4_wq {
 	void __iomem *db;
 	struct c4iw_rdev *rdev;
 	int flushed;
+	u8 *qp_errp;
+	u32 *srqidxp;
+};
+
+struct t4_srq_pending_wr {
+	u64 wr_id;
+	union t4_recv_wr wqe;
+	u8 len16;
+};
+
+struct t4_srq {
+	union t4_recv_wr *queue;
+	dma_addr_t dma_addr;
+	DEFINE_DMA_UNMAP_ADDR(mapping);
+	struct t4_swrqe *sw_rq;
+	void __iomem *bar2_va;
+	u64 bar2_pa;
+	size_t memsize;
+	u32 bar2_qid;
+	u32 qid;
+	u32 msn;
+	u32 rqt_hwaddr;
+	u32 rqt_abs_idx;
+	u16 rqt_size;
+	u16 size;
+	u16 cidx;
+	u16 pidx;
+	u16 wq_pidx;
+	u16 wq_pidx_inc;
+	u16 in_use;
+	struct t4_srq_pending_wr *pending_wrs;
+	u16 pending_cidx;
+	u16 pending_pidx;
+	u16 pending_in_use;
+	u16 ooo_count;
 };
 
 static inline int t4_rqes_posted(struct t4_wq *wq)
