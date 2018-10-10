@@ -338,6 +338,7 @@ static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 	 */
 	max_physical_pkg_id = DIV_ROUND_UP(MAX_LOCAL_APIC, ncpus);
 
+#ifdef CONFIG_XEN_PVHVM
 	if (x86_hyper == &x86_hyper_xen_hvm) {
 		/*
 		 * RHEL-only. Each logical package has not more than
@@ -348,6 +349,7 @@ static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 		 */
 		__max_logical_packages = min(max_physical_pkg_id, total_cpus);
 	}
+#endif
 
 	size = max_physical_pkg_id * sizeof(unsigned int);
 	physical_to_logical_pkg = kmalloc(size, GFP_KERNEL);
