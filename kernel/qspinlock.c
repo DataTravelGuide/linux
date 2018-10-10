@@ -322,7 +322,9 @@ EXPORT_SYMBOL(queued_spin_unlock_wait);
  */
 static int __init queued_enable_pv_ticketlock(void)
 {
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
 	static_key_slow_inc(&paravirt_ticketlocks_enabled);
+#endif
 	return 0;
 }
 pure_initcall(queued_enable_pv_ticketlock);
