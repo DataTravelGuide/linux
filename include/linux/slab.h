@@ -339,7 +339,9 @@ struct memcg_cache_params {
 			struct mem_cgroup *memcg;
 			struct list_head list;
 			struct kmem_cache *root_cache;
+			RH_KABI_DEPRECATE(bool, dead)
 			atomic_t nr_pages;
+			RH_KABI_DEPRECATE(struct work_struct, destroy)
 		};
 	};
 };

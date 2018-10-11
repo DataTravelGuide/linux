@@ -47,7 +47,6 @@ struct ceph_options {
 	unsigned long mount_timeout;		/* jiffies */
 	unsigned long osd_idle_ttl;		/* jiffies */
 	unsigned long osd_keepalive_timeout;	/* jiffies */
-	unsigned long osd_request_timeout;	/* jiffies */
 
 	/*
 	 * any type that can't be simply compared or doesn't need need
@@ -60,6 +59,7 @@ struct ceph_options {
 	int num_mon;
 	char *name;
 	struct ceph_crypto_key *key;
+	RH_KABI_EXTEND(unsigned long osd_request_timeout)	/* jiffies */
 };
 
 /*
@@ -141,7 +141,7 @@ struct ceph_client {
 	struct dentry *debugfs_monmap;
 	struct dentry *debugfs_osdmap;
 	struct dentry *debugfs_options;
-	struct dentry *debugfs_osd_req_timeout;
+	RH_KABI_EXTEND(struct dentry *debugfs_osd_req_timeout)
 #endif
 };
 

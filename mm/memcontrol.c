@@ -357,6 +357,7 @@ struct mem_cgroup {
 	/* analogous to slab_common's slab_caches list, but per-memcg;
 	 * protected by memcg_slab_mutex */
 	struct list_head memcg_slab_caches;
+	RH_KABI_DEPRECATE(struct mutex, slab_caches_mutex)
         /* Index in the kmem_cache->memcg_params->memcg_caches array */
 	int kmemcg_id;
 #endif

@@ -1744,10 +1744,6 @@ struct task_struct {
 #if !defined(CONFIG_S390) && defined(CONFIG_UPROBES)
 	struct uprobe_task *utask;
 #endif
-#if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
-	unsigned int	sequential_io;
-	unsigned int	sequential_io_avg;
-#endif
 
 	/* reserved for Red Hat */
 #ifdef CONFIG_DETECT_HUNG_TASK
@@ -1805,6 +1801,10 @@ struct task_struct {
 	struct sched_statistics statistics;
 	struct wake_q_node wake_q;
 	struct prev_cputime prev_cputime;
+#if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
+	unsigned int	sequential_io;
+	unsigned int	sequential_io_avg;
+#endif
 #endif /* __GENKSYMS__ */
 };
 
