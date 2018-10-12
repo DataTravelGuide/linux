@@ -410,157 +410,10 @@ out:
 	sdkp->zone_blocks = zone_blocks;
 	sdkp->zone_shift = ilog2(zone_blocks);
 
-/**
- * sd_zbc_alloc_zone_bitmap - Allocate a zone bitmap (one bit per zone).
- * @nr_zones: Number of zones to allocate space for.
- * @numa_node: NUMA node to allocate the memory from.
- */
-static inline unsigned long *
-sd_zbc_alloc_zone_bitmap(u32 nr_zones, int numa_node)
-{
-	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
-			    GFP_KERNEL, numa_node);
-}
-
-/**
- * sd_zbc_get_seq_zones - Parse report zones reply to identify sequential zones
- * @sdkp: disk used
- * @buf: report reply buffer
- * @buflen: length of @buf
- * @zone_shift: logarithm base 2 of the number of blocks in a zone
- * @seq_zones_bitmap: bitmap of sequential zones to set
- *
- * Parse reported zone descriptors in @buf to identify sequential zones and
- * set the reported zone bit in @seq_zones_bitmap accordingly.
- * Since read-only and offline zones cannot be written, do not
- * mark them as sequential in the bitmap.
- * Return the LBA after the last zone reported.
- */
-static sector_t sd_zbc_get_seq_zones(struct scsi_disk *sdkp, unsigned char *buf,
-				     unsigned int buflen, u32 zone_shift,
-				     unsigned long *seq_zones_bitmap)
-{
-	sector_t lba, next_lba = sdkp->capacity;
-	unsigned int buf_len, list_length;
-	unsigned char *rec;
-	u8 type, cond;
-
-	list_length = get_unaligned_be32(&buf[0]) + 64;
-	buf_len = min(list_length, buflen);
-	rec = buf + 64;
-
-	while (rec < buf + buf_len) {
-		type = rec[0] & 0x0f;
-		cond = (rec[1] >> 4) & 0xf;
-		lba = get_unaligned_be64(&rec[16]);
-		if (type != ZBC_ZONE_TYPE_CONV &&
-		    cond != ZBC_ZONE_COND_READONLY &&
-		    cond != ZBC_ZONE_COND_OFFLINE)
-			set_bit(lba >> zone_shift, seq_zones_bitmap);
-		next_lba = lba + get_unaligned_be64(&rec[8]);
-		rec += 64;
-	}
-
-	return next_lba;
-}
-
-/**
- * sd_zbc_setup_seq_zones_bitmap - Initialize a seq zone bitmap.
- * @sdkp: target disk
- * @zone_shift: logarithm base 2 of the number of blocks in a zone
- * @nr_zones: number of zones to set up a seq zone bitmap for
- *
- * Allocate a zone bitmap and initialize it by identifying sequential zones.
- */
-static unsigned long *
-sd_zbc_setup_seq_zones_bitmap(struct scsi_disk *sdkp, u32 zone_shift,
-			      u32 nr_zones)
-{
-	struct request_queue *q = sdkp->disk->queue;
-	unsigned long *seq_zones_bitmap;
-	sector_t lba = 0;
-	unsigned char *buf;
-	int ret = -ENOMEM;
-
-	seq_zones_bitmap = sd_zbc_alloc_zone_bitmap(nr_zones, q->node);
-	if (!seq_zones_bitmap)
-		return ERR_PTR(-ENOMEM);
-
-	buf = kmalloc(SD_ZBC_BUF_SIZE, GFP_KERNEL);
-	if (!buf)
-		goto out;
-
-	while (lba < sdkp->capacity) {
-		ret = sd_zbc_do_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE, lba,
-					     true);
-		if (ret)
-			goto out;
-		lba = sd_zbc_get_seq_zones(sdkp, buf, SD_ZBC_BUF_SIZE,
-					   zone_shift, seq_zones_bitmap);
-	}
-
-	if (lba != sdkp->capacity) {
-		/* Something went wrong */
-		ret = -EIO;
-	}
-
-out:
-	kfree(buf);
-	if (ret) {
-		kfree(seq_zones_bitmap);
-		return ERR_PTR(ret);
-	}
-	return seq_zones_bitmap;
-}
-
-static void sd_zbc_cleanup(struct scsi_disk *sdkp)
-{
-	struct request_queue *q = sdkp->disk->queue;
-
-	kfree(q->seq_zones_bitmap);
-	q->seq_zones_bitmap = NULL;
-
-	kfree(q->seq_zones_wlock);
-	q->seq_zones_wlock = NULL;
-
-	q->nr_zones = 0;
-}
-
-static int sd_zbc_setup(struct scsi_disk *sdkp, u32 zone_blocks)
-{
-	struct request_queue *q = sdkp->disk->queue;
-	u32 zone_shift = ilog2(zone_blocks);
-	u32 nr_zones;
-	int ret;
-
-	/* READ16/WRITE16 is mandatory for ZBC disks */
-	sdkp->device->use_16_for_rw = 1;
-	sdkp->device->use_10_for_rw = 0;
-
-	/* chunk_sectors indicates the zone size */
-	blk_queue_chunk_sectors(sdkp->disk->queue,
-			logical_to_sectors(sdkp->device, sdkp->zone_blocks));
-	sdkp->nr_zones = sdkp->capacity >> sdkp->zone_shift;
-	if (sdkp->capacity & (sdkp->zone_blocks - 1))
-		sdkp->nr_zones++;
-
-	if (!sdkp->zones_wlock) {
-		sdkp->zones_wlock = kcalloc(BITS_TO_LONGS(sdkp->nr_zones),
-					    sizeof(unsigned long),
-					    GFP_KERNEL);
-		if (!sdkp->zones_wlock)
-			return -ENOMEM;
-	}
-
-	return 0;
-
-err:
-	sd_zbc_cleanup(sdkp);
-	return ret;
-}
-
 int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 {
+	struct gendisk *disk = sdkp->disk;
+	unsigned int nr_zones;
 	u32 zone_blocks;
 	int ret;
 
@@ -585,22 +438,37 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 		goto err;
 
 	/* The drive satisfies the kernel restrictions: set it up */
-	ret = sd_zbc_setup(sdkp, zone_blocks);
-	if (ret)
-		goto err;
+	blk_queue_chunk_sectors(sdkp->disk->queue,
+			logical_to_sectors(sdkp->device, zone_blocks));
+	nr_zones = round_up(sdkp->capacity, zone_blocks) >> ilog2(zone_blocks);
+
+	/* READ16/WRITE16 is mandatory for ZBC disks */
+	sdkp->device->use_16_for_rw = 1;
+	sdkp->device->use_10_for_rw = 0;
+
+	/*
+	 * If something changed, revalidate the disk zone bitmaps once we have
+	 * the capacity, that is on the second revalidate execution during disk
+	 * scan and always during normal revalidate.
+	 */
+	if (sdkp->first_scan)
+		return 0;
+	if (sdkp->zone_blocks != zone_blocks ||
+	    sdkp->nr_zones != nr_zones ||
+	    disk->queue->nr_zones != nr_zones) {
+		ret = blk_revalidate_disk_zones(disk);
+		if (ret != 0)
+			goto err;
+		sdkp->zone_blocks = zone_blocks;
+		sdkp->nr_zones = nr_zones;
+	}
 
 	return 0;
 
 err:
 	sdkp->capacity = 0;
-	sd_zbc_cleanup(sdkp);
 
 	return ret;
-}
-
-void sd_zbc_remove(struct scsi_disk *sdkp)
-{
-	sd_zbc_cleanup(sdkp);
 }
 
 void sd_zbc_print_zones(struct scsi_disk *sdkp)
