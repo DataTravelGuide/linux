@@ -4082,8 +4082,7 @@ xfs_bmapi_allocate(
 	 * extents to real extents when we're about to write the data.
 	 */
 	if ((!bma->wasdel || (bma->flags & XFS_BMAPI_COWFORK)) &&
-	    (bma->flags & XFS_BMAPI_PREALLOC) &&
-	    xfs_sb_version_hasextflgbit(&mp->m_sb))
+	    (bma->flags & XFS_BMAPI_PREALLOC))
 		bma->got.br_state = XFS_EXT_UNWRITTEN;
 
 	if (bma->wasdel)
@@ -5247,8 +5246,7 @@ __xfs_bunmapi(
 			 * unmapping part of it.  But we can't really
 			 * get rid of part of a realtime extent.
 			 */
-			if (del.br_state == XFS_EXT_UNWRITTEN ||
-			    !xfs_sb_version_hasextflgbit(&mp->m_sb)) {
+			if (del.br_state == XFS_EXT_UNWRITTEN) {
 				/*
 				 * This piece is unwritten, or we're not
 				 * using unwritten extents.  Skip over it.
@@ -5298,10 +5296,9 @@ __xfs_bunmapi(
 				del.br_blockcount -= mod;
 				del.br_startoff += mod;
 				del.br_startblock += mod;
-			} else if ((del.br_startoff == start &&
-				    (del.br_state == XFS_EXT_UNWRITTEN ||
-				     tp->t_blk_res == 0)) ||
-				   !xfs_sb_version_hasextflgbit(&mp->m_sb)) {
+			} else if (del.br_startoff == start &&
+				   (del.br_state == XFS_EXT_UNWRITTEN ||
+				    tp->t_blk_res == 0)) {
 				/*
 				 * Can't make it unwritten.  There isn't
 				 * a full extent here so just skip it.
@@ -6116,11 +6113,7 @@ xfs_bmap_validate_extent(
 		    XFS_FSB_TO_AGNO(mp, endfsb))
 			return __this_address;
 	}
-	if (irec->br_state != XFS_EXT_NORM) {
-		if (whichfork != XFS_DATA_FORK)
-			return __this_address;
-		if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
-			return __this_address;
-	}
+	if (irec->br_state != XFS_EXT_NORM && whichfork != XFS_DATA_FORK)
+		return __this_address;
 	return NULL;
 }
