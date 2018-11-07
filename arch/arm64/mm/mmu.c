@@ -646,16 +646,10 @@ void __init paging_init(void)
 	memcpy(swapper_pg_dir, pgdp, PGD_SIZE);
 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 
-	pgd_clear_fixmap();
-	memblock_free(pgd_phys, PAGE_SIZE);
+	memblock_free(__pa_symbol(init_pg_dir),
+		      __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
 
-	/*
-	 * We only reuse the PGD from the swapper_pg_dir, not the pud + pmd
-	 * allocated with it.
-	 */
-	memblock_free(__pa_symbol(swapper_pg_dir) + PAGE_SIZE,
-		      __pa_symbol(swapper_pg_end) - __pa_symbol(swapper_pg_dir)
-		      - PAGE_SIZE);
+	memblock_allow_resize();
 }
 
 /*
