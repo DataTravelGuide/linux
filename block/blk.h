@@ -239,26 +239,6 @@ void blk_account_io_completion(struct request *req, unsigned int bytes);
 void blk_account_io_done(struct request *req, u64 now);
 
 /*
- * EH timer and IO completion will both attempt to 'grab' the request, make
- * sure that only one of them succeeds. Steal the bottom bit of the
- * __deadline field for this.
- */
-static inline int blk_mark_rq_complete(struct request *rq)
-{
-	return test_and_set_bit(0, &rq->__deadline);
-}
-
-static inline void blk_clear_rq_complete(struct request *rq)
-{
-	clear_bit(0, &rq->__deadline);
-}
-
-static inline bool blk_rq_is_complete(struct request *rq)
-{
-	return test_bit(0, &rq->__deadline);
-}
-
-/*
  * Internal elevator interface
  */
 #define ELV_ON_HASH(rq) ((rq)->rq_flags & RQF_HASHED)
@@ -320,31 +300,6 @@ static inline void req_set_nomerge(struct request_queue *q, struct request *req)
 	req->cmd_flags |= REQ_NOMERGE;
 	if (req == q->last_merge)
 		q->last_merge = NULL;
-}
-
-/*
- * Steal a bit from this field for legacy IO path atomic IO marking. Note that
- * setting the deadline clears the bottom bit, potentially clearing the
- * completed bit. The user has to be OK with this (current ones are fine).
- */
-static inline void blk_rq_set_deadline(struct request *rq, unsigned long time)
-{
-	rq->__deadline = time & ~0x1UL;
-}
-
-static inline unsigned long blk_rq_deadline(struct request *rq)
-{
-	return rq->__deadline & ~0x1UL;
-}
-
-/*
- * The max size one bio can handle is UINT_MAX becasue bvec_iter.bi_size
- * is defined as 'unsigned int', meantime it has to aligned to with logical
- * block size which is the minimum accepted unit by hardware.
- */
-static inline unsigned int bio_allowed_max_sectors(struct request_queue *q)
-{
-	return round_down(UINT_MAX, queue_logical_block_size(q)) >> 9;
 }
 
 /*
