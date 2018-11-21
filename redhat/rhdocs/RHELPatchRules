@@ -1,0 +1,797 @@
+********************************************************************************
+
+For a "quick" view of the rules for patching, please execute
+
+	grep -e '\[Suggested\]' -e '\[Required\]' RHELPatchRules
+
+********************************************************************************
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+This document is not set in stone.  It is a living document and as kernel
+circumstances change, this document and the requirements for submitting a patch
+may change as well.  It is only an attempt at gathering the _current_ patch
+posting requirements for the Red Hat Kernel Mailing List (RHKL).
+
+The maintainers will make mention of such changes on RHKL in a timely manner.
+
+If you have any questions or concerns about this document, please email RHKL.
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+These are the Red Hat Kernel Engineering Guidelines and 'Best Practices' for
+submitting patches to RHKL.  Following these instructions will reduce the
+number of questions from reviewers and the maintainers about your patches.  As
+always, if you have questions about this document or the procedure used to post
+a patch to RHKL, please ask on RHKL or ask a maintainer.
+
+Following upstream kernel patch rules will satisfy the general construction of
+patches, but there are additional rules specific to Red Hat to assist in patch
+tracking, accounting, and reviewing.  Following the upstream process is
+generally safe, unless a difference is documented here.
+
+This document assumes that the reader is comfortable with the concepts of
+git, patch generation, and has a general knowledge of the upstream linux.git's
+Documentation/SubmittingPatches.  The explanation of these concepts is not
+within the scope of this document.
+
+The following is an example of a complete RHKL patch submission.  The first
+column lists the sections below which describe in detail what is needed:
+
+      / From: Joe Developer <joed@redhat.com>
+[I]--|  To: Red Hat Kernel <rhkernel-list@redhat.com>
+      \ Date: Thu, 16 Feb 2012 16:10:05 -0500
+[II]--  Subject: [RHELX.Y] subsystem: nice summary of what was fixed
+
+      / Bugzilla: <bugzilla reference or INTERNAL>
+   __|  Upstream Status: <upstream status>
+[III]|  Build Info: <brew build reference or cross-compiler output>
+     |  Tested: <testing data>
+     |  Depends: <bugzilla reference if required>
+      \ Conflicts: <optional, if required>
+
+      / commit 7fff4beb311dfab4f18ff2cd64f78scd9296a39a
+     |  Author: John Upstream <john.upstream@someupstreamplace.com>
+     |  Date:   Mon Mar 28 14:29:19 2011 -0700
+     |
+     |      subsystem: include missing kernel.h header to fix compile
+     |
+   __|      This is needed to compile this module.  It was missing from
+[IV] |      the original commit.
+     |
+     |      Signed-off-by: John Upstream <john.upstream@someupstreamplace.com>
+      \     Signed-off-by: Jane Upstream <jane@someotherplaceupstream.com>
+
+      / ---
+[V]--|   drivers/upstream/upstream.c |   1 +
+      \  1 files changed, 1 insertions(+)
+
+      / diff --git a/drivers/upstream/upstream.c b/drivers/upstream/upstream.c
+     |  index 833f49f..0b26a23 100644
+     |  --- a/drivers/upstream/upstream.c
+     |  +++ b/drivers/upstream/upstream.c
+     |  @@ -48,6 +48,7 @@
+   __|   #include <linux/init.h>
+[VI] |   #include <linux/jiffies.h>
+     |   #include <linux/uaccess.h>
+     |  +#include <linux/kernel.h>
+     |
+     |  --
+      \ 1.7.7.6
+
+================================================================================
+
+Introduction
+------------
+
+Red Hat Kernel Engineering has grown significantly over the years, and the
+number of patches being posted on RHKL has grown proportionally.  It has become
+impossible to manually track the large number of patches posted to RHKL, so the
+kernel maintainers developed a sophisticated toolset that allows for full
+auditing of how customer issues were resolved, and how patches from those
+customer issues got into the RHEL kernel trees.
+
+The toolset tracks all email posted to RHKL, including all patches, the review
+of those patches, and any conversation ever carried on via email on RHKL, even
+if there is no patch directly attached to it.  The maintainers are accountable
+for being able to identify who posted a given patch, who reviewed the patch,
+and why the patch was committed in the official tree (including the build it
+was first included in, what testing was done with the patch, and what bugzilla
+or bugzillas it resolves).  The bulk of this information is centrally stored in
+a patch tracking database (patchwork), but the need to collect all this data
+for each and every patch necessitates certain patch posting requirements to
+function smoothly with the toolset.
+
+Please note that the maintainers have written the toolset so that the actual
+execution of the rules is purposely kept flexible in order to allow for
+significant differences in the way authors create their patches.
+
+The following sections provide the format that developers should follow in order
+to help both engineers review patches and maintainers process patches as
+quickly and as efficiently as possible.
+
+
+I.  MAIL HEADERS
+----------------
+
+For security reasons, only send emails from your Red Hat account, and only cc
+addresses within redhat.com.
+
+[Required] In general, patches must be sent to rhkernel-list@redhat.com.
+
+All patches need to be sent to rhkernel-list@redhat.com, commonly known as RHKL,
+to be tracked and applied.
+
+Patches that are security sensitive, or patches that should be limited to a Red
+Hat only audience must be sent to rhkernel-team-list@redhat.com *only*.  This
+includes restricted access (embargoed) patches.
+
+[Required] Security patches must be sent to rhkernel-team-list@redhat.com.
+[Required] Embargoed patches must be sent to rhkernel-team-list@redhat.com.
+
+Patches not sent to either of these two lists will not be reviewed or committed
+to RHEL trees.
+
+
+II.  SUBJECT LINE
+-----------------
+
+The subject line consists of two pieces.  The first is information enclosed
+in a set of square brackets ([]), and the information that follows outside
+of those brackets. Both sections contain information vital to a patch being
+properly reviewed and committed to the RHEL kernel.
+
+a) Information in []s
+
+   Anything in []s is stripped by the maintainers' tools and will not be seen
+outside of the Red Hat git trees.  However, note that the original full subject
+will be retained within the body of the patch commit message in the git trees.
+
+[Required] Each patch subject starts with "[RHELX]".
+
+    This information must include 'RHELX'.  This part determines which
+maintainer needs to track the patch.  If there is no RHEL release information,
+the patch will not be filtered into any of the maintainers' patch queues, and
+risks going unnoticed.
+
+[Suggested] Alternatively, each patch subject can start with "[RHELX.Y]".
+
+    Including the Y release information can be useful to both the reviewers
+and maintainers if the patch is targetted for a later release.  The current
+in-development release is considered to be the target release if no Y is
+provided.
+
+[Optional] The subject line can include the PATCH keyword in the []s.
+
+    The 'PATCH' keyword is ignored by the maintainers' scripts and its
+inclusion in the brackets in the subject is solely at the discretion of the
+patch submitter.
+
+[Suggested] The subject line can include a bugzilla number in the []s.
+
+    Some reviewers appreciate it if the bugzilla number is included in the
+brackets for easy lookup on the high volume RHKL list.  Bugzilla numbers
+included outside the []s will need to be manually removed by the maintainers to
+ensure a sane changelog entry, and are thus discouraged.  Listing multiple
+bugzillas on the subject line is not recommended as the subject line size is
+limited by most email programs.
+
+[Required] Patchsets include X/Y series numbers inside the leading []s.
+
+    For patchsets, all patch series numbers, X/Y, and version info are expected
+to be inside []s.  ex) [RHEL7 2/3]
+
+b) Information not in []s
+
+    The information outside of the brackets is copied directly to the RPM
+changelog and other _public_ places.  Please think about the risk of exposure
+before including information.  The exception is 0/X patch series cover letters
+which are currently not included in the git tree or changelog.
+
+[Required] The subject of the patch describes what the patch does.
+
+    In general, use <arch,subsystem>: <summary> as the format of the subject
+line.  Copying upstream commit subject lines is acceptable and commonplace;
+however, the patch summary should attempt to capture what the patch does and
+not what the patch fixes.  Not all upstream summaries are sufficient.
+
+    Anything not in []s will have to be _manually_ edited and/or removed by
+maintainers if it does not conform to these guidelines.  The maintainers
+do not like to manually edit patches because it requires a significant effort
+to modify information.
+
+[Required] Each patch in a patchset has a unique subject line.
+
+    Every patch in a patchset must have a unique subject line that identifies
+it from other patches.  Duplicate subject lines usually causes confusion for
+reviewers and maintainers alike.
+
+[Suggested] A [0/X] patch is usually only required if X > 1.
+
+    As is the case with upstream, a patchset should have a [0/X] patch, or
+cover letter patch, that contains a descriptive explanation of the entire
+series of patches.
+
+Some good examples of subject lines)
+
+	Subject: [RHEL7] x86: rework mtrr code
+	Subject: [RHEL7] x86, irq: support ioapic device hotplug for x86
+	Subject: [RHEL7.2] pci: restore locking in pci_func()
+	Subject: [RHEL7.2 BZ 732411 3/4] x86: rework mtrr code
+	Subject: [RHEL7 BZ 732411 ab234e 3/4] x86: rework mtrr code
+	Subject: [RHEL7.2 BZ 732411 v2] x86: rework mtrr code
+	Subject: [RHEL7 BZ 732411] [v2] pci: restore locking in pci_func()
+	Subject: [RHEL7 BZ 732411 3/4] x86: rework mtrr code [v2]
+
+Note in the last two examples, that it is possible to have multiple sets of
+brackets.
+
+Some bad examples of subject lines)
+
+	Subject: x86, rework mtrr code
+	Subject: x86, RHEL7 PATCH rework mtrr code
+	Subject: [PATCH] RHEL7 pci, restore locking in pci_func()
+	Subject: [RHEL7 BZ 732441 3/4]: ab234e x86, rework mtrr code
+	Subject: [PATCH] fix panic on ia64
+	Subject: [RHEL7.2 BZ 732411] Fixes Ubuntu panic
+	Subject: [RHEL7.2 BZ 732411] Merge upstream branch foo of tree ba
+
+Note in the last two examples that the subject line is a copy of the upstream
+commit message, however, the upstream commit message does not adequately
+describe the affect of the patch.  These types of patch descriptions should
+be edited to include a better description of what the patch is actually
+resolving rather than what the upstream commit is.
+
+
+III.  RED HAT METADATA
+----------------------
+
+To handle the volume of requests by customers and the large number of patches
+posted on RHKL, a small amount of metadata is necessary to assist in
+integrating the patch into official kernel release.  There is no requirement
+on where the metadata needs to be, though in general it is suggested that the
+metadata be near the top of the body so it does not conflict with similar
+looking metadata from the upstream text.  The metadata section consists of
+four parts:
+
+a) Bugzilla:
+[Required] Each patch has at least one bugzilla number in the body or subject.
+
+    Patches that modify or add to publicly released code and are lacking a
+bugzilla number will not be committed and will be immediately flagged by the
+maintainers.  Every patch needs to be coordinated with management and QE, and
+this is done through bugzilla flags.  If the qa_ack, pm_ack, and devel_ack
+flags are set on a bugzilla, then and only then, will the patch be considered
+for inclusion into the trees by the maintainers.   Additionally, the bugzilla
+number can potentially give the reviewer more details about the reported
+problem the patch is addressing.
+
+    A bugzilla is not required for patches that change redhat code or
+documents that will not be released to the public.  In those cases use INTERNAL
+as the BZ number.
+
+    Patches can list multiple bugzilla numbers in the body if the patch fixes
+or is part of the fix for multiple bugs.  All bugzillas must must have
+appropriate flags before the patch can be committed.  In patchsets, it is
+preferred that bugs are listed only in the patches relevant to the bug, for
+both changelog clarity and for the benefit of Engineering teams work on
+z-stream kernels.
+
+Good examples for bugzilla numbers in the body:
+
+	BZ 783023 (this is also the preferred subject line format)
+	Bug 783023
+	Bugzilla: 783023
+	Fixes BZ 789023
+	Resolves BZ 783023
+	Resolves: bz783023
+	Fixes bug #783023 and bug #911911
+	https://bugzilla.redhat.com/show_bug.cgi?id=783023
+	Bugzilla: INTERNAL
+
+b) Upstream Status:
+[Required] A mention of where the patch(es) came from.
+
+    Reviewers and maintainers need to know where a patch is coming from.
+We follow the upstream-first rule, so most patches should have a linux.git
+sha1 number.  We also have automatic tools that parse patch descriptions
+and need to connect the backported patch to its upstream counterpart. For
+this reason, the format of the upstream reference is strict.
+
+[Required] The upstream sha1 number must be referenced using one of these
+two formats (pick one that suits better your workflow):
+
+commit <full sha1 hash>
+(cherry picked from commit <full sha1 hash>)
+
+    Note that it starts at the first column (no whitespace at front is
+allowed) and is followed by new line.  To be precise, the following Perl
+regex must be able to match:
+
+	^commit [0-9a-f]{40}$|^\(cherry picked from commit [0-9a-f]{40}\)$
+
+    The upstream reference may be put anywhere in the patch description; in
+particular, either of 'git cherry-pick -x' and 'git show' output for the
+upstream commit satisfies this requirement.
+
+[Required] If not linux.git, include location of where the patch came from.
+
+    Linus' linux.git is considered to be the tree referred to when the term
+"upstream" is used.  If the patch is not in the linux.git tree, please specify
+which tree the patch came from, a URL to the patch posting on a mailing list,
+or explain why the patch is unique to RHEL.
+
+    If a complete URL for the source git tree is not provided, then
+'git.kernel.org/pub/scm' is assumed to be the location of the git tree being
+referenced.  Since there are many trees with the same name on sites like
+kernel.org and github.org, care should be taken to reference a particular tree.
+
+    Patch tracking is useful for Engineering teams monitoring current,
+future, and update releases, therefore patches that are not in an upstream tree
+and are unique to RHEL must have upstream status in the format "RHELX.Y.Z
+only".  "RHEL only" must be used for patches that must be applied to future
+versions of RHEL.  Patches that will only be applied to a specific major
+release must have status "RHELX only" and, patches in a minor release that are
+temporary workarounds must be specified in the format "RHELX.Y only".
+Temporary workaround patches can also include additional information about
+future work in parenthesis.  Unique z-stream fixes must be specified with
+upstream status as "RHELX.Y.Z only".
+
+Good examples of Upstream Status for patches that are not in Linux' linux.git:
+
+	Upstream Status: https://github.com/prarit/kernel-tree.git
+	Upstream Status: kernel/git/davem/net-next.git
+	Upstream Status: RHEL only
+	Upstream Status: RHEL7 only
+	Upstream Status: RHEL8.1 only (to be removed in BZ 123456)
+
+c) Build info:
+[Required] The patch(es) must compile on all architectures.
+
+    Patches are expected to compile on all architectures.  To ensure this,
+developers are expected to put their patches through the brew build system or
+cross compile them prior to patch posting, and should include a reference to
+the build job in their patch submission.  The maintainers build kernels
+containing many patchsets, and compile failures require them to identify and
+revert offending patches.  Ensuring that patches compile before submission
+reduces maintainer time and effort required to identify patches that break the
+build, and reduces delays delivering builds that may contain urgent fixes.
+
+    Submitting broken patches is rare but if you do *you will be singled out
+on RHKL*, which is never a good thing :-)
+
+    For information on brew, see the Brew HOWTO at
+
+	https://mojo.redhat.com/docs/DOC-1071519
+
+    For information on cross-compiling see the mini-FAQ at the end of this
+document.
+
+d) Test:
+[Required] A comment on how you or the customer tested the patch(es).
+
+    Always describe how the patch was tested.  A detailed explanation is not
+required, but may be requested by some reviewers.  Reviewers will reject a
+patch if they think it has not been adequately tested.
+
+    Relying on customer (or partner) testing and results is common and
+acceptable, provided the test environment is known to adequately test a patch.
+
+[Suggested] Build and testing status can be stated only in a 0/X cover letter.
+
+For patchsets, the build and testing status can be mentioned a single time in
+the cover letter.
+
+e) Depends:
+[Required] List bugzillas for uncommitted patchset dependencies.
+
+    If the submitted patch depends on a uncommitted patchsets include a
+reference to the uncommitted patchsets bugzillas.
+
+    Please use one 'Depends' line per dependent patch series.
+
+    Follow the above 'Bugzilla' guidelines for suggested bugzilla lines.
+
+    This can be added in the cover letter.
+
+e) Conflicts:
+[Suggested] A short explanation of how the patch differs from upstream.
+
+    If the submitted patch differs from the original upstream patch, a
+short description of those changes should be included to aid reviewers in
+understanding those specific changes.
+
+IV.  CHANGELOG
+--------------
+[Required] A detailed changelog (commit message) for each patch is required.
+
+    A detailed changelog is expected and required.  The maintainers and
+reviewers do not allow empty commits.
+
+    The body of the message should reflect the work completed.  The body
+_can_ include a copy of the upstream commit message, or it can be rewritten
+if the message is found to be lacking detail.  In general, including the
+original upstream commit message is preferred.
+
+    Reviewers prefer to have the _entire_ commit message as it is upstream.
+This includes sign-offs.  'git show'-style indentation of the original upstream
+commit message helps distinguish the commit message from any additional
+comments that are added.  Some reviewers use the upstream commit message and
+sign-off details as a measure of how reliable a patch is.
+
+    Do not include local commit IDs in patch submissions.  These only confuse
+reviewers, as reviewers don't have access to the originating trees.  Patches
+that include local commit IDs will be rejected.
+
+    Currently, patchset cover letters do not make it into any git tree or
+official build, so it is important to keep the relevant pieces of information
+in the patches.
+
+    The maintainers understand that conflicts with other patches will happen.
+When possible, please coordinate with others before posting.  If a patch
+has an explicit dependency on another patch, please include that dependency in
+the changelog so the maintainers can coordinate their integration properly.
+Make sure all dependent patches are posted _before_ posting a patch.
+
+V.  DIFFSTAT
+------------
+
+[Suggested] A diffstat can be included.
+
+    Reviewers prefer that diffstats are included with patches.  This aids a
+reviewer in quickly understanding what code has changed.  The git command,
+git-format-patch, automatically includes diffstats.
+
+VI.  THE PATCH
+--------------
+[Required] The patch(es) must apply cleanly via 'patch -p1'
+
+    In general, it is preferred that patches are generated from the internal
+git tree.  However, there are several ways to generate a patch, all of which
+are acceptable.
+
+Some of the common approaches to generating a patch are:
+
+	diff -Naurp
+	quilt diff
+	git diff
+	git show
+	git format-patch
+	cvs diff [effectively deprecated]
+
+    The patch must apply cleanly, with no fuzz on a recent internal kernel
+build.  If this is not the case, the patch will be rejected by reviewers and
+maintainers.
+
+[Required] Do not enable unsupported functionality
+
+    In order to avoid customers requesting support for features that Red Hat is
+not prepared to support, code changes must not inadvertently enable features or
+functionality unless expressly stated in the approved bugzilla for which the
+code change is being made.
+
+    Postings of large firmware patches will be rejected by the list server.
+Instead of posting the full firmware patch, a "stub" patch with a valid patch
+description, the sha1sum of the patch, and a URL of the patch should be posted
+to RHKL.  The maintainers request that the URL provided be fetchable via wget.
+During the review process, the maintainer will upload the patch into patchwork.
+
+It is imperative that firmware stub patches be single patches and not as part
+of a patch series, and not as a reply to another posting on RHKL.  Patchwork
+will treat a mail without a patch in reply to another email as a comment
+related to the thread it is in reply to, not as a new empty patch.
+
+
+VII.  FAQs
+----------
+
+1. Do we support git pull requests?
+
+Submaintainers are asking for this.  The short answer: Not Yet.
+
+We're working on it.  We've allowed some groups to set up submaintainer trees,
+but they still must post everything onto RHKL and go through the standard
+review process.  As we expand we will have to come up with some sort of
+git-pull mechanism; however, the infrastructure (patch accounting) is not ready
+yet.  It is a general consensus amongst the maintainers that eventually
+git-pull will become a standard for patch acceptance within Red Hat.  However,
+git-pull requests to RHKL will only be allowed by tree submaintainers.
+
+2. Inline vs. attachment?
+
+[Required] The patch must be inline in emails.  Do not attach patches.
+
+Include the patch INLINE, not as an attachment.  This is a requirement
+upstream and makes the patch reviewing process much easier.  Adding an
+attachment requires some reviewers to have to go through a few extra steps to
+view your patch, and it makes commenting inline on code in the patch more
+difficult.
+
+3. The maintainer doesn't like my patch?  What should I do?
+
+The maintainers typically only ask for extra information or a new patchset
+when they need clarification on a patchset.  If you find yourself in this
+situation, please keep in mind that they've exhausted all other approaches
+before requesting additional information from you.
+
+4.  I noticed a mistake in my patch submission.  What should I do?  Should I
+just post a [v2]?
+
+For informational errors, such as an error in the subject, or an error with
+the metadata, a simple reply to the original submission is welcomed by the
+maintainers. Minor edits to patches are preferred over the additional work
+required to supersede one patch with another, reacquire acks, etc.
+
+For example, if the bugzilla number was wrong you can simply reply to the
+original email with "The bugzilla number should be XXXXXX".
+
+[Required] When reposting a patch, the version number should be in the subject.
+
+When reposting a patch, however, a new version number must be in the subject of
+your email.  You can simply add a [v2] to the subject line to indicate a new
+patch.  If the patch is part of a series, please only repost the patch or
+patches that have actually changed from your prior submission.  This decreases
+the amount of traffic on RHKL, and makes patch tracking easier for the
+maintainers.
+
+[Suggested] run rh_get_maintainer.pl and cc all reviewers on all patches
+
+When submitting or resubmitting a patch for review,
+redhat/scripts/rh_get_rhmaintainer.pl should be run to get a list of reviewers
+that should be cc'd on the patch submission. When reposting a patch it is
+useful for reviewers to be cc'd on new versions of patches.  This alerts
+reviewers that a new patch is available for review.
+
+5. Do I have to break up my patches into individual commits?  Can I use
+large monolithic patches?  What's the rule about this stuff?  Are there any
+benefits to a broken out patchset versus a monolithic patch?
+
+There is no steadfast rule on patch granularity on RHKL.  Every situation is
+unique so we request you do what you think is best for your reviewers.
+
+_IN GENERAL_, the consensus amongst reviewers appears to be that patch sets
+are submitted as one patch per upstream commit because this makes patchsets
+easier to compare to upstream.  Having said that, it is understood that one
+size does not fit all situations.  Patchsets greater than 100 patches can be
+collapsed into a single monolithic patch *if your workflow permits it and,
+more importantly, your common reviewers will accept it in that format*.
+
+There are some issues you should consider before submitting a monolithic patch.
+A monolithic patch obviously decreases the bisectability of the code, which in
+turn leads to a problem for SEG (Support Engineering Group), who may have to
+look at your patch if bugs are reported against that driver or subsystem.  In
+most cases, this will result in the problem being escalated back to you for
+further analysis, whereas in the case of a broken out patchset it is possible
+SEG may have narrowed down the faulty patch for you.  Additionally, monolithic
+patches lead to decreased independent understanding of your driver or
+subsystem for those engineers who are outside the set of your normal reviewers.
+
+Similar to the monolithic patch, there are also going to be cases where it
+makes sense to collapse several small commits into a single patch.  This may be
+done if you have both commit and revert patches for a single patch, or if
+bisectability of RHEL may be improved due to a series of upstream commits where
+later commits fixed those that came previously, or if you have a small set of
+patches that are better understood as a single patch within the context of the
+RHEL codebase.
+
+In either case of a broken out patchset, or a monolithic patch, you are
+required to list all upstream commits for the patch or patchset in the
+changelog in the format described in section IIIb.  In the broken out
+patchset case, please include the upstream commit information in each
+individual patch and not as a list inside the 0/X cover letter patch.
+Failure to do so will result in the rejection of the patch.
+
+6.  I'm going to do something different in my patch posting that isn't
+detailed in this document.  Is that okay?
+
+Your patch will receive the same attention all other patches receive on RHKL.
+Some of the feedback may be positive, some may be negative.  Again, we encourage
+you to send questions to RHKL if you want to do something different than what
+has been suggested in this document.
+
+7.  What does POST mean in a bugzilla?  When is the correct time to set a
+bugzilla to POST?
+
+[Required] After sending patches to RHKL, the bugzilla must have status POST.
+
+From the bugzilla help link for "Status", POST is defined as "A patch or
+solution believed to resolve this matter has been proposed (POSTed) for
+inclusion in the package or kernel".  The POST state lets maintainers and
+management know that you're done with the bugzilla and that a resolution has
+been posted and is in review on RHKL.
+
+You should put the bugzilla in POST shortly after you've sent the resolving
+patchset to RHKL.  It can be set at anytime so if you forget, you can simply go
+back and put the bugzilla into POST.  If a bugzilla is not in POST, manual
+intervention by a manager or maintainer is required; this slows down the entire
+process of getting patches into a kernel build.
+
+[Suggested] Include an RHKL archive URL for the patch(set) in the bugzilla(s).
+
+It is often useful when setting the bugzilla to POST to include the URL for
+your patch or patchset cover letter in the RHKL archive (See section VIII
+if you need the base URL). Note that this should be included in a _private_
+comment in bugzilla, as the bugzilla may be public, and the list archive is
+a private internal resource.
+
+8. How long should a subject line be?  Is there a maximum length?
+
+Technically, there is no restriction on the size of a subject line, but you
+should keep in mind that many email readers will truncate excessively long
+subjects, which can be problematic.  Additionally, at least in the RHEL5 case,
+final changelog entries are restricted to 65 characters, which includes the
+initial [subsys] tag, so it is preferred that subjects are kept to roughly 60
+characters or less.  Think of the subject as analogous to a newspaper headline,
+and the description as the main body.
+
+Including _multiple_ bugzilla numbers or commit IDs in the subject line, even
+if contained in [], is frowned upon.
+
+9. I am a submaintainer with patches that were written by someone else, or I
+have to submit a patch for someone else.  What should I do?
+
+While rare, there have been situations in the past where one engineer has had
+to submit a patch for another engineer.  When this occurs, the engineer who
+sends the patch to RHKL (the submitter) should cc the patch's author and
+add
+
+	RH-AUTHOR: Joe Engineer <joe@redhat.com>
+
+to the Red Hat Metadata (section III) above.  The usage is similar to
+upstream's "From:" field which cannot be reliably used by the maintainers
+and submaintainers when dealing with RHEL.
+
+10. How do I cross compile a patch?  What is required?
+
+In order to cross compile patches it is recommended that the latest nightly
+RHEL7 OS is installed.  Users can checkout a system from beaker or install a
+local system manually.  A user must also setup the "optional" repository for
+their RHEL7 install (note, that this is done automatically in a beaker
+install).
+
+After installing the system, a user must install the latest RHEL7 git tree,
+and apply their patches to this git tree.  After doing so, a user must type
+the following command as _root_:
+
+make rh-cross-download
+
+This will automatically install all dependencies for cross compiling.
+
+After this step is complete, a user can execute
+
+make rh-cross-all-builds
+
+which will build i686, s390x, and ppc64.
+
+
+VIII. Bugzilla use/reuse
+------------------------
+
+1. Background
+
+Bugzilla tickets are used by everyone interested in the status and history of
+a given issue or feature.  There are situations in which additional patches are
+required and the question if the same BZ should be reused or a new one should be
+created.
+
+One of the bugzilla heavy users is QE which uses it to determine how to test
+and verify that the work done by engineering was correct and complete.  QE
+classifies the BZs in two categories: bugfix and enhancement.
+
+Here are the rules QE goes by for informational purposes:
+
+* Bugfix: anything that is fixing a real issue and possibly has a reproducer
+	Rules to match as a bugfix:
+		- if the BZ is exclusively to fix a specific bug
+		AND/OR
+		- the BZ has a reproducer
+	-> QE will set "Bugfix" as keyword at the time of qa_ack+
+
+* Enhancement: rebases, new features, new hardware support.  In other words:
+	       everything that isn't a Bugfix.
+	Rules to match as enhancement:
+		- BZ fails to be matched as Bugfix
+
+Rules engineering go by:
+* Undetermined:
+	- qa_ack?
+	OR
+	- qa_ack-
+
+* Bugfix:
+	- qa_ack+
+	AND
+	- Keywords contains Bugfix
+
+* Enhancement:
+	- qa_ack+
+	AND
+	- Keywords doesn't contain Bugfix
+
+2. Bugzilla reuse
+
+[Required] In the event of additional patches being required these rules
+should be followed:
+
+* All BZs:
+a) In case the BZ is still in POST, contact the kernel maintainer to make sure
+   the patchset wasn't or isn't being integrated.  In case the patchset wasn't
+   integrated AND no other patches were integrated under the same BZ, it's
+   possible to reuse the BZ
+
+* Bugfix BZ:
+a) In case the BZ is ON_QA and QE marks it FailsQA AND changes it back to ASSIGNED,
+   it should be REUSED
+b) In case the BZ is in any state before VERIFIED and further patches are needed
+   to complement the fix, REUSE the BZ
+c) In case the BZ is VERIFIED and a new patch is needed for the same issue, a new BZ
+   and very likely a new reproducer will have to be supplied.
+	c.1) A comment must be added on the original BZ containing a note a new BZ
+	     was created to fix a similar case. No dependencies between BZs are
+	     needed.
+
+* Enhancement BZ:
+a) In case of FailsQA, a NEW BZ will be created
+	a.1) Original BZ only will move to VERIFIED when {all,} the
+	     required NEW BZ{s,} {are,is} merged and VERIFIED
+	a.2) Original BZ must depend (Depends:) on the new BZ
+	a.3) A comment must be added on the original BZ regarding the new BZ
+	     that was created
+b) In case of any additional patches, a NEW BZ will be created
+	b.1) original BZ can be moved to VERIFIED by QE despite NEW BZ's state
+	b.2) NEW BZ can be denied from being merged in the same release
+
+3. Full reverts and Bugzilla usage
+
+There are situations in which a set of patches is causing problems and the
+solution can't be found in a timely fashion to satisfy schedule requirements
+or the solution is deemed too intrusive for the stage the release is at.
+In such cases, it might be decided that the set of patches must be reverted.
+The intention of a "full revert" as described in this section is to completely
+restore the state the kernel was in before the problematic changes were
+introduced and must not be confused with 'patch reverts' which have the
+purpose of undoing certain changes while retaining the objective of
+implementing the bugfix or enhancement.
+
+[Required] The process to be followed in case of a full revert:
+a) NEW BZ will be created to track the FULL REVERT of changes
+   introduced by the original BZ
+b) To avoid confusion on the erratum log, the name of the new
+   BZ should be:
+	Revert all changes introduced by BZ# <original BZ>
+c) NEW BZ will be listed in the comments of the original BZ
+d) Once the patches from NEW BZ are merged, the original BZ is REMOVED from
+   the erratum and its state moved back to ASSIGNED (maintainer only)
+e) The original BZ's release flag will be reset for the next release
+   (e.g: rhel-9.2+ -> rhel-9.3?) (either maintainer or engineer)
+
+IX.  Useful Links
+-----------------
+
+1.  How do I patch .config or *-config options?
+
+https://home.corp.redhat.com/wiki/rhel6kernel-config-patching
+
+2.  What is the link to the internal RHKL archive?
+
+http://post-office.corp.redhat.com/mailman/listinfo/rhkernel-list/
+
+3.  Is there a link to RHEL patchwork?
+
+http://patchwork.lab.bos.redhat.com/
+
+4.  Is there any documentation about RHEL patchwork?
+
+http://git.engineering.redhat.com/?p=users/arozansk/patchwork.git;a=blob;f=docs/pjw/patchwork-introduction.txt;h=80b4c6dae0ea9d159224f84ceb570584212151af;hb=961020d01b903f0034dfa69af1cff700f4364b91
+================================================================================
+Reviewed-by: Prarit Bhargava <prarit@redhat.com>
+Reviewed-by: Don Zickus <dzickus@redhat.com>
+Reviewed-by: Neil Horman <nhorman@redhat.com>
+Reviewed-by: Andy Gospodarek <gospo@redhat.com>
+Reviewed-by: Kyle McMartin <kmcmartin@redhat.com>
+Reviewed-by: Mike Snitzer <snitzer@redhat.com>
+Reviewed-by: Myron Stowe <mstowe@redhat.com>
+Reviewed-by: John Linville <linville@redhat.com>
+Reviewed-by: Dean Nelson <dnelson@redhat.com>
+Reviewed-by: Andrew Jones <drjones@redhat.com>
+Reviewed-by: Jarod Wilson <jarod@redhat.com>
+Reviewed-by: Jesper Dangaard Brouer <jbrouer@redhat.com>
