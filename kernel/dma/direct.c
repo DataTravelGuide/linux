@@ -208,7 +208,10 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 	dma_addr_t dma_addr = phys_to_dma(dev, page_to_phys(page)) + offset;
 
 	if (!check_addr(dev, dma_addr, size, __func__))
-		return DIRECT_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
+
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		dma_direct_sync_single_for_device(dev, dma_addr, size, dir);
 	return dma_addr;
 }
 
@@ -250,11 +253,6 @@ int dma_direct_supported(struct device *dev, u64 mask)
 	return mask >= phys_to_dma(dev, min_mask);
 }
 
-int dma_direct_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return dma_addr == DIRECT_MAPPING_ERROR;
-}
-
 const struct dma_map_ops dma_direct_ops = {
 	.alloc			= dma_direct_alloc,
 	.free			= dma_direct_free,
@@ -273,6 +271,6 @@ const struct dma_map_ops dma_direct_ops = {
 #endif
 	.get_required_mask	= dma_direct_get_required_mask,
 	.dma_supported		= dma_direct_supported,
-	.mapping_error		= dma_direct_mapping_error,
+	.cache_sync		= arch_dma_cache_sync,
 };
 EXPORT_SYMBOL(dma_direct_ops);
