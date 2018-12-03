@@ -14,7 +14,11 @@ extern const struct dma_map_ops *mips_dma_map_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	return mips_dma_map_ops;
+#if defined(CONFIG_MACH_JAZZ)
+	return &jazz_dma_ops;
+#else
+	return &dma_direct_ops;
+#endif
 }
 
 #define arch_setup_dma_ops arch_setup_dma_ops
