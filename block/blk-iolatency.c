@@ -172,15 +172,91 @@ static inline struct blkcg_gq *lat_to_blkg(struct iolatency_grp *iolat)
 	return pd_to_blkg(&iolat->pd);
 }
 
-static inline bool iolatency_may_queue(struct iolatency_grp *iolat,
-				       wait_queue_entry_t *wait,
-				       bool first_block)
+static inline void latency_stat_init(struct iolatency_grp *iolat,
+				     struct latency_stat *stat)
 {
-	struct rq_wait *rqw = &iolat->rq_wait;
+	if (iolat->ssd) {
+		stat->ps.total = 0;
+		stat->ps.missed = 0;
+	} else
+		blk_rq_stat_init(&stat->rqs);
+}
 
-	if (first_block && waitqueue_active(&rqw->wait) &&
-	    rqw->wait.head.next != &wait->entry)
-		return false;
+static inline void latency_stat_sum(struct iolatency_grp *iolat,
+				    struct latency_stat *sum,
+				    struct latency_stat *stat)
+{
+	if (iolat->ssd) {
+		sum->ps.total += stat->ps.total;
+		sum->ps.missed += stat->ps.missed;
+	} else
+		blk_rq_stat_sum(&sum->rqs, &stat->rqs);
+}
+
+static inline void latency_stat_record_time(struct iolatency_grp *iolat,
+					    u64 req_time)
+{
+	struct latency_stat *stat = get_cpu_ptr(iolat->stats);
+	if (iolat->ssd) {
+		if (req_time >= iolat->min_lat_nsec)
+			stat->ps.missed++;
+		stat->ps.total++;
+	} else
+		blk_rq_stat_add(&stat->rqs, req_time);
+	put_cpu_ptr(stat);
+}
+
+static inline bool latency_sum_ok(struct iolatency_grp *iolat,
+				  struct latency_stat *stat)
+{
+	if (iolat->ssd) {
+		u64 thresh = div64_u64(stat->ps.total, 10);
+		thresh = max(thresh, 1ULL);
+		return stat->ps.missed < thresh;
+	}
+	return stat->rqs.mean <= iolat->min_lat_nsec;
+}
+
+static inline u64 latency_stat_samples(struct iolatency_grp *iolat,
+				       struct latency_stat *stat)
+{
+	if (iolat->ssd)
+		return stat->ps.total;
+	return stat->rqs.nr_samples;
+}
+
+static inline void iolat_update_total_lat_avg(struct iolatency_grp *iolat,
+					      struct latency_stat *stat)
+{
+	int exp_idx;
+
+	if (iolat->ssd)
+		return;
+
+	/*
+	 * calc_load() takes in a number stored in fixed point representation.
+	 * Because we are using this for IO time in ns, the values stored
+	 * are significantly larger than the FIXED_1 denominator (2048).
+	 * Therefore, rounding errors in the calculation are negligible and
+	 * can be ignored.
+	 */
+	exp_idx = min_t(int, BLKIOLATENCY_NR_EXP_FACTORS - 1,
+			div64_u64(iolat->cur_win_nsec,
+				  BLKIOLATENCY_EXP_BUCKET_SIZE));
+	iolat->lat_avg = calc_load(iolat->lat_avg,
+				   iolatency_exp_factors[exp_idx],
+				   stat->rqs.mean);
+}
+
+static void iolat_cleanup_cb(struct rq_wait *rqw, void *private_data)
+{
+	atomic_dec(&rqw->inflight);
+	wake_up(&rqw->wait);
+}
+
+static bool iolat_acquire_inflight(struct rq_wait *rqw, void *private_data)
+{
+	struct iolatency_grp *iolat = private_data;
 	return rq_wait_inc_below(rqw, iolat->rq_depth.max_depth);
 }
 
@@ -191,8 +267,6 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 {
 	struct rq_wait *rqw = &iolat->rq_wait;
 	unsigned use_delay = atomic_read(&lat_to_blkg(iolat)->use_delay);
-	DEFINE_WAIT(wait);
-	bool first_block = true;
 
 	if (use_delay)
 		blkcg_schedule_throttle(rqos->q, use_memdelay);
@@ -209,20 +283,7 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 		return;
 	}
 
-	if (iolatency_may_queue(iolat, &wait, first_block))
-		return;
-
-	do {
-		prepare_to_wait_exclusive(&rqw->wait, &wait,
-					  TASK_UNINTERRUPTIBLE);
-
-		if (iolatency_may_queue(iolat, &wait, first_block))
-			break;
-		first_block = false;
-		io_schedule();
-	} while (1);
-
-	finish_wait(&rqw->wait, &wait);
+	rq_qos_wait(rqw, iolat, iolat_acquire_inflight, iolat_cleanup_cb);
 }
 
 #define SCALE_DOWN_FACTOR 2
