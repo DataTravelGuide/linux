@@ -512,19 +512,17 @@ static inline int bio_associate_blkg_from_page(struct bio *bio,
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
-int bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg);
-int bio_associate_blkg_from_css(struct bio *bio,
-				struct cgroup_subsys_state *css);
-int bio_associate_create_blkg(struct request_queue *q, struct bio *bio);
-void bio_disassociate_task(struct bio *bio);
+void bio_disassociate_blkg(struct bio *bio);
+void bio_associate_blkg(struct bio *bio);
+void bio_associate_blkg_from_css(struct bio *bio,
+				 struct cgroup_subsys_state *css);
 void bio_clone_blkg_association(struct bio *dst, struct bio *src);
 #else	/* CONFIG_BLK_CGROUP */
-static inline int bio_associate_blkg_from_css(struct bio *bio,
-					      struct cgroup_subsys_state *css)
-{ return 0; }
-static inline int bio_associate_create_blkg(struct request_queue *q,
-					    struct bio *bio) { return 0; }
-static inline void bio_disassociate_task(struct bio *bio) { }
+static inline void bio_disassociate_blkg(struct bio *bio) { }
+static inline void bio_associate_blkg(struct bio *bio) { }
+static inline void bio_associate_blkg_from_css(struct bio *bio,
+					       struct cgroup_subsys_state *css)
+{ }
 static inline void bio_clone_blkg_association(struct bio *dst,
 					      struct bio *src) { }
 #endif	/* CONFIG_BLK_CGROUP */
