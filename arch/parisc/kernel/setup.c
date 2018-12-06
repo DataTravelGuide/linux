@@ -103,8 +103,6 @@ void __init dma_ops_init(void)
 		break;
 	case pcxl2:
 		pa7300lc_init();
-	case pcxl: /* falls through */
-		hppa_dma_ops = &pcxl_dma_ops;
 		break;
 	default:
 		break;

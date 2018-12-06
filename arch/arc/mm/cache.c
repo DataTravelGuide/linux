@@ -1277,6 +1277,12 @@ void __init arc_cache_init_master(void)
 		__dma_cache_inv = __dma_cache_inv_l1;
 		__dma_cache_wback = __dma_cache_wback_l1;
 	}
+	/*
+	 * In case of IOC (say IOC+SLC case), pointers above could still be set
+	 * but end up not being relevant as the first function in chain is not
+	 * called at all for devices using coherent DMA.
+	 *     arch_sync_dma_for_cpu() -> dma_cache_*() -> __dma_cache_*()
+	 */
 }
 
 void __ref arc_cache_init(void)
