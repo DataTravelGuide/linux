@@ -5,7 +5,7 @@
  * Copyright (c) 2006  SUSE Linux Products GmbH
  * Copyright (c) 2006  Tejun Heo <teheo@suse.de>
  */
-
+#include <linux/memblock.h> /* for max_pfn */
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
@@ -271,68 +271,36 @@ static struct vm_struct *__dma_common_pages_remap(struct page **pages,
 
 	return area;
 }
+EXPORT_SYMBOL(dma_common_mmap);
 
-/*
- * remaps an array of PAGE_SIZE pages into another vm_area
- * Cannot be used in non-sleeping contexts
- */
-void *dma_common_pages_remap(struct page **pages, size_t size,
-			unsigned long vm_flags, pgprot_t prot,
-			const void *caller)
+#ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK
+static u64 dma_default_get_required_mask(struct device *dev)
 {
-	struct vm_struct *area;
+	u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
+	u32 high_totalram = ((max_pfn - 1) >> (32 - PAGE_SHIFT));
+	u64 mask;
 
-	area = __dma_common_pages_remap(pages, size, vm_flags, prot, caller);
-	if (!area)
-		return NULL;
-
-	area->pages = pages;
-
-	return area->addr;
-}
-
-/*
- * remaps an allocated contiguous region into another vm_area.
- * Cannot be used in non-sleeping contexts
- */
-
-void *dma_common_contiguous_remap(struct page *page, size_t size,
-			unsigned long vm_flags,
-			pgprot_t prot, const void *caller)
-{
-	int i;
-	struct page **pages;
-	struct vm_struct *area;
-
-	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
-	if (!pages)
-		return NULL;
-
-	for (i = 0; i < (size >> PAGE_SHIFT); i++)
-		pages[i] = nth_page(page, i);
-
-	area = __dma_common_pages_remap(pages, size, vm_flags, prot, caller);
-
-	kfree(pages);
-
-	if (!area)
-		return NULL;
-	return area->addr;
-}
-
-/*
- * unmaps a range previously mapped by dma_common_*_remap
- */
-void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
-{
-	struct vm_struct *area = find_vm_area(cpu_addr);
-
-	if (!area || (area->flags & vm_flags) != vm_flags) {
-		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
-		return;
+	if (!high_totalram) {
+		/* convert to mask just covering totalram */
+		low_totalram = (1 << (fls(low_totalram) - 1));
+		low_totalram += low_totalram - 1;
+		mask = low_totalram;
+	} else {
+		high_totalram = (1 << (fls(high_totalram) - 1));
+		high_totalram += high_totalram - 1;
+		mask = (((u64)high_totalram) << 32) + 0xffffffff;
 	}
-
-	unmap_kernel_range((unsigned long)cpu_addr, PAGE_ALIGN(size));
-	vunmap(cpu_addr);
+	return mask;
 }
+
+u64 dma_get_required_mask(struct device *dev)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops->get_required_mask)
+		return ops->get_required_mask(dev);
+	return dma_default_get_required_mask(dev);
+}
+EXPORT_SYMBOL_GPL(dma_get_required_mask);
 #endif
+
