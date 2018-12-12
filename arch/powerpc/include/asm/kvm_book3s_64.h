@@ -628,7 +628,7 @@ extern void kvmhv_update_nest_rmap_rc_list(struct kvm *kvm, unsigned long *rmapp
 					   unsigned long clr, unsigned long set,
 					   unsigned long hpa, unsigned long nbytes);
 extern void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
-				struct kvm_memory_slot *memslot,
+				const struct kvm_memory_slot *memslot,
 				unsigned long gpa, unsigned long hpa,
 				unsigned long nbytes);
 
