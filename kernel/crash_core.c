@@ -16,6 +16,7 @@
 #include <asm/sections.h>
 #ifdef CONFIG_KEXEC_AUTO_RESERVE
 #include <asm/kexec.h>
+#include <linux/printk.h>
 #endif
 
 /* vmcoreinfo stuff */
@@ -172,7 +173,7 @@ unsigned long long __init arch_default_crash_size(unsigned long long total_size)
 		 * Hence reserve 2bits per 4K of RAM (or 1byte per 16K of RAM)
 		 * on top of base of 128M (KEXEC_AUTO_RESERVED_SIZE).
 		 */
-		return KEXEC_AUTO_RESERVED_SIZE +
+		return KEXEC_AUTO_RESERVED_SIZE + log_buf_len_get() * 3 / 2 +
 			roundup((total_size - KEXEC_AUTO_RESERVED_SIZE)
 				/ (1ULL<<14), 1ULL<<20);
 	}
