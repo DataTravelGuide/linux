@@ -320,7 +320,12 @@ int dma_direct_supported(struct device *dev, u64 mask)
 
 	min_mask = min_t(u64, min_mask, (max_pfn - 1) << PAGE_SHIFT);
 
-	return mask >= phys_to_dma(dev, min_mask);
+	/*
+	 * This check needs to be against the actual bit mask value, so
+	 * use __phys_to_dma() here so that the SME encryption mask isn't
+	 * part of the check.
+	 */
+	return mask >= __phys_to_dma(dev, min_mask);
 }
 
 const struct dma_map_ops dma_direct_ops = {
