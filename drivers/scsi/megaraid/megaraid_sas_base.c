@@ -5329,8 +5329,26 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->msix_vectors = ((scratch_pad_2
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
 					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
-				if (instance->msix_vectors > 16)
-					instance->msix_combined = true;
+
+				/*
+				 * For Invader series, > 8 MSI-x vectors
+				 * supported by FW/HW implies combined
+				 * reply queue mode is enabled.
+				 * For Ventura series, > 16 MSI-x vectors
+				 * supported by FW/HW implies combined
+				 * reply queue mode is enabled.
+				 */
+				switch (instance->adapter_type) {
+				case INVADER_SERIES:
+					if (instance->msix_vectors > 8)
+						instance->msix_combined = true;
+					break;
+				case AERO_SERIES:
+				case VENTURA_SERIES:
+					if (instance->msix_vectors > 16)
+						instance->msix_combined = true;
+					break;
+				}
 
 				if (rdpq_enable)
 					instance->is_rdpq = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ?
@@ -6093,12 +6111,14 @@ fail_set_dma_mask:
 /*
  * megasas_set_adapter_type -	Set adapter type.
  *				Supported controllers can be divided in
- *				4 categories-  enum MR_ADAPTER_TYPE {
- *							MFI_SERIES = 1,
- *							THUNDERBOLT_SERIES = 2,
- *							INVADER_SERIES = 3,
- *							VENTURA_SERIES = 4,
- *						};
+ *				different categories-
+ *					enum MR_ADAPTER_TYPE {
+ *						MFI_SERIES = 1,
+ *						THUNDERBOLT_SERIES = 2,
+ *						INVADER_SERIES = 3,
+ *						VENTURA_SERIES = 4,
+ *						AERO_SERIES = 5,
+ *					};
  * @instance:			Adapter soft state
  * return:			void
  */
@@ -6113,6 +6133,8 @@ static inline void megasas_set_adapter_type(struct megasas_instance *instance)
 		case PCI_DEVICE_ID_LSI_AERO_10E2:
 		case PCI_DEVICE_ID_LSI_AERO_10E5:
 		case PCI_DEVICE_ID_LSI_AERO_10E6:
+			instance->adapter_type = AERO_SERIES;
+			break;
 		case PCI_DEVICE_ID_LSI_VENTURA:
 		case PCI_DEVICE_ID_LSI_CRUSADER:
 		case PCI_DEVICE_ID_LSI_HARPOON:
@@ -6180,6 +6202,7 @@ static int megasas_alloc_ctrl_mem(struct megasas_instance *instance)
 		if (megasas_alloc_mfi_ctrl_mem(instance))
 			goto fail;
 		break;
+	case AERO_SERIES:
 	case VENTURA_SERIES:
 	case THUNDERBOLT_SERIES:
 	case INVADER_SERIES:
