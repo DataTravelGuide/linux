@@ -47,6 +47,7 @@ column lists the sections below which describe in detail what is needed:
 [III]|  Build Info: <brew build reference or cross-compiler output>
      |  Tested: <testing data>
      |  Depends: <bugzilla reference if required>
+     |  CVE: <CVE number if required>
       \ Conflicts: <optional, if required>
 
       / commit 7fff4beb311dfab4f18ff2cd64f78scd9296a39a
@@ -393,7 +394,16 @@ reference to the uncommitted patchsets bugzillas.
 
     This can be added in the cover letter.
 
-e) Conflicts:
+e) CVE:
+[Required] List of CVE references being solved by the patchset.
+
+    If the submitted patch solves any bugzilla that has an associated CVE
+    number include the number as described in the bugzilla, e.g
+    "CVE-YYYY-XXXXX".
+
+    Please use one 'CVE' line per associated CVE.
+
+f) Conflicts:
 [Suggested] A short explanation of how the patch differs from upstream.
 
     If the submitted patch differs from the original upstream patch, a
