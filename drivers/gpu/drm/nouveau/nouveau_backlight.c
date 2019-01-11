@@ -271,8 +271,24 @@ nouveau_backlight_init(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&drm->bl_connectors);
 
-	if (apple_gmux_present()) {
-		NV_INFO(drm, "Apple GMUX detected: not registering Nouveau backlight interface\n");
+	switch (device->info.family) {
+	case NV_DEVICE_INFO_V0_CURIE:
+		ret = nv40_backlight_init(nv_encoder, &props, &ops);
+		break;
+	case NV_DEVICE_INFO_V0_TESLA:
+	case NV_DEVICE_INFO_V0_FERMI:
+	case NV_DEVICE_INFO_V0_KEPLER:
+	case NV_DEVICE_INFO_V0_MAXWELL:
+	case NV_DEVICE_INFO_V0_PASCAL:
+	case NV_DEVICE_INFO_V0_VOLTA:
+	case NV_DEVICE_INFO_V0_TURING:
+		ret = nv50_backlight_init(nv_encoder, &props, &ops);
+		break;
+	default:
+		return 0;
+	}
+
+	if (ret == -ENODEV)
 		return 0;
 	}
 
