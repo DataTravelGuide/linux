@@ -778,6 +778,8 @@ static int dnet_probe(struct platform_device *pdev)
 	int err;
 	unsigned int irq;
 
+	mark_hardware_unsupported(DRV_NAME);
+
 	irq = platform_get_irq(pdev, 0);
 
 	dev = alloc_etherdev(sizeof(*bp));
