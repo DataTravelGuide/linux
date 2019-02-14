@@ -303,7 +303,79 @@ early_param("vmalloc", parse_vmalloc);
 
 void *restart_stack __section(.data);
 
-static void __init setup_lowcore(void)
+unsigned long stack_alloc(void)
+{
+#ifdef CONFIG_VMAP_STACK
+	return (unsigned long)
+		__vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
+				     VMALLOC_START, VMALLOC_END,
+				     THREADINFO_GFP,
+				     PAGE_KERNEL, 0, NUMA_NO_NODE,
+				     __builtin_return_address(0));
+#else
+	return __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+#endif
+}
+
+void stack_free(unsigned long stack)
+{
+#ifdef CONFIG_VMAP_STACK
+	vfree((void *) stack);
+#else
+	free_pages(stack, THREAD_SIZE_ORDER);
+#endif
+}
+
+int __init arch_early_irq_init(void)
+{
+	unsigned long stack;
+
+	stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+	if (!stack)
+		panic("Couldn't allocate async stack");
+	S390_lowcore.async_stack = stack + STACK_INIT_OFFSET;
+	return 0;
+}
+
+static int __init async_stack_realloc(void)
+{
+	unsigned long old, new;
+
+	old = S390_lowcore.async_stack - STACK_INIT_OFFSET;
+	new = stack_alloc();
+	if (!new)
+		panic("Couldn't allocate async stack");
+	S390_lowcore.async_stack = new + STACK_INIT_OFFSET;
+	free_pages(old, THREAD_SIZE_ORDER);
+	return 0;
+}
+early_initcall(async_stack_realloc);
+
+void __init arch_call_rest_init(void)
+{
+	struct stack_frame *frame;
+	unsigned long stack;
+
+	stack = stack_alloc();
+	if (!stack)
+		panic("Couldn't allocate kernel stack");
+	current->stack = (void *) stack;
+#ifdef CONFIG_VMAP_STACK
+	current->stack_vm_area = (void *) stack;
+#endif
+	set_task_stack_end_magic(current);
+	stack += STACK_INIT_OFFSET;
+	S390_lowcore.kernel_stack = stack;
+	frame = (struct stack_frame *) stack;
+	memset(frame, 0, sizeof(*frame));
+	/* Branch to rest_init on the new stack, never returns */
+	asm volatile(
+		"	la	15,0(%[_frame])\n"
+		"	jg	rest_init\n"
+		: : [_frame] "a" (frame));
+}
+
+static void __init setup_lowcore_dat_off(void)
 {
 	struct lowcore *lc;
 
@@ -314,19 +386,16 @@ static void __init setup_lowcore(void)
 	lc = memblock_virt_alloc_low(sizeof(*lc), sizeof(*lc));
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
 	lc->svc_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
+		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS |
-		PSW_MASK_DAT | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->kernel_stack = ((unsigned long) &init_thread_union)
@@ -386,6 +455,17 @@ static void __init setup_lowcore(void)
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
+}
+
+static void __init setup_lowcore_dat_on(void)
+{
+	struct lowcore *lc;
+
+	lc = lowcore_ptr[0];
+	lc->external_new_psw.mask |= PSW_MASK_DAT;
+	lc->svc_new_psw.mask |= PSW_MASK_DAT;
+	lc->program_new_psw.mask |= PSW_MASK_DAT;
+	lc->io_new_psw.mask |= PSW_MASK_DAT;
 }
 
 static struct resource code_resource = {
@@ -944,7 +1024,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_resources();
-	setup_lowcore();
+	setup_lowcore_dat_off();
 	smp_fill_possible_mask();
 	cpu_detect_mhz_feature();
         cpu_init();
@@ -956,6 +1036,12 @@ void __init setup_arch(char **cmdline_p)
 	 * Create kernel page tables and switch to virtual addressing.
 	 */
         paging_init();
+
+	/*
+	 * After paging_init created the kernel page table, the new PSWs
+	 * in lowcore can now run with DAT enabled.
+	 */
+	setup_lowcore_dat_on();
 
         /* Setup default console */
 	conmode_default();
