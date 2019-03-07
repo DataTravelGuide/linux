@@ -1052,7 +1052,7 @@ BuildKernel() {
     if [ $DoModules -eq 1 ]; then
 	# Override $(mod-fw) because we don't want it to install any firmware
 	# we'll get it from the linux-firmware package and we don't want conflicts
-	%{make} -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
+	%{make} -s %{?_smp_mflags} ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
     fi
 
 %if %{with_gcov}
