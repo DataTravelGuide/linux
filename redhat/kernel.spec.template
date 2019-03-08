@@ -977,7 +977,7 @@ BuildKernel() {
 
     # and now to start the build process
 
-    %{make} -s mrproper
+    %{make} -s %{?_smp_mflags} mrproper
     cp configs/$Config .config
 
     %if %{signkernel}%{signmodules}
