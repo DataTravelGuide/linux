@@ -3147,6 +3147,25 @@ static void hns3_uninit_mac_addr(struct net_device *netdev)
 		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
 }
 
+static int hns3_init_phy(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret = 0;
+
+	if (h->ae_algo->ops->mac_connect_phy)
+		ret = h->ae_algo->ops->mac_connect_phy(h);
+
+	return ret;
+}
+
+static void hns3_uninit_phy(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->mac_disconnect_phy)
+		h->ae_algo->ops->mac_disconnect_phy(h);
+}
+
 static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3226,6 +3245,10 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		goto out_init_ring_data;
 	}
 
+	ret = hns3_init_phy(netdev);
+	if (ret)
+		goto out_init_phy;
+
 	ret = register_netdev(netdev);
 	if (ret) {
 		dev_err(priv->dev, "probe register netdev fail!\n");
@@ -3240,6 +3263,9 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	return ret;
 
 out_reg_netdev_fail:
+	hns3_uninit_phy(netdev);
+out_init_phy:
+	hns3_uninit_all_ring(priv);
 out_init_ring_data:
 	(void)hns3_nic_uninit_vector_data(priv);
 out_init_vector_data:
@@ -3262,6 +3288,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 		unregister_netdev(netdev);
 
 	hns3_force_clear_all_rx_ring(handle);
+
+	hns3_uninit_phy(netdev);
 
 	ret = hns3_nic_uninit_vector_data(priv);
 	if (ret)
