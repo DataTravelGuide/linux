@@ -2803,25 +2803,20 @@ static void hns3_clear_ring_group(struct hns3_enet_ring_group *group)
 	group->count = 0;
 }
 
-static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
+static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_ring_chain_node vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
 
-		ret = hns3_get_vector_ring_chain(tqp_vector,
-						 &vector_ring_chain);
-		if (ret)
-			return ret;
+		hns3_get_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
-		ret = h->ae_algo->ops->unmap_ring_from_vector(h,
+		h->ae_algo->ops->unmap_ring_from_vector(h,
 			tqp_vector->vector_irq, &vector_ring_chain);
-		if (ret)
-			return ret;
 
 		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
@@ -2838,8 +2833,6 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		hns3_clear_ring_group(&tqp_vector->tx_group);
 		netif_napi_del(&priv->tqp_vector[i].napi);
 	}
-
-	return 0;
 }
 
 static int hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
@@ -3267,7 +3260,7 @@ out_reg_netdev_fail:
 out_init_phy:
 	hns3_uninit_all_ring(priv);
 out_init_ring_data:
-	(void)hns3_nic_uninit_vector_data(priv);
+	hns3_nic_uninit_vector_data(priv);
 out_init_vector_data:
 	hns3_nic_dealloc_vector_data(priv);
 out_alloc_vector_data:
@@ -3291,9 +3284,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_uninit_phy(netdev);
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret)
-		netdev_err(netdev, "uninit vector error\n");
+	hns3_nic_uninit_vector_data(priv);
 
 	ret = hns3_nic_dealloc_vector_data(priv);
 	if (ret)
@@ -3618,11 +3609,7 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 
 	hns3_force_clear_all_rx_ring(handle);
 
-	ret = hns3_nic_uninit_vector_data(priv);
-	if (ret) {
-		netdev_err(netdev, "uninit vector error\n");
-		return ret;
-	}
+	hns3_nic_uninit_vector_data(priv);
 
 	hns3_store_coal(priv);
 
