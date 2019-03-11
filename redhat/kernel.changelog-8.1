@@ -1,3 +1,15 @@
+* Mon Mar 11 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-73.1.el8]
+- [net] tun: forbid iface creation with rtnl ops (Sabrina Dubroca) [1680969]
+- [net] revert "bridge: do not add port to router list when receives query with source 0.0.0.0" (Hangbin Liu) [1679896]
+- [net] sctp: walk the list of asoc safely (Marcelo Leitner) [1679920] {CVE-2019-8956}
+- [net] netfilter: nf_nat: skip nat clash resolution for same-origin entries (Florian Westphal) [1677647]
+- [net] netfilter: nf_conntrack: resolve clash for matching conntracks (Florian Westphal) [1677647]
+- [net] netfilter: nf_tables: fix flush after rule deletion in the same batch (Phil Sutter) [1677672]
+- [net] gro_cell: add napi_disable in gro_cells_destroy (Stefano Brivio) [1674408]
+- [net] sctp: call gso_reset_checksum when computing checksum in sctp_gso_segment (Xin Long) [1669386]
+- [net] ipvs: fix dependency on nf_defrag_ipv6 (Andrea Claudi) [1660808]
+- [net] sctp: check and update stream->out_curr when allocating stream_out (Xin Long) [1651877]
+
 * Mon Mar 11 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-72.1.el8]
 - [x86] cpu/hotplug: Add SMT policy options (Josh Poimboeuf) [1677405]
 
