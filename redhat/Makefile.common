@@ -1,9 +1,10 @@
-REDHAT:=$(shell pwd)
-include $(REDHAT)/../Makefile.rhelver
+TOPDIR:=$(shell git rev-parse --show-toplevel)
+REDHAT:=$(TOPDIR)/redhat
+include $(TOPDIR)/Makefile.rhelver
 
 RPMBUILD := $(shell if [ -x "/usr/bin/rpmbuild" ]; then echo rpmbuild; \
                    else echo rpm; fi)
-TOPDIR:=$(shell dirname $(REDHAT))
+
 MACH :=  $(shell uname -m)
 RPMKVERSION:=$(shell git show HEAD:Makefile | sed -ne '/^VERSION\ =\ /{s///;p;q}')
 RPMKPATCHLEVEL:=$(shell git show HEAD:Makefile | sed -ne '/^PATCHLEVEL\ =\ /{s///;p;q}')
