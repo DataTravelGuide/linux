@@ -39,4 +39,5 @@ kernel-s390x-debug.config
 kernel-s390x-zfcpdump.config
 kernel-x86_64-debug.config
 kernel-x86_64.config
+parallel_xz.sh
 process_configs.sh

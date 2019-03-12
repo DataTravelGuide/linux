@@ -368,6 +368,7 @@ Source16: mod-extra.list
 Source17: mod-extra.sh
 Source18: mod-sign.sh
 Source19: mod-extra-blacklist.sh
+Source80: parallel_xz.sh
 Source90: filter-x86_64.sh
 Source93: filter-aarch64.sh
 Source96: filter-ppc64le.sh
@@ -1513,7 +1514,7 @@ find Documentation -type d | xargs chmod u+w
     fi \
   fi \
   if [ "%{zipmodules}" -eq "1" ]; then \
-    find $RPM_BUILD_ROOT/lib/modules/ -type f -name '*.ko' | xargs xz; \
+    find $RPM_BUILD_ROOT/lib/modules/ -type f -name '*.ko' | %{SOURCE80} %{?_smp_mflags}; \
   fi \
 %{nil}
 
