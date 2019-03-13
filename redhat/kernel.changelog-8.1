@@ -1,3 +1,13 @@
+* Wed Mar 13 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-79.1.el8]
+- [firmware] drivers/firmware: psci_checker: stash and use topology_core_cpumask for hotplug tests (Josh Poimboeuf) [1687101]
+- [arm64] arm64: topology: re-introduce numa mask check for scheduler MC selection (Josh Poimboeuf) [1687101]
+- [arm64] arm64: topology: rename llc_siblings to align with other struct members (Josh Poimboeuf) [1687101]
+- [arm64] arm64: smp: remove cpu and numa topology information when hotplugging out CPU (Josh Poimboeuf) [1687101]
+- [arm64] arm64: topology: restrict updating siblings_masks to online cpus only (Josh Poimboeuf) [1687101]
+- [arm64] arm64: topology: add support to remove cpu topology sibling masks (Josh Poimboeuf) [1687101]
+- [arm64] arm64: numa: separate out updates to percpu nodeid and NUMA node cpumap (Josh Poimboeuf) [1687101]
+- [arm64] arm64: topology: refactor reset_cpu_topology to add support for removing topology (Josh Poimboeuf) [1687101]
+
 * Tue Mar 12 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-78.1.el8]
 - [fs] gfs2: Fix missed wakeups in find_insert_glock (Andreas Grunbacher) [1678907]
 
