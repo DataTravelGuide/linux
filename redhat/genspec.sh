@@ -32,7 +32,7 @@ if [ -z "$lasttag" ]; then
 	lasttag=$(git describe --match="$MARKER" --abbrev=0)
 fi
 echo "Gathering new log entries since $lasttag"
-git format-patch --no-renames -k --stdout ${lasttag}.. | awk '
+git format-patch --no-renames -k --stdout ${lasttag}.. -- ":!/redhat/rhdocs" | awk '
 BEGIN{TYPE="PATCHJUNK"; }
 	# add an entry to changelog
 	function changelog(subjectline, nameline, zstream)

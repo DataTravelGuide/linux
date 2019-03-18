@@ -181,7 +181,18 @@ $(KABIDW_TARBALL):
 	fi
 	@(cd kabi-dwarf && tar cjvf $(SOURCES)/$(KABIDW_TARFILE) base run_kabi-dw.sh)
 
-setup-source: rh-clean-sources
+
+rh-git-version-check:
+	@# genspec.sh uses pathspec magic that wasn't introduced until version 2.13
+	@IFS=" ."; \
+	set -- $$(git --version); \
+	IFS=; \
+	if [ "$$3" -lt 2 -o \( "$$3" -eq 2 -a "$$4" -lt 13 \) ]; then \
+		echo "ERROR: You need git version 2.13 or newer to run some setup commands"; \
+		exit 1; \
+	fi
+
+setup-source: rh-git-version-check rh-clean-sources
 	@cp $(REDHAT)/$(SPECFILE).template $(SOURCES)/$(SPECFILE)
 	@if [ ! -e  $(REDHAT)/$(CHANGELOG) ]; then \
 		echo "Creating $(CHANGELOG) as copy of $(CHANGELOG_PREV)"; \
