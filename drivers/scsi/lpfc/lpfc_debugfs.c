@@ -2050,7 +2050,7 @@ lpfc_debugfs_lockstat_write(struct file *file, const char __user *buf,
 	int i;
 
 	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
+	if (!access_ok(buf, nbytes))
 		return -EFAULT;
 
 	memset(mybuf, 0, sizeof(mybuf));
@@ -2501,7 +2501,7 @@ lpfc_debugfs_multixripools_write(struct file *file, const char __user *buf,
 		nbytes = 64;
 
 	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
+	if (!access_ok(buf, nbytes))
 		return -EFAULT;
 
 	memset(mybuf, 0, sizeof(mybuf));
@@ -2667,7 +2667,7 @@ lpfc_debugfs_scsistat_write(struct file *file, const char __user *buf,
 	int i;
 
 	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
+	if (!access_ok(buf, nbytes))
 		return -EFAULT;
 
 	if (copy_from_user(mybuf, buf, (nbytes >= sizeof(mybuf)) ?

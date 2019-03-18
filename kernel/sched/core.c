@@ -4486,7 +4486,7 @@ static int sched_copy_attr(struct sched_attr __user *uattr, struct sched_attr *a
 	u32 size;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, uattr, SCHED_ATTR_SIZE_VER0))
+	if (!access_ok(uattr, SCHED_ATTR_SIZE_VER0))
 		return -EFAULT;
 
 	/* Zero the full structure, so that a short copy will be nice: */
@@ -4686,7 +4686,7 @@ static int sched_read_attr(struct sched_attr __user *uattr,
 {
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, uattr, usize))
+	if (!access_ok(uattr, usize))
 		return -EFAULT;
 
 	/*
