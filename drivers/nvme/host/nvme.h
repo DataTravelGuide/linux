@@ -234,6 +234,11 @@ struct nvme_ctrl {
 	struct nvmf_ctrl_options *opts;
 };
 
+enum nvme_iopolicy {
+	NVME_IOPOLICY_NUMA,
+	NVME_IOPOLICY_RR,
+};
+
 struct nvme_subsystem {
 	int			instance;
 	struct device		dev;
@@ -253,6 +258,9 @@ struct nvme_subsystem {
 	u8			cmic;
 	u16			vendor_id;
 	struct ida		ns_ida;
+#ifdef CONFIG_NVME_MULTIPATH
+	enum nvme_iopolicy	iopolicy;
+#endif
 };
 
 /*
@@ -483,6 +491,7 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 
 extern struct device_attribute dev_attr_ana_grpid;
 extern struct device_attribute dev_attr_ana_state;
+extern struct device_attribute subsys_attr_iopolicy;
 
 #else
 static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
