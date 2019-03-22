@@ -72,8 +72,13 @@ do
 		arch=$(echo "$line" | cut -f1 -d"=")
 		configs=$(echo "$line" | cut -f2 -d"=")
 
-		if [ -n "$SUBARCH" -a "$SUBARCH" != "$arch" ]; then
-			continue
+		if [ -n "$SUBARCH" ]; then
+			case $arch in
+				$SUBARCH*)
+					;;
+				*)
+					continue
+			esac
 		fi
 		merge_configs $arch $configs
 	fi
