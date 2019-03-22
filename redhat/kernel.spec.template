@@ -422,6 +422,9 @@ Source2001: cpupower.config
 
 ## Patches needed for building this package
 
+# empty final patch to facilitate testing of kernel patches
+Patch999999: linux-kernel-test.patch
+
 # END OF PATCH DEFINITIONS
 
 BuildRoot: %{_tmppath}/kernel-%{KVERREL}-root
@@ -874,6 +877,8 @@ ApplyOptionalPatch()
 mv linux-%{rpmversion}-%{pkgrelease} linux-%{KVERREL}
 
 cd linux-%{KVERREL}
+
+ApplyOptionalPatch linux-kernel-test.patch
 
 # END OF PATCH APPLICATIONS
 
