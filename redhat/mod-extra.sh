@@ -14,7 +14,7 @@ cp $2 .
 
 for dep in `cat modnames`
 do
-  depends=`modinfo $dep | grep depends | cut -f2 -d":" | sed -e 's/^[ \t]*//'`
+  depends=`modinfo $dep | sed -n -e '/^depends/ s/^depends:[ \t]*//p'`
   [ -z "$depends" ] && continue
   for mod in `echo $depends | sed -e 's/,/ /g'`
   do
