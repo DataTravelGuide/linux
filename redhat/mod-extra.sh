@@ -12,17 +12,18 @@ rm -rf req.list req2.list
 touch dep.list req.list
 cp $2 .
 
+# NB: this loop runs 2000+ iterations. Try to be fast.
 for dep in `cat modnames`
 do
   depends=`modinfo $dep | sed -n -e '/^depends/ s/^depends:[ \t]*//p'`
   [ -z "$depends" ] && continue
-  for mod in `echo $depends | sed -e 's/,/ /g'`
+  for mod in ${depends//,/ }
   do
     match=`grep "^$mod.ko" mod-extra.list`
     [ -z "$match" ] && continue
     # check if the module we're looking at is in mod-extra too.
     # if so we don't need to mark the dep as required.
-    mod2=`basename $dep`
+    mod2=${dep##*/}  # same as `basename $dep`, but faster
     match2=`grep "^$mod2" mod-extra.list`
     if [ -n "$match2" ]
     then
