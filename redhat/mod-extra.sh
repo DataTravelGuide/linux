@@ -1,7 +1,6 @@
 #! /bin/bash
 
 Dir=$1
-List=$2
 
 pushd $Dir
 rm -rf modnames
@@ -15,27 +14,22 @@ cp $2 .
 
 for dep in `cat modnames`
 do
-  depends=`modinfo $dep | grep depends| cut -f2 -d":" | sed -e 's/^[ \t]*//'`
-  [ -z "$depends" ] && continue;
+  depends=`modinfo $dep | grep depends | cut -f2 -d":" | sed -e 's/^[ \t]*//'`
+  [ -z "$depends" ] && continue
   for mod in `echo $depends | sed -e 's/,/ /g'`
   do
-    match=`grep "^$mod.ko" mod-extra.list` ||:
-    if [ -z "$match" ]
+    match=`grep "^$mod.ko" mod-extra.list`
+    [ -z "$match" ] && continue
+    # check if the module we're looking at is in mod-extra too.
+    # if so we don't need to mark the dep as required.
+    mod2=`basename $dep`
+    match2=`grep "^$mod2" mod-extra.list`
+    if [ -n "$match2" ]
     then
+      #echo $mod2 >> notreq.list
       continue
-    else
-      # check if the module we're looking at is in mod-extra too.  if so
-      # we don't need to mark the dep as required
-      mod2=`basename $dep`
-      match2=`grep "^$mod2" mod-extra.list` ||:
-      if [ -n "$match2" ]
-      then
-        continue
-          #echo $mod2 >> notreq.list
-        else
-          echo $mod.ko >> req.list
-      fi
     fi
+    echo $mod.ko >> req.list
   done
 done
 
@@ -46,8 +40,8 @@ join -v 1 mod-extra2.list req2.list > mod-extra3.list
 for mod in `cat mod-extra3.list`
 do
   # get the path for the module
-  modpath=`grep /$mod modnames` ||:
-  [ -z "$modpath" ]  && continue;
+  modpath=`grep /$mod modnames`
+  [ -z "$modpath" ] && continue
   echo $modpath >> dep.list
 done
 
