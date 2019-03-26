@@ -1865,7 +1865,7 @@ static int ipoib_parent_init(struct net_device *ndev)
 		return result;
 	}
 
-	result = ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid, NULL);
+	result = rdma_query_gid(priv->ca, priv->port, 0, &priv->local_gid);
 	if (result) {
 		pr_warn("%s: rdma_query_gid port %d failed (ret = %d)\n",
 			priv->ca->name, priv->port, result);
