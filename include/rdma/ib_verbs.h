@@ -4177,4 +4177,7 @@ int rdma_init_netdev(struct ib_device *device, u8 port_num,
 		     void (*setup)(struct net_device *),
 		     struct net_device *netdev);
 
+int uverbs_destroy_def_handler(struct ib_device *ib_dev,
+			       struct ib_uverbs_file *file,
+			       struct uverbs_attr_bundle *attrs);
 #endif /* IB_VERBS_H */
