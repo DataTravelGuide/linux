@@ -4369,9 +4369,8 @@ static void finish_wqe(struct mlx5_ib_qp *qp,
 	qp->sq.w_list[idx].next = qp->sq.cur_post;
 }
 
-
-int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		      const struct ib_send_wr **bad_wr)
 {
 	struct mlx5_wqe_ctrl_seg *ctrl = NULL;  /* compiler warning */
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
@@ -4701,8 +4700,8 @@ static void set_sig_seg(struct mlx5_rwqe_sig *sig, int size)
 	sig->signature = calc_sig(sig, size);
 }
 
-int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int mlx5_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_wqe_data_seg *scat;

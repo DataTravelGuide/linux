@@ -592,7 +592,7 @@ static int build_rdma_read(union t4_wr *wqe, const struct ib_send_wr *wr,
 }
 
 static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
-			   struct ib_recv_wr *wr, u8 *len16)
+			   const struct ib_recv_wr *wr, u8 *len16)
 {
 	int ret;
 
@@ -861,8 +861,9 @@ static int complete_sq_drain_wr(struct c4iw_qp *qhp,
 	return 0;
 }
 
-static int complete_sq_drain_wrs(struct c4iw_qp *qhp, struct ib_send_wr *wr,
-				struct ib_send_wr **bad_wr)
+static int complete_sq_drain_wrs(struct c4iw_qp *qhp,
+				 const struct ib_send_wr *wr,
+				 const struct ib_send_wr **bad_wr)
 {
 	int ret = 0;
 
@@ -877,7 +878,8 @@ static int complete_sq_drain_wrs(struct c4iw_qp *qhp, struct ib_send_wr *wr,
 	return ret;
 }
 
-static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
+static void complete_rq_drain_wr(struct c4iw_qp *qhp,
+				 const struct ib_recv_wr *wr)
 {
 	struct t4_cqe cqe = {};
 	struct c4iw_cq *rchp;
@@ -909,7 +911,8 @@ static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 	}
 }
 
-static void complete_rq_drain_wrs(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
+static void complete_rq_drain_wrs(struct c4iw_qp *qhp,
+				  const struct ib_recv_wr *wr)
 {
 	while (wr) {
 		complete_rq_drain_wr(qhp, wr);
@@ -917,8 +920,8 @@ static void complete_rq_drain_wrs(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 	}
 }
 
-int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		   struct ib_send_wr **bad_wr)
+int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr)
 {
 	int err = 0;
 	u8 len16 = 0;
@@ -1068,8 +1071,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	return err;
 }
 
-int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int c4iw_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
 	struct c4iw_qp *qhp;
@@ -1147,6 +1150,7 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	}
 	return err;
 }
+
 
 static inline void build_term_codes(struct t4_cqe *err_cqe, u8 *layer_type,
 				    u8 *ecode)

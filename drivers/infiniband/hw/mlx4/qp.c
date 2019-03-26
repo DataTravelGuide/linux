@@ -3438,8 +3438,8 @@ static void add_zero_len_inline(void *wqe)
 	inl->byte_count = cpu_to_be32(1 << 31);
 }
 
-int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int mlx4_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		      const struct ib_send_wr **bad_wr)
 {
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	void *wqe;
@@ -3759,8 +3759,8 @@ out:
 	return err;
 }
 
-int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int mlx4_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	struct mlx4_wqe_data_seg *scat;
