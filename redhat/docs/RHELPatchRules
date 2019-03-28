@@ -785,6 +785,146 @@ http://patchwork.lab.bos.redhat.com/
 4.  Is there any documentation about RHEL patchwork?
 
 http://git.engineering.redhat.com/?p=users/arozansk/patchwork.git;a=blob;f=docs/pjw/patchwork-introduction.txt;h=80b4c6dae0ea9d159224f84ceb570584212151af;hb=961020d01b903f0034dfa69af1cff700f4364b91
+
+
+
+X.  Reviewer Guidelines
+------------------------
+
+In an effort to allow kernel maintainers to make use of automation in
+the review process and to reduce the volume of messages required to
+reach approval, the following tags must be used.
+
+[Required] Reviewers must include an Acked-by: tag to signal official approval.
+[Required] Reviewers may include an Rescind|Revoke-acked-by: tag to signal withdrawl of approval without blocking.
+[Required] Reviewers must include a Nacked-by: tag to block patch inclusion for any reason.
+[Required] Reviewers may include a Rescind|Revoke-nacked-by: tag to signal that a previous Nacked-by: can be disregarded.
+
+
+^Acked-by: <reviewer email> [optional short comment for humans]
+
+  Indicates that all conditions have been met, and the patch can be
+  included.  When applied to the cover letter of a patch series, this
+  will indicate approval of the series as a whole.
+
+
+^Nacked-by: <reviewer email> [optional short description of objection]
+
+  Indicates that there is some outstanding condition or objection.
+  This will block the patch(set) until the nack is rescinded with a
+  subsequent Acked-by: or Rescind-nacked-by: from the same reviewer.
+
+
+^{Rescind|Revoke}-acked-by: <reviewer email>
+
+  Indicates that the reviewer wants to withdrawl their ack, without
+  blocking the patch(set).
+
+
+^{Rescind|Revoke}-nacked-by: <reviewer email>
+
+  Indicates that the reviewer's outstanding condition or objection has
+  been addressed, but the reviewer is not confident to provide an
+  approval of the patchset.
+
+
+
+Notes:
+
+  * There can be no conditions when approving a patch(set).  If a
+    patch is not acceptable for immediate inclusion, the reviewer
+    should use Nacked-by: until all conditions are met.
+
+  * The need-info blocking state gets replaced by an explicit
+    temporary nack. Simply posing questions will not be enough to
+    block the merge of the series anymore.
+
+  * Nacked-by: should be monitored by the reviewer and the submitter
+    of the patch and brought to resolution.  To see current status of
+    a patch(set) see: http://patchwork.lab.bos.redhat.com/status/
+
+  * Reviewers are still free to comment on patches without using the
+    tags above, but such comments will not be considered in the
+    process of determining patch approval.
+
+  * Reviewers are free to reverse their review position as many times
+    as they care to. The latest & most specific review message will be used.
+
+
+
+Examples:
+
+  Acked-by: <joe.reviewer>  LGTM
+  Nacked-by: <joe.reviewer>  Please send v2
+  Nacked-by: <joe.reviewer@redhat.com> I need to review this, but I'm on pto until next week.
+
+
+# Ack set:
+
+  cover letter <-- Acked-by: <joe.reviewer>
+
+
+# Asking for more info without approving:
+
+  Nacked-by: <joe.reviewer> Test results?
+  # results posted
+  Rescind-nacked-by: <joe.reviewer> Testing results look fine, but I don't know this code.
+
+
+# Selective ack/nack of patchset:
+
+  patch 3/10 <-- Nacked-by: <joe.reviewer>
+  patch 6/10 <-- Nacked-by: <joe.reviewer>
+  patch 7/10 <-- Nacked-by: <joe.reviewer>
+  ...
+  patch 3/10v2 <-- Nacked-by: <joe.reviewer>
+  patch 6/10v2 <-- Acked-by: <joe.reviewer>
+  patch 7/10v2 <-- Acked-by: <joe.reviewer>
+  ...
+  patch 3/10v3 <-- Acked-by: <joe.reviewer>
+  cover letter <--  Acked-by: <joe.reviewer>  with 3/10v3, 6/10v2, 7/10v2.
+
+# Final acked-by to the cover letter will apply the updated patchset as a whole.
+
+
+
+# Reviewer reverses postion about partial nack of a set:
+
+  patch 1/10 <-- Nacked-by: <joe.reviewer>
+  patch 2/10 <-- Nacked-by: <joe.reviewer>
+  (discussion continues, but no patch updates are posted)
+  patch 1/10 <-- Acked-by: <joe.reviewer>  Jill's further explaination made things clear - now I get it.
+  patch 2/10 <-- Acked-by: <joe.reviewer>
+  cover letter <--  Acked-by: <joe.reviewer> Thanks, Jill!
+
+
+# Another approval of patchset after update:
+
+  patch 1/10 <-- Nacked-by: <joe.reviewer>
+  patch 2/10 <-- Nacked-by: <joe.reviewer>
+  patch 1/10v2 posted
+  patch 2/10v2 posted
+  (some time passes)
+  patch 1/10v2 <-- Acked-by: <joe.reviewer>
+  patch 2/10v2 <-- Acked-by: <joe.reviewer>
+  cover letter <--  Acked-by: <joe.reviewer>
+
+
+
+# Dubious reviewer interaction, try to avoid this:
+
+  patch 1/10 <-- Nacked-by: <joe.reviewer>
+  patch 6/10 <-- Nacked-by: <joe.reviewer>
+  patch 1/10v2 posted
+  patch 6/10v2 posted
+  (some time passes)
+  cover letter <--  Acked-by: <joe.reviewer>
+
+# Did Joe see the updated patchset, or did he change his mind about nacking the original patches?
+# The maintainer will be forced to ask here.
+
+
+
 ================================================================================
 Reviewed-by: Prarit Bhargava <prarit@redhat.com>
 Reviewed-by: Don Zickus <dzickus@redhat.com>
