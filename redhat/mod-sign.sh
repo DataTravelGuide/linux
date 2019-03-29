@@ -15,11 +15,16 @@ moddir=$3
 
 modules=`find $moddir -type f -name '*.ko'`
 
-for mod in $modules
-do
-    ./scripts/sign-file sha256 $MODSECKEY $MODPUBKEY $mod
-    rm -f $mod.sig $mod.dig
+NPROC=`nproc`
+[ -z "$NPROC" ] && NPROC=1
+
+# NB: this loop runs 2000+ iterations. Try to be fast.
+echo "$modules" | xargs -r -n16 -P $NPROC sh -c "
+for mod; do
+    ./scripts/sign-file sha256 $MODSECKEY $MODPUBKEY \$mod
+    rm -f \$mod.sig \$mod.dig
 done
+" DUMMYARG0   # xargs appends ARG1 ARG2..., which go into $mod in for loop.
 
 RANDOMMOD=$(echo "$modules" | sort -R | head -n 1)
 if [ "~Module signature appended~" != "$(tail -c 28 $RANDOMMOD)" ]; then
