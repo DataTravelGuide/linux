@@ -632,7 +632,7 @@ struct netdev_queue {
 	struct dql		dql;
 #endif
 
-	RH_KABI_RESERVE(1)
+	RH_KABI_USE(1, struct xdp_umem	*umem)
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
@@ -755,7 +755,7 @@ struct netdev_rx_queue {
 	struct net_device		*dev;
 	RH_KABI_EXCLUDE(struct xdp_rxq_info	xdp_rxq)
 
-	RH_KABI_RESERVE(1)
+	RH_KABI_USE(1, struct xdp_umem	*umem)
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
