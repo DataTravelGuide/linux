@@ -172,6 +172,13 @@ M:	Jarod Wilson <jarod@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/atheros/
 
+AUDIT SUBSYSTEM
+M:	Richard Guy Briggs <rbriggs@redhat.com>
+S:	Supported
+F:	include/linux/audit.h
+F:	include/uapi/linux/audit.h
+F:	kernel/audit*
+
 BE2NET ETHERNET DRIVER (be2net)
 M:	Petr Oros <poros@redhat.com>
 S:	Maintained
@@ -745,6 +752,21 @@ X:	net/sunrpc/
 X:	net/wimax/
 X:	net/wireless/
 
+NETWORKING [LABELED] (NetLabel, Labeled IPsec, SECMARK)
+M:	Ondrej Mosnacek <omosnace@redhat.com>
+S:	Supported
+F:	Documentation/netlabel/
+F:	include/net/calipso.h
+F:	include/net/cipso_ipv4.h
+F:	include/net/netlabel.h
+F:	include/uapi/linux/netfilter/xt_SECMARK.h
+F:	include/uapi/linux/netfilter/xt_CONNSECMARK.h
+F:	net/netlabel/
+F:	net/ipv4/cipso_ipv4.c
+F:	net/ipv6/calipso.c
+F:	net/netfilter/xt_CONNSECMARK.c
+F:	net/netfilter/xt_SECMARK.c
+
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <mchopra@redhat.com>
 M:	Tony Camuso <tcamuso@redhat.com>
@@ -931,6 +953,14 @@ S:	Maintained
 F:	net/sctp/
 F:	include/linux/sctp.h
 F:	include/net/sctp/
+
+SELINUX SECURITY MODULE
+M:	Ondrej Mosnacek <omosnace@redhat.com>
+S:	Supported
+F:	include/linux/selinux*
+F:	security/selinux/
+F:	scripts/selinux/
+F:	Documentation/admin-guide/LSM/SELinux.rst
 
 SERIAL ATA (SATA) SUBSYSTEM
 M:	David Milburn <dmilburn@redhat.com>
