@@ -1,3 +1,33 @@
+* Thu Apr 04 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-80.9.el8]
+- [scsi] scsi: qla2xxx: Fix NULL pointer crash due to stale CPUID (Himanshu Madhani) [1685013]
+- [scsi] scsi: core: Avoid that system resume triggers a kernel warning (Ewan Milne) [1691903]
+- [scsi] scsi: core: reset host byte in DID_NEXUS_FAILURE case (Ewan Milne) [1691903]
+- [scsi] scsi: core: Synchronize request queue PM status only on successful resume (Ewan Milne) [1691903]
+- [scsi] scsi: sd: Fix cache_type_store() (Ewan Milne) [1691903]
+- [scsi] scsi: sd: use mempool for discard special page (Ewan Milne) [1691903]
+- [scsi] scsi: core: Remove scsi_block_when_processing_errors: message (Ewan Milne) [1691903]
+- [scsi] scsi: core: Allow state transitions from OFFLINE to BLOCKED (Ewan Milne) [1691903]
+- [scsi] scsi: core: remove unnecessary unlikely() (Ewan Milne) [1691903]
+- [scsi] scsi: st: remove redundant pointer STbuffer (Ewan Milne) [1691903]
+- [scsi] scsi: core: Avoid that SCSI device removal through sysfs triggers a deadlock (Ewan Milne) [1691903]
+- [fs] scsi: sysfs: Introduce sysfs_{un,}break_active_protection() (Ewan Milne) [1691903]
+- [scsi] scsi sg: remove incorrect scsi command checking logic (Ewan Milne) [1691903]
+- [scsi] scsi: read host_busy via scsi_host_busy() (Ewan Milne) [1691903]
+- [scsi] scsi: sd: Remove a superfluous assignment (Ewan Milne) [1691903]
+- [scsi] scsi: don't add scsi command result bytes (Ewan Milne) [1691903]
+- [scsi] scsi: core: check for equality of result byte values (Ewan Milne) [1691903]
+- [scsi] scsi: scsi_transport_fc: use 64-bit timestamps consistently (Ewan Milne) [1691903]
+- [scsi] scsi: sg: clean up gfp_mask in sg_build_indirect (Ewan Milne) [1691903]
+- [scsi] scsi: core: remove Scsi_Cmnd typedef (Ewan Milne) [1691903]
+- [netdrv] ibmvnic: Report actual backing device speed and duplex values (Steve Best) [1691862]
+- [kernel] sched/fair: Fix O(nr_cgroups) in the load balancing path (Phil Auld) [1685636] {CVE-2018-20784}
+- [kernel] sched/fair: Fix insertion in rq->leaf_cfs_rq_list (Phil Auld) [1685636] {CVE-2018-20784}
+- [kernel] sched/fair: Add tmp_alone_branch assertion (Phil Auld) [1685636] {CVE-2018-20784}
+- [kernel] sched/fair: Fix infinite loop in update_blocked_averages() by reverting a9e7f6544b9c (Phil Auld) [1685636] {CVE-2018-20784}
+- [kernel] tracing: Do a WARN_ON() if start_thread() in hwlat is called when thread exists (Jerome Marchand) [1693050]
+- [kernel] ftrace: Add missing check for existing hwlat thread (Jerome Marchand) [1693050]
+- [kernel] tracing: Do not call start/stop() functions when tracing_on does not change (Jerome Marchand) [1693050]
+
 * Wed Apr 03 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-80.8.el8]
 - [scsi] scsi: lpfc: Fixup eq_clr_intr references (Dick Kennedy) [1692882]
 - [scsi] scsi: lpfc: Fix build error (Dick Kennedy) [1692882]
