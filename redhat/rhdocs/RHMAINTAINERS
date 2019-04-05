@@ -314,6 +314,16 @@ M:	Tomas Henzl <thenzl@redhat.com>
 S:	Maintained
 F:	drivers/scsi/hpsa*
 
+MICROSEMI SMART ARRAY SMARTPQI DRIVER (smartpqi)
+M:      Don Brace <dbrace@redhat.com>
+S:      Maintained
+F:      drivers/scsi/smartpqi/smartpqi*.[ch]
+F:      drivers/scsi/smartpqi/Kconfig
+F:      drivers/scsi/smartpqi/Makefile
+F:      include/linux/cciss*.h
+F:      include/uapi/linux/cciss*.h
+F:      Documentation/scsi/smartpqi.txt
+
 DM-RAID SUPPORT
 M:	Jonathan Brassow <jbrassow@redhat.com>
 S:	Maintained
@@ -749,7 +759,7 @@ F:      net/netfilter/xt_CONNSECMARK.c
 F:      net/netfilter/xt_SECMARK.c
 
 NETXEN (1/10) GbE SUPPORT
-M:	Chad Dupuis <cdupuis@redhat.com>
+M:	Manish Chopra <mchopra@redhat.com>
 M:	Tony Camuso <tcamuso@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/qlogic/netxen/
@@ -848,13 +858,18 @@ S:	Maintained
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
-M:	Chad Dupuis <cdupuis@redhat.com>
+M:	Manish Chopra <mchopra@redhat.com>
 S:	Maintained
 F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
+QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
+M:	Manish Chopra <mchopra@redhat.com>
+S:	Maintained
+F:	drivers/net/ethernet/qlogic/qlcnic/
+
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Chad Dupuis <cdupuis@redhat.com>
+M:	Manish Chopra <mchopra@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/qlogic/qlge/
 
@@ -869,6 +884,21 @@ M:	Chad Dupuis <cdupuis@redhat.com>
 M:	Chris Leech <cleech@redhat.com>
 S:	Maintained
 F:	drivers/scsi/qedf/
+
+QLOGIC QED NETWORK DRIVER
+M:	Manish Chopra <mchopra@redhat.com>
+S:	Maintained
+F:	drivers/net/ethernet/qlogic/qed
+
+QLOGIC QEDE ETHERNET NETWORK DRIVER
+M:	Manish Chopra <mchopra@redhat.com>
+S:	Maintained
+F:	drivers/net/ethernet/qlogic/qede
+
+QLOGIC QEDR RDMA ETHERNET NETWORK DRIVER
+M:	Manish Chopra <mchopra@redhat.com>
+S:	Maintained
+F:	drivers/infiniband/hw/qedr
 
 RALINK RT2X00 WIRELESS LAN DRIVER
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
