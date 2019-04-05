@@ -13,16 +13,18 @@ touch dep.list req.list
 cp $2 .
 
 # NB: this loop runs 2000+ iterations. Try to be fast.
-for dep in `cat modnames`
-do
-  depends=`modinfo $dep | sed -n -e '/^depends/ s/^depends:[ \t]*//p'`
-  [ -z "$depends" ] && continue
+NPROC=`nproc`
+[ -z "$NPROC" ] && NPROC=1
+cat modnames | xargs -r -n1 -P $NPROC sh -c '
+  dep=$1
+  depends=`modinfo $dep | sed -n -e "/^depends/ s/^depends:[ \t]*//p"`
+  [ -z "$depends" ] && exit
   for mod in ${depends//,/ }
   do
     match=`grep "^$mod.ko" mod-extra.list`
     [ -z "$match" ] && continue
-    # check if the module we're looking at is in mod-extra too.
-    # if so we don't need to mark the dep as required.
+    # check if the module we are looking at is in mod-extra too.
+    # if so we do not need to mark the dep as required.
     mod2=${dep##*/}  # same as `basename $dep`, but faster
     match2=`grep "^$mod2" mod-extra.list`
     if [ -n "$match2" ]
@@ -32,7 +34,7 @@ do
     fi
     echo $mod.ko >> req.list
   done
-done
+' DUMMYARG0   # xargs appends MODNAME, which becomes $dep in the script above
 
 sort -u req.list > req2.list
 sort -u mod-extra.list > mod-extra2.list
