@@ -445,6 +445,11 @@ M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/intel/igbvf/
 
+INTEL IGC ETHERNET DRIVERS (igc)
+M:	David Arcari <darcari@redhat.com>
+S:	Maintained
+F:	drivers/net/ethernet/intel/igc/
+
 INTEL IOMMU (VT-d)
 M:	Jerry Snitselaar <jsnitsel@redhat.com>
 M:	Myron Stowe <myron.stowe@redhat.com>
