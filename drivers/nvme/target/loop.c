@@ -557,6 +557,9 @@ static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
 	if (ret)
 		goto out_cleanup_connect_q;
 
+	/* target only accepts single-page sg list */
+	blk_queue_segment_boundary(ctrl->ctrl.connect_q, PAGE_SIZE - 1);
+
 	return 0;
 
 out_cleanup_connect_q:
