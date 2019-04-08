@@ -1765,6 +1765,12 @@ rm %{buildroot}%{_libexecdir}/ksamples/bpf/test_lwt_bpf.sh
 install -m644 *_kern.o %{buildroot}%{_libexecdir}/ksamples/bpf
 install -m644 tcp_bpf.readme %{buildroot}%{_libexecdir}/ksamples/bpf
 popd
+# install pktgen samples
+pushd pktgen
+install -d %{buildroot}%{_libexecdir}/ksamples/pktgen
+find . -type f -executable -exec install -m755 {} %{buildroot}%{_libexecdir}/ksamples/pktgen/{} \;
+find . -type f ! -executable -exec install -m644 {} %{buildroot}%{_libexecdir}/ksamples/pktgen/{} \;
+popd
 popd
 %endif
 
