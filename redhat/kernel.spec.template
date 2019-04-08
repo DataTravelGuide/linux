@@ -83,8 +83,8 @@ Summary: The Linux kernel
 %define with_zfcpdump  %{?_without_zfcpdump:  0} %{?!_without_zfcpdump:  1}
 # kernel-abi-whitelists
 %define with_kernel_abi_whitelists %{?_without_kernel_abi_whitelists: 0} %{?!_without_kernel_abi_whitelists: 1}
-# bpf samples
-%define with_bpf_samples %{?_without_bpf_samples: 0} %{?!_without_bpf_samples: 1}
+# internal samples and selftests
+%define with_selftests %{?_without_selftests: 0} %{?!_without_selftests: 1}
 #
 # Additional options for user-friendly one-off kernel building:
 #
@@ -195,7 +195,7 @@ Summary: The Linux kernel
 %define with_tools 0
 %define with_perf 0
 %define with_bpftool 0
-%define with_bpf_samples 0
+%define with_selftests 0
 %define with_debug 0
 %define all_arch_configs kernel-%{version}-*.config
 %endif
@@ -264,7 +264,7 @@ Summary: The Linux kernel
 %define with_perf 0
 %define with_tools 0
 %define with_bpftool 0
-%define with_bpf_samples 0
+%define with_selftests 0
 %define _enable_debug_packages 0
 %endif
 
@@ -327,7 +327,7 @@ BuildRequires: pciutils-devel
 BuildRequires: python3-docutils
 BuildRequires: zlib-devel binutils-devel
 %endif
-%if %{with_bpf_samples}
+%if %{with_selftests}
 BuildRequires: libcap-devel libcap-ng-devel rsync llvm-toolset
 %endif
 BuildConflicts: rhbuildsys(DiskFree) < 500Mb
@@ -640,15 +640,15 @@ This package provides debug information for the bpftool package.
 
 %endif # with_bpftool
 
-%if %{with_bpf_samples}
+%if %{with_selftests}
 
-%package -n bpf-samples
-Summary: eBPF samples and selftests
+%package selftests-internal
+Summary: Kernel samples and selftests
 License: GPLv2
-%description -n bpf-samples
-eBPF sample programs and selftests.
+%description selftests-internal
+Kernel sample programs and selftests.
 
-%endif # with_bpf_samples
+%endif # with_selftests
 
 %if %{with_gcov}
 %package gcov
@@ -1534,7 +1534,7 @@ pushd tools/bpf/bpftool
 popd
 %endif
 
-%if %{with_bpf_samples}
+%if %{with_selftests}
 # Unfortunately, samples/bpf/Makefile expects that the headers are installed
 # in the source tree. We installed them previously to $RPM_BUILD_ROOT/usr
 # but there's no way to tell the Makefile to take them from there.
@@ -1543,7 +1543,7 @@ make headers_install
 pushd tools/testing/selftests
 # We need to install here because we need to call make with ARCH set which
 # doesn't seem possible to do in the install section.
-%{make} -s ARCH=$Arch V=1 TARGETS=bpf INSTALL_PATH=%{buildroot}%{_libexecdir}/bpf-samples/selftests install
+%{make} -s ARCH=$Arch V=1 TARGETS=bpf INSTALL_PATH=%{buildroot}%{_libexecdir}/kselftests install
 popd
 %endif
 
@@ -1751,16 +1751,20 @@ pushd tools/bpf/bpftool
 popd
 %endif
 
-%if %{with_bpf_samples}
-pushd samples/bpf
-install -d %{buildroot}%{_libexecdir}/bpf-samples
-find -type f -executable -exec install -m755 {} %{buildroot}%{_libexecdir}/bpf-samples \;
-install -m755 *.sh %{buildroot}%{_libexecdir}/bpf-samples
+%if %{with_selftests}
+pushd samples
+install -d %{buildroot}%{_libexecdir}/ksamples
+# install bpf samples
+pushd bpf
+install -d %{buildroot}%{_libexecdir}/ksamples/bpf
+find -type f -executable -exec install -m755 {} %{buildroot}%{_libexecdir}/ksamples/bpf \;
+install -m755 *.sh %{buildroot}%{_libexecdir}/ksamples/bpf
 # test_lwt_bpf.sh compiles test_lwt_bpf.c when run; this works only from the
 # kernel tree. Just remove it.
-rm %{buildroot}%{_libexecdir}/bpf-samples/test_lwt_bpf.sh
-install -m644 *_kern.o %{buildroot}%{_libexecdir}/bpf-samples
-install -m644 tcp_bpf.readme %{buildroot}%{_libexecdir}/bpf-samples
+rm %{buildroot}%{_libexecdir}/ksamples/bpf/test_lwt_bpf.sh
+install -m644 *_kern.o %{buildroot}%{_libexecdir}/ksamples/bpf
+install -m644 tcp_bpf.readme %{buildroot}%{_libexecdir}/ksamples/bpf
+popd
 popd
 %endif
 
@@ -2030,9 +2034,10 @@ fi
 %endif
 %endif
 
-%if %{with_bpf_samples}
-%files -n bpf-samples
-%{_libexecdir}/bpf-samples
+%if %{with_selftests}
+%files selftests-internal
+%{_libexecdir}/ksamples
+%{_libexecdir}/kselftests
 %endif
 
 # empty meta-package
