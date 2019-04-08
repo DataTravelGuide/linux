@@ -83,10 +83,8 @@ Summary: The Linux kernel
 %define with_zfcpdump  %{?_without_zfcpdump:  0} %{?!_without_zfcpdump:  1}
 # kernel-abi-whitelists
 %define with_kernel_abi_whitelists %{?_without_kernel_abi_whitelists: 0} %{?!_without_kernel_abi_whitelists: 1}
-#
-# Optional packages
-#
-%define with_bpf_samples %{?_with_bpf_samples: 1} %{?!_with_bpf_samples: 0}
+# bpf samples
+%define with_bpf_samples %{?_without_bpf_samples: 0} %{?!_without_bpf_samples: 1}
 #
 # Additional options for user-friendly one-off kernel building:
 #
@@ -330,7 +328,7 @@ BuildRequires: python3-docutils
 BuildRequires: zlib-devel binutils-devel
 %endif
 %if %{with_bpf_samples}
-BuildRequires: libcap-devel libcap-ng-devel glibc-static rsync llvm-toolset
+BuildRequires: libcap-devel libcap-ng-devel rsync llvm-toolset
 %endif
 BuildConflicts: rhbuildsys(DiskFree) < 500Mb
 %if %{with_debuginfo}
