@@ -1778,6 +1778,12 @@ find -type d -exec install -d %{buildroot}%{_libexecdir}/kselftests/net/forwardi
 find -type f -executable -exec install -D -m755 {} %{buildroot}%{_libexecdir}/kselftests/net/forwarding/{} \;
 find -type f ! -executable -exec install -D -m644 {} %{buildroot}%{_libexecdir}/kselftests/net/forwarding/{} \;
 popd
+# install tc-testing selftests
+pushd tools/testing/selftests/tc-testing
+find -type d -exec install -d %{buildroot}%{_libexecdir}/kselftests/tc-testing/{} \;
+find -type f -executable -exec install -D -m755 {} %{buildroot}%{_libexecdir}/kselftests/tc-testing/{} \;
+find -type f ! -executable -exec install -D -m644 {} %{buildroot}%{_libexecdir}/kselftests/tc-testing/{} \;
+popd
 %endif
 
 # We have to do the headers checksum calculation after the tools install because
