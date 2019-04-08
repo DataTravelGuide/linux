@@ -1,3 +1,4 @@
 mac80211_hwsim
+netdevsim
 pktgen
 rocker
