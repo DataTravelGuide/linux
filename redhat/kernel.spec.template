@@ -328,7 +328,7 @@ BuildRequires: python3-docutils
 BuildRequires: zlib-devel binutils-devel
 %endif
 %if %{with_selftests}
-BuildRequires: libcap-devel libcap-ng-devel rsync llvm-toolset
+BuildRequires: libcap-devel libcap-ng-devel llvm-toolset numactl-devel rsync
 %endif
 BuildConflicts: rhbuildsys(DiskFree) < 500Mb
 %if %{with_debuginfo}
@@ -1543,7 +1543,7 @@ make headers_install
 pushd tools/testing/selftests
 # We need to install here because we need to call make with ARCH set which
 # doesn't seem possible to do in the install section.
-%{make} -s ARCH=$Arch V=1 TARGETS=bpf INSTALL_PATH=%{buildroot}%{_libexecdir}/kselftests install
+%{make} -s ARCH=$Arch V=1 TARGETS="bpf net" INSTALL_PATH=%{buildroot}%{_libexecdir}/kselftests install
 popd
 %endif
 
@@ -1771,6 +1771,12 @@ install -d %{buildroot}%{_libexecdir}/ksamples/pktgen
 find . -type f -executable -exec install -m755 {} %{buildroot}%{_libexecdir}/ksamples/pktgen/{} \;
 find . -type f ! -executable -exec install -m644 {} %{buildroot}%{_libexecdir}/ksamples/pktgen/{} \;
 popd
+popd
+# install net/forwarding selftests
+pushd tools/testing/selftests/net/forwarding
+find -type d -exec install -d %{buildroot}%{_libexecdir}/kselftests/net/forwarding/{} \;
+find -type f -executable -exec install -D -m755 {} %{buildroot}%{_libexecdir}/kselftests/net/forwarding/{} \;
+find -type f ! -executable -exec install -D -m644 {} %{buildroot}%{_libexecdir}/kselftests/net/forwarding/{} \;
 popd
 %endif
 
