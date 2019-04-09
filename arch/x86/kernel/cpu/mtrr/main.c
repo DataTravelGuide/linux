@@ -706,6 +706,7 @@ void __init mtrr_bp_init(void)
 		}
 	} else {
 		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_HYGON:
 		case X86_VENDOR_AMD:
 			if (cpu_feature_enabled(X86_FEATURE_K6_MTRR)) {
 				/* Pre-Athlon (K6) AMD CPU MTRRs */

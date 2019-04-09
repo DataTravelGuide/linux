@@ -345,7 +345,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		 * have an L3 cache by looking at the L3 cache CPUID leaf.
 		 */
 		if (cpuid_edx(0x80000006)) {
-			if (c->x86 == 0x17) {
+			if (c->x86 == 0x17 || c->x86 == 0x18) {
 				/*
 				 * LLC is at the core complex level.
 				 * Core complex id is ApicId[3].
@@ -862,6 +862,18 @@ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 
 	cpu_set_tlb_flushall_shift(c);
 }
+
+static const struct cpu_dev hygon_cpu_dev = {
+	.c_vendor	= "Hygon",
+	.c_ident	= { "HygonGenuine" },
+	.c_early_init   = early_init_amd,
+	.c_detect_tlb	= cpu_detect_tlb_amd,
+	.c_bsp_init	= bsp_init_amd,
+	.c_init		= init_amd,
+	.c_x86_vendor	= X86_VENDOR_HYGON,
+};
+
+cpu_dev_register(hygon_cpu_dev);
 
 static const struct cpu_dev amd_cpu_dev = {
 	.c_vendor	= "AMD",

@@ -880,6 +880,7 @@ static void rh_check_supported(void)
 
 	/* RHEL only supports Intel and AMD processors */
 	if ((boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) &&
+	    (boot_cpu_data.x86_vendor != X86_VENDOR_HYGON) &&
 	    (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)) {
 		pr_crit("Detected processor %s %s\n",
 			boot_cpu_data.x86_vendor_id,

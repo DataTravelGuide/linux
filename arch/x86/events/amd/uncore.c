@@ -559,16 +559,18 @@ static int __init amd_uncore_init(void)
 	unsigned int cpu, cpu2;
 	int ret = -ENODEV;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON)
 		goto fail_nodev;
 
 	switch(boot_cpu_data.x86) {
 		case 23:
+		case 24:
 			/* Family 17h: */
 			num_counters_nb = NUM_COUNTERS_NB;
 			num_counters_llc = NUM_COUNTERS_L3;
 			/*
-			 * For Family17h, the NorthBridge counters are
+			 * For Fam17h or Fam18h, the NorthBridge counters are
 			 * re-purposed as Data Fabric counters. Also, support is
 			 * added for L3 counters. The pmus are exported based on
 			 * family as either L2 or L3 and NB or DF.
@@ -616,7 +618,9 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_nb;
 
-		printk(KERN_INFO "perf: AMD NB counters detected\n");
+		printk(KERN_INFO "perf: %s NB counters detected\n",
+			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?
+				"HYGON" : "AMD");
 		ret = 0;
 	}
 
@@ -630,7 +634,9 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_llc;
 
-		pr_info("perf: AMD LLC counters detected\n");
+		pr_info("perf: %s LLC counters detected\n",
+			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?
+				"HYGON" : "AMD");
 		ret = 0;
 	}
 

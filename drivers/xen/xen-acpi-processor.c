@@ -441,7 +441,8 @@ static int __init check_prereq(void)
 
 		return 0;
 	}
-	if (c->x86_vendor == X86_VENDOR_AMD) {
+	if (c->x86_vendor == X86_VENDOR_AMD ||
+	    c->x86_vendor == X86_VENDOR_HYGON) {
 		/* Copied from powernow-k8.h, can't include ../cpufreq/powernow
 		 * as we get compile warnings for the static functions.
 		 */

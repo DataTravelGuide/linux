@@ -613,7 +613,8 @@ static bool memory_error(struct mce *m)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
-	if (c->x86_vendor == X86_VENDOR_AMD) {
+	if (c->x86_vendor == X86_VENDOR_AMD ||
+	    c->x86_vendor == X86_VENDOR_HYGON) {
 		/* ErrCodeExt[20:16] */
 		u8 xec = (m->status >> 16) & 0x1f;
 
@@ -1635,6 +1636,16 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		}
 	}
 
+	if (c->x86_vendor == X86_VENDOR_HYGON) {
+		if (cfg->bootlog < 0) {
+			/*
+			 * Lots of broken BIOS around that don't clear them
+			 * by default and leave crap in there. Don't log:
+			 */
+			cfg->bootlog = 0;
+		}
+	}
+
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
 		/*
 		 * SDM documents that on family 6 bank 0 should not be written
@@ -1703,6 +1714,7 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		mce_adjust_timer = cmci_intel_adjust_timer;
 		break;
 
+	case X86_VENDOR_HYGON:
 	case X86_VENDOR_AMD: {
 		mce_flags.overflow_recov = !!cpu_has(c, X86_FEATURE_OVERFLOW_RECOV);
 		mce_flags.succor	 = !!cpu_has(c, X86_FEATURE_SUCCOR);

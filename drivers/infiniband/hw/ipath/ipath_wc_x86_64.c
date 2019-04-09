@@ -180,5 +180,6 @@ void ipath_disable_wc(struct ipath_devdata *dd)
  */
 int ipath_unordered_wc(void)
 {
-	return boot_cpu_data.x86_vendor != X86_VENDOR_AMD;
+	return boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	       boot_cpu_data.x86_vendor != X86_VENDOR_HYGON;
 }

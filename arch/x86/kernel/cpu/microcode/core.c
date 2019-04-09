@@ -623,6 +623,10 @@ int __init microcode_init(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int error;
 
+	/* Hygon microcode loading to be implemented */
+	if (c->x86_vendor == X86_VENDOR_HYGON)
+		return 0;
+
 	if (dis_ucode_ldr)
 		return -EINVAL;
 
