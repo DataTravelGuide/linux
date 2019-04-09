@@ -165,6 +165,7 @@ static void get_smca_bank_info(unsigned int bank)
 		if (hwid_mcatype == s_hwid->hwid_mcatype) {
 			smca_banks[bank].hwid = s_hwid;
 			smca_banks[bank].id = instance_id;
+			smca_banks[bank].sysfs_id = s_hwid->count++;
 			break;
 		}
 	}
@@ -1031,9 +1032,12 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 		return NULL;
 	}
 
+	if (smca_banks[bank].hwid->count == 1)
+		return smca_names[bank_type].name;
+
 	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
 		 "%s_%x", smca_names[bank_type].name,
-			  smca_banks[bank].id);
+			  smca_banks[bank].sysfs_id);
 	return buf_mcatype;
 }
 
