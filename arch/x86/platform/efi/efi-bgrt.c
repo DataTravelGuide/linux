@@ -16,6 +16,8 @@
 #include <linux/efi.h>
 #include <linux/efi-bgrt.h>
 
+extern int page_is_ram(unsigned long pfn);
+
 struct acpi_table_bgrt *bgrt_tab;
 void *__initdata bgrt_image;
 size_t __initdata bgrt_image_size;
@@ -29,7 +31,9 @@ void __init efi_bgrt_init(void)
 {
 	acpi_status status;
 	void *image;
+	bool ioremapped = false;
 	struct bmp_header bmp_header;
+	int img_addr_in_ram;
 
 	if (acpi_disabled)
 		return;
@@ -41,26 +45,49 @@ void __init efi_bgrt_init(void)
 
 	if (bgrt_tab->header.length < sizeof(*bgrt_tab))
 		return;
-	if (bgrt_tab->version != 1)
+	if (!bgrt_tab->status || bgrt_tab->version != 1)
 		return;
 	if (bgrt_tab->image_type != 0 || !bgrt_tab->image_address)
 		return;
 
-	image = ioremap(bgrt_tab->image_address, sizeof(bmp_header));
-	if (!image) {
+	/* Before ioremap check if image address falls in System RAM */
+	img_addr_in_ram = page_is_ram(bgrt_tab->image_address >> PAGE_SHIFT);
+	if (img_addr_in_ram) {
+		pr_info("BGRT: Image Address falls in System RAM");
+		image = phys_to_virt(bgrt_tab->image_address);
+	} else {
+		image = ioremap(bgrt_tab->image_address,
+			sizeof(bmp_header));
+		ioremapped = true;
+	}
+
+	 if (!image) {
 		pr_err("Ignoring BGRT: failed to map image header memory\n");
 		return;
 	}
 
-	memcpy(&bmp_header, image, sizeof(bmp_header));
-	iounmap(image);
-	bgrt_image_size = bmp_header.size;
+	if (img_addr_in_ram)
+		memcpy(&bmp_header, image, sizeof(bmp_header));
+	else
+		memcpy_fromio(&bmp_header, image, sizeof(bmp_header));
 
+	if (ioremapped)
+		iounmap(image);
+
+	bgrt_image_size = bmp_header.size;
 	bgrt_image = kmalloc(bgrt_image_size, GFP_KERNEL);
 	if (!bgrt_image)
 		return;
 
-	image = ioremap(bgrt_tab->image_address, bmp_header.size);
+	ioremapped = false;
+	if (img_addr_in_ram) {
+		image = phys_to_virt(bgrt_tab->image_address);
+	} else {
+		image = ioremap(bgrt_tab->image_address,
+			bmp_header.size);
+		ioremapped = true;
+	}
+
 	if (!image) {
 		pr_err("Ignoring BGRT: failed to map image memory\n");
 		kfree(bgrt_image);
@@ -68,6 +95,11 @@ void __init efi_bgrt_init(void)
 		return;
 	}
 
-	memcpy(bgrt_image, image, bgrt_image_size);
-	iounmap(image);
+	if (img_addr_in_ram)
+		memcpy(bgrt_image, image, bgrt_image_size);
+	else
+		memcpy_fromio(bgrt_image, image, bgrt_image_size);
+
+	if (ioremapped)
+		iounmap(image);
 }
