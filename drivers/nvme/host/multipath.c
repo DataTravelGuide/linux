@@ -380,6 +380,15 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 		srcu_read_unlock(&head->srcu, srcu_idx);
 	}
 
+	if (nvme_path_is_optimized(ns)) {
+		int node, srcu_idx;
+
+		srcu_idx = srcu_read_lock(&head->srcu);
+		for_each_node(node)
+			__nvme_find_path(head, node);
+		srcu_read_unlock(&head->srcu, srcu_idx);
+	}
+
 	kblockd_schedule_work(&ns->head->requeue_work);
 }
 
