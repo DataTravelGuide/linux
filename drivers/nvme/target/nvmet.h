@@ -66,6 +66,7 @@ struct nvmet_ns {
 	u8			nguid[16];
 	uuid_t			uuid;
 
+	bool			buffered_io;
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
@@ -283,6 +284,8 @@ struct nvmet_req {
 	struct pci_dev *p2p_dev;
 	struct device *p2p_client;
 };
+
+extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 {

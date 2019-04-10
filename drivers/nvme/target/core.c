@@ -19,6 +19,7 @@
 
 #include "nvmet.h"
 
+struct workqueue_struct *buffered_io_wq;
 static const struct nvmet_fabrics_ops *nvmet_transports[NVMF_TRTYPE_MAX];
 static DEFINE_IDA(cntlid_ida);
 
@@ -541,6 +542,7 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 	ns->nsid = nsid;
 	ns->subsys = subsys;
 	uuid_gen(&ns->uuid);
+	ns->buffered_io = false;
 
 	return ns;
 }
@@ -1292,6 +1294,12 @@ static int __init nvmet_init(void)
 {
 	int error;
 
+	buffered_io_wq = alloc_workqueue("nvmet-buffered-io-wq",
+			WQ_MEM_RECLAIM, 0);
+	if (!buffered_io_wq) {
+		error = -ENOMEM;
+		goto out;
+	}
 	error = nvmet_init_discovery();
 	if (error)
 		goto out;
@@ -1312,6 +1320,7 @@ static void __exit nvmet_exit(void)
 	nvmet_exit_configfs();
 	nvmet_exit_discovery();
 	ida_destroy(&cntlid_ida);
+	destroy_workqueue(buffered_io_wq);
 
 	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_entry) != 1024);
 	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_hdr) != 1024);
