@@ -664,7 +664,7 @@ endif
 ifneq ($(DISABLE_WERROR),1)
 ifneq ($(WITH_GCOV),1)
 ifeq ($(KBUILD_EXTMOD),)
-ifneq (,$(filter $(ARCH), x86 x86_64 powerpc))
+ifneq (,$(filter $(ARCH), x86 x86_64 powerpc s390))
 KBUILD_CFLAGS   += -Werror
 endif
 # powerpc is compiled with -O3. Starting with gcc 4.8, there have been some
