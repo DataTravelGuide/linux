@@ -131,10 +131,6 @@ struct switchdev_ops_extended_rh {
  * @switchdev_port_attr_get: Get a port attribute (see switchdev_attr).
  *
  * @switchdev_port_attr_set: Set a port attribute (see switchdev_attr).
- *
- * @switchdev_port_obj_add: Add an object to port (see switchdev_obj_*).
- *
- * @switchdev_port_obj_del: Delete an object from port (see switchdev_obj_*).
  */
 struct switchdev_ops {
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
@@ -142,11 +138,11 @@ struct switchdev_ops {
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
 					   const struct switchdev_attr *attr,
 					   struct switchdev_trans *trans);
-	int	(*switchdev_port_obj_add)(struct net_device *dev,
+	RH_KABI_DEPRECATE_FN(int, switchdev_port_obj_add, struct net_device *dev,
 					  const struct switchdev_obj *obj,
-					  struct switchdev_trans *trans);
-	int	(*switchdev_port_obj_del)(struct net_device *dev,
-					  const struct switchdev_obj *obj);
+					  struct switchdev_trans *trans)
+	RH_KABI_DEPRECATE_FN(int, switchdev_port_obj_del, struct net_device *dev,
+					  const struct switchdev_obj *obj)
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
