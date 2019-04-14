@@ -204,7 +204,8 @@ int switchdev_port_attr_get(struct net_device *dev,
 int switchdev_port_attr_set(struct net_device *dev,
 			    const struct switchdev_attr *attr);
 int switchdev_port_obj_add(struct net_device *dev,
-			   const struct switchdev_obj *obj);
+			   const struct switchdev_obj *obj,
+			   struct netlink_ext_ack *extack);
 int switchdev_port_obj_del(struct net_device *dev,
 			   const struct switchdev_obj *obj);
 
@@ -257,7 +258,8 @@ static inline int switchdev_port_attr_set(struct net_device *dev,
 }
 
 static inline int switchdev_port_obj_add(struct net_device *dev,
-					 const struct switchdev_obj *obj)
+					 const struct switchdev_obj *obj,
+					 struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
