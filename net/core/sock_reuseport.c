@@ -151,6 +151,7 @@ int reuseport_add_sock(struct sock *sk, struct sock *sk2)
 		call_rcu(&old_reuse->rcu, reuseport_free_rcu);
 	return 0;
 }
+EXPORT_SYMBOL(reuseport_add_sock);
 
 void reuseport_detach_sock(struct sock *sk)
 {
