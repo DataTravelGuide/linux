@@ -1754,6 +1754,9 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 			      i,
 			      ppd->pkeys);
 
+	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev,
+				    &ib_hfi1_attr_group);
+
 	ret = rvt_register_device(&dd->verbs_dev.rdi, RDMA_DRIVER_HFI1);
 	if (ret)
 		goto err_verbs_txreq;
