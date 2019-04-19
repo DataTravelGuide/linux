@@ -1206,7 +1206,8 @@ struct net_device_ops_extended_rh {
  *
  * int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
  *		      struct net_device *dev,
- *		      const unsigned char *addr, u16 vid, u16 flags)
+ *		      const unsigned char *addr, u16 vid, u16 flags,
+ *		      struct netlink_ext_ack *extack);
  *	Adds an FDB entry to dev for addr.
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct nlattr *tb[],
  *		      struct net_device *dev,
@@ -1425,12 +1426,19 @@ struct net_device_ops {
 	void			(*ndo_neigh_destroy)(struct net_device *dev,
 						     struct neighbour *n);
 
-	int			(*ndo_fdb_add)(struct ndmsg *ndm,
+	RH_KABI_REPLACE(int	(*ndo_fdb_add)(struct ndmsg *ndm,
 					       struct nlattr *tb[],
 					       struct net_device *dev,
 					       const unsigned char *addr,
 					       u16 vid,
-					       u16 flags);
+					       u16 flags),
+			int	(*ndo_fdb_add)(struct ndmsg *ndm,
+					       struct nlattr *tb[],
+					       struct net_device *dev,
+					       const unsigned char *addr,
+					       u16 vid,
+					       u16 flags,
+					       struct netlink_ext_ack *extack))
 	int			(*ndo_fdb_del)(struct ndmsg *ndm,
 					       struct nlattr *tb[],
 					       struct net_device *dev,
