@@ -37,7 +37,7 @@ RHEL_RELEASE = 80
 # Do not trim this comment.
 EARLY_YSTREAM ?= yes
 EARLY_YBUILD:=80
-EARLY_YRELEASE:=18
+EARLY_YRELEASE:=19
 ifneq ("$(ZSTREAM)", "yes")
   ifeq ("$(EARLY_YSTREAM)","yes")
     RHEL_RELEASE:=$(RHEL_RELEASE).$(EARLY_YRELEASE)
