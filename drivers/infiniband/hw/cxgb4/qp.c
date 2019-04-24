@@ -763,7 +763,7 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 	return 0;
 }
 
-static int build_srq_recv(union t4_recv_wr *wqe, struct ib_recv_wr *wr,
+static int build_srq_recv(union t4_recv_wr *wqe, const struct ib_recv_wr *wr,
 			  u8 *len16)
 {
 	int ret;
@@ -1374,8 +1374,8 @@ static void defer_srq_wr(struct t4_srq *srq, union t4_recv_wr *wqe,
 	t4_srq_produce_pending_wr(srq);
 }
 
-int c4iw_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-		       struct ib_recv_wr **bad_wr)
+int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr)
 {
 	union t4_recv_wr *wqe, lwqe;
 	struct c4iw_srq *srq;

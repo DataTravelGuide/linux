@@ -1122,8 +1122,8 @@ void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 void c4iw_dispatch_srq_limit_reached_event(struct c4iw_srq *srq);
 void c4iw_copy_wr_to_srq(struct t4_srq *srq, union t4_recv_wr *wqe, u8 len16);
 void c4iw_flush_srqidx(struct c4iw_qp *qhp, u32 srqidx);
-int c4iw_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-		       struct ib_recv_wr **bad_wr);
+int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr);
 struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
 
 typedef int c4iw_restrack_func(struct sk_buff *msg,
