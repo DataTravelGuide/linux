@@ -2522,7 +2522,7 @@ static void free_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 
 	dma_free_coherent(&rdev->lldi.pdev->dev,
 			  wq->memsize, wq->queue,
-			pci_unmap_addr(wq, mapping));
+			dma_unmap_addr(wq, mapping));
 	c4iw_rqtpool_free(rdev, wq->rqt_hwaddr, wq->rqt_size);
 	kfree(wq->sw_rq);
 	c4iw_put_qpid(rdev, wq->qid, uctx);
@@ -2571,7 +2571,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 		goto err_free_rqtpool;
 
 	memset(wq->queue, 0, wq->memsize);
-	pci_unmap_addr_set(wq, mapping, wq->dma_addr);
+	dma_unmap_addr_set(wq, mapping, wq->dma_addr);
 
 	wq->bar2_va = c4iw_bar2_addrs(rdev, wq->qid, T4_BAR2_QTYPE_EGRESS,
 				      &wq->bar2_qid,
@@ -2650,7 +2650,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 err_free_queue:
 	dma_free_coherent(&rdev->lldi.pdev->dev,
 			  wq->memsize, wq->queue,
-			pci_unmap_addr(wq, mapping));
+			dma_unmap_addr(wq, mapping));
 err_free_rqtpool:
 	c4iw_rqtpool_free(rdev, wq->rqt_hwaddr, wq->rqt_size);
 err_free_pending_wrs:
