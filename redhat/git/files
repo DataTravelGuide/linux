@@ -22,6 +22,7 @@ linux-kernel-test.patch
 mod-extra.list
 mod-extra.sh
 mod-extra-blacklist.sh
+mod-internal.list
 mod-sign.sh
 Module.kabi_aarch64
 Module.kabi_ppc64le
