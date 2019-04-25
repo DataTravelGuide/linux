@@ -2029,7 +2029,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (sqsize < 8)
 		sqsize = 8;
 
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
+	ucontext = udata ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
