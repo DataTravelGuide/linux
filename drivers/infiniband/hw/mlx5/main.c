@@ -5241,21 +5241,22 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_CREATE_FLOW_ACTION_FLAGS,
 			     enum mlx5_ib_uapi_flow_action_flags));
 
+static const struct uapi_definition mlx5_ib_defs[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_FLOW_ACTION,
+				&mlx5_ib_flow_action),
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_DM, &mlx5_ib_dm),
+	{}
+};
+
 static int populate_specs_root(struct mlx5_ib_dev *dev)
 {
-	const struct uverbs_object_tree_def **trees = dev->driver_trees;
-	size_t num_trees = 0;
+	struct uapi_definition *defs = dev->driver_defs;
 
-	if (mlx5_accel_ipsec_device_caps(dev->mdev) &
-	    MLX5_ACCEL_IPSEC_CAP_DEVICE)
-		trees[num_trees++] = &mlx5_ib_flow_action;
+	*defs++ = (struct uapi_definition){};
+	WARN_ON(defs - dev->driver_defs >= ARRAY_SIZE(dev->driver_defs));
 
-	if (MLX5_CAP_DEV_MEM(dev->mdev, memic))
-		trees[num_trees++] = &mlx5_ib_dm;
-
-	WARN_ON(num_trees >= ARRAY_SIZE(dev->driver_trees));
-	trees[num_trees] = NULL;
-	dev->ib_dev.driver_specs = trees;
+	if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))
+		dev->ib_dev.driver_def = dev->driver_defs;
 
 	return 0;
 }
