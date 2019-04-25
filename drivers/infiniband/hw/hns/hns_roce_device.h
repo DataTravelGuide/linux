@@ -793,6 +793,8 @@ struct hns_roce_hw {
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
+	const struct ib_device_ops *hns_roce_dev_ops;
+	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
 
 struct hns_roce_dev {
