@@ -329,7 +329,11 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
 	if (err) {
 		kfree(cls_flower.rule);
-		return err;
+		if (skip_sw) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+			return err;
+		}
+		return 0;
 	}
 
 	err = tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
@@ -1400,7 +1404,11 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 						   &f->exts);
 			if (err) {
 				kfree(cls_flower.rule);
-				return err;
+				if (tc_skip_sw(f->flags)) {
+					NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+					return err;
+				}
+				continue;
 			}
 
 			cls_flower.classid = f->res.classid;
