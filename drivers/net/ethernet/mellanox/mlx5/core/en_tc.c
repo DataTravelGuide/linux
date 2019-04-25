@@ -2868,7 +2868,7 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 
 	mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
 
-	tcf_exts_stats_update(f->exts, bytes, packets, lastuse);
+	flow_stats_update(&f->stats, bytes, packets, lastuse);
 
 	return 0;
 }

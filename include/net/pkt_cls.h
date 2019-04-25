@@ -786,6 +786,7 @@ struct tc_cls_flower_offload {
 	struct fl_flow_key *key;
 #endif
 	struct flow_rule *rule;
+	struct flow_stats stats;
 	struct tcf_exts *exts;
 	u32 classid;
 };
