@@ -675,7 +675,7 @@ typedef struct pglist_data {
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 	/* Lock serializing the migrate rate limiting window */
-	spinlock_t numabalancing_migrate_lock;
+	RH_KABI_DEPRECATE(spinlock_t, numabalancing_migrate_lock)
 
 	/* Rate limiting time interval */
 	RH_KABI_DEPRECATE(unsigned long, numabalancing_migrate_next_window)
