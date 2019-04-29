@@ -929,6 +929,7 @@ struct rq {
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
 	RH_KABI_EXTEND(struct sched_avg	avg_rt)
+	RH_KABI_EXTEND(struct sched_avg	avg_dl)
 
 };
 
