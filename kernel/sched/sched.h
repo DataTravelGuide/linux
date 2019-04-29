@@ -604,6 +604,7 @@ struct rt_rq {
 	unsigned long		rt_nr_total;
 	int			overloaded;
 	struct plist_head	pushable_tasks;
+
 #endif /* CONFIG_SMP */
 	int			rt_queued;
 
@@ -927,6 +928,8 @@ struct rq {
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
+	RH_KABI_EXTEND(struct sched_avg	avg_rt)
+
 };
 
 static inline int cpu_of(struct rq *rq)
@@ -2232,5 +2235,10 @@ static inline unsigned long cpu_util_cfs(struct rq *rq)
 	}
 
 	return util;
+}
+
+static inline unsigned long cpu_util_rt(struct rq *rq)
+{
+	return rq->avg_rt.util_avg;
 }
 #endif
