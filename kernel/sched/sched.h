@@ -928,6 +928,9 @@ struct rq {
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
+#ifdef CONFIG_NUMA_BALANCING
+	RH_KABI_EXTEND(unsigned int numa_migrate_on)
+#endif
 	RH_KABI_EXTEND(struct sched_avg	avg_rt)
 	RH_KABI_EXTEND(struct sched_avg	avg_dl)
 #if defined(CONFIG_IRQ_TIME_ACCOUNTING) || defined(CONFIG_PARAVIRT_TIME_ACCOUNTING)
