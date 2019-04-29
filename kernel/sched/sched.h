@@ -930,6 +930,9 @@ struct rq {
 	RH_KABI_RESERVE(2)
 	RH_KABI_EXTEND(struct sched_avg	avg_rt)
 	RH_KABI_EXTEND(struct sched_avg	avg_dl)
+#if defined(CONFIG_IRQ_TIME_ACCOUNTING) || defined(CONFIG_PARAVIRT_TIME_ACCOUNTING)
+	RH_KABI_EXTEND(struct sched_avg	avg_irq)
+#endif
 
 };
 
