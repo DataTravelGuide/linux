@@ -678,10 +678,10 @@ typedef struct pglist_data {
 	spinlock_t numabalancing_migrate_lock;
 
 	/* Rate limiting time interval */
-	unsigned long numabalancing_migrate_next_window;
+	RH_KABI_DEPRECATE(unsigned long, numabalancing_migrate_next_window)
 
 	/* Number of pages migrated during the rate limiting time interval */
-	unsigned long numabalancing_migrate_nr_pages;
+	RH_KABI_DEPRECATE(unsigned long, numabalancing_migrate_nr_pages)
 #endif
 	/*
 	 * This is a per-node reserve of pages that are not available
