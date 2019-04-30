@@ -1,1 +1,1 @@
-CONFIG_TCM_FC=y
+# CONFIG_TCM_FC is not set
