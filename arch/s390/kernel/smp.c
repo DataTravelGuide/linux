@@ -303,8 +303,9 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 /*
  * Call function via PSW restart on pcpu and stop the current cpu.
  */
-static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
-			  void *data, unsigned long stack)
+static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
+						void (*func)(void *),
+						void *data, unsigned long stack)
 {
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
