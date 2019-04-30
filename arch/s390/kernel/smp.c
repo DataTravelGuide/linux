@@ -791,21 +791,12 @@ void __init smp_detect_cpus(void)
 	memblock_free_early((unsigned long)info, sizeof(*info));
 }
 
-/*
- *	Activate a secondary processor.
- */
-static void smp_start_secondary(void *cpuvoid)
+static void smp_init_secondary(void)
 {
 	int cpu = smp_processor_id();
 
 	S390_lowcore.last_update_clock = get_tod_clock();
-	S390_lowcore.restart_stack = (unsigned long) restart_stack;
-	S390_lowcore.restart_fn = (unsigned long) do_restart;
-	S390_lowcore.restart_data = 0;
-	S390_lowcore.restart_source = -1UL;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
-	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
@@ -820,6 +811,20 @@ static void smp_start_secondary(void *cpuvoid)
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
+}
+
+/*
+ *	Activate a secondary processor.
+ */
+static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
+{
+	S390_lowcore.restart_stack = (unsigned long) restart_stack;
+	S390_lowcore.restart_fn = (unsigned long) do_restart;
+	S390_lowcore.restart_data = 0;
+	S390_lowcore.restart_source = -1UL;
+	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	smp_init_secondary();
 }
 
 /* Upping and downing of CPUs */
