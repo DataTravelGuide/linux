@@ -933,8 +933,7 @@ struct rq {
 #endif
 	RH_KABI_EXTEND(struct sched_avg	avg_rt)
 	RH_KABI_EXTEND(struct sched_avg	avg_dl)
-#if defined(CONFIG_IRQ_TIME_ACCOUNTING) || defined(CONFIG_PARAVIRT_TIME_ACCOUNTING)
-#define HAVE_SCHED_AVG_IRQ
+#ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 	RH_KABI_EXTEND(struct sched_avg	avg_irq)
 #endif
 
@@ -2243,7 +2242,7 @@ static inline unsigned long cpu_util_rt(struct rq *rq)
 }
 #endif
 
-#ifdef HAVE_SCHED_AVG_IRQ
+#ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 static inline unsigned long cpu_util_irq(struct rq *rq)
 {
 	return rq->avg_irq.util_avg;
