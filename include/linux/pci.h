@@ -800,9 +800,9 @@ struct pci_driver {
 	int  (*suspend)(struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*suspend_late)(struct pci_dev *dev, pm_message_t state);
 	int  (*resume_early)(struct pci_dev *dev);
-	int  (*resume) (struct pci_dev *dev);	/* Device woken up */
-	void (*shutdown) (struct pci_dev *dev);
-	int  (*sriov_configure) (struct pci_dev *dev, int num_vfs); /* On PF */
+	int  (*resume)(struct pci_dev *dev);	/* Device woken up */
+	void (*shutdown)(struct pci_dev *dev);
+	int  (*sriov_configure)(struct pci_dev *dev, int num_vfs); /* On PF */
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
