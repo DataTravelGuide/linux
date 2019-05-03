@@ -4,7 +4,7 @@ OBJECT_FILES_NON_STANDARD := y
 
 purgatory-y := head.o purgatory.o string.o sha256.o mem.o
 
-targets += $(purgatory-y) purgatory.lds purgatory purgatory.ro kexec-purgatory.c
+targets += $(purgatory-y) purgatory.lds purgatory purgatory.ro
 PURGATORY_OBJS = $(addprefix $(obj)/,$(purgatory-y))
 
 $(obj)/sha256.o: $(srctree)/lib/sha256.c FORCE
@@ -34,11 +34,7 @@ OBJCOPYFLAGS_purgatory.ro += --remove-section='.note.*'
 $(obj)/purgatory.ro: $(obj)/purgatory FORCE
 		$(call if_changed,objcopy)
 
-CMD_BIN2C = $(objtree)/scripts/basic/bin2c
-quiet_cmd_bin2c = BIN2C   $@
-      cmd_bin2c = $(CMD_BIN2C) kexec_purgatory < $< > $@
-
-$(obj)/kexec-purgatory.c: $(obj)/purgatory.ro FORCE
-	$(call if_changed,bin2c)
+$(obj)/kexec-purgatory.o: $(obj)/kexec-purgatory.S $(obj)/purgatory.ro FORCE
+	$(call if_changed_rule,as_o_S)
 
 obj-$(CONFIG_ARCH_HAS_KEXEC_PURGATORY) += kexec-purgatory.o
