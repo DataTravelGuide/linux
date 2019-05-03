@@ -459,8 +459,7 @@ struct phy_device {
 	 */
 	RH_KABI_DEPRECATE(u32, supported)
 	RH_KABI_DEPRECATE(u32, advertising)
-
-	u32 lp_advertising;
+	RH_KABI_DEPRECATE(u32, lp_advertising)
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
@@ -506,6 +505,7 @@ struct phy_device {
 	 */
 	RH_KABI_EXTEND(__ETHTOOL_DECLARE_LINK_MODE_MASK(supported))
 	RH_KABI_EXTEND(__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising))
+	RH_KABI_EXTEND(__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising))
 
 	void (*phy_link_change)(struct phy_device *, bool up, bool do_carrier);
 	void (*adjust_link)(struct net_device *dev);
