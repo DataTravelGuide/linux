@@ -62,6 +62,11 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_ini
 #define PHY_10GBIT_FEC_FEATURES ((unsigned long *)&phy_10gbit_fec_features)
 #define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 
+extern const int phy_10_100_features_array[4];
+extern const int phy_basic_t1_features_array[2];
+extern const int phy_gbit_features_array[2];
+extern const int phy_10gbit_features_array[1];
+
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
  * or not desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
@@ -449,10 +454,12 @@ struct phy_device {
 	/* Enabled Interrupts */
 	u32 interrupts;
 
-	/* Union of PHY and Attached devices' supported modes */
-	/* See mii.h for more info */
-	u32 supported;
-	u32 advertising;
+	/* RHEL specific: fileds are deprecated.
+	 * PHY now using bitmaps declared later by RH_KABI_EXTEND macro
+	 */
+	RH_KABI_DEPRECATE(u32, supported)
+	RH_KABI_DEPRECATE(u32, advertising)
+
 	u32 lp_advertising;
 
 	/* Energy efficient ethernet modes which should be prohibited */
@@ -489,6 +496,16 @@ struct phy_device {
 
 	u8 mdix;
 	u8 mdix_ctrl;
+
+	/* RHEL specific: Phy is not protected by kabi. This change
+	 * will rise kabi check warning for eth_type_trans and
+	 * ethtool_op_get_link over pointers:
+	 * net_device -> phy_device
+	 * Change will break all phy drivers and all need rebuild.
+	 * It is reason why this field could be in the middle of struct.
+	 */
+	RH_KABI_EXTEND(__ETHTOOL_DECLARE_LINK_MODE_MASK(supported))
+	RH_KABI_EXTEND(__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising))
 
 	void (*phy_link_change)(struct phy_device *, bool up, bool do_carrier);
 	void (*adjust_link)(struct net_device *dev);
@@ -709,9 +726,9 @@ struct phy_setting {
 
 const struct phy_setting *
 phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
-		   size_t maxbit, bool exact);
+		   bool exact);
 size_t phy_speeds(unsigned int *speeds, size_t size,
-		  unsigned long *mask, size_t maxbit);
+		  unsigned long *mask);
 
 void phy_resolve_aneg_linkmode(struct phy_device *phydev);
 
