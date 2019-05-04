@@ -57,7 +57,8 @@ test -x $crossbin && echo "Cross-compiler used: $crossbin"
 
 echo "==============================================================================="
 echo "For patch submissions this can optionally be included to show the changes"
-echo "that were compiled into the tree."
+echo "that were compiled into the tree. Cross-compiling the tools, perf and bpftool"
+echo "code is not currently supported, due to mising userspace dependencies."
 echo "diffstat output (relative to $lasttag)"
 git diff $lasttag | diffstat
 

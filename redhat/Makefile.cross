@@ -1,4 +1,7 @@
-CROSS_RPMFLAGS = $(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)"
+BASE_RPMFLAGS = $(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)"
+# We really don't want tools/perf/bpftool disabled here, this is just temporary so the targets
+# at least behave, until we can sort out how to get those working too
+CROSS_RPMFLAGS = $(BASE_RPMFLAGS) --with cross --without tools --without perf --without bpftool --without doc --without selftests
 
 CROSS_PACKAGE_LIST = \
    cross-binutils-common cross-gcc-common diffstat \
@@ -7,12 +10,12 @@ CROSS_PACKAGE_LIST = \
 ifeq ($(ARCH),arm64)
 CROSS_PACKAGE_LIST += binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu
 else ifeq ($(ARCH),powerpc)
-CROSS_PACKAGE_LIST += binutils-powerpc64-linux-gnu gcc-powerpc64-linux-gnu
+CROSS_PACKAGE_LIST += binutils-ppc64le-linux-gnu gcc-ppc64le-linux-gnu
 else ifeq ($(ARCH),s390)
 CROSS_PACKAGE_LIST += binutils-s390x-linux-gnu gcc-s390x-linux-gnu
 else
 CROSS_PACKAGE_LIST += binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu
-CROSS_PACKAGE_LIST += binutils-powerpc64-linux-gnu gcc-powerpc64-linux-gnu
+CROSS_PACKAGE_LIST += binutils-ppc64le-linux-gnu gcc-ppc64le-linux-gnu
 CROSS_PACKAGE_LIST += binutils-s390x-linux-gnu gcc-s390x-linux-gnu
 endif
 
@@ -26,46 +29,46 @@ rh-cross-download:
 
 rh-cross-aarch64-rpms: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target aarch64 --with cross -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target aarch64 -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
 	$(REDHAT)/scripts/generate-cross-report.sh "aarch64"
 
-rh-cross-ppc64-rpms: rh-cross-download rh-sources
+rh-cross-ppc64le-rpms: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target ppc64 --with cross -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(REDHAT)/scripts/generate-cross-report.sh "ppc64"
+	$(CROSS_RPMFLAGS) --target ppc64le -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(REDHAT)/scripts/generate-cross-report.sh "ppc64le"
 
 rh-cross-s390x-rpms: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target s390x --with cross -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target s390x -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
 	$(REDHAT)/scripts/generate-cross-report.sh "s390x"
 
 rh-cross-all-rpms: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target aarch64 --with cross -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(CROSS_RPMFLAGS) --target ppc64 --with cross -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(CROSS_RPMFLAGS) --target s390x --with cross -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(CROSS_RPMFLAGS) -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(REDHAT)/scripts/generate-cross-report.sh "aarch64 ppc64 s390x x86_64"
+	$(CROSS_RPMFLAGS) --target aarch64 -bb $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target ppc64le -bb $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target s390x -bb $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(BASE_RPMFLAGS) -ba $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(REDHAT)/scripts/generate-cross-report.sh "aarch64 ppc64le s390x x86_64"
 
 rh-cross-aarch64-build: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target aarch64 --with cross --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target aarch64 --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
 	$(REDHAT)/scripts/generate-cross-report.sh "aarch64"
 
-rh-cross-ppc64-build: rh-cross-download rh-sources
+rh-cross-ppc64le-build: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target ppc64 --with cross --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(REDHAT)/scripts/generate-cross-report.sh "ppc64"
+	$(CROSS_RPMFLAGS) --target ppc64le --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(REDHAT)/scripts/generate-cross-report.sh "ppc64le"
 
 rh-cross-s390x-build: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target s390x --with cross --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target s390x --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
 	$(REDHAT)/scripts/generate-cross-report.sh "s390x"
 
 rh-cross-all-builds: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
-	$(CROSS_RPMFLAGS) --target aarch64 --with cross --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(CROSS_RPMFLAGS) --target ppc64 --with cross --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(CROSS_RPMFLAGS) --target s390x --with cross --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(CROSS_RPMFLAGS) --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
-	$(REDHAT)/scripts/generate-cross-report.sh "aarch64 ppc64 s390x x86_64"
+	$(CROSS_RPMFLAGS) --target aarch64 --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target ppc64le --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(CROSS_RPMFLAGS) --target s390x --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(BASE_RPMFLAGS) --without debuginfo -bc $(RPM)/SOURCES/$(PACKAGE_NAME).spec
+	$(REDHAT)/scripts/generate-cross-report.sh "aarch64 ppc64le s390x x86_64"
