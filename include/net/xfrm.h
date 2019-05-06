@@ -253,6 +253,8 @@ struct xfrm_state {
 	/* Private data of this transformer, format is opaque,
 	 * interpreted by xfrm_type methods. */
 	void			*data;
+
+	RH_KABI_EXTEND(u32	output_mark_mask)
 };
 
 static inline struct net *xs_net(struct xfrm_state *x)
@@ -2019,6 +2021,14 @@ static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 	if (m->m | m->v)
 		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
 	return ret;
+}
+
+static inline __u32 xfrm_smark_get(__u32 mark, struct xfrm_state *x)
+{
+	u32 m = x->output_mark_mask;
+	u32 v = x->props.output_mark;
+
+	return (v & m) | (mark & ~m);
 }
 
 static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,

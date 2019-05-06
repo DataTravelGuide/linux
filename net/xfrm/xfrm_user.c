@@ -533,12 +533,26 @@ static void xfrm_update_ae_params(struct xfrm_state *x, struct nlattr **attrs,
 		x->replay_maxdiff = nla_get_u32(rt);
 }
 
+static void xfrm_smark_init(struct nlattr **attrs, struct xfrm_mark *m)
+{
+	if (attrs[XFRMA_SET_MARK]) {
+		m->v = nla_get_u32(attrs[XFRMA_SET_MARK]);
+		if (attrs[XFRMA_SET_MARK_MASK])
+			m->m = nla_get_u32(attrs[XFRMA_SET_MARK_MASK]);
+		else
+			m->m = 0xffffffff;
+	} else {
+		m->v = m->m = 0;
+	}
+}
+
 static struct xfrm_state *xfrm_state_construct(struct net *net,
 					       struct xfrm_usersa_info *p,
 					       struct nlattr **attrs,
 					       int *errp)
 {
 	struct xfrm_state *x = xfrm_state_alloc(net);
+	struct xfrm_mark smark;
 	int err = -ENOMEM;
 
 	if (!x)
@@ -585,8 +599,9 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 
 	xfrm_mark_get(attrs, &x->mark);
 
-	if (attrs[XFRMA_OUTPUT_MARK])
-		x->props.output_mark = nla_get_u32(attrs[XFRMA_OUTPUT_MARK]);
+	xfrm_smark_init(attrs, &smark);
+	x->props.output_mark = smark.v;
+	x->output_mark_mask = smark.m;
 
 	err = __xfrm_init_state(x, false, attrs[XFRMA_OFFLOAD_DEV]);
 	if (err)
@@ -830,11 +845,24 @@ static int copy_to_user_auth(struct xfrm_algo_auth *auth, struct sk_buff *skb)
 	return 0;
 }
 
+static int xfrm_smark_put(struct sk_buff *skb, struct xfrm_mark *m)
+{
+	int ret = 0;
+
+	if (m->v | m->m) {
+		ret = nla_put_u32(skb, XFRMA_SET_MARK, m->v);
+		if (!ret)
+			ret = nla_put_u32(skb, XFRMA_SET_MARK_MASK, m->m);
+	}
+	return ret;
+}
+
 /* Don't change this without updating xfrm_sa_len! */
 static int copy_to_user_state_extra(struct xfrm_state *x,
 				    struct xfrm_usersa_info *p,
 				    struct sk_buff *skb)
 {
+	struct xfrm_mark smark;
 	int ret = 0;
 
 	copy_to_user_state(x, p);
@@ -893,6 +921,13 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 	ret = xfrm_mark_put(skb, &x->mark);
 	if (ret)
 		goto out;
+
+	smark.v = x->props.output_mark;
+	smark.m = x->output_mark_mask;
+	ret = xfrm_smark_put(skb, &smark);
+	if (ret)
+		goto out;
+
 	if (x->replay_esn)
 		ret = nla_put(skb, XFRMA_REPLAY_ESN_VAL,
 			      xfrm_replay_state_esn_len(x->replay_esn),
@@ -906,11 +941,7 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 		ret = copy_user_offload(&x->xso, skb);
 	if (ret)
 		goto out;
-	if (x->props.output_mark) {
-		ret = nla_put_u32(skb, XFRMA_OUTPUT_MARK, x->props.output_mark);
-		if (ret)
-			goto out;
-	}
+
 	if (x->security)
 		ret = copy_sec_ctx(x->security, skb);
 out:
@@ -2512,7 +2543,8 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_PROTO]		= { .type = NLA_U8 },
 	[XFRMA_ADDRESS_FILTER]	= { .len = sizeof(struct xfrm_address_filter) },
 	[XFRMA_OFFLOAD_DEV]	= { .len = sizeof(struct xfrm_user_offload) },
-	[XFRMA_OUTPUT_MARK]	= { .type = NLA_U32 },
+	[XFRMA_SET_MARK]	= { .type = NLA_U32 },
+	[XFRMA_SET_MARK_MASK]	= { .type = NLA_U32 },
 };
 
 static const struct nla_policy xfrma_spd_policy[XFRMA_SPD_MAX+1] = {
@@ -2738,8 +2770,10 @@ static inline unsigned int xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(x->props.extra_flags));
 	if (x->xso.dev)
 		 l += nla_total_size(sizeof(x->xso));
-	if (x->props.output_mark)
+	if (x->props.output_mark | x->output_mark_mask) {
 		l += nla_total_size(sizeof(x->props.output_mark));
+		l += nla_total_size(sizeof(x->output_mark_mask));
+	}
 
 	/* Must count x->lastused as it may become non-zero behind our back. */
 	l += nla_total_size_64bit(sizeof(u64));
