@@ -931,6 +931,67 @@ Examples:
 # The maintainer will be forced to ask here.
 
 
+XI.  Common Documentation
+-------------------------
+
+A common RHEL kernel documentation project has been created to handle
+information duplicated across the RHEL kernel git repositories, such as
+RHMAINTAINERS and RHELPatchRules.  This project is hosted at
+
+http://git.host.prod.eng.bos.redhat.com/git/rhkernel-docs.git
+
+and is imported into the RHEL8 and ARK kernel git repositories at a common
+location of redhat/rhdocs.  Future RHEL git repositories will also import
+the rhkernel-docs tree.
+
+As a developer *nothing* has to be done to access this documentation. It is
+automagically populated by the kernel maintainer.
+
+The rhkernel-docs tree is imported into the RHEL kernel git repositories
+using git-subtree and requires a minimum git version of 2.13.
+
+Developers must not patch redhat/rhdocs in the kernel git repositories
+directly, and instead:
+
+* patch against the rhkernel-docs repository
+* post with [RHDOCS] prefix
+* can exclude metadata (bugzilla, brew, upstream, testing)
+
+Sample patch:
+
+  From: Prarit Bhargava <prarit@redhat.com>
+  Date: Fri, 5 Apr 2019 11:15:55 -0400
+  Subject: [RHDOCS PATCH] RHMAINTAINERS: Update to RHEL8 Apr 5 2019 version
+
+  Update RHMAINTAINERS to Apr 5 2019 version.
+
+  Signed-off-by: Prarit Bhargava <prarit@redhat.com>
+  ---
+   RHMAINTAINERS | 36 +++++++++++++++++++++++++++++++++---
+   1 file changed, 33 insertions(+), 3 deletions(-)
+
+  diff --git a/RHMAINTAINERS b/RHMAINTAINERS
+  index 6cba3e0..978c983 100644
+  --- a/RHMAINTAINERS
+  +++ b/RHMAINTAINERS
+  @@ -314,6 +314,16 @@ M:       Tomas Henzl <thenzl@redhat.com>
+   S:   Maintained
+   F:   drivers/scsi/hpsa*
+
+  +MICROSEMI SMART ARRAY SMARTPQI DRIVER (smartpqi)
+  +M:      Don Brace <dbrace@redhat.com>
+  +S:      Maintained
+  +F:      drivers/scsi/smartpqi/smartpqi*.[ch]
+  +F:      drivers/scsi/smartpqi/Kconfig
+  +F:      drivers/scsi/smartpqi/Makefile
+  +F:      include/linux/cciss*.h
+  +F:      include/uapi/linux/cciss*.h
+  +F:      Documentation/scsi/smartpqi.txt
+  +
+   DM-RAID SUPPORT
+   M:   Jonathan Brassow <jbrassow@redhat.com>
+   S:   Maintained
+
 
 ================================================================================
 Reviewed-by: Prarit Bhargava <prarit@redhat.com>
