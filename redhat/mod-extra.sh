@@ -35,7 +35,7 @@ cat modnames | xargs -r -n1 -P $NPROC sh -c '
     # check if the module we are looking at is in mod-extra too.
     # if so we do not need to mark the dep as required.
     mod2=${dep##*/}  # same as `basename $dep`, but faster
-    match=$(grep "^$mod2" "$ListName")
+    match2=$(grep "^$mod2" "$ListName")
     if [ -n "$match2" ]
     then
       #echo $mod2 >> notreq.list
