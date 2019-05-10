@@ -71,8 +71,12 @@ struct blk_mq_hw_ctx {
 	struct dentry		*sched_debugfs_dir;
 #endif
 
+#ifdef __GENKSYMS__
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
+#else
+	struct list_head	hctx_list;	//use reserve 1 and 2
+#endif
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
 	RH_KABI_RESERVE(5)

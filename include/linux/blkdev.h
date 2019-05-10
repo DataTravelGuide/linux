@@ -582,6 +582,13 @@ struct request_queue {
 
 #define BLK_MAX_WRITE_HINTS	5
 	u64			write_hints[BLK_MAX_WRITE_HINTS];
+
+	/*
+	 * for reusing dead hctx instance in case of updating
+	 * nr_hw_queues
+	 */
+	RH_KABI_EXTEND(struct list_head	unused_hctx_list)
+	RH_KABI_EXTEND(spinlock_t	unused_hctx_lock)
 };
 
 #define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
