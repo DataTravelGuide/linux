@@ -338,8 +338,8 @@ static inline int pi_test_and_set_pir(int vector, struct pi_desc *pi_desc)
 
 static inline void pi_set_sn(struct pi_desc *pi_desc)
 {
-	return set_bit(POSTED_INTR_SN,
-			(unsigned long *)&pi_desc->control);
+	set_bit(POSTED_INTR_SN,
+		(unsigned long *)&pi_desc->control);
 }
 
 static inline void pi_set_on(struct pi_desc *pi_desc)
