@@ -278,7 +278,7 @@ static struct class ib_class = {
 };
 
 /**
- * ib_alloc_device - allocate an IB device struct
+ * _ib_alloc_device - allocate an IB device struct
  * @size:size of structure to allocate
  *
  * Low-level drivers should use ib_alloc_device() to allocate &struct
@@ -287,7 +287,7 @@ static struct class ib_class = {
  * ib_dealloc_device() must be used to free structures allocated with
  * ib_alloc_device().
  */
-struct ib_device *ib_alloc_device(size_t size)
+struct ib_device *_ib_alloc_device(size_t size)
 {
 	struct ib_device *device;
 
@@ -314,7 +314,7 @@ struct ib_device *ib_alloc_device(size_t size)
 
 	return device;
 }
-EXPORT_SYMBOL(ib_alloc_device);
+EXPORT_SYMBOL(_ib_alloc_device);
 
 /**
  * ib_dealloc_device - free an IB device struct
