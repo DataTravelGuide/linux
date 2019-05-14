@@ -12,8 +12,6 @@
 # change below to w4T.xzdio):
 %define _binary_payload w3T.xzdio
 
-Summary: The Linux kernel
-
 # For a kernel released for public testing, released_kernel should be 1.
 # For internal testing builds during development, it should be 0.
 %global released_kernel %%RELEASED_KERNEL%%
@@ -286,6 +284,7 @@ License: GPLv2 and Redistributable, no modification permitted
 URL: http://www.kernel.org/
 Version: %{rpmversion}
 Release: %{pkg_release}
+Summary: The Linux kernel, based on version %{version}, heavily modified with backports
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
 ExclusiveArch: noarch i386 i686 x86_64 s390x aarch64 ppc64le
@@ -440,7 +439,17 @@ Patch999999: linux-kernel-test.patch
 BuildRoot: %{_tmppath}/kernel-%{KVERREL}-root
 
 %description
-The kernel meta package
+This is the package which provides the Linux kernel for Red Hat Enterprise
+Linux. It is based on upstream Linux at version %{version} and maintains kABI
+compatibility of a set of approved symbols, however it is heavily modified with
+backports and fixes pulled from newer upstream Linux kernel releases. This means
+this is not a %{version} kernel anymore: it includes several components which come
+from newer upstream linux versions, while maintaining a well tested and stable
+core. Some of the components/backports that may be pulled in are: changes like
+updates to the core kernel (eg.: scheduler, cgroups, memory management, security
+fixes and features), updates to block layer, supported filesystems, major driver
+updates for supported hardware in Red Hat Enterprise Linux, enhancements for
+enterprise customers, etc.
 
 #
 # This macro does requires, provides, conflicts, obsoletes for a kernel package.
