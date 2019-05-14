@@ -6547,7 +6547,6 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	if (enable_pml)
 		vmx_destroy_pml_buffer(vmx);
 	free_vpid(vmx->vpid);
-	leave_guest_mode(vcpu);
 	nested_vmx_free_vcpu(vcpu);
 	free_loaded_vmcs(vmx->loaded_vmcs);
 	kfree(vmx->guest_msrs);
