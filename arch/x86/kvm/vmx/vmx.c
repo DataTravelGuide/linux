@@ -1732,7 +1732,7 @@ static u64 vmx_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
  * all guests if the "nested" module option is off, and can also be disabled
  * for a single guest by disabling its VMX cpuid bit.
  */
-static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
+bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
 {
 	return nested && guest_cpuid_has(vcpu, X86_FEATURE_VMX);
 }
