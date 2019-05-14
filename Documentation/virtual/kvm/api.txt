@@ -866,7 +866,7 @@ struct kvm_clock_data {
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86, arm64
+Architectures: x86, arm, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (out)
 Returns: 0 on success, -1 on error
@@ -914,7 +914,7 @@ Only two fields are defined in the flags field:
 - KVM_VCPUEVENT_VALID_SMM may be set in the flags field to signal that
   smi contains a valid state.
 
-ARM64:
+ARM/ARM64:
 
 If the guest accesses a device that is being emulated by the host kernel in
 such a way that a real device would generate a physical SError, KVM may make
@@ -965,7 +965,7 @@ struct kvm_vcpu_events {
 
 Capability: KVM_CAP_VCPU_EVENTS
 Extended by: KVM_CAP_INTR_SHADOW
-Architectures: x86, arm64
+Architectures: x86, arm, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_vcpu_event (in)
 Returns: 0 on success, -1 on error
@@ -992,7 +992,7 @@ shall be written into the VCPU.
 
 KVM_VCPUEVENT_VALID_SMM can only be set if KVM_CAP_X86_SMM is available.
 
-ARM64:
+ARM/ARM64:
 
 Set the pending SError exception state for this VCPU. It is not possible to
 'cancel' an Serror that has been made pending.
