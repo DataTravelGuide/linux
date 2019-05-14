@@ -659,6 +659,12 @@ License: GPLv2
 %description selftests-internal
 Kernel sample programs and selftests.
 
+# Note that this pattern only works right to match the .build-id
+# symlinks because of the trailing nonmatching alternation and
+# the leading .*, because of find-debuginfo.sh's buggy handling
+# of matching the pattern against the symlinks file.
+%{expand:%%global _find_debuginfo_opts %{?_find_debuginfo_opts} -p '.*%%{_libexecdir}/(ksamples|kselftests)/.*|XXX' -o selftests-debuginfo.list}
+
 %endif # with_selftests
 
 %if %{with_gcov}
@@ -1636,6 +1642,16 @@ find Documentation -type d | xargs chmod u+w
 
 %endif
 
+# We don't want to package debuginfo for self-tests and samples but
+# we have to delete them to avoid an error messages about unpackaged
+# files.
+%define __remove_unwanted_dbginfo_install_post \
+  if [ "%{with_selftests}" -ne "0" ]; then \
+    rm -rf $RPM_BUILD_ROOT/usr/lib/debug/usr/libexec/ksamples; \
+    rm -rf $RPM_BUILD_ROOT/usr/lib/debug/usr/libexec/kselftests; \
+  fi \
+%{nil}
+
 #
 # Disgusting hack alert! We need to ensure we sign modules *after* all
 # invocations of strip occur, which is in __debug_install_post if
@@ -1645,6 +1661,7 @@ find Documentation -type d | xargs chmod u+w
   %{?__debug_package:%{__debug_install_post}}\
   %{__arch_install_post}\
   %{__os_install_post}\
+  %{__remove_unwanted_dbginfo_install_post}\
   %{__modsign_install_post}
 
 ###
