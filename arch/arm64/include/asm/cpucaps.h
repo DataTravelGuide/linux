@@ -53,7 +53,8 @@
 #define ARM64_HAS_CNP				32
 #define ARM64_MISMATCHED_CACHE_TYPE		33
 #define ARM64_HAS_STAGE2_FWB			34
+#define ARM64_WORKAROUND_1188873		35
 
-#define ARM64_NCAPS				35
+#define ARM64_NCAPS				36
 
 #endif /* __ASM_CPUCAPS_H */
