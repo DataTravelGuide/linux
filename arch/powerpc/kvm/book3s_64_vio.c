@@ -570,14 +570,10 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			ret = kvmppc_tce_iommu_map(vcpu->kvm, stt, stit->tbl,
 					entry, ua, dir);
 
-		if (ret == H_SUCCESS)
-			continue;
-
-		if (ret == H_TOO_HARD)
+		if (ret != H_SUCCESS) {
+			kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl, entry);
 			goto unlock_exit;
-
-		WARN_ON_ONCE(1);
-		kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl, entry);
+		}
 	}
 
 	kvmppc_tce_put(stt, entry, tce);
@@ -665,14 +661,10 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 					stit->tbl, entry + i, ua,
 					iommu_tce_direction(tce));
 
-			if (ret == H_SUCCESS)
-				continue;
-
-			if (ret == H_TOO_HARD)
+			if (ret != H_SUCCESS) {
+				kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl, entry);
 				goto unlock_exit;
-
-			WARN_ON_ONCE(1);
-			kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl, entry);
+			}
 		}
 
 		kvmppc_tce_put(stt, entry + i, tce);
