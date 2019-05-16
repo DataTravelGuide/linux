@@ -4921,7 +4921,9 @@ skip_classify:
 		if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC)))
 			goto drop;
 		else
-			ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+			ret = INDIRECT_CALL_INET(pt_prev->func, ipv6_rcv,
+						 ip_rcv, skb, skb->dev, pt_prev,
+						 orig_dev);
 	} else {
 drop:
 		if (!deliver_exact)
