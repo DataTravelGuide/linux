@@ -601,29 +601,6 @@ static void multiorder_split(void)
 		}
 }
 
-static void multiorder_account(void)
-{
-	RADIX_TREE(tree, GFP_KERNEL);
-	struct radix_tree_node *node;
-	void **slot;
-
-	item_insert_order(&tree, 0, 5);
-
-	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
-	__radix_tree_lookup(&tree, 0, &node, NULL);
-	assert(node->count == node->nr_values * 2);
-	radix_tree_delete(&tree, 1 << 5);
-	assert(node->nr_values == 0);
-
-	__radix_tree_insert(&tree, 1 << 5, 5, xa_mk_value(5));
-	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
-	assert(node->count == node->nr_values * 2);
-	__radix_tree_replace(&tree, node, slot, NULL, NULL);
-	assert(node->nr_values == 0);
-
-	item_kill_tree(&tree);
-}
-
 bool stop_iteration = false;
 
 static void *creator_func(void *ptr)
@@ -704,7 +681,6 @@ void multiorder_checks(void)
 	multiorder_tagged_iteration();
 	multiorder_join();
 	multiorder_split();
-	multiorder_account();
 	multiorder_iteration_race();
 
 	radix_tree_cpu_dead(0);
