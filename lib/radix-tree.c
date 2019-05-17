@@ -871,6 +871,7 @@ static inline int insert_entries(struct radix_tree_node *node,
  *
  *	Insert an item into the radix tree at position @index.
  */
+RH_KABI_FORCE_CHANGE(1)
 int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
 			unsigned order, void *item)
 {
@@ -962,6 +963,7 @@ void *__radix_tree_lookup(const struct radix_tree_root *root,
  *	exclusive from other writers. Any dereference of the slot must be done
  *	using radix_tree_deref_slot.
  */
+RH_KABI_FORCE_CHANGE(1)
 void __rcu **radix_tree_lookup_slot(const struct radix_tree_root *root,
 				unsigned long index)
 {
@@ -1304,6 +1306,7 @@ static void node_tag_set(struct radix_tree_root *root,
  *	Returns the address of the tagged item.  Setting a tag on a not-present
  *	item is a bug.
  */
+RH_KABI_FORCE_CHANGE(1)
 void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag)
 {
@@ -1378,6 +1381,7 @@ static void node_tag_clear(struct radix_tree_root *root,
  *	Returns the address of the tagged item on success, else NULL.  ie:
  *	has the same return value and semantics as radix_tree_lookup().
  */
+RH_KABI_FORCE_CHANGE(1)
 void *radix_tree_tag_clear(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag)
 {
@@ -1593,6 +1597,7 @@ EXPORT_SYMBOL(radix_tree_iter_resume);
  * @flags:	RADIX_TREE_ITER_* flags and tag index
  * Returns:	pointer to chunk first slot, or NULL if iteration is over
  */
+RH_KABI_FORCE_CHANGE(1)
 void __rcu **radix_tree_next_chunk(const struct radix_tree_root *root,
 			     struct radix_tree_iter *iter, unsigned flags)
 {
@@ -1971,6 +1976,7 @@ void radix_tree_clear_tags(struct radix_tree_root *root,
  *	@root:		radix tree root
  *	@tag:		tag to test
  */
+RH_KABI_FORCE_CHANGE(1)
 int radix_tree_tagged(const struct radix_tree_root *root, unsigned int tag)
 {
 	return root_tag_get(root, tag);

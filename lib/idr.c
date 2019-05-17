@@ -75,6 +75,7 @@ EXPORT_SYMBOL_GPL(idr_alloc_u32);
  * Return: The newly allocated ID, -ENOMEM if memory allocation failed,
  * or -ENOSPC if no free IDs could be found.
  */
+RH_KABI_FORCE_CHANGE(1)
 int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
 {
 	u32 id = start;
@@ -168,6 +169,7 @@ EXPORT_SYMBOL_GPL(idr_remove);
  *
  * Return: The pointer associated with this ID.
  */
+RH_KABI_FORCE_CHANGE(1)
 void *idr_find(const struct idr *idr, unsigned long id)
 {
 	return radix_tree_lookup(&idr->idr_rt, id - idr->idr_base);
@@ -191,6 +193,7 @@ EXPORT_SYMBOL_GPL(idr_find);
  * seen and deleted entries may be seen, but adding and removing entries
  * will not cause other entries to be skipped, nor spurious ones to be seen.
  */
+RH_KABI_FORCE_CHANGE(1)
 int idr_for_each(const struct idr *idr,
 		int (*fn)(int id, void *p, void *data), void *data)
 {
