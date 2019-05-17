@@ -647,6 +647,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
  *	@csum_not_inet: use CRC32c to resolve CHECKSUM_PARTIAL
  *	@dst_pending_confirm: need to confirm neighbour
+ *	@decrypted: Decrypted SKB
   *	@napi_id: id of the NAPI struct this skb came from
  *	@secmark: security marking
  *	@mark: Generic packet mark
@@ -805,6 +806,13 @@ struct sk_buff {
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #endif
+	/* RHEL: Unlike upstream there is no hole before 'tc_index' field
+	 * that could be used for new flag fields. Fortunatelly here (after
+	 * 'tc_index') is 2 bytes hole so we can put new fields here.
+	 */
+	RH_KABI_FILL_HOLE(__u8	decrypted:1)
+
+	/* 15 bits remain - update after adding new field here */
 
 	union {
 		__wsum		csum;
