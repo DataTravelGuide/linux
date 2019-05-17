@@ -34,6 +34,7 @@
 /* Keep unconverted code working */
 #ifndef __GENKSYMS__
 #define radix_tree_root		xarray
+#define radix_tree_node		xa_node
 #endif
 
 /*
@@ -63,47 +64,20 @@ static inline bool radix_tree_is_internal_node(void *ptr)
 
 /*** radix-tree API starts here ***/
 
-#define RADIX_TREE_MAX_TAGS 3
-
+#ifndef __GENKSYMS__
 #define RADIX_TREE_MAP_SHIFT	XA_CHUNK_SHIFT
 #define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
 #define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
+#endif
 
-#define RADIX_TREE_TAG_LONGS	\
-	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
+#ifndef __GENKSYMS__
+#define RADIX_TREE_MAX_TAGS	XA_MAX_MARKS
+#define RADIX_TREE_TAG_LONGS	XA_MARK_LONGS
+#endif
 
 #define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
 #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
 					  RADIX_TREE_MAP_SHIFT))
-
-/**
- * struct radix_tree_node_rh  - Red Hat KABI extension struct
- */
-struct radix_tree_node_rh {
-};
-
-/*
- * @count is the count of every non-NULL element in the ->slots array
- * whether that is a value entry, a retry entry, a user pointer,
- * a sibling entry or a pointer to the next level of the tree.
- * @exceptional is the count of every element in ->slots which is
- * either a value entry or a sibling of a value entry.
- */
-struct radix_tree_node {
-	unsigned char	shift;		/* Bits remaining in each slot */
-	unsigned char	offset;		/* Slot offset in parent */
-	unsigned char	count;		/* Total entry count */
-	unsigned char	exceptional;	/* Exceptional entry count */
-	struct radix_tree_node *parent;		/* Used when ascending tree */
-	struct radix_tree_root *root;		/* The tree we belong to */
-	union {
-		struct list_head private_list;	/* For tree user */
-		struct rcu_head	rcu_head;	/* Used when freeing node */
-	};
-	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
-	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
-	RH_KABI_SIZE_AND_EXTEND(radix_tree_node);
-};
 
 /* The IDR tag is stored in the low bits of xa_flags */
 #define ROOT_IS_IDR	((__force gfp_t)4)

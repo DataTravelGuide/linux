@@ -155,6 +155,30 @@ static inline bool xa_is_internal(const void *entry)
 	return ((unsigned long)entry & 3) == 2;
 }
 
+#ifdef __GENKSYMS__
+struct radix_tree_node {
+	unsigned char	shift;		/* Bits remaining in each slot */
+	unsigned char	offset;		/* Slot offset in parent */
+	unsigned char	count;		/* Total entry count */
+	unsigned char	exceptional;	/* Value entry count */
+	struct radix_tree_node *parent;	/* NULL at top of tree */
+	struct radix_tree_root *root;	/* The array we belong to */
+	union {
+		struct list_head private_list;	/* For tree user */
+		struct rcu_head	rcu_head;	/* Used when freeing node */
+	};
+#define RADIX_TREE_MAP_SHIFT    (CONFIG_BASE_SMALL ? 4 : 6)
+#define RADIX_TREE_MAP_SIZE     (1UL << RADIX_TREE_MAP_SHIFT)
+#define RADIX_TREE_MAP_MASK     (RADIX_TREE_MAP_SIZE-1)
+#define RADIX_TREE_MAX_TAGS     3
+#define RADIX_TREE_TAG_LONGS \
+        ((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
+	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
+	unsigned long tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
+	RH_KABI_SIZE_AND_EXTEND(radix_tree_node);
+};
+#endif
+
 /**
  * struct xarray_rh  - Red Hat KABI extension struct
  */
@@ -260,6 +284,34 @@ static inline void xa_init(struct xarray *xa)
 #endif
 #define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
 #define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
+#define XA_MAX_MARKS		3
+#define XA_MARK_LONGS		DIV_ROUND_UP(XA_CHUNK_SIZE, BITS_PER_LONG)
+
+/*
+ * @count is the count of every non-NULL element in the ->slots array
+ * whether that is a value entry, a retry entry, a user pointer,
+ * a sibling entry or a pointer to the next level of the tree.
+ * @nr_values is the count of every element in ->slots which is
+ * either a value entry or a sibling of a value entry.
+ */
+struct xa_node {
+	unsigned char	shift;		/* Bits remaining in each slot */
+	unsigned char	offset;		/* Slot offset in parent */
+	unsigned char	count;		/* Total entry count */
+	unsigned char	nr_values;	/* Value entry count */
+	struct xa_node __rcu *parent;	/* NULL at top of tree */
+	struct xarray	*array;		/* The array we belong to */
+	union {
+		struct list_head private_list;	/* For tree user */
+		struct rcu_head	rcu_head;	/* Used when freeing node */
+	};
+	void __rcu	*slots[XA_CHUNK_SIZE];
+	union {
+		unsigned long	tags[XA_MAX_MARKS][XA_MARK_LONGS];
+		unsigned long	marks[XA_MAX_MARKS][XA_MARK_LONGS];
+	};
+	/* RHEL kABI: this structure can be appended to by RH_KABI_EXTEND */
+};
 
 /* Private */
 static inline bool xa_is_node(const void *entry)
