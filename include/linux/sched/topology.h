@@ -89,7 +89,7 @@ struct sched_domain {
 	unsigned int newidle_idx;
 	unsigned int wake_idx;
 	unsigned int forkexec_idx;
-	unsigned int smt_gain;
+	RH_KABI_DEPRECATE(unsigned int, smt_gain)
 
 	int nohz_idle;			/* NOHZ IDLE status */
 	int flags;			/* See SD_* */
