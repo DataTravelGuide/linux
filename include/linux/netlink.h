@@ -181,6 +181,7 @@ struct netlink_callback {
 	u16			min_dump_alloc;
 	unsigned int		prev_seq, seq;
 	long			args[6];
+	RH_KABI_EXTEND(struct netlink_ext_ack *extack)
 };
 
 struct netlink_notify {
