@@ -182,6 +182,7 @@ struct netlink_callback {
 	unsigned int		prev_seq, seq;
 	long			args[6];
 	RH_KABI_EXTEND(struct netlink_ext_ack *extack)
+	RH_KABI_EXTEND(bool strict_check)
 };
 
 struct netlink_notify {
