@@ -183,6 +183,7 @@ struct netlink_callback {
 	long			args[6];
 	RH_KABI_EXTEND(struct netlink_ext_ack *extack)
 	RH_KABI_EXTEND(bool strict_check)
+	RH_KABI_EXTEND(u16 answer_flags)
 };
 
 struct netlink_notify {
