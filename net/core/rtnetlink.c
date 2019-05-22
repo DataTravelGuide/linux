@@ -3348,6 +3348,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx;
 	int s_idx = cb->family;
 	int type = cb->nlh->nlmsg_type - RTM_BASE;
+	int ret = 0;
 
 	if (s_idx == 0)
 		s_idx = 1;
@@ -3380,12 +3381,13 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->prev_seq = 0;
 			cb->seq = 0;
 		}
-		if (dumpit(skb, cb))
+		ret = dumpit(skb, cb);
+		if (ret < 0)
 			break;
 	}
 	cb->family = idx;
 
-	return skb->len;
+	return skb->len ? : ret;
 }
 
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
