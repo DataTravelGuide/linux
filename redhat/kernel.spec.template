@@ -1748,6 +1748,10 @@ rm -rf %{buildroot}/usr/lib/examples/perf
 # remove the stray header file that somehow got packaged in examples
 rm -rf %{buildroot}/usr/lib/include/perf/bpf/bpf.h
 
+# remove perf-bpf examples
+rm -rf %{buildroot}/usr/lib/perf/examples
+rm -rf %{buildroot}/usr/lib/perf/include
+
 # python-perf extension
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT install-python_ext
 
