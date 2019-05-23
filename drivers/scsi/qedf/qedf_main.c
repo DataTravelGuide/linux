@@ -1335,6 +1335,8 @@ static void qedf_upload_connection(struct qedf_ctx *qedf,
 static void qedf_cleanup_fcport(struct qedf_ctx *qedf,
 	struct qedf_rport *fcport)
 {
+	struct fc_rport_priv *rdata = fcport->rdata;
+
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_CONN, "Cleaning up portid=%06x.\n",
 	    fcport->rdata->ids.port_id);
 
@@ -1346,6 +1348,7 @@ static void qedf_cleanup_fcport(struct qedf_ctx *qedf,
 	qedf_free_sq(qedf, fcport);
 	fcport->rdata = NULL;
 	fcport->qedf = NULL;
+	kref_put(&rdata->kref, fc_rport_destroy);
 }
 
 /**
@@ -1421,6 +1424,8 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 			break;
 		}
 
+		/* Initial reference held on entry, so this can't fail */
+		kref_get(&rdata->kref);
 		fcport->rdata = rdata;
 		fcport->rport = rport;
 
