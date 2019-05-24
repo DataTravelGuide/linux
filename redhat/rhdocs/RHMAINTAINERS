@@ -287,6 +287,11 @@ M:	Arjun Vynipadath <avynipad@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/chelsio/cxgb4/
 
+DEVICE DIRECT ACCESS
+M:	Jeff Moyer <jmoyer@redhat.com>
+S:	Maintained
+F:	drivers/dax
+
 DEVICE MAPPER SUPPORT
 M:	Mike Snitzer <snitzer@redhat.com>
 S:	Maintained
@@ -362,6 +367,13 @@ FORCEDETH ETHERNET DRIVER (forcedeth)
 M:	Ivan Vecera <ivecera@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/nvidia/forcedeth.c
+
+FILESYSTEM DIRECT ACCESS
+M:	Jeff Moyer <jmoyer@redhat.com>
+M:	Eric Sandeen <esandeen@redhat.com>
+F:	fs/dax.c
+F:	include/linux/dax.h
+F:	include/trace/events/fs_dax.h
 
 FIREWIRE SUBSYSTEM
 M:	Neil Horman <nhorman@redhat.com>
@@ -793,6 +805,15 @@ F:	fs/nfsd/
 NON-MASKABLE INTERRUPT (NMI)
 M:	Don Zickus <dzickus@redhat.com>
 S:	Maintained
+
+NVDIMM SUBSYSTEM
+M:	Jeff Moyer <jmoyer@redhat.com>
+S:	Maintained
+F:	drivers/acpi/nfit
+F:	drivers/nvdimm
+F:	include/linux/libnvdimm.h
+F:	include/linux/nd.h
+F:	include/uapi/linux/ndctl.h
 
 NVM EXPRESS BLOCK DRIVER (nvme)
 M:	David Milburn <dmilburn@redhat.com>
