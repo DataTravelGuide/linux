@@ -1060,6 +1060,23 @@ static void avic_init_vmcb(struct vcpu_svm *svm)
 	svm->vcpu.arch.apicv_active = true;
 }
 
+static void svm_set_guest_pat(struct vcpu_svm *svm, u64 *g_pat)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+
+	/* Unlike Intel, AMD takes the guest's CR0.CD into account.
+	 *
+	 * AMD does not have IPAT.  To emulate it for the case of guests
+	 * with no assigned devices, just set everything to WB.  If guests
+	 * have assigned devices, however, we cannot force WB for RAM
+	 * pages only, so use the guest PAT directly.
+	 */
+	if (!kvm_arch_has_assigned_device(vcpu->kvm))
+		*g_pat = 0x07010606070106;
+	else
+		*g_pat = vcpu->arch.pat;
+}
+
 static void init_vmcb(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
@@ -1158,6 +1175,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		clr_cr_intercept(svm, INTERCEPT_CR3_READ);
 		clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);
 		save->g_pat = svm->vcpu.arch.pat;
+		svm_set_guest_pat(svm, &save->g_pat);
 		save->cr3 = 0;
 		save->cr4 = 0;
 	}
@@ -3436,10 +3454,16 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_VM_IGNNE:
 		vcpu_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
 		break;
-	case MSR_IA32_APICBASE:
-		if (kvm_vcpu_apicv_active(vcpu))
-			avic_update_vapic_bar(to_svm(vcpu), data);
-		/* Follow through */
+	case MSR_IA32_CR_PAT:
+		if (npt_enabled) {
+			if (!kvm_mtrr_valid(vcpu, MSR_IA32_CR_PAT, data))
+				return 1;
+			vcpu->arch.pat = data;
+			svm_set_guest_pat(svm, &svm->vmcb->save.g_pat);
+			mark_dirty(svm->vmcb, VMCB_NPT);
+			break;
+		}
+		/* fall through */
 	default:
 		return kvm_set_msr_common(vcpu, msr);
 	}
