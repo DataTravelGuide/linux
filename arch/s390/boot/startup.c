@@ -2,6 +2,7 @@
 #include <linux/string.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
+#include <asm/uv.h>
 #include "compressed/decompressor.h"
 #include "boot.h"
 
@@ -54,6 +55,7 @@ void startup_kernel(void)
 	store_ipl_parmblock();
 	safe_addr = mem_safe_offset();
 	safe_addr = read_ipl_report(safe_addr);
+	uv_query_info();
 	rescue_initrd(safe_addr);
 	sclp_early_read_info();
 	setup_boot_command_line();
