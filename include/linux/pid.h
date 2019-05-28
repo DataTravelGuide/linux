@@ -9,9 +9,13 @@ enum pid_type
 	PIDTYPE_PID,
 	PIDTYPE_PGID,
 	PIDTYPE_SID,
+#ifndef __GENKSYMS__
+	PIDTYPE_TGID,
+#endif
 	PIDTYPE_MAX,
-	/* only valid to __task_pid_nr_ns() */
+#ifdef __GENKSYMS__
 	__PIDTYPE_TGID
+#endif
 };
 
 /*

@@ -1222,17 +1222,17 @@ struct task_struct {
 	RH_KABI_RESERVE(4)
 	RH_KABI_RESERVE(5)
 	RH_KABI_RESERVE(6)
+	RH_KABI_RESERVE(7)
+	RH_KABI_RESERVE(8)
 #else
 	/*
-	 * RHEL8: With PIDTYPE_MAX equals 3, the following fields will
-	 * occupy 6 long's. There are some rh_reserved* fields up near
+	 * RHEL8: With PIDTYPE_MAX equals 4, the following fields will
+	 * occupy 8 long's. There are some rh_reserved* fields up near
 	 * the pid_link structure that can be reused for other purpose.
 	 */
 	/* PID/PID hash table linkage. */
 	struct hlist_node		pid_links[PIDTYPE_MAX];
 #endif
-	RH_KABI_RESERVE(7)
-	RH_KABI_RESERVE(8)
 
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;
@@ -1322,12 +1322,12 @@ static inline pid_t task_session_vnr(struct task_struct *tsk)
 
 static inline pid_t task_tgid_nr_ns(struct task_struct *tsk, struct pid_namespace *ns)
 {
-	return __task_pid_nr_ns(tsk, __PIDTYPE_TGID, ns);
+	return __task_pid_nr_ns(tsk, PIDTYPE_TGID, ns);
 }
 
 static inline pid_t task_tgid_vnr(struct task_struct *tsk)
 {
-	return __task_pid_nr_ns(tsk, __PIDTYPE_TGID, NULL);
+	return __task_pid_nr_ns(tsk, PIDTYPE_TGID, NULL);
 }
 
 static inline pid_t task_ppid_nr_ns(const struct task_struct *tsk, struct pid_namespace *ns)
