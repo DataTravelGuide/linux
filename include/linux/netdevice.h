@@ -2033,10 +2033,6 @@ struct net_device {
 #endif
 	RH_KABI_EXCLUDE(struct wireless_dev	*ieee80211_ptr)
 	struct wpan_dev		*ieee802154_ptr;
-#if IS_ENABLED(CONFIG_MPLS_ROUTING)
-	struct mpls_dev __rcu	*mpls_ptr;
-#endif
-
 /*
  * Cache lines mostly used on receive path (including eth_type_trans())
  */
@@ -2171,7 +2167,7 @@ struct net_device {
 	struct lock_class_key	*qdisc_running_key;
 	bool			proto_down;
 
-	RH_KABI_RESERVE(1)
+	RH_KABI_USE(1, struct mpls_dev __rcu   *mpls_ptr)
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
