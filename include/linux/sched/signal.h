@@ -70,6 +70,11 @@ struct thread_group_cputimer {
 	bool checking_timer;
 };
 
+struct multiprocess_signals {
+	sigset_t signal;
+	struct hlist_node node;
+};
+
 /*
  * NOTE! "signal_struct" does not have its own
  * locking, because a shared signal_struct always
@@ -234,7 +239,9 @@ struct signal_struct {
 	/* PID/PID hash table linkage. */
 	RH_KABI_EXTEND(struct pid *pids[PIDTYPE_MAX])
 
-	RH_KABI_RESERVE(1)
+	/* For collecting multiprocess signals during fork */
+	RH_KABI_USE(1, struct hlist_head multiprocess)
+
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
