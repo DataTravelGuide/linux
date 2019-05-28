@@ -177,7 +177,7 @@ pid_t pid_vnr(struct pid *pid);
 	do {								\
 		if ((pid) != NULL)					\
 			hlist_for_each_entry_rcu((task),		\
-				&(pid)->tasks[type], pids[type].node) {
+				&(pid)->tasks[type], pid_links[type]) {
 
 			/*
 			 * Both old and new leaders may be attached to

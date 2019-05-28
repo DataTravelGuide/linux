@@ -781,7 +781,26 @@ struct task_struct {
 	struct list_head		ptrace_entry;
 
 	/* PID/PID hash table linkage. */
+#ifdef __GENKSYMS__
 	struct pid_link			pids[PIDTYPE_MAX];
+#else
+	/*
+	 * RHEL8: For backport compatibility, we need to maintain the pid
+	 * pointers in pid_link. The new thread_pid field is equivalent to
+	 * pids[PIDTYPE_PID].pid and so is put at the same offset. The
+	 * hlist_node in pid_link can be reused as they are not used by
+	 * others.
+	 */
+	long				rh_reserved1;
+	long				rh_reserved2;
+	struct pid			*thread_pid;
+	long				rh_reserved3;
+	long				rh_reserved4;
+	struct pid			*rh_pgid;
+	long				rh_reserved5;
+	long				rh_reserved6;
+	struct pid			*rh_sid;
+#endif
 	struct list_head		thread_group;
 	struct list_head		thread_node;
 
@@ -1196,12 +1215,22 @@ struct task_struct {
 	 */
 	randomized_struct_fields_end
 
+#ifdef __GENKSYMS__
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
 	RH_KABI_RESERVE(5)
 	RH_KABI_RESERVE(6)
+#else
+	/*
+	 * RHEL8: With PIDTYPE_MAX equals 3, the following fields will
+	 * occupy 6 long's. There are some rh_reserved* fields up near
+	 * the pid_link structure that can be reused for other purpose.
+	 */
+	/* PID/PID hash table linkage. */
+	struct hlist_node		pid_links[PIDTYPE_MAX];
+#endif
 	RH_KABI_RESERVE(7)
 	RH_KABI_RESERVE(8)
 
@@ -1218,22 +1247,7 @@ struct task_struct {
 
 static inline struct pid *task_pid(struct task_struct *task)
 {
-	return task->pids[PIDTYPE_PID].pid;
-}
-
-/*
- * Without tasklist or RCU lock it is not safe to dereference
- * the result of task_pgrp/task_session even if task == current,
- * we can race with another thread doing sys_setsid/sys_setpgid.
- */
-static inline struct pid *task_pgrp(struct task_struct *task)
-{
-	return task->group_leader->pids[PIDTYPE_PGID].pid;
-}
-
-static inline struct pid *task_session(struct task_struct *task)
-{
-	return task->group_leader->pids[PIDTYPE_SID].pid;
+	return task->thread_pid;
 }
 
 /*
@@ -1282,7 +1296,7 @@ static inline pid_t task_tgid_nr(struct task_struct *tsk)
  */
 static inline int pid_alive(const struct task_struct *p)
 {
-	return p->pids[PIDTYPE_PID].pid != NULL;
+	return p->thread_pid != NULL;
 }
 
 static inline pid_t task_pgrp_nr_ns(struct task_struct *tsk, struct pid_namespace *ns)

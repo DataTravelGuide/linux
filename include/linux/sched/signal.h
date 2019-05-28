@@ -147,6 +147,7 @@ struct signal_struct {
 
 #endif
 
+	/* PID/PID hash table linkage. */
 	struct pid *leader_pid;
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -224,6 +225,14 @@ struct signal_struct {
 	struct mutex cred_guard_mutex;	/* guard against foreign influences on
 					 * credential calculations
 					 * (notably. ptrace) */
+
+	/*
+	 * RHEL8: signal_struct is always dynamically allocated at process
+	 * creation time and not embedded directly into other structure.
+	 * So it is safe to extend the size of the structure.
+	 */
+	/* PID/PID hash table linkage. */
+	RH_KABI_EXTEND(struct pid *pids[PIDTYPE_MAX])
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
@@ -565,14 +574,32 @@ void walk_process_tree(struct task_struct *top, proc_visitor, void *);
 static inline
 struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
 {
-	if (type != PIDTYPE_PID)
-		task = task->group_leader;
-	return task->pids[type].pid;
+	struct pid *pid;
+	if (type == PIDTYPE_PID)
+		pid = task_pid(task);
+	else
+		pid = task->signal->pids[type];
+	return pid;
 }
 
 static inline struct pid *task_tgid(struct task_struct *task)
 {
 	return task->signal->leader_pid;
+}
+
+/*
+ * Without tasklist or RCU lock it is not safe to dereference
+ * the result of task_pgrp/task_session even if task == current,
+ * we can race with another thread doing sys_setsid/sys_setpgid.
+ */
+static inline struct pid *task_pgrp(struct task_struct *task)
+{
+	return task->signal->pids[PIDTYPE_PGID];
+}
+
+static inline struct pid *task_session(struct task_struct *task)
+{
+	return task->signal->pids[PIDTYPE_SID];
 }
 
 static inline int get_nr_threads(struct task_struct *tsk)
