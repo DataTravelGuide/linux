@@ -698,6 +698,8 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
 
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx);
 
 #else
 
@@ -1166,6 +1168,13 @@ static inline void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
 {
 	return NULL;
+}
+
+static inline int
+devlink_health_report(struct devlink_health_reporter *reporter,
+		      const char *msg, void *priv_ctx)
+{
+	return 0;
 }
 #endif
 
