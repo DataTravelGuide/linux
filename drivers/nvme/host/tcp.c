@@ -229,7 +229,7 @@ static void nvme_tcp_init_iter(struct nvme_tcp_request *req,
 		offset = bio->bi_iter.bi_bvec_done;
 	}
 
-	iov_iter_bvec(&req->iter, dir, vec, nsegs, size);
+	iov_iter_bvec(&req->iter, ITER_BVEC | dir, vec, nsegs, size);
 	req->iter.iov_offset = offset;
 }
 
