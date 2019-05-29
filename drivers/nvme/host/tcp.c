@@ -2276,6 +2276,8 @@ static int __init nvme_tcp_init_module(void)
 		return -ENOMEM;
 
 	nvmf_register_transport(&nvme_tcp_transport);
+
+	mark_tech_preview("NVMe/TCP", THIS_MODULE);
 	return 0;
 }
 
