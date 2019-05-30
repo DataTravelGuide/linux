@@ -3133,6 +3133,15 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	else
 		intel_prepare_dp_ddi_buffers(encoder, crtc_state);
 
+	if (intel_port_is_combophy(dev_priv, port)) {
+		bool lane_reversal =
+			dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
+
+		intel_combo_phy_power_up_lanes(dev_priv, port, false,
+					       crtc_state->lane_count,
+					       lane_reversal);
+	}
+
 	intel_ddi_init_dp_buf_reg(encoder);
 	if (!is_mst)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
