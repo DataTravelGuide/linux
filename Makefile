@@ -5,6 +5,13 @@ SUBLEVEL = 0
 EXTRAVERSION =
 NAME = Merciless Moray
 
+#
+# DRM backport version
+#
+RHEL_DRM_VERSION = 5
+RHEL_DRM_PATCHLEVEL = 1
+RHEL_DRM_SUBLEVEL = 0
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
@@ -403,7 +410,9 @@ USERINCLUDE    := \
 LINUXINCLUDE    := \
 		-I$(srctree)/arch/$(SRCARCH)/include \
 		-I$(objtree)/arch/$(SRCARCH)/include/generated \
+		$(if $(KBUILD_SRC), -I$(srctree)/include/drm-backport) \
 		$(if $(KBUILD_SRC), -I$(srctree)/include) \
+		-I$(objtree)/include/drm-backport \
 		-I$(objtree)/include \
 		$(USERINCLUDE)
 

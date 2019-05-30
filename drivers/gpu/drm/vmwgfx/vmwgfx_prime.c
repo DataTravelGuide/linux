@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2013 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2013 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -31,8 +31,8 @@
  */
 
 #include "vmwgfx_drv.h"
+#include "ttm_object.h"
 #include <linux/dma-buf.h>
-#include <drm/ttm/ttm_object.h>
 
 /*
  * DMA-BUF attach- and mapping methods. No need to implement
