@@ -516,7 +516,13 @@ static void cnl_ctx_workarounds_init(struct intel_engine_cs *engine)
 static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
+	struct drm_i915_private *dev_priv = i915;
 	struct i915_wa_list *wal = &engine->ctx_wa_list;
+
+	/* WaDisableBankHangMode:icl */
+	wa_write(wal,
+		 GEN8_L3CNTLREG,
+		 I915_READ(GEN8_L3CNTLREG) | GEN8_ERRDETBCTRL);
 
 	/* Wa_1604370585:icl (pre-prod)
 	 * Formerly known as WaPushConstantDereferenceHoldDisable
