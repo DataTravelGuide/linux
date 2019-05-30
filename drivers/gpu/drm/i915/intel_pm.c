@@ -2817,7 +2817,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		mutex_lock(&dev_priv->pcu_lock);
 		ret = sandybridge_pcode_read(dev_priv,
 					     GEN9_PCODE_READ_MEM_LATENCY,
-					     &val);
+					     &val, NULL);
 		mutex_unlock(&dev_priv->pcu_lock);
 
 		if (ret) {
@@ -2838,7 +2838,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		mutex_lock(&dev_priv->pcu_lock);
 		ret = sandybridge_pcode_read(dev_priv,
 					     GEN9_PCODE_READ_MEM_LATENCY,
-					     &val);
+					     &val, NULL);
 		mutex_unlock(&dev_priv->pcu_lock);
 		if (ret) {
 			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
@@ -7058,9 +7058,7 @@ static void gen6_init_rps_frequencies(struct drm_i915_private *dev_priv)
 	    IS_GEN9_BC(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
 		u32 ddcc_status = 0;
 
-		if (sandybridge_pcode_read(dev_priv,
-					   HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
-					   &ddcc_status) == 0)
+		if (sandybridge_pcode_read(dev_priv, HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL, &ddcc_status, NULL) == 0)
 			rps->efficient_freq =
 				clamp_t(u8,
 					((ddcc_status >> 8) & 0xff),
@@ -7335,7 +7333,8 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 		   GEN6_RC_CTL_HW_ENABLE);
 
 	rc6vids = 0;
-	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
+	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS,
+				     &rc6vids, NULL);
 	if (IS_GEN(dev_priv, 6) && ret) {
 		DRM_DEBUG_DRIVER("Couldn't check for BIOS workaround\n");
 	} else if (IS_GEN(dev_priv, 6) && (GEN6_DECODE_RC6_VID(rc6vids & 0xff) < 450)) {
@@ -8471,7 +8470,8 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	    IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv)) {
 		u32 params = 0;
 
-		sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &params);
+		sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &params,
+				       NULL);
 		if (params & BIT(31)) { /* OC supported */
 			DRM_DEBUG_DRIVER("Overclocking supported, max: %dMHz, overclock: %dMHz\n",
 					 (rps->max_freq & 0xff) * 50,
@@ -9683,7 +9683,8 @@ static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
 	}
 }
 
-int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
+int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox,
+			   u32 *val, u32 *val1)
 {
 	int status;
 
@@ -9701,7 +9702,7 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, *val);
-	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
+	I915_WRITE_FW(GEN6_PCODE_DATA1, val1 ? *val1 : 0);
 	I915_WRITE_FW(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
 	if (__intel_wait_for_register_fw(dev_priv,
@@ -9713,7 +9714,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	}
 
 	*val = I915_READ_FW(GEN6_PCODE_DATA);
-	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
+	if (val1)
+		*val1 = I915_READ_FW(GEN6_PCODE_DATA1);
 
 	if (INTEL_GEN(dev_priv) > 6)
 		status = gen7_check_mailbox_status(dev_priv);
@@ -9783,7 +9785,7 @@ static bool skl_pcode_try_request(struct drm_i915_private *dev_priv, u32 mbox,
 {
 	u32 val = request;
 
-	*status = sandybridge_pcode_read(dev_priv, mbox, &val);
+	*status = sandybridge_pcode_read(dev_priv, mbox, &val, NULL);
 
 	return *status || ((val & reply_mask) == reply);
 }

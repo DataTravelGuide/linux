@@ -1484,7 +1484,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	if (INTEL_GEN(dev_priv) <= 7) {
 		mutex_lock(&dev_priv->pcu_lock);
 		sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS,
-				       &rc6vids);
+				       &rc6vids, NULL);
 		mutex_unlock(&dev_priv->pcu_lock);
 	}
 
@@ -1775,7 +1775,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		ia_freq = gpu_freq;
 		sandybridge_pcode_read(dev_priv,
 				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
-				       &ia_freq);
+				       &ia_freq, NULL);
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
 			   intel_gpu_freq(dev_priv, (gpu_freq *
 						     (IS_GEN9_BC(dev_priv) ||
