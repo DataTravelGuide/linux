@@ -53,6 +53,7 @@
 #include "i915_reset.h"
 #include "i915_query.h"
 #include "i915_vgpu.h"
+#include "intel_bw.h"
 #include "intel_drv.h"
 #include "intel_uc.h"
 #include "intel_workarounds.h"
@@ -1627,6 +1628,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 */
 	intel_get_dram_info(dev_priv);
 
+	intel_bw_init_hw(dev_priv);
 
 	return 0;
 

@@ -54,6 +54,7 @@
 #include <drm/drm_cache.h>
 #include <drm/drm_util.h>
 #include <drm/drm_dsc.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_connector.h>
 
 #include "i915_fixed.h"
@@ -1843,6 +1844,13 @@ struct drm_i915_private {
 			INTEL_DRAM_LPDDR4
 		} type;
 	} dram_info;
+
+	struct intel_bw_info {
+		int num_planes;
+		int deratedbw[3];
+	} max_bw[6];
+
+	struct drm_private_obj bw_obj;
 
 	struct i915_runtime_pm runtime_pm;
 

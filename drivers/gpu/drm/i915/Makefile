@@ -115,6 +115,7 @@ i915-y += intel_audio.o \
 	  intel_atomic.o \
 	  intel_atomic_plane.o \
 	  intel_bios.o \
+	  intel_bw.o \
 	  intel_cdclk.o \
 	  intel_color.o \
 	  intel_combo_phy.o \
