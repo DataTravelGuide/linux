@@ -1130,6 +1130,7 @@ struct skl_wm_level {
 	u16 plane_res_b;
 	u8 plane_res_l;
 	bool plane_en;
+	bool ignore_lines;
 };
 
 /* Stores plane specific WM parameters */
