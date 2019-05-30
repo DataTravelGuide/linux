@@ -46,6 +46,7 @@
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
 #include <linux/stackdepot.h>
+#include <linux/types.h>
 
 #include <drm/intel-gtt.h>
 #include <drm/drm_legacy.h> /* for struct drm_dma_handle */
@@ -3458,6 +3459,9 @@ void icl_combo_phys_init(struct drm_i915_private *dev_priv);
 void icl_combo_phys_uninit(struct drm_i915_private *dev_priv);
 void cnl_combo_phys_init(struct drm_i915_private *dev_priv);
 void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv);
+void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
+				    enum port port, bool is_dsi,
+				    int lane_count, bool lane_reversal);
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
