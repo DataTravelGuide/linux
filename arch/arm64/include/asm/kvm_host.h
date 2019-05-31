@@ -22,8 +22,12 @@
 #ifndef __ARM64_KVM_HOST_H__
 #define __ARM64_KVM_HOST_H__
 
+#include <linux/bitmap.h>
 #include <linux/types.h>
+#include <linux/jump_label.h>
 #include <linux/kvm_types.h>
+#include <linux/percpu.h>
+#include <asm/barrier.h>
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/fpsimd.h>
