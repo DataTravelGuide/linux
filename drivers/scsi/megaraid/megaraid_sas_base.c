@@ -6402,7 +6402,6 @@ static inline void megasas_set_adapter_type(struct megasas_instance *instance)
 		case PCI_DEVICE_ID_LSI_AERO_10E5:
 		case PCI_DEVICE_ID_LSI_AERO_10E6:
 			instance->adapter_type = AERO_SERIES;
-			mark_tech_preview("Avago MegaRAID SAS Driver", THIS_MODULE);
 			break;
 		case PCI_DEVICE_ID_LSI_VENTURA:
 		case PCI_DEVICE_ID_LSI_CRUSADER:
