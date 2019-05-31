@@ -10399,7 +10399,6 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3816:
 		case MPI26_MFGPAGE_DEVID_HARD_SEC_3916:
 			ioc->is_aero_ioc = ioc->is_gen35_ioc = 1;
-			mark_tech_preview("LSI MPT Fusion SAS 3.0 Device Driver", THIS_MODULE);
 			break;
 		default:
 			ioc->is_gen35_ioc = ioc->is_aero_ioc = 0;
