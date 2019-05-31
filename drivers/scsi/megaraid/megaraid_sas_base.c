@@ -202,10 +202,10 @@ megasas_free_ctrl_dma_buffers(struct megasas_instance *instance);
 static inline void
 megasas_init_ctrl_params(struct megasas_instance *instance);
 
-u32 megasas_readl(const volatile void __iomem *addr)
+u32 megasas_readl(struct megasas_instance *instance,
+		  const volatile void __iomem *addr)
 {
 	u32 i = 0, ret_val;
-
 	/*
 	 * Due to a HW errata in Aero controllers, reads to certain
 	 * Fusion registers could intermittently return all zeroes.
@@ -213,12 +213,15 @@ u32 megasas_readl(const volatile void __iomem *addr)
 	 * return valid value. As a workaround in driver, retry readl for
 	 * upto three times until a non-zero value is read.
 	 */
-	do {
-		ret_val = readl(addr);
-		i++;
-	} while (ret_val == 0 && i < 3);
-
-	return ret_val;
+	if (instance->adapter_type == AERO_SERIES) {
+		do {
+			ret_val = readl(addr);
+			i++;
+		} while (ret_val == 0 && i < 3);
+		return ret_val;
+	} else {
+		return readl(addr);
+	}
 }
 
 /**
@@ -3845,6 +3848,7 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				if (instance->adapter_type != MFI_SERIES) {
 					for (i = 0; i < (10 * 1000); i += 20) {
 						if (megasas_readl(
+							    instance,
 							    &instance->
 							    reg_set->
 							    doorbell) & 1)
@@ -5558,7 +5562,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	if (instance->adapter_type >= VENTURA_SERIES) {
 		scratch_pad_2 =
-			megasas_readl(&instance->reg_set->outbound_scratch_pad_2);
+			megasas_readl(instance,
+				      &instance->reg_set->outbound_scratch_pad_2);
 		instance->max_raid_mapsize = ((scratch_pad_2 >>
 			MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
 			MR_MAX_RAID_MAP_SIZE_MASK);
@@ -5571,7 +5576,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		int irq_flags = PCI_IRQ_MSIX;
 
 		scratch_pad_1 = megasas_readl
-			(&instance->reg_set->outbound_scratch_pad_1);
+			(instance, &instance->reg_set->outbound_scratch_pad_1);
 		/* Check max MSI-X vectors */
 		if (fusion) {
 			if (instance->adapter_type == THUNDERBOLT_SERIES) {
@@ -5597,6 +5602,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 					if (instance->msix_vectors > 8)
 						instance->msix_combined = true;
 					break;
+				case AERO_SERIES:
 				case VENTURA_SERIES:
 					if (instance->msix_vectors > 16)
 						instance->msix_combined = true;
@@ -5681,7 +5687,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	if (instance->adapter_type >= VENTURA_SERIES) {
 		scratch_pad_3 =
-			megasas_readl(&instance->reg_set->outbound_scratch_pad_3);
+			megasas_readl(instance,
+				      &instance->reg_set->outbound_scratch_pad_3);
 		if ((scratch_pad_3 & MR_NVME_PAGE_SIZE_MASK) >=
 			MR_DEFAULT_NVME_PAGE_SHIFT)
 			instance->nvme_page_size =
@@ -6341,7 +6348,7 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 			 * for FW capable of handling 64 bit DMA.
 			 */
 			scratch_pad_1 = megasas_readl
-				(&instance->reg_set->outbound_scratch_pad_1);
+				(instance, &instance->reg_set->outbound_scratch_pad_1);
 
 			if (!(scratch_pad_1 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET))
 				goto fail_set_dma_mask;
