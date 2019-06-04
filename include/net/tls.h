@@ -183,10 +183,6 @@ struct tls_offload_context_tx {
 	(ALIGN(sizeof(struct tls_offload_context_tx), sizeof(void *)) +        \
 	 TLS_DRIVER_STATE_SIZE)
 
-enum {
-	TLS_PENDING_CLOSED_RECORD
-};
-
 struct cipher_context {
 	u16 prepend_size;
 	u16 tag_size;
@@ -321,12 +317,9 @@ int tls_push_sg(struct sock *sk, struct tls_context *ctx,
 int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 			    int flags);
 
-int tls_push_pending_closed_record(struct sock *sk, struct tls_context *ctx,
-				   int flags, long *timeo);
-
-static inline bool tls_is_pending_closed_record(struct tls_context *ctx)
+static inline bool tls_is_partially_sent_record(struct tls_context *ctx)
 {
-	return test_bit(TLS_PENDING_CLOSED_RECORD, &ctx->flags);
+	return !!ctx->partially_sent_record;
 }
 
 static inline int tls_complete_pending_work(struct sock *sk,
@@ -338,15 +331,10 @@ static inline int tls_complete_pending_work(struct sock *sk,
 	if (unlikely(sk->sk_write_pending))
 		rc = wait_on_pending_writer(sk, timeo);
 
-	if (!rc && tls_is_pending_closed_record(ctx))
-		rc = tls_push_pending_closed_record(sk, ctx, flags, timeo);
+	if (!rc && tls_is_partially_sent_record(ctx))
+		rc = tls_push_partial_record(sk, ctx, flags);
 
 	return rc;
-}
-
-static inline bool tls_is_partially_sent_record(struct tls_context *ctx)
-{
-	return !!ctx->partially_sent_record;
 }
 
 static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
