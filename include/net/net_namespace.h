@@ -42,6 +42,7 @@ struct ctl_table_header;
 struct net_generic;
 struct uevent_sock;
 struct netns_ipvs;
+struct bpf_prog;
 
 
 #define NETDEV_HASHBITS    8
@@ -161,6 +162,7 @@ struct net {
 	atomic_t		fnhe_genid;
 
 	RH_KABI_EXTEND(int	ipv4_sysctl_ip_fwd_update_priority)
+	RH_KABI_EXTEND(struct bpf_prog __rcu	*flow_dissector_prog)
 } __randomize_layout;
 
 #include <linux/seq_file_net.h>
