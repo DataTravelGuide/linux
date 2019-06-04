@@ -525,8 +525,8 @@ int btf__get_map_kv_tids(const struct btf *btf, char *map_name,
 
 	container_id = btf__find_by_name(btf, container_name);
 	if (container_id < 0) {
-		pr_warning("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
-			   map_name, container_name);
+		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
+			 map_name, container_name);
 		return container_id;
 	}
 
