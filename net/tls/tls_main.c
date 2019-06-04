@@ -144,7 +144,6 @@ retry:
 	}
 
 	ctx->in_tcp_sendpages = false;
-	ctx->sk_write_space(sk);
 
 	return 0;
 }
@@ -226,6 +225,8 @@ static void tls_write_space(struct sock *sk)
 	else
 #endif
 		tls_sw_write_space(sk, ctx);
+
+	ctx->sk_write_space(sk);
 }
 
 static void tls_ctx_free(struct tls_context *ctx)
