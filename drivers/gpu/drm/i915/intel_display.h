@@ -28,6 +28,8 @@
 #include <drm/drm_util.h>
 #include <drm/i915_drm.h>
 
+struct intel_plane_state;
+
 enum i915_gpio {
 	GPIOA,
 	GPIOB,
@@ -432,4 +434,6 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    struct intel_link_m_n *m_n,
 			    bool constant_n);
 bool is_ccs_modifier(u64 modifier);
+bool intel_plane_can_remap(const struct intel_plane_state *plane_state);
+
 #endif
