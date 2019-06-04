@@ -272,6 +272,7 @@ struct bpf_prog_offload_ops {
 	int (*insn_hook)(struct bpf_verifier_env *env,
 			 int insn_idx, int prev_insn_idx);
 	RH_KABI_EXTEND(int (*finalize)(struct bpf_verifier_env *env))
+	RH_KABI_EXTEND(int (*prepare)(struct net_device *netdev, struct bpf_verifier_env *env))
 };
 
 struct bpf_prog_offload {
