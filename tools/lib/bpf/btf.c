@@ -16,6 +16,11 @@
 
 #define BTF_MAX_NR_TYPES 65535
 
+#define IS_MODIFIER(k) (((k) == BTF_KIND_TYPEDEF) || \
+		((k) == BTF_KIND_VOLATILE) || \
+		((k) == BTF_KIND_CONST) || \
+		((k) == BTF_KIND_RESTRICT))
+
 static struct btf_type btf_void;
 
 struct btf {
@@ -269,6 +274,26 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 	return nelems * size;
 }
 
+int btf__resolve_type(const struct btf *btf, __u32 type_id)
+{
+	const struct btf_type *t;
+	int depth = 0;
+
+	t = btf__type_by_id(btf, type_id);
+	while (depth < MAX_RESOLVE_DEPTH &&
+	       !btf_type_is_void_or_null(t) &&
+	       IS_MODIFIER(BTF_INFO_KIND(t->info))) {
+		type_id = t->type;
+		t = btf__type_by_id(btf, type_id);
+		depth++;
+	}
+
+	if (depth == MAX_RESOLVE_DEPTH || btf_type_is_void_or_null(t))
+		return -EINVAL;
+
+	return type_id;
+}
+
 __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 {
 	__u32 i;
@@ -278,7 +303,7 @@ __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 
 	for (i = 1; i <= btf->nr_types; i++) {
 		const struct btf_type *t = btf->types[i];
-		const char *name = btf_name_by_offset(btf, t->name_off);
+		const char *name = btf__name_by_offset(btf, t->name_off);
 
 		if (name && !strcmp(type_name, name))
 			return i;
@@ -367,4 +392,21 @@ done:
 int btf__fd(const struct btf *btf)
 {
 	return btf->fd;
+}
+
+const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
+{
+	if (offset < btf->hdr->str_len)
+		return &btf->strings[offset];
+	else
+		return NULL;
+}
+
+const struct btf_type *btf__type_by_id(const struct btf *btf,
+				       __u32 type_id)
+{
+	if (type_id > btf->nr_types)
+		return NULL;
+
+	return btf->types[type_id];
 }
