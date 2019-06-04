@@ -915,7 +915,7 @@ struct netdev_bpf {
 			struct bpf_prog *prog;
 			const struct bpf_prog_offload_ops *ops; /* callee set */
 		} verifier;
-		/* BPF_OFFLOAD_TRANSLATE, BPF_OFFLOAD_DESTROY */
+		/* BPF_OFFLOAD_DESTROY */
 		struct {
 			struct bpf_prog *prog;
 		} offload;
