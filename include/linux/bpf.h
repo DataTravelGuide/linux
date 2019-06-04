@@ -323,6 +323,8 @@ struct bpf_prog_aux {
 	void *security;
 #endif
 	struct bpf_prog_offload *offload;
+	RH_KABI_EXTEND(struct btf *btf)
+	RH_KABI_EXTEND(u32 type_id) /* type id for this prog/func */
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
@@ -535,7 +537,8 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 }
 
 /* verify correctness of eBPF program */
-int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
+int bpf_check(struct bpf_prog **fp, union bpf_attr *attr,
+	      union bpf_attr __user *uattr);
 void bpf_patch_call_args(struct bpf_insn *insn, u32 stack_depth);
 
 /* Map specifics */
