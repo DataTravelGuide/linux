@@ -56,6 +56,7 @@
 #include <net/sctp/sm.h>
 #include <net/sctp/checksum.h>
 #include <net/net_namespace.h>
+#include <linux/rhashtable.h>
 #include <net/sock_reuseport.h>
 
 /* Forward declarations for internal helpers. */
