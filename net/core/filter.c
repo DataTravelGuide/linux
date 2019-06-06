@@ -5073,8 +5073,18 @@ __bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 		put_net(net);
 	}
 
-	if (sk)
+	if (sk) {
 		sk = sk_to_full_sk(sk);
+		/* RHEL note: when backporting edbf8c01de5a1, do not forget
+		 * the other part of the fix below (commit f7355a6c0497,
+		 * which was only partially backported).
+		 */
+		if (!sk_fullsock(sk)) {
+			if (!sock_flag(sk, SOCK_RCU_FREE))
+				sock_gen_put(sk);
+			return (unsigned long) NULL;
+		}
+	}
 out:
 	return (unsigned long) sk;
 }
