@@ -442,6 +442,19 @@ struct cgroup {
 	/* If there is block congestion on this cgroup. */
 	atomic_t congestion_count;
 
+	/*
+	 * RHEL8:
+	 * The cgroup structures are all allocated by the core kernel
+	 * code at run time. It is also accessed only the cgroup core code
+	 * and so changes made to the cgroup structure should not affect
+	 * third-party kernel modules. However, a number of important kernel
+	 * data structures do contain pointer to a cgroup structure and so
+	 * the kABI signature has to be maintained.
+	 *
+	 * The ancestor_ids[] arrary has to be at the end of structure.
+	 */
+	RH_KABI_EXTEND(struct cgroup *old_dom_cgrp) /* used while enabling threaded */
+
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];
 };
