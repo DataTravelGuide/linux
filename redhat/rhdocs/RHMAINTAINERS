@@ -278,12 +278,12 @@ F:	drivers/cpufreq/
 F:	arch/x86/kernel/cpu/cpufreq/
 
 CXGB3 ETHERNET DRIVER (cxgb3)
-M:	Arjun Vynipadath <avynipad@redhat.com>
+M:	Venkatesh Pottem <vpottem@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/chelsio/cxgb3/
 
 CXGB4 ETHERNET DRIVER (cxgb4)
-M:	Arjun Vynipadath <avynipad@redhat.com>
+M:	Venkatesh Pottem <vpottem@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/chelsio/cxgb4/
 
