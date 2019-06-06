@@ -745,8 +745,10 @@ static int check_expect_stats(struct objagg *objagg,
 	int err;
 
 	stats = objagg_stats_get(objagg);
-	if (IS_ERR(stats))
+	if (IS_ERR(stats)) {
+		*errmsg = "objagg_stats_get() failed.";
 		return PTR_ERR(stats);
+	}
 	err = __check_expect_stats(stats, expect_stats, errmsg);
 	objagg_stats_put(stats);
 	return err;
