@@ -227,6 +227,7 @@ sources-rh: $(TARBALL)
 	    rhpkg/Makefile keys/*.cer		\
 	    filter-*.sh				\
 	    mod-extra.*				\
+	    mod-blacklist.sh			\
 	    mod-extra-blacklist.sh		\
 	    mod-internal.list			\
 	    mod-sign.sh				\

@@ -383,7 +383,7 @@ Source14: redhatsecureboot003.cer
 %define pesign_name redhatsecureboot003
 %endif
 Source16: mod-extra.list
-Source17: mod-extra.sh
+Source17: mod-blacklist.sh
 Source18: mod-sign.sh
 Source19: mod-extra-blacklist.sh
 Source80: parallel_xz.sh
@@ -1384,11 +1384,11 @@ BuildKernel() {
         rm -f modules.{alias*,builtin.bin,dep*,*map,symbols*,devname,softdep}
     popd
 
-    # Call the modules-extra script to move things around
+    # Identify modules in the kernel-modules-extras package
     %{SOURCE17} $RPM_BUILD_ROOT/lib/modules/$KernelVer %{SOURCE16} extra
     # Blacklist net autoloadable modules in modules-extra
     %{SOURCE19} $RPM_BUILD_ROOT lib/modules/$KernelVer
-    # Call the modules-extra script for internal modules
+    # Identify modules in the kernel-modules-internal package
     %{SOURCE17} $RPM_BUILD_ROOT/lib/modules/$KernelVer %{SOURCE44} internal
 
     #
