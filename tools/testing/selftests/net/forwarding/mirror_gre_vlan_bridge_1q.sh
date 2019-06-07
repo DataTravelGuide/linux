@@ -61,6 +61,8 @@ source mirror_lib.sh
 source mirror_gre_lib.sh
 source mirror_gre_topo_lib.sh
 
+require_command $ARPING
+
 h3_addr_add_del()
 {
 	local add_del=$1; shift
@@ -194,7 +196,7 @@ test_span_gre_forbidden_egress()
 
 	bridge vlan add dev $swp3 vid 555
 	# Re-prime FDB
-	arping -I br1.555 192.0.2.130 -fqc 1
+	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
 	quick_test_span_gre_dir $tundev ingress
 
@@ -274,7 +276,7 @@ test_span_gre_fdb_roaming()
 
 	bridge fdb del dev $swp2 $h3mac vlan 555 master
 	# Re-prime FDB
-	arping -I br1.555 192.0.2.130 -fqc 1
+	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
 	quick_test_span_gre_dir $tundev ingress
 
