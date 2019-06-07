@@ -21,7 +21,6 @@ generate_bls_conf.sh
 linux-kernel-test.patch
 mod-extra.list
 mod-blacklist.sh
-mod-extra-blacklist.sh
 mod-internal.list
 mod-sign.sh
 Module.kabi_aarch64

@@ -385,7 +385,6 @@ Source14: redhatsecureboot003.cer
 Source16: mod-extra.list
 Source17: mod-blacklist.sh
 Source18: mod-sign.sh
-Source19: mod-extra-blacklist.sh
 Source80: parallel_xz.sh
 Source90: filter-x86_64.sh
 Source93: filter-aarch64.sh
@@ -1384,8 +1383,6 @@ BuildKernel() {
 
     # Identify modules in the kernel-modules-extras package
     %{SOURCE17} $RPM_BUILD_ROOT lib/modules/$KernelVer %{SOURCE16}
-    # Blacklist net autoloadable modules in modules-extra
-    %{SOURCE19} $RPM_BUILD_ROOT lib/modules/$KernelVer %{SOURCE16}
     # Identify modules in the kernel-modules-internal package
     %{SOURCE17} $RPM_BUILD_ROOT lib/modules/$KernelVer %{SOURCE44} internal
 
