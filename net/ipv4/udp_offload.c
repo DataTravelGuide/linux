@@ -408,7 +408,7 @@ struct sk_buff **udp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
-	if (unlikely(!uh))
+	if (unlikely(!uh) || !static_branch_unlikely(&udp_encap_needed_key))
 		goto flush;
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
