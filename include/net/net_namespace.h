@@ -33,6 +33,7 @@
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
+#include <linux/siphash.h>
 
 struct user_namespace;
 struct proc_dir_entry;
@@ -163,6 +164,7 @@ struct net {
 
 	RH_KABI_EXTEND(int	ipv4_sysctl_ip_fwd_update_priority)
 	RH_KABI_EXTEND(struct bpf_prog __rcu	*flow_dissector_prog)
+	RH_KABI_EXTEND(siphash_key_t ipv4_ip_id_key)
 } __randomize_layout;
 
 #include <linux/seq_file_net.h>
