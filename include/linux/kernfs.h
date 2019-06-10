@@ -27,6 +27,7 @@ struct seq_file;
 struct vm_area_struct;
 struct super_block;
 struct file_system_type;
+struct poll_table_struct;
 
 struct kernfs_open_node;
 struct kernfs_iattrs;
@@ -272,7 +273,8 @@ struct kernfs_ops {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
 #endif
-	RH_KABI_RESERVE(1)
+	RH_KABI_USE(1, __poll_t (*poll)(struct kernfs_open_file *of,
+					struct poll_table_struct *pt))
 	RH_KABI_RESERVE(2)
 };
 
@@ -358,6 +360,8 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		     const char *new_name, const void *new_ns);
 int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
+__poll_t kernfs_generic_poll(struct kernfs_open_file *of,
+			     struct poll_table_struct *pt);
 void kernfs_notify(struct kernfs_node *kn);
 
 int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
