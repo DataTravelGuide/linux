@@ -20,6 +20,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/workqueue.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/psi_types.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -487,6 +488,15 @@ struct cgroup {
 
 	/* Used to store internal freezer state */
 	RH_KABI_EXTEND(struct cgroup_freezer_state freezer)
+
+	/* used to track pressure stalls */
+	RH_KABI_EXTEND(struct psi_group psi)
+
+	/*
+	 * RHEL8:
+	 * The ancestor_ids[] should only be used by cgroup core.
+	 * External kernel modules should not used it.
+	 */
 
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];
