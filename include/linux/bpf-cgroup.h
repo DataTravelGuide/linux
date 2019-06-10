@@ -4,7 +4,10 @@
 
 #include <linux/errno.h>
 #include <linux/jump_label.h>
+#include <linux/percpu-refcount.h>
 #include <uapi/linux/bpf.h>
+
+#include <linux/rh_kabi.h>
 
 struct sock;
 struct sockaddr;
@@ -24,20 +27,56 @@ struct bpf_prog_list {
 
 struct bpf_prog_array;
 
+#define RH_MAX_BPF_ATTACH_TYPE	64
+
 struct cgroup_bpf {
+	/* RHEL kABI: Beware, this struct is embedded in struct cgroup,
+	 * which in turn is embedded in struct cgroup_root. Any changes here
+	 * need to be done with a great caution. We grew the size of the
+	 * struct once but should not do that again. */
+
 	/* array of effective progs in this cgroup */
-	struct bpf_prog_array __rcu *effective[MAX_BPF_ATTACH_TYPE];
+	RH_KABI_REPLACE_UNSAFE(
+		struct bpf_prog_array __rcu *effective[MAX_BPF_ATTACH_TYPE],
+		struct bpf_prog_array __rcu *effective[RH_MAX_BPF_ATTACH_TYPE]
+	)
 
 	/* attached progs to this cgroup and attach flags
 	 * when flags == 0 or BPF_F_ALLOW_OVERRIDE the progs list will
 	 * have either zero or one element
 	 * when BPF_F_ALLOW_MULTI the list can have up to BPF_CGROUP_MAX_PROGS
 	 */
-	struct list_head progs[MAX_BPF_ATTACH_TYPE];
-	u32 flags[MAX_BPF_ATTACH_TYPE];
+	RH_KABI_REPLACE_UNSAFE(
+		struct list_head progs[MAX_BPF_ATTACH_TYPE],
+		struct list_head progs[RH_MAX_BPF_ATTACH_TYPE]
+	)
+	RH_KABI_REPLACE_UNSAFE(
+		u32 flags[MAX_BPF_ATTACH_TYPE],
+		u32 flags[RH_MAX_BPF_ATTACH_TYPE]
+	)
 
 	/* temp storage for effective prog array used by prog_attach/detach */
 	struct bpf_prog_array __rcu *inactive;
+
+	RH_KABI_EXTEND(struct percpu_ref refcnt)
+	RH_KABI_EXTEND(struct work_struct release_work)
+
+	RH_KABI_EXTEND(unsigned long rh_reserved1)
+	RH_KABI_EXTEND(unsigned long rh_reserved2)
+	RH_KABI_EXTEND(unsigned long rh_reserved3)
+	RH_KABI_EXTEND(unsigned long rh_reserved4)
+	RH_KABI_EXTEND(unsigned long rh_reserved5)
+	RH_KABI_EXTEND(unsigned long rh_reserved6)
+	RH_KABI_EXTEND(unsigned long rh_reserved7)
+	RH_KABI_EXTEND(unsigned long rh_reserved8)
+	RH_KABI_EXTEND(unsigned long rh_reserved9)
+	RH_KABI_EXTEND(unsigned long rh_reserved10)
+	RH_KABI_EXTEND(unsigned long rh_reserved11)
+	RH_KABI_EXTEND(unsigned long rh_reserved12)
+	RH_KABI_EXTEND(unsigned long rh_reserved13)
+	RH_KABI_EXTEND(unsigned long rh_reserved14)
+	RH_KABI_EXTEND(unsigned long rh_reserved15)
+	RH_KABI_EXTEND(unsigned long rh_reserved16)
 };
 
 void cgroup_bpf_put(struct cgroup *cgrp);

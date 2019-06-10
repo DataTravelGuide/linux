@@ -195,6 +195,7 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 	bool pl_was_allocated;
 	int err;
 
+	BUILD_BUG_ON(RH_MAX_BPF_ATTACH_TYPE < MAX_BPF_ATTACH_TYPE);
 	if ((flags & BPF_F_ALLOW_OVERRIDE) && (flags & BPF_F_ALLOW_MULTI))
 		/* invalid combination */
 		return -EINVAL;
