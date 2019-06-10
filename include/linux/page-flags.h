@@ -101,6 +101,13 @@ enum pageflags {
 	PG_young,
 	PG_idle,
 #endif
+#ifndef __GENKSYMS__
+	/*
+	 * RHEL8: New page flags should be put here to avoid changing
+	 * kABI signature.
+	 */
+	PG_workingset,
+#endif
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */
@@ -288,6 +295,8 @@ PAGEFLAG(Dirty, dirty, PF_HEAD) TESTSCFLAG(Dirty, dirty, PF_HEAD)
 PAGEFLAG(LRU, lru, PF_HEAD) __CLEARPAGEFLAG(LRU, lru, PF_HEAD)
 PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
 	TESTCLEARFLAG(Active, active, PF_HEAD)
+PAGEFLAG(Workingset, workingset, PF_HEAD)
+	TESTCLEARFLAG(Workingset, workingset, PF_HEAD)
 __PAGEFLAG(Slab, slab, PF_NO_TAIL)
 __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
 PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */

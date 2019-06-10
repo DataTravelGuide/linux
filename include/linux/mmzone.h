@@ -182,6 +182,20 @@ enum node_stat_item {
 	NR_DIRTIED,		/* page dirtyings since bootup */
 	NR_WRITTEN,		/* page writings since bootup */
 	NR_INDIRECTLY_RECLAIMABLE_BYTES, /* measured in bytes */
+#ifndef __GENKSYMS__
+	/*
+	 * RHEL8:
+	 * New node stat item should be put here to avoid changing kABI
+	 * signature of pg_data_t. The size of vm_stat[] will change.
+	 * However, vm_stat is the last field of pg_data_t and so it won't
+	 * affect offsets of existing fields. The per-node pg_data_t is
+	 * allocated by the core kernel code and accessed by other as
+	 * an array of pointers to pg_data_t. So changing the size of
+	 * pg_data_t because of additional vm_stat items will not impact
+	 * others.
+	 */
+	WORKINGSET_RESTORE,
+#endif
 	NR_VM_NODE_STAT_ITEMS
 };
 
