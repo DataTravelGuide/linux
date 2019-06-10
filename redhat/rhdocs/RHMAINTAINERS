@@ -962,6 +962,15 @@ M:	Ivan Vecera <ivecera@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/rocker/
 
+SCHEDULER
+M:	Phil Auld <pauld@redhat.com>
+S:	Maintained
+F:	kernel/sched/
+F:	include/linux/sched/
+F:	include/linux/sched.h
+F:	include/uapi/linux/sched.h
+F:	include/linux/wait.h
+
 SCSI CORE SUBSYSTEM (NOT INDIVIDUAL DRIVERS)
 M:	Ewan D. Milne <emilne@redhat.com>
 S:	Maintained
