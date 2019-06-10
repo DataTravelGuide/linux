@@ -5,6 +5,16 @@
  */
 
 /*
+ * RHEL8:
+ * It happens that the act of including the header file <linux/delayacct.h>
+ * changes the kABI signatures of functions that use page, address_map and
+ * other structures. So the following macro magic is added to work around that.
+ */
+#ifdef __GENKSYMS__
+#define _LINUX_DELAYACCT_H
+#endif
+
+/*
  * This file handles the generic file mmap semantics used by
  * most "normal" filesystems (but you don't /have/ to use this:
  * the NFS filesystem used to do this differently, for example)
@@ -36,6 +46,7 @@
 #include <linux/cleancache.h>
 #include <linux/shmem_fs.h>
 #include <linux/rmap.h>
+#include <linux/delayacct.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -1096,7 +1107,14 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	struct wait_page_queue wait_page;
 	wait_queue_entry_t *wait = &wait_page.wait;
 	bool bit_is_set;
+	bool thrashing = false;
 	int ret = 0;
+
+	if (bit_nr == PG_locked && !PageSwapBacked(page) &&
+	    !PageUptodate(page) && PageWorkingset(page)) {
+		delayacct_thrashing_start();
+		thrashing = true;
+	}
 
 	init_wait(wait);
 	wait->flags = behavior == EXCLUSIVE ? WQ_FLAG_EXCLUSIVE : 0;
@@ -1149,6 +1167,9 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	}
 
 	finish_wait(q, wait);
+
+	if (thrashing)
+		delayacct_thrashing_end();
 
 	/*
 	 * A signal could leave PageWaiters set. Clearing it here if
