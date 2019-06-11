@@ -868,6 +868,12 @@ to_mcounters(struct ib_counters *ibcntrs)
 int parse_flow_flow_action(struct mlx5_ib_flow_action *maction,
 			   bool is_egress,
 			   struct mlx5_flow_act *action);
+struct mlx5_ib_lb_state {
+	/* protect the user_td */
+	struct mutex		mutex;
+	u32			user_td;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct uapi_definition		driver_defs[7];
@@ -909,9 +915,7 @@ struct mlx5_ib_dev {
 	const struct mlx5_ib_profile	*profile;
 	struct mlx5_eswitch_rep		*rep;
 
-	/* protect the user_td */
-	struct mutex		lb_mutex;
-	u32			user_td;
+	struct mlx5_ib_lb_state		lb;
 	u8			umr_fence;
 	struct list_head	ib_dev_list;
 	u64			sys_image_guid;
