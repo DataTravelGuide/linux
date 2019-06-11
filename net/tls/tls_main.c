@@ -61,6 +61,8 @@ static LIST_HEAD(device_list);
 static DEFINE_MUTEX(device_mutex);
 static struct proto tls_prots[TLS_NUM_PROTS][TLS_NUM_CONFIG][TLS_NUM_CONFIG];
 static struct proto_ops tls_sw_proto_ops;
+static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
+			 struct proto *base);
 
 static void update_sk_prot(struct sock *sk, struct tls_context *ctx)
 {
@@ -557,12 +559,40 @@ static struct tls_context *create_ctx(struct sock *sk)
 	return ctx;
 }
 
+static void tls_build_proto(struct sock *sk)
+{
+	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
+
+	/* Build IPv6 TLS whenever the address of tcpv6 _prot changes */
+	if (ip_ver == TLSV6 &&
+	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
+		mutex_lock(&tcpv6_prot_mutex);
+		if (likely(sk->sk_prot != saved_tcpv6_prot)) {
+			build_protos(tls_prots[TLSV6], sk->sk_prot);
+			smp_store_release(&saved_tcpv6_prot, sk->sk_prot);
+		}
+		mutex_unlock(&tcpv6_prot_mutex);
+	}
+
+	if (ip_ver == TLSV4 &&
+	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv4_prot))) {
+		mutex_lock(&tcpv4_prot_mutex);
+		if (likely(sk->sk_prot != saved_tcpv4_prot)) {
+			build_protos(tls_prots[TLSV4], sk->sk_prot);
+			smp_store_release(&saved_tcpv4_prot, sk->sk_prot);
+		}
+		mutex_unlock(&tcpv4_prot_mutex);
+	}
+}
+
 static int tls_hw_prot(struct sock *sk)
 {
 	struct tls_context *ctx;
 	struct tls_device *dev;
 	int rc = 0;
 
+	/* RHEL: fix up the locking below after commit df9d4a178022 is
+	 * backported */
 	mutex_lock(&device_mutex);
 	list_for_each_entry(dev, &device_list, dev_list) {
 		if (dev->feature && dev->feature(dev)) {
@@ -570,12 +600,19 @@ static int tls_hw_prot(struct sock *sk)
 			if (!ctx)
 				goto out;
 
+#if 0
+			spin_unlock_bh(&device_spinlock);
+#endif
+			tls_build_proto(sk);
 			ctx->hash = sk->sk_prot->hash;
 			ctx->unhash = sk->sk_prot->unhash;
 			ctx->sk_proto_close = sk->sk_prot->close;
 			ctx->rx_conf = TLS_HW_RECORD;
 			ctx->tx_conf = TLS_HW_RECORD;
 			update_sk_prot(sk, ctx);
+#if 0
+			spin_lock_bh(&device_spinlock);
+#endif
 			rc = 1;
 			break;
 		}
@@ -664,7 +701,6 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 
 static int tls_init(struct sock *sk)
 {
-	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
 	struct tls_context *ctx;
 	int rc = 0;
 
@@ -687,27 +723,7 @@ static int tls_init(struct sock *sk)
 		goto out;
 	}
 
-	/* Build IPv6 TLS whenever the address of tcpv6	_prot changes */
-	if (ip_ver == TLSV6 &&
-	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
-		mutex_lock(&tcpv6_prot_mutex);
-		if (likely(sk->sk_prot != saved_tcpv6_prot)) {
-			build_protos(tls_prots[TLSV6], sk->sk_prot);
-			smp_store_release(&saved_tcpv6_prot, sk->sk_prot);
-		}
-		mutex_unlock(&tcpv6_prot_mutex);
-	}
-
-	if (ip_ver == TLSV4 &&
-	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv4_prot))) {
-		mutex_lock(&tcpv4_prot_mutex);
-		if (likely(sk->sk_prot != saved_tcpv4_prot)) {
-			build_protos(tls_prots[TLSV4], sk->sk_prot);
-			smp_store_release(&saved_tcpv4_prot, sk->sk_prot);
-		}
-		mutex_unlock(&tcpv4_prot_mutex);
-	}
-
+	tls_build_proto(sk);
 	ctx->tx_conf = TLS_BASE;
 	ctx->rx_conf = TLS_BASE;
 	update_sk_prot(sk, ctx);
