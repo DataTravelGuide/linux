@@ -207,6 +207,7 @@ struct cipher_context {
 union tls_crypto_context {
 	struct tls_crypto_info info;
 	struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
+	RH_KABI_EXTEND(struct tls12_crypto_info_aes_gcm_256 aes_gcm_256)
 
 	/* RHEL: new alternative ciphers must be added under KABI_EXTEND(),
 	 * build time checks in tls_register() will ensure tls_crypto_context
