@@ -2734,14 +2734,13 @@ err_free:
 	return err;
 }
 
-static int
+static struct mlx5e_tc_flow *
 __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		     struct tc_cls_flower_offload *f,
 		     u16 flow_flags,
 		     struct net_device *filter_dev,
 		     struct mlx5_eswitch_rep *in_rep,
-		     struct mlx5_core_dev *in_mdev,
-		     struct mlx5e_tc_flow **__flow)
+		     struct mlx5_core_dev *in_mdev)
 {
 	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -2782,15 +2781,13 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
-	*__flow = flow;
-
-	return 0;
+	return flow;
 
 err_free:
 	kfree(flow);
 	kvfree(parse_attr);
 out:
-	return err;
+	return ERR_PTR(err);
 }
 
 static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
@@ -2823,11 +2820,13 @@ static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
 		in_mdev = priv->mdev;
 
 	parse_attr = flow->esw_attr->parse_attr;
-	err = __mlx5e_add_fdb_flow(peer_priv, f, flow->flags,
-				   parse_attr->filter_dev,
-				   flow->esw_attr->in_rep, in_mdev, &peer_flow);
-	if (err)
+	peer_flow = __mlx5e_add_fdb_flow(peer_priv, f, flow->flags,
+					 parse_attr->filter_dev,
+					 flow->esw_attr->in_rep, in_mdev);
+	if (IS_ERR(peer_flow)) {
+		err = PTR_ERR(peer_flow);
 		goto out;
+	}
 
 	flow->peer_flow = peer_flow;
 	flow->flags |= MLX5E_TC_FLOW_DUP;
@@ -2853,10 +2852,10 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow *flow;
 	int err;
 
-	err = __mlx5e_add_fdb_flow(priv, f, flow_flags, filter_dev, in_rep,
-				   in_mdev, &flow);
-	if (err)
-		goto out;
+	flow = __mlx5e_add_fdb_flow(priv, f, flow_flags, filter_dev, in_rep,
+				    in_mdev);
+	if (IS_ERR(flow))
+		return PTR_ERR(flow);
 
 	if (is_peer_flow_needed(flow)) {
 		err = mlx5e_tc_add_fdb_peer_flow(f, flow);
