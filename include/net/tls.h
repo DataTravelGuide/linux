@@ -195,7 +195,7 @@ struct cipher_context {
 	u16 rec_seq_size;
 	char *rec_seq;
 
-	RH_KABI_RESERVE(1)
+	RH_KABI_USE(1, u16 aad_size)
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
