@@ -1013,7 +1013,9 @@ static const struct net_device_ops mlx5e_netdev_ops_rep = {
 };
 
 static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
-				   struct mlx5e_params *params, u16 mtu)
+				   struct mlx5e_params *params,
+				   struct mlx5e_rss_params *rss_params,
+				   u16 mtu)
 {
 	u8 cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
 					 MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
@@ -1035,7 +1037,7 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 
 	/* RSS */
-	mlx5e_build_rss_params(params);
+	mlx5e_build_rss_params(rss_params, params->num_channels);
 }
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev)
@@ -1086,7 +1088,8 @@ static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 
 	priv->channels.params.num_channels = MLX5E_REP_PARAMS_DEF_NUM_CHANNELS;
 
-	mlx5e_build_rep_params(mdev, &priv->channels.params, netdev->mtu);
+	mlx5e_build_rep_params(mdev, &priv->channels.params,
+			       &priv->rss_params, netdev->mtu);
 	mlx5e_build_rep_netdev(netdev);
 
 	mlx5e_timestamp_init(priv);
