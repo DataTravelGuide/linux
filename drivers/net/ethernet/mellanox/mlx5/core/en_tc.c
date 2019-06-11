@@ -96,6 +96,7 @@ struct mlx5e_tc_flow {
 
 struct mlx5e_tc_flow_parse_attr {
 	struct ip_tunnel_info tun_info;
+	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
 	int num_mod_hdr_actions;
 	void *mod_hdr_actions;
@@ -3062,10 +3063,6 @@ mlx5e_alloc_flow(struct mlx5e_priv *priv, int attr_size,
 	flow->flags = flow_flags;
 	flow->priv = priv;
 
-	err = parse_cls_flower(priv, flow, &parse_attr->spec, f);
-	if (err)
-		goto err_free;
-
 	*__flow = flow;
 	*__parse_attr = parse_attr;
 
@@ -3081,6 +3078,7 @@ static int
 mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		   struct tc_cls_flower_offload *f,
 		   u16 flow_flags,
+		   struct net_device *filter_dev,
 		   struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -3094,6 +3092,11 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 			       &parse_attr, &flow);
 	if (err)
 		goto out;
+	parse_attr->filter_dev = filter_dev;
+	flow->esw_attr->parse_attr = parse_attr;
+	err = parse_cls_flower(flow->priv, flow, &parse_attr->spec, f);
+	if (err)
+		goto err_free;
 
 	flow->esw_attr->chain = f->common.chain_index;
 	flow->esw_attr->prio = TC_H_MAJ(f->common.prio) >> 16;
@@ -3124,6 +3127,7 @@ static int
 mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 		   struct tc_cls_flower_offload *f,
 		   u16 flow_flags,
+		   struct net_device *filter_dev,
 		   struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -3141,6 +3145,11 @@ mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 			       &parse_attr, &flow);
 	if (err)
 		goto out;
+
+	parse_attr->filter_dev = filter_dev;
+	err = parse_cls_flower(flow->priv, flow, &parse_attr->spec, f);
+	if (err)
+		goto err_free;
 
 	err = parse_tc_nic_actions(priv, f->exts, parse_attr, flow, extack);
 	if (err)
@@ -3167,6 +3176,7 @@ static int
 mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		  struct tc_cls_flower_offload *f,
 		  int flags,
+		  struct net_device *filter_dev,
 		  struct mlx5e_tc_flow **flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -3179,9 +3189,11 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
-		err = mlx5e_add_fdb_flow(priv, f, flow_flags, flow);
+		err = mlx5e_add_fdb_flow(priv, f, flow_flags,
+					 filter_dev, flow);
 	else
-		err = mlx5e_add_nic_flow(priv, f, flow_flags, flow);
+		err = mlx5e_add_nic_flow(priv, f, flow_flags,
+					 filter_dev, flow);
 
 	return err;
 }
@@ -3204,7 +3216,7 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	err = mlx5e_tc_add_flow(priv, f, flags, &flow);
+	err = mlx5e_tc_add_flow(priv, f, flags, dev, &flow);
 	if (err)
 		goto out;
 
