@@ -859,15 +859,20 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 {
 	u64 addr;
 	size_t size;
-	int access;
+	u32 access;
 	int npages;
 	int err;
 	u32 page_mask;
 
 	if (uverbs_copy_from(&addr, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR) ||
-	    uverbs_copy_from(&size, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_LEN) ||
-	    uverbs_copy_from(&access, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS))
+	    uverbs_copy_from(&size, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_LEN))
 		return -EFAULT;
+
+	err = uverbs_get_flags32(&access, attrs,
+				 MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
+				 IB_ACCESS_SUPPORTED);
+	if (err)
+		return err;
 
 	err = ib_check_mr_access(access);
 	if (err)
