@@ -6260,6 +6260,22 @@ static void mlx5_ib_stage_dev_notifier_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_notifier_unregister(dev->mdev, &dev->mdev_events);
 }
 
+static int mlx5_ib_stage_devx_init(struct mlx5_ib_dev *dev)
+{
+	int uid;
+
+	uid = mlx5_ib_devx_create(dev);
+	if (uid > 0)
+		dev->devx_whitelist_uid = uid;
+
+	return 0;
+}
+static void mlx5_ib_stage_devx_cleanup(struct mlx5_ib_dev *dev)
+{
+	if (dev->devx_whitelist_uid)
+		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
+}
+
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		      const struct mlx5_ib_profile *profile,
 		      int stage)
@@ -6271,8 +6287,6 @@ void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 			profile->stage[stage].cleanup(dev);
 	}
 
-	if (dev->devx_whitelist_uid)
-		mlx5_ib_devx_destroy(dev, dev->devx_whitelist_uid);
 	ib_dealloc_device((struct ib_device *)dev);
 }
 
@@ -6281,7 +6295,6 @@ void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
 {
 	int err;
 	int i;
-	int uid;
 
 	for (i = 0; i < MLX5_IB_STAGE_MAX; i++) {
 		if (profile->stage[i].init) {
@@ -6290,10 +6303,6 @@ void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
 				goto err_out;
 		}
 	}
-
-	uid = mlx5_ib_devx_create(dev);
-	if (uid > 0)
-		dev->devx_whitelist_uid = uid;
 
 	dev->profile = profile;
 	dev->ib_active = true;
@@ -6346,6 +6355,9 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_PRE_IB_REG_UMR,
 		     NULL,
 		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_WHITELIST_UID,
+		     mlx5_ib_stage_devx_init,
+		     mlx5_ib_stage_devx_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
