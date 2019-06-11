@@ -347,7 +347,7 @@ mlx5e_ipsec_build_sp(struct net_device *netdev, struct sk_buff *skb,
 }
 
 struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
-					  struct sk_buff *skb)
+					  struct sk_buff *skb, u32 *cqe_bcnt)
 {
 	struct mlx5e_ipsec_metadata *mdata;
 	struct xfrm_state *xs;
@@ -364,6 +364,7 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 	}
 
 	remove_metadata_hdr(skb);
+	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 
 	return skb;
 }
