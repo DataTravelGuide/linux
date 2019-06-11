@@ -734,6 +734,7 @@ static int __sctp_hash_endpoint(struct sctp_endpoint *ep)
 	head = &sctp_ep_hashtable[epb->hashent];
 
 	if (sk->sk_reuseport) {
+		bool any = sctp_is_ep_boundall(sk);
 		struct sctp_ep_common *epb2;
 		struct list_head *list;
 		int cnt = 0, err = 1;
@@ -752,7 +753,7 @@ static int __sctp_hash_endpoint(struct sctp_endpoint *ep)
 			err = sctp_bind_addrs_check(sctp_sk(sk2),
 						    sctp_sk(sk), cnt);
 			if (!err) {
-				err = reuseport_add_sock(sk, sk2);
+				err = reuseport_add_sock(sk, sk2, any);
 				if (err)
 					return err;
 				break;
@@ -762,7 +763,7 @@ static int __sctp_hash_endpoint(struct sctp_endpoint *ep)
 		}
 
 		if (err) {
-			err = reuseport_alloc(sk);
+			err = reuseport_alloc(sk, any);
 			if (err)
 				return err;
 		}
