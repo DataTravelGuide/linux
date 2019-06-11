@@ -1313,8 +1313,11 @@ static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
 	return 0;
 }
 
+void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
+
 static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
 {
+	mlx5e_tc_clean_fdb_peer_flows(esw);
 	esw_del_fdb_peer_miss_rules(esw);
 }
 
@@ -1364,6 +1367,9 @@ err_out:
 static void esw_offloads_devcom_init(struct mlx5_eswitch *esw)
 {
 	struct mlx5_devcom *devcom = esw->dev->priv.devcom;
+
+	INIT_LIST_HEAD(&esw->offloads.peer_flows);
+	mutex_init(&esw->offloads.peer_mutex);
 
 	if (!MLX5_CAP_ESW(esw->dev, merged_eswitch))
 		return;
