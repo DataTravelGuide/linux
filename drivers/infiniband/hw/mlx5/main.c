@@ -5538,6 +5538,7 @@ static int populate_specs_root(struct mlx5_ib_dev *dev)
 			mlx5_ib_devx_defs);
 #endif
 
+	*defs++ = (struct uapi_definition)UAPI_DEF_CHAIN(mlx5_ib_defs);
 	*defs++ = (struct uapi_definition){};
 	WARN_ON(defs - dev->driver_defs >= ARRAY_SIZE(dev->driver_defs));
 
