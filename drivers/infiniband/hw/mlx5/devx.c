@@ -24,6 +24,22 @@ struct devx_obj {
 	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
 };
 
+struct devx_umem {
+	struct mlx5_core_dev		*mdev;
+	struct ib_umem			*umem;
+	u32				page_offset;
+	int				page_shift;
+	int				ncont;
+	u32				dinlen;
+	u32				dinbox[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)];
+};
+
+struct devx_umem_reg_cmd {
+	void				*in;
+	u32				inlen;
+	u32				out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+};
+
 static struct mlx5_ib_ucontext *
 devx_ufile2uctx(const struct uverbs_attr_bundle *attrs)
 {
@@ -787,6 +803,178 @@ other_cmd_free:
 	return err;
 }
 
+static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
+			 struct uverbs_attr_bundle *attrs,
+			 struct devx_umem *obj)
+{
+	u64 addr;
+	size_t size;
+	int access;
+	int npages;
+	int err;
+	u32 page_mask;
+
+	if (uverbs_copy_from(&addr, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR) ||
+	    uverbs_copy_from(&size, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_LEN) ||
+	    uverbs_copy_from(&access, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS))
+		return -EFAULT;
+
+	err = ib_check_mr_access(access);
+	if (err)
+		return err;
+
+	obj->umem = ib_umem_get(ucontext, addr, size, access, 0);
+	if (IS_ERR(obj->umem))
+		return PTR_ERR(obj->umem);
+
+	mlx5_ib_cont_pages(obj->umem, obj->umem->address,
+			   MLX5_MKEY_PAGE_SHIFT_MASK, &npages,
+			   &obj->page_shift, &obj->ncont, NULL);
+
+	if (!npages) {
+		ib_umem_release(obj->umem);
+		return -EINVAL;
+	}
+
+	page_mask = (1 << obj->page_shift) - 1;
+	obj->page_offset = obj->umem->address & page_mask;
+
+	return 0;
+}
+
+static int devx_umem_reg_cmd_alloc(struct devx_umem *obj,
+				   struct devx_umem_reg_cmd *cmd)
+{
+	cmd->inlen = MLX5_ST_SZ_BYTES(create_umem_in) +
+		    (MLX5_ST_SZ_BYTES(mtt) * obj->ncont);
+	cmd->in = kvzalloc(cmd->inlen, GFP_KERNEL);
+	return cmd->in ? 0 : -ENOMEM;
+}
+
+static void devx_umem_reg_cmd_free(struct devx_umem_reg_cmd *cmd)
+{
+	kvfree(cmd->in);
+}
+
+static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
+				    struct devx_umem *obj,
+				    struct devx_umem_reg_cmd *cmd)
+{
+	void *umem;
+	__be64 *mtt;
+
+	umem = MLX5_ADDR_OF(create_umem_in, cmd->in, umem);
+	mtt = (__be64 *)MLX5_ADDR_OF(umem, umem, mtt);
+
+	MLX5_SET(general_obj_in_cmd_hdr, cmd->in, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, cmd->in, obj_type, MLX5_OBJ_TYPE_UMEM);
+	MLX5_SET64(umem, umem, num_of_mtt, obj->ncont);
+	MLX5_SET(umem, umem, log_page_size, obj->page_shift -
+					    MLX5_ADAPTER_PAGE_SHIFT);
+	MLX5_SET(umem, umem, page_offset, obj->page_offset);
+	mlx5_ib_populate_pas(dev, obj->umem, obj->page_shift, mtt,
+			     (obj->umem->writable ? MLX5_IB_MTT_WRITE : 0) |
+			     MLX5_IB_MTT_READ);
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct devx_umem_reg_cmd cmd;
+	struct devx_umem *obj;
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE);
+	u32 obj_id;
+	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
+	int err;
+
+	if (!c->devx_uid)
+		return -EPERM;
+
+	obj = kzalloc(sizeof(struct devx_umem), GFP_KERNEL);
+	if (!obj)
+		return -ENOMEM;
+
+	err = devx_umem_get(dev, &c->ibucontext, attrs, obj);
+	if (err)
+		goto err_obj_free;
+
+	err = devx_umem_reg_cmd_alloc(obj, &cmd);
+	if (err)
+		goto err_umem_release;
+
+	devx_umem_reg_cmd_build(dev, obj, &cmd);
+
+	MLX5_SET(general_obj_in_cmd_hdr, cmd.in, uid, c->devx_uid);
+	err = mlx5_cmd_exec(dev->mdev, cmd.in, cmd.inlen, cmd.out,
+			    sizeof(cmd.out));
+	if (err)
+		goto err_umem_reg_cmd_free;
+
+	obj->mdev = dev->mdev;
+	uobj->object = obj;
+	devx_obj_build_destroy_cmd(cmd.in, cmd.out, obj->dinbox, &obj->dinlen, &obj_id);
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_OUT_ID, &obj_id, sizeof(obj_id));
+	if (err)
+		goto err_umem_destroy;
+
+	devx_umem_reg_cmd_free(&cmd);
+
+	return 0;
+
+err_umem_destroy:
+	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, cmd.out, sizeof(cmd.out));
+err_umem_reg_cmd_free:
+	devx_umem_reg_cmd_free(&cmd);
+err_umem_release:
+	ib_umem_release(obj->umem);
+err_obj_free:
+	kfree(obj);
+	return err;
+}
+
+static int devx_umem_cleanup(struct ib_uobject *uobject,
+			     enum rdma_remove_reason why)
+{
+	struct devx_umem *obj = uobject->object;
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+	int err;
+
+	err = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
+	if (ib_is_destroy_retryable(err, why, uobject))
+		return err;
+
+	ib_umem_release(obj->umem);
+	kfree(obj);
+	return 0;
+}
+
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_DEVX_UMEM_REG,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE,
+			MLX5_IB_OBJECT_DEVX_UMEM,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_LEN,
+			   UVERBS_ATTR_TYPE(u64),
+			   UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
+			     enum ib_access_flags),
+	UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_DEVX_UMEM_REG_OUT_ID,
+			    UVERBS_ATTR_TYPE(u32),
+			    UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	MLX5_IB_METHOD_DEVX_UMEM_DEREG,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_UMEM_DEREG_HANDLE,
+			MLX5_IB_OBJECT_DEVX_UMEM,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
+
 DECLARE_UVERBS_NAMED_METHOD(
 	MLX5_IB_METHOD_DEVX_QUERY_UAR,
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_QUERY_UAR_USER_IDX,
@@ -874,8 +1062,14 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_MODIFY),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY));
 
+DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM,
+			    UVERBS_TYPE_ALLOC_IDR(devx_umem_cleanup),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_REG),
+			    &UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_DEREG));
+
 const struct uapi_definition mlx5_ib_devx_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_DEVX),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_DEVX_OBJ),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_DEVX_UMEM),
 	{},
 };
