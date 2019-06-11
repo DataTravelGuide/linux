@@ -388,16 +388,6 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = TC_CLSFLOWER_REPLACE;
 	cls_flower.cookie = (unsigned long) f;
-#if 1
-	/* RHEL: We need to temporarily setup these pointers for drivers that
-	 * were not converted to use new flow offload infrastructure.
-	 * This code and mentioned pointers in tc_cls_flower_offload structure
-	 * will be removed soon.
-	 */
-	cls_flower.dissector = &f->mask->dissector;
-	cls_flower.mask = &f->mask->key;
-	cls_flower.key = &f->mkey;
-#endif
 	cls_flower.rule->match.dissector = &f->mask->dissector;
 	cls_flower.rule->match.mask = &f->mask->key;
 	cls_flower.rule->match.key = &f->mkey;
@@ -1503,17 +1493,6 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			cls_flower.command = add ?
 				TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
 			cls_flower.cookie = (unsigned long)f;
-#if 1
-			/* RHEL: We need to temporarily setup these pointers
-			 * for drivers that were not converted to use new flow
-			 * offload infrastructure.
-			 * This code and mentioned pointers structure will be
-			 * removed soon.
-			 */
-			cls_flower.dissector = &mask->dissector;
-			cls_flower.mask = &mask->key;
-			cls_flower.key = &f->mkey;
-#endif
 			cls_flower.rule->match.dissector = &mask->dissector;
 			cls_flower.rule->match.mask = &mask->key;
 			cls_flower.rule->match.key = &f->mkey;
@@ -1563,16 +1542,6 @@ static int fl_hw_create_tmplt(struct tcf_chain *chain,
 	cls_flower.common.chain_index = chain->index;
 	cls_flower.command = TC_CLSFLOWER_TMPLT_CREATE;
 	cls_flower.cookie = (unsigned long) tmplt;
-#if 1
-	/* RHEL: We need to temporarily setup these pointers for drivers that
-	 * were not converted to use new flow offload infrastructure.
-	 * This code and mentioned pointers in tc_cls_flower_offload structure
-	 * will be removed soon.
-	 */
-	cls_flower.dissector = &tmplt->dissector;
-	cls_flower.mask = &tmplt->mask;
-	cls_flower.key = &tmplt->dummy_key;
-#endif
 	cls_flower.rule->match.dissector = &tmplt->dissector;
 	cls_flower.rule->match.mask = &tmplt->mask;
 	cls_flower.rule->match.key = &tmplt->dummy_key;

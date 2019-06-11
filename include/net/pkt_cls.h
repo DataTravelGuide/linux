@@ -768,14 +768,6 @@ struct tc_cls_flower_offload {
 	struct tc_cls_common_offload common;
 	enum tc_fl_command command;
 	unsigned long cookie;
-#if 1
-	/* RHEL: These 3 pointers need to present here now because not all
-	 * drivers were converted to use the new flow_offload infrastructure.
-	 */
-	struct flow_dissector *dissector;
-	struct fl_flow_key *mask;
-	struct fl_flow_key *key;
-#endif
 	struct flow_rule *rule;
 	struct flow_stats stats;
 	struct tcf_exts *exts;
