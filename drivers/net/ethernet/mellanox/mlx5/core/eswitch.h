@@ -367,6 +367,10 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 
 #define esw_debug(dev, format, ...)				\
 	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
+
+/* TODO: This mlx5e_tc function shouldn't be called by eswitch */
+void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
