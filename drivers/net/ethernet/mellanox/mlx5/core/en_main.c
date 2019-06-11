@@ -4387,8 +4387,6 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_get_vf_config       = mlx5e_get_vf_config,
 	.ndo_set_vf_link_state   = mlx5e_set_vf_link_state,
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
-	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
-	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
 #endif
 };
 
@@ -5138,7 +5136,6 @@ static void mlx5e_detach(struct mlx5_core_dev *mdev, void *vpriv)
 static void *mlx5e_add(struct mlx5_core_dev *mdev)
 {
 	struct net_device *netdev;
-	void *rpriv = NULL;
 	void *priv;
 	int err;
 	int nch;
@@ -5147,21 +5144,11 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 	if (err)
 		return NULL;
 
-#ifdef CONFIG_MLX5_ESWITCH
-	if (MLX5_ESWITCH_MANAGER(mdev)) {
-		rpriv = mlx5e_alloc_nic_rep_priv(mdev);
-		if (!rpriv) {
-			mlx5_core_warn(mdev, "Failed to alloc NIC rep priv data\n");
-			return NULL;
-		}
-	}
-#endif
-
 	nch = mlx5e_get_max_num_channels(mdev);
-	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, nch, rpriv);
+	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, nch, NULL);
 	if (!netdev) {
 		mlx5_core_err(mdev, "mlx5e_create_netdev failed\n");
-		goto err_free_rpriv;
+		return NULL;
 	}
 
 	priv = netdev_priv(netdev);
@@ -5187,15 +5174,13 @@ err_detach:
 	mlx5e_detach(mdev, priv);
 err_destroy_netdev:
 	mlx5e_destroy_netdev(priv);
-err_free_rpriv:
-	kfree(rpriv);
 	return NULL;
 }
 
 static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 {
 	struct mlx5e_priv *priv = vpriv;
-	void *ppriv = priv->ppriv;
+	/*void *ppriv = priv->ppriv;*/
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_delete_app(priv);
@@ -5203,7 +5188,6 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(priv);
-	kfree(ppriv);
 }
 
 static struct mlx5_interface mlx5e_interface = {
