@@ -1382,7 +1382,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 
 	netdev->switchdev_ops = &mlx5e_rep_switchdev_ops;
 
-	netdev->features	 |= NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
+	netdev->features	 |= NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
 	netdev->hw_features      |= NETIF_F_HW_TC;
 
 	netdev->hw_features    |= NETIF_F_SG;
@@ -1392,6 +1392,9 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->hw_features    |= NETIF_F_TSO;
 	netdev->hw_features    |= NETIF_F_TSO6;
 	netdev->hw_features    |= NETIF_F_RXCSUM;
+
+	if (rep->vport != FDB_UPLINK_VPORT)
+		netdev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	netdev->features |= netdev->hw_features;
 }
