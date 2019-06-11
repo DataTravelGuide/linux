@@ -1221,6 +1221,7 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
 			struct mlx5_ib_ucontext *context);
 void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 			  struct mlx5_ib_ucontext *context);
+extern const struct uapi_definition mlx5_ib_devx_defs[];
 #else
 static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev,

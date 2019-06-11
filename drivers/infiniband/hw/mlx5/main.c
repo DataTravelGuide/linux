@@ -5265,6 +5265,13 @@ static int populate_specs_root(struct mlx5_ib_dev *dev)
 {
 	struct uapi_definition *defs = dev->driver_defs;
 
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
+	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
+	    MLX5_GENERAL_OBJ_TYPES_CAP_UCTX)
+		*defs++ = (struct uapi_definition)UAPI_DEF_CHAIN(
+			mlx5_ib_devx_defs);
+#endif
+
 	*defs++ = (struct uapi_definition){};
 	WARN_ON(defs - dev->driver_defs >= ARRAY_SIZE(dev->driver_defs));
 
