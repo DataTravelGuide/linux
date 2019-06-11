@@ -60,7 +60,8 @@ FILES=                                          \
          test-libopencsd.bin			\
          test-clang.bin				\
          test-llvm.bin				\
-         test-llvm-version.bin
+         test-llvm-version.bin			\
+         test-libaio.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -292,6 +293,9 @@ $(OUTPUT)test-clang.bin:
 		> $(@:.bin=.make.output) 2>&1
 
 -include $(OUTPUT)*.d
+
+$(OUTPUT)test-libaio.bin:
+	$(BUILD) -lrt
 
 ###############################
 
