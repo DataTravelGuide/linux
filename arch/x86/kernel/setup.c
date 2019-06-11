@@ -811,9 +811,11 @@ static bool valid_amd_processor(__u8 family, const char *model_id, bool guest)
 				len += 3;
 				/*
 				 * AMD EPYC 7xx1 == NAPLES
+				 * AMD EPYC 7xx2 == ROME
 				 */
 				if (strlen(model_id) >= len) {
-					if (model_id[len-1] == '1')
+					if (model_id[len-1] == '1' ||
+					    model_id[len-1] == '2')
 						valid = true;
 				}
 			}
