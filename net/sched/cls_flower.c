@@ -469,7 +469,8 @@ static void fl_destroy_sleepable(struct work_struct *work)
 	module_put(THIS_MODULE);
 }
 
-static void fl_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
+static void fl_destroy(struct tcf_proto *tp, bool rtnl_held,
+		       struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct fl_flow_mask *mask, *next_mask;
@@ -1304,7 +1305,8 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
-		     void **arg, bool ovr, struct netlink_ext_ack *extack)
+		     void **arg, bool ovr, bool rtnl_held,
+		     struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *fold = *arg;
@@ -1441,7 +1443,7 @@ errout_mask_alloc:
 }
 
 static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
-		     struct netlink_ext_ack *extack)
+		     bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = arg;
@@ -1453,7 +1455,8 @@ static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 	return 0;
 }
 
-static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+		    bool rtnl_held)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f;
@@ -2052,7 +2055,7 @@ nla_put_failure:
 }
 
 static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		   struct sk_buff *skb, struct tcmsg *t)
+		   struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct cls_fl_filter *f = fh;
 	struct nlattr *nest;
