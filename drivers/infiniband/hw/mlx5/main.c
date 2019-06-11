@@ -6228,7 +6228,7 @@ static const struct ib_device_ops mlx5_ib_dev_hw_stats_ops = {
 	.get_hw_stats = mlx5_ib_get_hw_stats,
 };
 
-void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_odp_cleanup_one(dev);
 }
