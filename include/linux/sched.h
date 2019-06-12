@@ -731,7 +731,7 @@ struct task_struct {
 	RH_KABI_REPLACE_UNSAFE(unsigned	memcg_may_oom:1,
 			       unsigned	in_user_fault:1)
 #ifdef CONFIG_MEMCG_KMEM
-	unsigned			memcg_kmem_skip_account:1;
+	RH_KABI_DEPRECATE(unsigned,	memcg_kmem_skip_account:1)
 #endif
 #endif
 #ifdef CONFIG_COMPAT_BRK
