@@ -61,6 +61,8 @@ struct shrinker {
 				      struct shrink_control *sc);
 
 	int seeks;	/* seeks to recreate an obj */
+	/* ID in shrinker_idr */
+	RH_KABI_FILL_HOLE(int id)
 	long batch;	/* reclaim batch size, 0 = default */
 	unsigned long flags;
 
