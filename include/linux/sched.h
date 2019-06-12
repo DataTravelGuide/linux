@@ -730,7 +730,7 @@ struct task_struct {
 #ifdef CONFIG_MEMCG
 	RH_KABI_REPLACE_UNSAFE(unsigned	memcg_may_oom:1,
 			       unsigned	in_user_fault:1)
-#ifndef CONFIG_SLOB
+#ifdef CONFIG_MEMCG_KMEM
 	unsigned			memcg_kmem_skip_account:1;
 #endif
 #endif
