@@ -303,6 +303,7 @@ F:	include/linux/dm-*.h
 F:	include/uapi/linux/dm-*.h
 
 DEVLINK
+M:	Petr Oros <poros@redhat.com>
 M:	Ivan Vecera <ivecera@redhat.com>
 S:	Maintained
 F:	net/core/devlink.c
@@ -349,6 +350,21 @@ M:	Ivan Vecera <cera@redhat.com>
 S:	Maintained
 F:	net/bridge/
 F:	include/linux/if_bridge.h
+
+ETHERNET PHY LIBRARY
+M:	Petr Oros <poros@redhat.com>
+S:	Maintained
+F:	Documentation/networking/phy.rst
+F:	drivers/net/phy/
+F:	drivers/of/of_mdio.c
+F:	include/linux/*mdio*.h
+F:	include/linux/phy.h
+F:	include/linux/phy_fixed.h
+F:	include/linux/platform_data/mdio-bcm-unimac.h
+F:	include/linux/platform_data/mdio-gpio.h
+F:	include/trace/events/mdio.h
+F:	include/uapi/linux/mdio.h
+F:	include/uapi/linux/mii.h
 
 FCOE (libfc, libfcoe)
 M:	Chris Leech <cleech@redhat.com>
