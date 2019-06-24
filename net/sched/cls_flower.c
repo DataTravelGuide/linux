@@ -1470,7 +1470,7 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 			arg->stop = 1;
 			break;
 		}
-		arg->cookie = f->handle + 1;
+		arg->cookie = (unsigned long)f->handle + 1;
 		arg->count++;
 	}
 }
