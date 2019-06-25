@@ -6998,10 +6998,6 @@ int kvm_arch_init(void *opaque)
 		set_hv_tscchange_cb(kvm_hyperv_tsc_notifier);
 #endif
 
-	/* RHEL-only: running as a nested hypervisor is TechPreview */
-	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-		mark_tech_preview("Running as a nested hypervisor", THIS_MODULE);
-
 	return 0;
 
 out_free_percpu:
@@ -9158,8 +9154,16 @@ void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	static bool nested_taint_added = false;
+
 	if (type)
 		return -EINVAL;
+
+	/* RHEL-only: running as a nested hypervisor is TechPreview */
+	if (!nested_taint_added && boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
+		mark_tech_preview("Running as a nested hypervisor", THIS_MODULE);
+		nested_taint_added = true;
+	}
 
 	INIT_HLIST_HEAD(&kvm->arch.mask_notifier_list);
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
