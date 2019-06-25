@@ -1077,6 +1077,19 @@ F:	Documentation/networking/switchdev.txt
 F:	include/net/switchdev.h
 F:	net/switchdev/
 
+TC subsystem
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+F:	include/net/act_api.h
+F:	include/net/pkt_cls.h
+F:	include/net/pkt_sched.h
+F:	include/net/tc_act/
+F:	include/uapi/linux/pkt_cls.h
+F:	include/uapi/linux/pkt_sched.h
+F:	include/uapi/linux/tc_act/
+F:	include/uapi/linux/tc_ematch/
+F:	net/sched/
+
 TIPC PROTOCOL
 M:	Jon Maloy <jmaloy@redhat.com>
 M:	Xin Long <lxin@redhat.com>
