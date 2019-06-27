@@ -310,7 +310,7 @@ void __init paging_init(void)
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (long int)((top_of_ram - total_ram) >> 20));
 
-#ifdef CONFIG_ZONE_DMA
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_PPC_BOOK3E_64)
 	max_zone_pfns[ZONE_DMA]	= min(max_low_pfn, 0x7fffffffUL >> PAGE_SHIFT);
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
