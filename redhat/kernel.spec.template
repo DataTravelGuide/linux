@@ -374,14 +374,25 @@ Source0: linux-%{rpmversion}-%{pkgrelease}.tar.xz
 
 Source11: x509.genkey
 %if %{?released_kernel}
-Source13: securebootca.cer
-Source14: secureboot.cer
+
+Source12: securebootca.cer
+Source13: secureboot.cer
+
+%define secureboot_ca %{SOURCE12}
+%define secureboot_key %{SOURCE13}
 %define pesign_name redhatsecureboot301
-%else
-Source13: redhatsecurebootca2.cer
-Source14: redhatsecureboot003.cer
+
+%else # released_kernel
+
+Source12: redhatsecurebootca2.cer
+Source13: redhatsecureboot003.cer
+
+%define secureboot_ca %{SOURCE12}
+%define secureboot_key %{SOURCE13}
 %define pesign_name redhatsecureboot003
-%endif
+
+%endif # released_kernel
+
 Source16: mod-extra.list
 Source17: mod-blacklist.sh
 Source18: mod-sign.sh
@@ -1121,7 +1132,7 @@ BuildKernel() {
     else
         SignImage=$KernelImage
     fi
-    %pesign -s -i $SignImage -o vmlinuz.signed -a %{SOURCE13} -c %{SOURCE14} -n %{pesign_name}
+    %pesign -s -i $SignImage -o vmlinuz.signed -a %{secureboot_ca} -c %{secureboot_key} -n %{pesign_name}
     if [ ! -s vmlinuz.signed ]; then
         echo "pesigning failed"
         exit 1
@@ -1487,7 +1498,7 @@ BuildKernel() {
 
     # Red Hat UEFI Secure Boot CA cert, which can be used to authenticate the kernel
     mkdir -p $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer
-    install -m 0644 %{SOURCE13} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/kernel-signing-ca.cer
+    install -m 0644 %{secureboot_ca} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/kernel-signing-ca.cer
 
 %if %{with_ipaclones}
     MAXPROCS=$(echo %{?_smp_mflags} | sed -n 's/-j\s*\([0-9]\+\)/\1/p')
