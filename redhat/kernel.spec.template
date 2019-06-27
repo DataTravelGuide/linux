@@ -375,6 +375,12 @@ BuildRequires: asciidoc
 Source0: linux-%{rpmversion}-%{pkgrelease}.tar.xz
 
 Source11: x509.genkey
+
+# Name of the packaged file containing signing key
+%ifarch s390x
+%define signing_key_filename kernel-signing-s390.cer
+%endif
+
 %if %{?released_kernel}
 
 Source12: securebootca.cer
@@ -1522,6 +1528,17 @@ BuildKernel() {
     # Red Hat UEFI Secure Boot CA cert, which can be used to authenticate the kernel
     mkdir -p $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer
     install -m 0644 %{secureboot_ca} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/kernel-signing-ca.cer
+    %ifarch s390x
+    if [ $DoModules -eq 1 ]; then
+	if [ -x /usr/bin/rpm-sign ]; then
+	    install -m 0644 %{secureboot_key} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/%{signing_key_filename}
+	else
+	    install -m 0644 certs/signing_key.x509.sign${Flav} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/kernel-signing-ca.cer
+	    openssl x509 -in certs/signing_key.pem.sign${Flav} -outform der -out $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/%{signing_key_filename}
+	    chmod 0644 $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/%{signing_key_filename}
+	fi
+    fi
+    %endif
 
 %if %{with_ipaclones}
     MAXPROCS=$(echo %{?_smp_mflags} | sed -n 's/-j\s*\([0-9]\+\)/\1/p')
@@ -2194,7 +2211,7 @@ fi
 #
 # This macro defines the %%files sections for a kernel package
 # and its devel and debuginfo packages.
-#	%%kernel_variant_files [-k vmlinux] <condition> <subpackage>
+#	%%kernel_variant_files [-k vmlinux] <condition> <subpackage> <without_modules>
 #
 %define kernel_variant_files(k:) \
 %if %{2}\
@@ -2226,6 +2243,11 @@ fi
 /lib/modules/%{KVERREL}%{?3:+%{3}}/weak-updates\
 /lib/modules/%{KVERREL}%{?3:+%{3}}/bls.conf\
 %{_datadir}/doc/kernel-keys/%{KVERREL}%{?3:+%{3}}/kernel-signing-ca.cer\
+%ifarch s390x\
+%if 0%{!?4:1}\
+%{_datadir}/doc/kernel-keys/%{KVERREL}%{?3:+%{3}}/%{signing_key_filename} \
+%endif\
+%endif\
 %if %{1}\
 /lib/modules/%{KVERREL}%{?3:+%{3}}/vdso\
 /etc/ld.so.conf.d/kernel-%{KVERREL}%{?3:+%{3}}.conf\
@@ -2256,7 +2278,7 @@ fi
 
 %kernel_variant_files  %{with_vdso_install} %{with_up}
 %kernel_variant_files  %{with_vdso_install} %{with_debug} debug
-%kernel_variant_files  %{with_vdso_install} %{with_zfcpdump} zfcpdump
+%kernel_variant_files  %{with_vdso_install} %{with_zfcpdump} zfcpdump 1
 
 %define kernel_variant_ipaclones(k:) \
 %if %{1}\
