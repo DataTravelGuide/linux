@@ -7,6 +7,7 @@ redhatsecurebootca2.cer
 redhatsecureboot003.cer
 securebootca.cer
 secureboot.cer
+secureboot_s390.cer
 Makefile.common
 Makefile
 cpupower.config

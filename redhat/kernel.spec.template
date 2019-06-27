@@ -19,7 +19,7 @@
 %global distro_build %%DISTRO_BUILD%%
 
 # Sign the x86_64 kernel for secure boot authentication
-%ifarch x86_64 aarch64
+%ifarch x86_64 aarch64 s390x
 %global signkernel 1
 %else
 %global signkernel 0
@@ -352,8 +352,10 @@ BuildRequires: kabi-dw
 %if %{signkernel}%{signmodules}
 BuildRequires: openssl openssl-devel
 %if %{signkernel}
+%ifarch x86_64 aarch64
 BuildRequires: nss-tools
 BuildRequires: pesign >= 0.10-4
+%endif
 %endif
 %endif
 
@@ -377,10 +379,17 @@ Source11: x509.genkey
 
 Source12: securebootca.cer
 Source13: secureboot.cer
+Source14: secureboot_s390.cer
 
 %define secureboot_ca %{SOURCE12}
+%ifarch x86_64 aarch64
 %define secureboot_key %{SOURCE13}
 %define pesign_name redhatsecureboot301
+%endif
+%ifarch s390x
+%define secureboot_key %{SOURCE14}
+%define pesign_name redhatsecureboot302
+%endif
 
 %else # released_kernel
 
@@ -1132,7 +1141,21 @@ BuildKernel() {
     else
         SignImage=$KernelImage
     fi
+
+    %ifarch x86_64 aarch64
     %pesign -s -i $SignImage -o vmlinuz.signed -a %{secureboot_ca} -c %{secureboot_key} -n %{pesign_name}
+    %endif
+    %ifarch s390x
+    if [ -x /usr/bin/rpm-sign ]; then
+	rpm-sign --key "%{pesign_name}" --lkmsign $SignImage --output vmlinuz.signed
+    elif [ $DoModules -eq 1 ]; then
+	chmod +x scripts/sign-file
+	./scripts/sign-file -p sha256 certs/signing_key.pem certs/signing_key.x509 $SignImage vmlinuz.signed
+    else
+	mv $SignImage vmlinuz.signed
+    fi
+    %endif
+
     if [ ! -s vmlinuz.signed ]; then
         echo "pesigning failed"
         exit 1
