@@ -19,7 +19,7 @@
 %global distro_build %%DISTRO_BUILD%%
 
 # Sign the x86_64 kernel for secure boot authentication
-%ifarch x86_64 aarch64 s390x
+%ifarch x86_64 aarch64 s390x ppc64le
 %global signkernel 1
 %else
 %global signkernel 0
@@ -377,6 +377,9 @@ Source0: linux-%{rpmversion}-%{pkgrelease}.tar.xz
 Source11: x509.genkey
 
 # Name of the packaged file containing signing key
+%ifarch ppc64le
+%define signing_key_filename kernel-signing-ppc.cer
+%endif
 %ifarch s390x
 %define signing_key_filename kernel-signing-s390.cer
 %endif
@@ -386,6 +389,7 @@ Source11: x509.genkey
 Source12: securebootca.cer
 Source13: secureboot.cer
 Source14: secureboot_s390.cer
+Source15: secureboot_ppc.cer
 
 %define secureboot_ca %{SOURCE12}
 %ifarch x86_64 aarch64
@@ -395,6 +399,10 @@ Source14: secureboot_s390.cer
 %ifarch s390x
 %define secureboot_key %{SOURCE14}
 %define pesign_name redhatsecureboot302
+%endif
+%ifarch ppc64le
+%define secureboot_key %{SOURCE15}
+%define pesign_name redhatsecureboot303
 %endif
 
 %else # released_kernel
@@ -1148,10 +1156,17 @@ BuildKernel() {
         SignImage=$KernelImage
     fi
 
+    %ifarch ppc64le
+        # on ppc, we have to strip vmlinux first
+        $CopyKernel $SignImage $SignImage.unsigned
+        mv $SignImage.unsigned $SignImage
+        CopyKernel=cp
+    %endif
+
     %ifarch x86_64 aarch64
     %pesign -s -i $SignImage -o vmlinuz.signed -a %{secureboot_ca} -c %{secureboot_key} -n %{pesign_name}
     %endif
-    %ifarch s390x
+    %ifarch s390x ppc64le
     if [ -x /usr/bin/rpm-sign ]; then
 	rpm-sign --key "%{pesign_name}" --lkmsign $SignImage --output vmlinuz.signed
     elif [ $DoModules -eq 1 ]; then
@@ -1528,7 +1543,7 @@ BuildKernel() {
     # Red Hat UEFI Secure Boot CA cert, which can be used to authenticate the kernel
     mkdir -p $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer
     install -m 0644 %{secureboot_ca} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/kernel-signing-ca.cer
-    %ifarch s390x
+    %ifarch s390x ppc64le
     if [ $DoModules -eq 1 ]; then
 	if [ -x /usr/bin/rpm-sign ]; then
 	    install -m 0644 %{secureboot_key} $RPM_BUILD_ROOT%{_datadir}/doc/kernel-keys/$KernelVer/%{signing_key_filename}
@@ -2243,7 +2258,7 @@ fi
 /lib/modules/%{KVERREL}%{?3:+%{3}}/weak-updates\
 /lib/modules/%{KVERREL}%{?3:+%{3}}/bls.conf\
 %{_datadir}/doc/kernel-keys/%{KVERREL}%{?3:+%{3}}/kernel-signing-ca.cer\
-%ifarch s390x\
+%ifarch s390x ppc64le\
 %if 0%{!?4:1}\
 %{_datadir}/doc/kernel-keys/%{KVERREL}%{?3:+%{3}}/%{signing_key_filename} \
 %endif\
