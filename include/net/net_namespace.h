@@ -163,6 +163,7 @@ struct net {
 	atomic_t		fnhe_genid;
 
 	RH_KABI_EXTEND(int	ipv4_sysctl_ip_fwd_update_priority)
+	RH_KABI_EXTEND(int	ipv4_sysctl_tcp_min_snd_mss)
 	RH_KABI_EXTEND(struct bpf_prog __rcu	*flow_dissector_prog)
 	RH_KABI_EXTEND(siphash_key_t ipv4_ip_id_key)
 } __randomize_layout;
