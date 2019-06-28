@@ -793,13 +793,14 @@ struct task_struct {
 	struct pid_link			pids[PIDTYPE_MAX];
 #else
 	/*
-	 * RHEL8: For backport compatibility, we need to maintain the pid
+	 * RHEL8: For backward compatibility, we need to maintain the pid
 	 * pointers in pid_link. The new thread_pid field is equivalent to
 	 * pids[PIDTYPE_PID].pid and so is put at the same offset. The
 	 * hlist_node in pid_link can be reused as they are not used by
 	 * others.
 	 */
-	long				rh_reserved1;
+	/* Used by memcontrol for targeted memcg charge: */
+	struct mem_cgroup		*active_memcg;
 	long				rh_reserved2;
 	struct pid			*thread_pid;
 	long				rh_reserved3;
