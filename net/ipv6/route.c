@@ -4966,7 +4966,9 @@ int rt6_dump_route(struct fib6_info *rt, void *p_arg, unsigned int skip)
 	if (filter->dump_exceptions) {
 		int err;
 
+		rcu_read_lock();
 		err = rt6_dump_exceptions(rt, arg, flags, skip, &count);
+		rcu_read_unlock();
 
 		if (err)
 			return count;
