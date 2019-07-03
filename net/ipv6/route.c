@@ -4868,13 +4868,66 @@ static bool fib6_info_uses_dev(const struct fib6_info *f6i,
 	return false;
 }
 
+static int rt6_dump_exceptions(struct fib6_info *rt,
+			       struct rt6_rtnl_dump_arg *dump,
+			       unsigned int flags, unsigned int skip,
+			       unsigned int *count)
+{
+	struct rt6_exception_bucket *bucket;
+	struct rt6_exception *rt6_ex;
+	int i, err;
+
+	bucket = rcu_dereference(rt->rt6i_exception_bucket);
+	if (!bucket)
+		return 0;
+
+	for (i = 0; i < FIB6_EXCEPTION_BUCKET_SIZE; i++) {
+		hlist_for_each_entry(rt6_ex, &bucket->chain, hlist) {
+			if (skip) {
+				skip--;
+				continue;
+			}
+
+			/* Expiration of entries doesn't bump sernum, insertion
+			 * does. Removal is triggered by insertion, so we can
+			 * rely on the fact that if entries change between two
+			 * partial dumps, this node is scanned again completely,
+			 * see rt6_insert_exception() and fib6_dump_table().
+			 *
+			 * Count expired entries we go through as handled
+			 * entries that we'll skip next time, in case of partial
+			 * node dump. Otherwise, if entries expire meanwhile,
+			 * we'll skip the wrong amount.
+			 */
+			if (rt6_check_expired(rt6_ex->rt6i)) {
+				(*count)++;
+				continue;
+			}
+
+			err = rt6_fill_node(dump->net, dump->skb, rt,
+					    &rt6_ex->rt6i->dst, NULL, NULL, 0,
+					    RTM_NEWROUTE,
+					    NETLINK_CB(dump->cb->skb).portid,
+					    dump->cb->nlh->nlmsg_seq, flags);
+			if (err)
+				return err;
+
+			(*count)++;
+		}
+		bucket++;
+	}
+
+	return 0;
+}
+
 /* Return -1 if done with node, number of handled routes on partial dump */
-int rt6_dump_route(struct fib6_info *rt, void *p_arg)
+int rt6_dump_route(struct fib6_info *rt, void *p_arg, unsigned int skip)
 {
 	struct rt6_rtnl_dump_arg *arg = (struct rt6_rtnl_dump_arg *) p_arg;
 	struct fib_dump_filter *filter = &arg->filter;
 	unsigned int flags = NLM_F_MULTI;
 	struct net *net = arg->net;
+	int count = 0;
 
 	if (rt == net->ipv6.fib6_null_entry)
 		return -1;
@@ -4884,19 +4937,40 @@ int rt6_dump_route(struct fib6_info *rt, void *p_arg)
 		/* success since this is not a prefix route */
 		return -1;
 	}
-	if (filter->filter_set) {
-		if ((filter->rt_type && rt->fib6_type != filter->rt_type) ||
-		    (filter->dev && !fib6_info_uses_dev(rt, filter->dev)) ||
-		    (filter->protocol && rt->fib6_protocol != filter->protocol)) {
-			return -1;
-		}
+	if (filter->filter_set &&
+	    ((filter->rt_type  && rt->fib6_type != filter->rt_type) ||
+	     (filter->dev      && !fib6_info_uses_dev(rt, filter->dev)) ||
+	     (filter->protocol && rt->fib6_protocol != filter->protocol))) {
+		return -1;
+	}
+
+	if (filter->filter_set ||
+	    !filter->dump_routes || !filter->dump_exceptions) {
 		flags |= NLM_F_DUMP_FILTERED;
 	}
 
-	if (rt6_fill_node(net, arg->skb, rt, NULL, NULL, NULL, 0, RTM_NEWROUTE,
-			  NETLINK_CB(arg->cb->skb).portid,
-			  arg->cb->nlh->nlmsg_seq, flags))
-		return 0;
+	if (filter->dump_routes) {
+		if (skip) {
+			skip--;
+		} else {
+			if (rt6_fill_node(net, arg->skb, rt, NULL, NULL, NULL,
+					  0, RTM_NEWROUTE,
+					  NETLINK_CB(arg->cb->skb).portid,
+					  arg->cb->nlh->nlmsg_seq, flags)) {
+				return 0;
+			}
+			count++;
+		}
+	}
+
+	if (filter->dump_exceptions) {
+		int err;
+
+		err = rt6_dump_exceptions(rt, arg, flags, skip, &count);
+
+		if (err)
+			return count;
+	}
 
 	return -1;
 }
