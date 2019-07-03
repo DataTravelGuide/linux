@@ -179,6 +179,7 @@ config S390
 	select VIRT_TO_BUS
 	select HAVE_NMI
 	select SWIOTLB
+	select GENERIC_ALLOCATOR
 
 
 config SCHED_OMIT_FRAME_POINTER
