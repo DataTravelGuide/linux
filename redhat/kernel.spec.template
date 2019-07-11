@@ -1146,7 +1146,17 @@ BuildKernel() {
       cp arch/$Arch/boot/zImage.stub $RPM_BUILD_ROOT/%{image_install_path}/zImage.stub-$KernelVer || :
       cp arch/$Arch/boot/zImage.stub $RPM_BUILD_ROOT/lib/modules/$KernelVer/zImage.stub-$KernelVer || :
     fi
+
     %if %{signkernel}
+    if [ "$KernelImage" = vmlinux ]; then
+        # We can't strip and sign $KernelImage in place, because
+        # we need to preserve original vmlinux for debuginfo.
+        # Use a copy for signing.
+        $CopyKernel $KernelImage $KernelImage.tosign
+        KernelImage=$KernelImage.tosign
+        CopyKernel=cp
+    fi
+
     # Sign the image if we're using EFI
     # aarch64 kernels are gziped EFI images
     KernelExtension=${KernelImage##*.}
@@ -1155,13 +1165,6 @@ BuildKernel() {
     else
         SignImage=$KernelImage
     fi
-
-    %ifarch ppc64le
-        # on ppc, we have to strip vmlinux first
-        $CopyKernel $SignImage $SignImage.unsigned
-        mv $SignImage.unsigned $SignImage
-        CopyKernel=cp
-    %endif
 
     %ifarch x86_64 aarch64
     %pesign -s -i $SignImage -o vmlinuz.signed -a %{secureboot_ca} -c %{secureboot_key} -n %{pesign_name}
@@ -1185,7 +1188,8 @@ BuildKernel() {
     if [ "$KernelExtension" == "gz" ]; then
         gzip -f9 $SignImage
     fi
-    %endif
+    %endif # signkernel
+
     $CopyKernel $KernelImage \
                 $RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
     chmod 755 $RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
