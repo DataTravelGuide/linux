@@ -641,10 +641,13 @@ struct memcg_cache_params {
 			struct list_head children_node;
 			struct list_head kmem_caches_node;
 
-			void (*deact_fn)(struct kmem_cache *);
+			void (*RH_KABI_RENAME(deact_fn,
+					      work_fn))(struct kmem_cache *);
 			union {
-				struct rcu_head deact_rcu_head;
-				struct work_struct deact_work;
+				struct rcu_head RH_KABI_RENAME(deact_rcu_head,
+							       rcu_head);
+				struct work_struct RH_KABI_RENAME(deact_work,
+								  work);
 			};
 		};
 	};
