@@ -162,6 +162,7 @@ F:	drivers/iommu/arm-smmu-v3.c
 F:	drivers/iommu/io-pgtable-arm.c
 
 ATHEROS WIRELESS LAN DRIVERS
+M:	Jarod Wilson <jarod@redhat.com>
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	John Linville <linville@redhat.com>
 S:	Maintained
@@ -949,11 +950,13 @@ S:	Maintained
 F:	drivers/infiniband/hw/qedr
 
 RALINK RT2X00 WIRELESS LAN DRIVER
+M:	Jarod Wilson <jarod@redhat.com>
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 S:	Maintained
 F:	drivers/net/wireless/rt2x00/
 
 REALTEK WIRELESS LAN DRIVERS
+M:	Jarod Wilson <jarod@redhat.com>
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	John Linville <linville@redhat.com>
 S:	Maintained
@@ -1234,6 +1237,7 @@ S:	Maintained
 F:	drivers/net/vmxnet3/*
 
 WIRELESS DRIVERS AND STACK
+M:	Jarod Wilson <jarod@redhat.com>
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	John Linville <linville@redhat.com>
 S:	Maintained
