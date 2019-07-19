@@ -434,12 +434,12 @@ F:	include/uapi/linux/i2c.h
 F:	include/uapi/linux/i2c-*.h
 
 INTEL E1000 ETHERNET DRIVER (e1000)
-M:	Jarod Wilson <jarod@redhat.com>
+M:	David Arcari <darcari@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/intel/e1000/
 
 INTEL E1000E ETHERNET DRIVER (e1000e)
-M:	Jarod Wilson <jarod@redhat.com>
+M:	David Arcari <darcari@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/intel/e1000e/
 
