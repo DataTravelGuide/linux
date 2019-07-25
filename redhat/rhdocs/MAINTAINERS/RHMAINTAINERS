@@ -654,6 +654,20 @@ M:	Ocean He <ohe@redhat.com>
 S:	Maintained
 F:	drivers/gpu/drm/ast/
 
+LIVE PATCHING / KPATCH
+M:	Josh Poimboeuf <jpoimboe@redhat.com>
+M:	Joe Lawrence <joe.lawrence@redhat.com>
+M:	Artem Savkov <asavkov@redhat.com>
+S:	Maintained
+F:	kernel/livepatch/
+F:	include/linux/livepatch.h
+F:	arch/x86/include/asm/livepatch.h
+F:	arch/x86/kernel/livepatch.c
+F:	Documentation/livepatch/
+F:	Documentation/ABI/testing/sysfs-kernel-livepatch
+F:	samples/livepatch/
+F:	tools/testing/selftests/livepatch/
+
 LSI 3ware SAS/SATA-RAID Linux Drive (3w-sas)
 M:	Tomas Henzl <thenzl@redhat.com>
 S:	Maintained
