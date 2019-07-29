@@ -153,6 +153,8 @@ static void ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
 
+	down_read(&per_mm->umem_rwsem);
+
 	if (!per_mm->active) {
 		up_read(&per_mm->umem_rwsem);
 		/*
