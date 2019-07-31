@@ -1,3 +1,29 @@
+* Wed Jul 31 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-126.el8]
+- [infiniband] IB/umem: Add missing down_read on umem_rwsem (Alaa Hleihel) [1733188]
+- [fs] gfs2: Fix rounding error in gfs2_iomap_page_prepare (Andreas Grunbacher) [1733621]
+- [s390] s390/qeth: cancel cmd on early error (Philipp Rudo) [1731430]
+- [s390] s390/qeth: simplify reply object handling (Philipp Rudo) [1731430]
+- [s390] s390/qeth: release cmd buffer in error paths (Philipp Rudo) [1731430]
+- [mm] mm: hugetlb: soft-offline: dissolve_free_huge_page() return zero on !PageHuge (Rafael Aquini) [1706088]
+- [mm] mm: soft-offline: return -EBUSY if set_hwpoison_free_buddy_page() fails (Rafael Aquini) [1706088]
+- [mm] mm: soft-offline: close the race against page allocation (Rafael Aquini) [1706088]
+- [mm] mm: fix race on soft-offlining free huge pages (Rafael Aquini) [1706088]
+- [pci] PCI: Probe bridge window attributes once at enumeration-time (Myron Stowe) [1730763]
+- [mm] swap_readpage(): avoid blk_wake_io_task() if !synchronous (Ming Lei) [1724016]
+- [mm] mm/page_io.c: fix polled swap page in (Ming Lei) [1724016]
+- [include] fs: fix kABI for struct pipe_buf_operations (Miklos Szeredi) [1705007] {CVE-2019-11487}
+- [fs] fs: prevent page refcount overflow in pipe_buf_get (Miklos Szeredi) [1705007] {CVE-2019-11487}
+- [mm] mm: prevent get_user_pages() from overflowing page refcount (Miklos Szeredi) [1705007] {CVE-2019-11487}
+- [include] mm: add 'try_get_page()' helper function (Miklos Szeredi) [1705007] {CVE-2019-11487}
+- [include] mm: make page ref count overflow check tighter and more explicit (Miklos Szeredi) [1705007] {CVE-2019-11487}
+- [fs] fuse: call pipe_buf_release() under pipe lock (Miklos Szeredi) [1705007] {CVE-2019-11487}
+- [kernel] trace: Fix preempt_enable_no_resched() abuse (Phil Auld) [1705550]
+- [kernel] sched/numa: Fix a possible divide-by-zero (Phil Auld) [1705550]
+- [kernel] sched/core: Fix buffer overflow in cgroup2 property cpu.max (Phil Auld) [1705550]
+- [kernel] sched/fair: Remove unused 'sd' parameter from select_idle_smt() (Phil Auld) [1705550]
+- [kernel] sched/topology: Remove the ::smt_gain field from 'struct sched_domain' cleanups (Phil Auld) [1705550]
+- [kernel] sched/numa: Remove unused code from update_numa_stats() (Phil Auld) [1705550]
+
 * Tue Jul 30 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-125.el8]
 - [s390] virtio/s390: fix race on airq_areas[] (Cornelia Huck) [1733499]
 - [powerpc] powerpc: ignore __GFP_DMA/DMA32 if we left an empty ZONE_DMA/DMA32 enabled for kABI purposes (David Gibson) [1728314]
