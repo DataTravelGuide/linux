@@ -5381,9 +5381,6 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->format != 0)
 		return -EINVAL;
 
-	if (kvm_state->flags & KVM_STATE_NESTED_EVMCS)
-		nested_enable_evmcs(vcpu, NULL);
-
 	if (!nested_vmx_allowed(vcpu))
 		return kvm_state->vmx.vmxon_pa == -1ull ? 0 : -EINVAL;
 
@@ -5424,6 +5421,9 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	vmx_leave_nested(vcpu);
 	if (kvm_state->vmx.vmxon_pa == -1ull)
 		return 0;
+
+	if (kvm_state->flags & KVM_STATE_NESTED_EVMCS)
+		nested_enable_evmcs(vcpu, NULL);
 
 	vmx->nested.vmxon_ptr = kvm_state->vmx.vmxon_pa;
 	ret = enter_vmx_operation(vcpu);
