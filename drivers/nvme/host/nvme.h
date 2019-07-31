@@ -242,6 +242,9 @@ struct nvme_ctrl {
 
 	struct page *discard_page;
 	unsigned long discard_page_busy;
+
+	/* NVMe loop only */
+	u64 segment_boundary;
 };
 
 enum nvme_iopolicy {

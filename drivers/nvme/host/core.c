@@ -1963,6 +1963,9 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 {
 	bool vwc = false;
 
+	if (ctrl->segment_boundary)
+		blk_queue_segment_boundary(q, ctrl->segment_boundary);
+
 	if (ctrl->max_hw_sectors) {
 		u32 max_segments =
 			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1;
