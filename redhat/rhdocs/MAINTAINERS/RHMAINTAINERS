@@ -306,6 +306,8 @@ F:	include/uapi/linux/dm-*.h
 DEVLINK
 M:	Petr Oros <poros@redhat.com>
 M:	Ivan Vecera <ivecera@redhat.com>
+R:	Petr Oros <poros@redhat.com>
+R:	Ivan Vecera <ivecera@redhat.com>
 S:	Maintained
 F:	net/core/devlink.c
 F:	include/net/devlink.h
@@ -751,6 +753,24 @@ NETWORKING [GENERAL]
 M:	Jiri Benc <jbenc@redhat.com>
 M:	Rashid Khan <rkhan@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
+R:	Davide Caratti <dcaratti@redhat.com>
+R:	Eric Garver <egarver@redhat.com>
+R:	Flavio Leitner <fbl@redhat.com>
+R:	Florian Westphal <fwestpha@redhat.com>
+R:	Guillaume Nault <gnault@redhat.com>
+R:	Hangbin Liu <haliu@redhat.com>
+R:	Ivan Vecera <ivecera@redhat.com>
+R:	Jarod Wilson <jarod@redhat.com>
+R:	Jiri Benc <jbenc@redhat.com>
+R:	Lorenzo Bianconi <lorenzo.bianconi@redhat.com>
+R:	Marcelo Leitner <mleitner@redhat.com>
+R:	Matteo Croce <mcroce@redhat.com>
+R:	Neil Horman <nhorman@redhat.com>
+R:	Paolo Abeni <pabeni@redhat.com>
+R:	Phil Sutter <psutter@redhat.com>
+R:	Sabrina Dubroca <sdubroca@redhat.com>
+R:	Stefano Brivio <sbrivio@redhat.com>
+R:	Xin Long <lxin@redhat.com>
 S:	Maintained
 F:	net/
 F:	Documentation/networking/
@@ -858,6 +878,7 @@ F:	include/uapi/rdma/hfi*
 
 OPENVSWITCH (OVS)
 M:	Flavio Leitner <fbl@redhat.com>
+R:	Eelco Chaudron <echaudro@redhat.com>
 S:	Maintained
 F:	net/openvswitch/
 F:	include/linux/openvswitch.h
