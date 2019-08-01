@@ -122,11 +122,11 @@ addresses within redhat.com.
 All patches need to be sent to rhkernel-list@redhat.com, commonly known as RHKL,
 to be tracked and applied.
 
-Patches that are security sensitive, or patches that should be limited to a Red
-Hat only audience must be sent to rhkernel-team-list@redhat.com *only*.  This
-includes restricted access (embargoed) patches.
+Patches that should be limited to a Red Hat only audience, either due to
+their security sensitive nature or for other reasons, must be sent to
+rhkernel-team-list@redhat.com *only*.  This includes restricted access
+(embargoed) patches.
 
-[Required] Security patches must be sent to rhkernel-team-list@redhat.com.
 [Required] Embargoed patches must be sent to rhkernel-team-list@redhat.com.
 
 Patches not sent to either of these two lists will not be reviewed or committed
