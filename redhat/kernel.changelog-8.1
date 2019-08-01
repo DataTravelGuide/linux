@@ -1,3 +1,9 @@
+* Thu Aug 01 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-127.el8]
+- [kernel] fork: report pid exhaustion correctly (Don Dutile) [1726448]
+- [lib] idr: Fix idr_get_next race with idr_remove (Don Dutile) [1726448]
+- [kernel] Fix failure path in alloc_pid() (Don Dutile) [1726448]
+- [target] scsi: iscsi: set auth_protocol back to NULL if CHAP_A value is not supported (Maurizio Lombardi) [1733498]
+
 * Wed Jul 31 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-126.el8]
 - [infiniband] IB/umem: Add missing down_read on umem_rwsem (Alaa Hleihel) [1733188]
 - [fs] gfs2: Fix rounding error in gfs2_iomap_page_prepare (Andreas Grunbacher) [1733621]
