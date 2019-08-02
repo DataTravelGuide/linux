@@ -43,6 +43,7 @@ Descriptions of section entries:
 	      matches patches or files that contain one or more of the words
 	      printk, pr_info or pr_err
 	   One regex pattern per line.	Multiple K: lines acceptable.
+	I: Additional subject tag for rhkl patch submission.
 
 Note: For the hard of thinking, this list is meant to remain in alphabetical
 order. If you could add yourselves to it in alphabetical order that would be
@@ -901,6 +902,7 @@ F:	include/net/netns/nftables.h
 F:	include/net/netns/x_tables.h
 
 NETWORKING [GENERAL]
+I:	net
 M:	Jiri Benc <jbenc@redhat.com>
 M:	Rashid Khan <rkhan@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>

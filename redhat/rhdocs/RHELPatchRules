@@ -154,6 +154,23 @@ maintainer needs to track the patch.  If there is no RHEL release information,
 the patch will not be filtered into any of the maintainers' patch queues, and
 risks going unnoticed.
 
+[Required] For a subproject, patch subject contains its keyword in the []s.
+
+    Some kernel subsystems have their own patchwork project and their own
+kernel submaintainer.  For patches or patch sets that fit entirely into such
+subsystem, the keyword for the subsystem must be included in the subject.
+This ensures that the patches reach the correct project and the correct
+submaintainer.  The relevant keyword can be found in RHMAINTAINERS under
+an I: entry.
+
+    The keyword comes after RHELX.  Example: [RHEL8 net]
+
+    All patches in a patch set must contain the same subsystem keyword in
+the subject. If a patch set is a mix of patches in different subsystems, the
+suggested solution is to split the set into multiple sets, each with its own
+bug number.  If not feasible, submit the whole set to the subsystem that is
+the best fit.
+
 [Suggested] Alternatively, each patch subject can start with "[RHELX.Y]".
 
     Including the Y release information can be useful to both the reviewers
