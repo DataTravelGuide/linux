@@ -299,16 +299,17 @@ and need to connect the backported patch to its upstream counterpart. For
 this reason, the format of the upstream reference is strict.
 
 [Required] The upstream sha1 number must be referenced using one of these
-two formats (pick one that suits better your workflow):
+three formats (pick one that suits better your workflow):
 
 commit <full sha1 hash>
+commit <full sha1 hash> (<branch name>)
 (cherry picked from commit <full sha1 hash>)
 
     Note that it starts at the first column (no whitespace at front is
 allowed) and is followed by new line.  To be precise, the following Perl
 regex must be able to match:
 
-	^commit [0-9a-f]{40}$|^\(cherry picked from commit [0-9a-f]{40}\)$
+	^commit ([0-9a-f]{40})( \(.*\))?$|^\(cherry picked from commit ([0-9a-f]{40})\)$
 
     The upstream reference may be put anywhere in the patch description; in
 particular, either of 'git cherry-pick -x' and 'git show' output for the
