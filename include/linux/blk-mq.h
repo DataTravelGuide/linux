@@ -164,6 +164,7 @@ typedef int (poll_fn)(struct blk_mq_hw_ctx *);
 typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
 typedef bool (busy_fn)(struct request_queue *);
 typedef void (complete_fn)(struct request *);
+typedef void (cleanup_rq_fn)(struct request *);
 
 
 struct blk_mq_ops {
@@ -239,7 +240,12 @@ struct blk_mq_ops {
 	void (*show_rq)(struct seq_file *m, struct request *rq);
 #endif
 
-	RH_KABI_RESERVE(1)
+	/*
+	 * Called before freeing one request which isn't completed yet,
+	 * and usually for freeing the driver private data
+	 */
+	RH_KABI_USE(1, cleanup_rq_fn           *cleanup_rq)
+
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
@@ -398,6 +404,12 @@ static inline blk_qc_t request_to_qc_t(struct blk_mq_hw_ctx *hctx,
 
 	return rq->internal_tag | (hctx->queue_num << BLK_QC_T_SHIFT) |
 			BLK_QC_T_INTERNAL;
+}
+
+static inline void blk_mq_cleanup_rq(struct request *rq)
+{
+	if (rq->q->mq_ops->cleanup_rq)
+		rq->q->mq_ops->cleanup_rq(rq);
 }
 
 #endif
