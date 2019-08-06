@@ -1326,12 +1326,13 @@ static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 	}
 }
 
-static void intel_engine_print_registers(const struct intel_engine_cs *engine,
+static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					 struct drm_printer *m)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	const struct intel_engine_execlists * const execlists =
 		&engine->execlists;
+	unsigned long flags;
 	u64 addr;
 
 	if (engine->id == RCS && IS_GEN_RANGE(dev_priv, 4, 7))
@@ -1415,15 +1416,16 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 				   I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, idx)));
 		}
 
-		rcu_read_lock();
+		spin_lock_irqsave(&engine->timeline.lock, flags);
 		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
 			struct i915_request *rq;
 			unsigned int count;
+			char hdr[80];
 
 			rq = port_unpack(&execlists->port[idx], &count);
-			if (rq) {
-				char hdr[80];
-
+			if (!rq) {
+				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
+			} else if (!i915_request_signaled(rq)) {
 				snprintf(hdr, sizeof(hdr),
 					 "\t\tELSP[%d] count=%d, ring:{start:%08x, hwsp:%08x}, rq: ",
 					 idx, count,
@@ -1431,11 +1433,11 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 					 rq->timeline->hwsp_offset);
 				print_request(m, rq, hdr);
 			} else {
-				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
+				print_request(m, rq, "\t\tELSP[%d] rq: ");
 			}
 		}
 		drm_printf(m, "\t\tHW active? 0x%x\n", execlists->active);
-		rcu_read_unlock();
+		spin_unlock_irqrestore(&engine->timeline.lock, flags);
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 			   I915_READ(RING_PP_DIR_BASE(engine)));
