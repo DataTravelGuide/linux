@@ -1039,6 +1039,7 @@ S:	Maintained
 F:	net/sctp/
 F:	include/linux/sctp.h
 F:	include/net/sctp/
+F:	include/uapi/linux/sctp.h
 
 SELINUX SECURITY MODULE
 M:      Ondrej Mosnacek <omosnace@redhat.com>
