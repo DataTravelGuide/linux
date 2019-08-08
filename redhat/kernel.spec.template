@@ -1621,21 +1621,21 @@ chmod +x tools/power/cpupower/utils/version-gen.sh
 %endif
 %ifarch x86_64
    pushd tools/power/x86/x86_energy_perf_policy/
-   %{make}
+   %{tools_make}
    popd
    pushd tools/power/x86/turbostat
-   %{make}
+   %{tools_make}
    popd
 %endif #turbostat/x86_energy_perf_policy
 %endif
 pushd tools/thermal/tmon/
-%{make}
+%{tools_make}
 popd
 pushd tools/iio/
-%{make}
+%{tools_make}
 popd
 pushd tools/gpio/
-%{make}
+%{tools_make}
 popd
 %endif
 
