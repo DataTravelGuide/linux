@@ -1001,6 +1001,8 @@ pathfix.py -i %{__python3} -p -n \
 	tools/perf/scripts/python/sched-migration.py \
 	Documentation
 
+%define make make %{?cross_opts} HOSTCFLAGS="%{?build_hostcflags}" HOSTLDFLAGS="%{?build_hostldflags}"
+
 # only deal with configs if we are going to build for the arch
 %ifnarch %nobuildarches
 
@@ -1022,8 +1024,6 @@ VERSION=%{version} ./generate_all_configs.sh
 %define build_hostcflags  ${RPM_OPT_FLAGS}
 %define build_hostldflags %{__global_ldflags}
 %endif
-
-%define make make %{?cross_opts} HOSTCFLAGS="%{?build_hostcflags}" HOSTLDFLAGS="%{?build_hostldflags}"
 
 # enable GCOV kernel config options if gcov is on
 %if %{with_gcov}
@@ -1651,7 +1651,7 @@ popd
 # Unfortunately, samples/bpf/Makefile expects that the headers are installed
 # in the source tree. We installed them previously to $RPM_BUILD_ROOT/usr
 # but there's no way to tell the Makefile to take them from there.
-make headers_install
+%{make} headers_install
 %{make} -s ARCH=$Arch V=1 samples/bpf/
 pushd tools/testing/selftests
 # We need to install here because we need to call make with ARCH set which
@@ -1758,7 +1758,7 @@ tar -h -f - --exclude=man --exclude='.*' -c Documentation | tar xf - -C $docdir
 
 %if %{with_headers}
 # Install kernel headers
-make ARCH=%{hdrarch} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install
+%{make} ARCH=%{hdrarch} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install
 
 find $RPM_BUILD_ROOT/usr/include \
      \( -name .install -o -name .check -o \
@@ -1769,7 +1769,7 @@ find $RPM_BUILD_ROOT/usr/include \
 %if %{with_cross_headers}
 HDR_ARCH_LIST='arm64 powerpc s390 x86'
 mkdir -p $RPM_BUILD_ROOT/usr/tmp-headers
-make ARCH=%{hdrarch} HDR_ARCH_LIST="$HDR_ARCH_LIST" INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr/tmp-headers headers_install_all
+%{make} ARCH=%{hdrarch} HDR_ARCH_LIST="$HDR_ARCH_LIST" INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr/tmp-headers headers_install_all
 
 find $RPM_BUILD_ROOT/usr/tmp-headers/include \
      \( -name .install -o -name .check -o \
