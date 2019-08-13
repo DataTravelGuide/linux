@@ -2532,6 +2532,7 @@ build:
 	if (!rcu_dereference(tun->steering_prog))
 		rxhash = __skb_get_hash_symmetric(skb);
 
+	skb_record_rx_queue(skb, tfile->queue_index);
 	netif_receive_skb(skb);
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
