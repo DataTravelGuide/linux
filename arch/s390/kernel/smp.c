@@ -310,7 +310,7 @@ static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
-	__load_psw_mask(PSW_KERNEL_BITS);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	if (pcpu->address == source_cpu)
 		func(data);	/* should not return */
 	/* Stop target cpu (if func returns this stops the current cpu). */
