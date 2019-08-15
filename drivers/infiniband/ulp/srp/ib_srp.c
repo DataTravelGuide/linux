@@ -132,7 +132,7 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " if fast_io_fail_tmo has not been set. \"off\" means that"
 		 " this functionality is disabled.");
 
-static bool srp_use_imm_data = true;
+static bool srp_use_imm_data = false;
 module_param_named(use_imm_data, srp_use_imm_data, bool, 0644);
 MODULE_PARM_DESC(use_imm_data,
 		 "Whether or not to request permission to use immediate data during SRP login.");
