@@ -1808,8 +1808,6 @@ tar xjvf %{SOURCE300} -C $INSTALL_KABI_PATH
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT lib=%{_lib} install-bin install-traceevent-plugins
 # remove the 'trace' symlink.
 rm -f %{buildroot}%{_bindir}/trace
-# remove the perf-tips
-rm -rf %{buildroot}%{_docdir}/perf-tip
 
 # For both of the below, yes, this should be using a macro but right now
 # it's hard coded and we don't actually want it anyway right now.
@@ -2122,6 +2120,7 @@ fi
 %{_mandir}/man[1-8]/perf*
 %{_sysconfdir}/bash_completion.d/perf
 %doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
+%{_docdir}/perf-tip/tips.txt
 
 %files -n python3-perf
 %defattr(-,root,root)
