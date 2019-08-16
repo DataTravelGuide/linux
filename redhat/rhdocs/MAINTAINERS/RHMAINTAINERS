@@ -52,9 +52,160 @@ Red Hat Maintainers List (try to look for most precise areas first)
 
 		-----------------------------------
 
-Kernel Maintainer
-M:	Jakub Racek <jracek@redhat.com>
-M:	"Herton R. Krzesinski" <herton@redhat.com>
+ARK Kernel Maintainer
+M:	Laura Abbott <labbott@redhat.com>
+M:	Jeremy Cline <jcline@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-ark.git
+S:	Maintained
+F:	redhat/
+
+RHEL 8.2 Kernel Maintainer
+M:	Phillip Lougher <plougher@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rhel.git
+S:	Maintained
+F:	redhat/
+
+RHEL 8.2 Real Time Kernel Maintainer
+M:	Juri Lelli <jlelli@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git
+S:	Maintained
+F:	redhat/
+
+RHEL 8.1 Kernel Maintainer
+M:	Herton R. Krzesinski <herton@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rhel.git rhel-8.1.0
+S:	Maintained
+F:	redhat/
+
+RHEL 8.1 Real Time Kernel Maintainer
+M:	Juri Lelli <jlelli@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git rhel-rt-8.1.0
+S:	Maintained
+F:	redhat/
+
+RHEL 8.0 Kernel Maintainer
+M:	Frantisek Hrbata <fhrbata@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rhel.git rhel-8.0.0
+S:	Maintained
+F:	redhat/
+
+RHEL 8.0 Real Time Kernel Maintainer
+M:	Clark Williams <williams@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git rhel-rt-8.0.0
+S:	Maintained
+F:	redhat/
+
+RHEL 7 ALT Kernel Maintainer
+M:	Augusto Caringi <acaringi@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-alt-7.6.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.8 Kernel Maintainer
+M:	Jan Stancek <jstancek@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel7.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.8 Real Time Kernel Maintainer
+M:	Luis Claudio Goncalves <lgoncalv@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git rhel-7.8/rt-master
+S:	Maintained
+F:	redhat/
+
+RHEL 7.7 Kernel Maintainer
+M:	Bruno E. O. Meneguele <bmeneg@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.7.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.7 Real Time Kernel Maintainer
+M:	Luis Claudio Goncalves <lgoncalv@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git rhel-7.7.z/rt-master
+S:	Maintained
+F:	redhat/
+
+RHEL 7.6 Kernel Maintainer
+M:	Denys Vlasenko <dvlasenk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.6.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.6 Real Time Kernel Maintainer
+M:	Luis Claudio Goncalves <lgoncalv@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git rhel-7.6.z/rt-master
+S:	Maintained
+F:	redhat/
+
+RHEL 7.5 Kernel Maintainer
+M:	Rado Vrbovsky <rvrbovsk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.5.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.4 Kernel Maintainer
+M:	Denys Vlasenko <dvlasenk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.4.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.4 (MRG) Real Time Kernel Maintainer
+M:	Clark Williams <williams@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rt.git rhel-7.4.z/MRG
+S:	Maintained
+F:	redhat/
+
+RHEL 7.3 Kernel Maintainer
+M:	Augusto Caringi <acaringi@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.3.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 7.2 Kernel Maintainer
+M:	Rado Vrbovsky <rvrbovsk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.2.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 6.10 Kernel Maintainer
+M:	Denys Vlasenko <dvlasenk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-6.10.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 6.7 Kernel Maintainer
+M:	Frantisek Hrbata <fhrbata@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-6.7.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 6.6 Kernel Maintainer
+M:	Bruno E. O. Meneguele <bmeneg@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-6.6.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 6.5 Kernel Maintainer
+M:	Frantisek Hrbata <fhrbata@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-6.5.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 6.4 Kernel Maintainer
+M:	Frantisek Hrbata <fhrbata@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-6.4.z.git
+S:	Maintained
+F:	redhat/
+
+RHEL 5.11 Kernel Maintainer
+M:	Rado Vrbovsky <rvrbovsk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel5/kernel.git
+S:	Maintained
+F:	redhat/
+
+RHEL 5.9 Kernel Maintainer
+M:	Rado Vrbovsky <rvrbovsk@redhat.com>
+T:	git git://git.host.prod.eng.bos.redhat.com/rhel-5.9.z-kernel.git
 S:	Maintained
 F:	redhat/
 
