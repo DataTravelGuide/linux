@@ -98,7 +98,7 @@ module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
-static bool __read_mostly enable_apicv = 1;
+bool __read_mostly enable_apicv = 1;
 module_param(enable_apicv, bool, S_IRUGO);
 
 /*
@@ -106,8 +106,8 @@ module_param(enable_apicv, bool, S_IRUGO);
  * VMX and be a hypervisor for its own guests. If nested=0, guests may not
  * use VMX instructions.
  */
-static bool __read_mostly nested = 1;
-module_param(nested, bool, S_IRUGO);
+int __read_mostly nested = -1;
+module_param(nested, bint, S_IRUGO);
 
 static u64 __read_mostly host_xss;
 
@@ -7574,9 +7574,6 @@ static __init int hardware_setup(void)
 		pt_mode = PT_MODE_SYSTEM;
 
 	if (nested) {
-		nested_vmx_setup_ctls_msrs(&vmcs_config.nested,
-					   vmx_capability.ept, enable_apicv);
-
 		r = nested_vmx_hardware_setup(kvm_vmx_exit_handlers);
 		if (r)
 			return r;

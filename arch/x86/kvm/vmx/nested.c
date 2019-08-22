@@ -5823,6 +5823,15 @@ __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 
 	if (!cpu_has_vmx_shadow_vmcs())
 		enable_shadow_vmcs = 0;
+
+	if (nested == -1) {
+		nested = enable_ept && enable_shadow_vmcs;
+		if (!nested)
+			return 0;
+	}
+	if (!enable_ept || !enable_shadow_vmcs)
+                pr_crit("Processors without extended page tables or support for shadow VMCS are not recommended by Red Hat for nested virtualization.\n");
+
 	if (enable_shadow_vmcs) {
 		for (i = 0; i < VMX_BITMAP_NR; i++) {
 			/*
@@ -5839,6 +5848,9 @@ __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 
 		init_vmcs_shadow_fields();
 	}
+
+	nested_vmx_setup_ctls_msrs(&vmcs_config.nested,
+				   vmx_capability.ept, enable_apicv);
 
 	exit_handlers[EXIT_REASON_VMCLEAR]	= handle_vmclear,
 	exit_handlers[EXIT_REASON_VMLAUNCH]	= handle_vmlaunch,
