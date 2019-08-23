@@ -31,7 +31,7 @@
 #include <linux/cma.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
@@ -158,6 +158,11 @@ int set_memory_decrypted(unsigned long addr, int numpages)
 bool sev_active(void)
 {
 	return is_prot_virt_guest();
+}
+
+bool force_dma_unencrypted(struct device *dev)
+{
+	return sev_active();
 }
 
 /* protected virtualization */
