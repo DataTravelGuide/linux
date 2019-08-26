@@ -130,11 +130,8 @@ static void qla_nvme_sp_ls_done(void *ptr, int res)
 	struct nvmefc_ls_req   *fd;
 	struct nvme_private *priv;
 
-	if (atomic_read(&sp->ref_count) == 0) {
-		ql_log(ql_log_warn, sp->fcport->vha, 0x2123,
-		    "SP reference-count to ZERO on LS_done -- sp=%p.\n", sp);
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
 		return;
-	}
 
 	atomic_dec(&sp->ref_count);
 
@@ -158,6 +155,9 @@ static void qla_nvme_sp_done(void *ptr, int res)
 
 	nvme = &sp->u.iocb_cmd;
 	fd = nvme->u.nvme.desc;
+
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
+		return;
 
 	atomic_dec(&sp->ref_count);
 
@@ -198,13 +198,8 @@ static void qla_nvme_abort_work(struct work_struct *work)
 		return;
 	}
 
-	if (atomic_read(&sp->ref_count) == 0) {
-		WARN_ON(1);
-		ql_log(ql_log_info, fcport->vha, 0xffff,
-			"%s: command alredy aborted on sp: %p\n",
-			__func__, sp);
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
 		return;
-	}
 
 	rval = ha->isp_ops->abort_command(sp);
 
