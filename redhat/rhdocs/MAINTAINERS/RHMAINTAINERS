@@ -249,9 +249,18 @@ F:	fs/aio.c
 F:	include/linux/*aio*.h
 
 ALSA SOUND DRIVER
-M:	John Feeney <jfeeney@redhat.com>
 M:	Jaroslav Kysela <jkysela@redhat.com>
 S:	Maintained
+F:	sound/
+F:	drivers/soundwire/
+F:	drivers/media/pci/saa7134/saa7134-alsa.c
+F:	drivers/media/pci/cx23885/cx23885-alsa.c
+F:	drivers/media/pci/cx25821/cx25821-alsa.c
+F:	drivers/media/pci/cx18/cx18-alsa*
+F:	drivers/media/pci/cx88/cx88-alsa*
+F:	drivers/media/pci/cobalt/cobalt-alsa*
+F:	drivers/media/pci/ivtv/ivtv-alsa*
+F:	drivers/media/usb/tm6000/tm6000-alsa.c
 
 AMAZON ETHERNET DRIVERS
 M:	John Linville <linville@redhat.com>
