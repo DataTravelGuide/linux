@@ -930,6 +930,8 @@ F:	Documentation/networking/
 F:	drivers/net/Space.c
 F:	drivers/net/dummy.c
 F:	drivers/net/geneve.c
+F:	drivers/net/ifb.c
+F:	drivers/net/ipvlan/
 F:	drivers/net/loopback.c
 F:	drivers/net/mac*
 F:	drivers/net/netconsole.c
