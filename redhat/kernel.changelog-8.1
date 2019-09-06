@@ -1,3 +1,14 @@
+* Fri Sep 06 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-142.el8]
+- [drm] drm/virtio: use virtio_max_dma_size (Gerd Hoffmann) [1739291]
+- [mm] hwpoison, memory_hotplug: allow hwpoisoned pages to be offlined (Rafael Aquini) [1706088]
+- [powerpc] kvm: ppc: book3s: Enable XIVE native capability only if OPAL has required functions [BZ1744884] (David Gibson) [1744884]
+- [scsi] scsi: lpfc: Fix oops when fewer hdwqs than cpus (Dick Kennedy) [1745731]
+- [scsi] scsi: lpfc: Limit xri count for kdump environment (Dick Kennedy) [1745731]
+- [scsi] scsi: lpfc: Mitigate high memory pre-allocation by SCSI-MQ (Dick Kennedy) [1745731]
+- [scsi] scsi: qla2xxx: Fix hardirq-unsafe locking (Himanshu Madhani) [1719941]
+- [x86] Revert "[x86] x86/kexec/64: Prevent kexec from 5-level paging to a 4-level only kernel" (Baoquan He) [1669088]
+- [x86] Revert "[x86] x86/boot: Add xloadflags bits to check for 5-level paging support" (Baoquan He) [1669088]
+
 * Fri Aug 30 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-141.el8]
 - [wireless] mwifiex: fix 802.11n/WPA detection (Jarod Wilson) [1714476] {CVE-2019-3846}
 
