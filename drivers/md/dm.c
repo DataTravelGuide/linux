@@ -1482,7 +1482,7 @@ static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
 static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
 				       unsigned num_bios)
 {
-	unsigned len;
+	unsigned len = ci->sector_count;
 
 	/*
 	 * Even though the device advertised support for this type of
@@ -1492,8 +1492,6 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 	 */
 	if (!num_bios)
 		return -EOPNOTSUPP;
-
-	len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
 
 	__send_duplicate_bios(ci, ti, num_bios, &len);
 
