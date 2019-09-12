@@ -1,3 +1,12 @@
+* Thu Sep 12 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-144.el8]
+- [md] Revert "[md] dm: eliminate 'split_discard_bios' flag from DM target interface" (Mike Snitzer) [1749929]
+- [md] Revert "[md] dm: make sure to obey max_io_len_target_boundary" (Mike Snitzer) [1749929]
+- [pci] PCI: Restore Resizable BAR size bits correctly for 1MB BARs (Myron Stowe) [1717760]
+- [net] netfilter: nft_fib_netdev: Terminate rule eval if protocol=IPv6 and ipv6 module is disabled (Phil Sutter) [1743945]
+- [net] netfilter: bridge: Drops IPv6 packets if IPv6 module is not loaded (Phil Sutter) [1743945]
+- [drm] drm/qxl: get vga ioports (Gerd Hoffmann) [1728936]
+- [drm] drm/i915: Call dma_set_max_seg_size() in i915_driver_hw_probe() (Lyude Paul) [1724363]
+
 * Mon Sep 09 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-143.el8]
 - [net] netfilter: nft_set: fix allocation size overflow in privsize callback. (Florian Westphal) [1746338]
 - [net] net: route dump netlink NLM_F_MULTI flag missing (Stefano Brivio) [1745971]
