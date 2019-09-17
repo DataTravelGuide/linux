@@ -38,7 +38,7 @@ ARCH_LIST=aarch64 ppc64le s390x x86_64
 #	0 : pre-release (devel) secureboot keys are used for signing
 #	1 : release (RC/GA) secureboot keys are used for signing
 #
-RELEASED_KERNEL:=0
+RELEASED_KERNEL:=1
 
 STAMP_VERSION:=$(KVERSION)
 
