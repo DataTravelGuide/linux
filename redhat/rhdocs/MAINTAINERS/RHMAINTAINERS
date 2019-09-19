@@ -1264,7 +1264,6 @@ S:	Maintained
 F:	drivers/net/ethernet/sfc/
 
 SGI SPECIFIC
-M:	George Beshers <gbeshers@redhat.com>
 M:	Frank Ramsay <framsay@redhat.com>
 M:	Russ Anderson <randerso@redhat.com>
 S:	Maintained
