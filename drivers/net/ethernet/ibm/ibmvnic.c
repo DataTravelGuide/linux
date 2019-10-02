@@ -1738,6 +1738,86 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 }
 
 /**
+ * do_change_param_reset returns zero if we are able to keep processing reset
+ * events, or non-zero if we hit a fatal error and must halt.
+ */
+static int do_change_param_reset(struct ibmvnic_adapter *adapter,
+				 struct ibmvnic_rwi *rwi,
+				 u32 reset_state)
+{
+	struct net_device *netdev = adapter->netdev;
+	int i, rc;
+
+	netdev_dbg(adapter->netdev, "Change param resetting driver (%d)\n",
+		   rwi->reset_reason);
+
+	netif_carrier_off(netdev);
+	adapter->reset_reason = rwi->reset_reason;
+
+	ibmvnic_cleanup(netdev);
+
+	if (reset_state == VNIC_OPEN) {
+		rc = __ibmvnic_close(netdev);
+		if (rc)
+			return rc;
+	}
+
+	release_resources(adapter);
+	release_sub_crqs(adapter, 1);
+	release_crq_queue(adapter);
+
+	adapter->state = VNIC_PROBED;
+
+	rc = init_crq_queue(adapter);
+
+	if (rc) {
+		netdev_err(adapter->netdev,
+			   "Couldn't initialize crq. rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = ibmvnic_reset_init(adapter);
+	if (rc)
+		return IBMVNIC_INIT_FAILED;
+
+	/* If the adapter was in PROBE state prior to the reset,
+	 * exit here.
+	 */
+	if (reset_state == VNIC_PROBED)
+		return 0;
+
+	rc = ibmvnic_login(netdev);
+	if (rc) {
+		adapter->state = reset_state;
+		return rc;
+	}
+
+	rc = init_resources(adapter);
+	if (rc)
+		return rc;
+
+	ibmvnic_disable_irqs(adapter);
+
+	adapter->state = VNIC_CLOSED;
+
+	if (reset_state == VNIC_CLOSED)
+		return 0;
+
+	rc = __ibmvnic_open(netdev);
+	if (rc)
+		return IBMVNIC_OPEN_FAILED;
+
+	/* refresh device's multicast list */
+	ibmvnic_set_multi(netdev);
+
+	/* kick napi */
+	for (i = 0; i < adapter->req_rx_queues; i++)
+		napi_schedule(&adapter->napi[i]);
+
+	return 0;
+}
+
+/**
  * do_reset returns zero if we are able to keep processing reset events, or
  * non-zero if we hit a fatal error and must halt.
  */
@@ -1752,6 +1832,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	netdev_dbg(adapter->netdev, "Re-setting driver (%d)\n",
 		   rwi->reset_reason);
 
+	rtnl_lock();
+
 	netif_carrier_off(netdev);
 	adapter->reset_reason = rwi->reset_reason;
 
@@ -1765,16 +1847,25 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	if (reset_state == VNIC_OPEN &&
 	    adapter->reset_reason != VNIC_RESET_MOBILITY &&
 	    adapter->reset_reason != VNIC_RESET_FAILOVER) {
-		rc = __ibmvnic_close(netdev);
-		if (rc)
-			return rc;
-	}
+		adapter->state = VNIC_CLOSING;
 
-	if (adapter->reset_reason == VNIC_RESET_CHANGE_PARAM ||
-	    adapter->wait_for_reset) {
-		release_resources(adapter);
-		release_sub_crqs(adapter, 1);
-		release_crq_queue(adapter);
+		/* Release the RTNL lock before link state change and
+		 * re-acquire after the link state change to allow
+		 * linkwatch_event to grab the RTNL lock and run during
+		 * a reset.
+		 */
+		rtnl_unlock();
+		rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_DN);
+		rtnl_lock();
+		if (rc)
+			goto out;
+
+		if (adapter->state != VNIC_CLOSING) {
+			rc = -1;
+			goto out;
+		}
+
+		adapter->state = VNIC_CLOSED;
 	}
 
 	if (adapter->reset_reason != VNIC_RESET_NON_FATAL) {
@@ -1783,9 +1874,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		 */
 		adapter->state = VNIC_PROBED;
 
-		if (adapter->wait_for_reset) {
-			rc = init_crq_queue(adapter);
-		} else if (adapter->reset_reason == VNIC_RESET_MOBILITY) {
+		if (adapter->reset_reason == VNIC_RESET_MOBILITY) {
 			rc = ibmvnic_reenable_crq_queue(adapter);
 			release_sub_crqs(adapter, 1);
 		} else {
@@ -1797,36 +1886,35 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		if (rc) {
 			netdev_err(adapter->netdev,
 				   "Couldn't initialize crq. rc=%d\n", rc);
-			return rc;
+			goto out;
 		}
 
 		rc = ibmvnic_reset_init(adapter);
-		if (rc)
-			return IBMVNIC_INIT_FAILED;
+		if (rc) {
+			rc = IBMVNIC_INIT_FAILED;
+			goto out;
+		}
 
 		/* If the adapter was in PROBE state prior to the reset,
 		 * exit here.
 		 */
-		if (reset_state == VNIC_PROBED)
-			return 0;
+		if (reset_state == VNIC_PROBED) {
+			rc = 0;
+			goto out;
+		}
 
 		rc = ibmvnic_login(netdev);
 		if (rc) {
 			adapter->state = reset_state;
-			return rc;
+			goto out;
 		}
 
-		if (adapter->reset_reason == VNIC_RESET_CHANGE_PARAM ||
-		    adapter->wait_for_reset) {
-			rc = init_resources(adapter);
-			if (rc)
-				return rc;
-		} else if (adapter->req_rx_queues != old_num_rx_queues ||
-			   adapter->req_tx_queues != old_num_tx_queues ||
-			   adapter->req_rx_add_entries_per_subcrq !=
-							old_num_rx_slots ||
-			   adapter->req_tx_entries_per_subcrq !=
-							old_num_tx_slots) {
+		if (adapter->req_rx_queues != old_num_rx_queues ||
+		    adapter->req_tx_queues != old_num_tx_queues ||
+		    adapter->req_rx_add_entries_per_subcrq !=
+		    old_num_rx_slots ||
+		    adapter->req_tx_entries_per_subcrq !=
+		    old_num_tx_slots) {
 			release_rx_pools(adapter);
 			release_tx_pools(adapter);
 			release_napi(adapter);
@@ -1834,32 +1922,30 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 			rc = init_resources(adapter);
 			if (rc)
-				return rc;
+				goto out;
 
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)
-				return rc;
+				goto out;
 
 			rc = reset_rx_pools(adapter);
 			if (rc)
-				return rc;
+				goto out;
 		}
 		ibmvnic_disable_irqs(adapter);
 	}
 	adapter->state = VNIC_CLOSED;
 
-	if (reset_state == VNIC_CLOSED)
-		return 0;
+	if (reset_state == VNIC_CLOSED) {
+		rc = 0;
+		goto out;
+	}
 
 	rc = __ibmvnic_open(netdev);
 	if (rc) {
-		if (list_empty(&adapter->rwi_list))
-			adapter->state = VNIC_CLOSED;
-		else
-			adapter->state = reset_state;
-
-		return 0;
+		rc = IBMVNIC_OPEN_FAILED;
+		goto out;
 	}
 
 	/* refresh device's multicast list */
@@ -1869,11 +1955,15 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_schedule(&adapter->napi[i]);
 
-	if (adapter->reset_reason != VNIC_RESET_FAILOVER &&
-	    adapter->reset_reason != VNIC_RESET_CHANGE_PARAM)
+	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
 		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
 
-	return 0;
+	rc = 0;
+
+out:
+	rtnl_unlock();
+
+	return rc;
 }
 
 static int do_hard_reset(struct ibmvnic_adapter *adapter,
@@ -1933,14 +2023,8 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 		return 0;
 
 	rc = __ibmvnic_open(netdev);
-	if (rc) {
-		if (list_empty(&adapter->rwi_list))
-			adapter->state = VNIC_CLOSED;
-		else
-			adapter->state = reset_state;
-
-		return 0;
-	}
+	if (rc)
+		return IBMVNIC_OPEN_FAILED;
 
 	return 0;
 }
@@ -1980,21 +2064,12 @@ static void __ibmvnic_reset(struct work_struct *work)
 	struct ibmvnic_rwi *rwi;
 	struct ibmvnic_adapter *adapter;
 	struct net_device *netdev;
-	bool we_lock_rtnl = false;
 	u32 reset_state;
 	int rc = 0;
 
 	adapter = container_of(work, struct ibmvnic_adapter, ibmvnic_reset);
 	netdev = adapter->netdev;
 
-	/* netif_set_real_num_xx_queues needs to take rtnl lock here
-	 * unless wait_for_reset is set, in which case the rtnl lock
-	 * has already been taken before initializing the reset
-	 */
-	if (!adapter->wait_for_reset) {
-		rtnl_lock();
-		we_lock_rtnl = true;
-	}
 	reset_state = adapter->state;
 
 	rwi = get_next_rwi(adapter);
@@ -2006,14 +2081,32 @@ static void __ibmvnic_reset(struct work_struct *work)
 			break;
 		}
 
-		if (adapter->force_reset_recovery) {
-			adapter->force_reset_recovery = false;
-			rc = do_hard_reset(adapter, rwi, reset_state);
+		if (rwi->reset_reason == VNIC_RESET_CHANGE_PARAM) {
+			/* CHANGE_PARAM requestor holds rtnl_lock */
+			rc = do_change_param_reset(adapter, rwi, reset_state);
+		} else if (adapter->force_reset_recovery) {
+			/* Transport event occurred during previous reset */
+			if (adapter->wait_for_reset) {
+				/* Previous was CHANGE_PARAM; caller locked */
+				adapter->force_reset_recovery = false;
+				rc = do_hard_reset(adapter, rwi, reset_state);
+			} else {
+				rtnl_lock();
+				adapter->force_reset_recovery = false;
+				rc = do_hard_reset(adapter, rwi, reset_state);
+				rtnl_unlock();
+			}
 		} else {
 			rc = do_reset(adapter, rwi, reset_state);
 		}
 		kfree(rwi);
-		if (rc && rc != IBMVNIC_INIT_FAILED &&
+		if (rc == IBMVNIC_OPEN_FAILED) {
+			if (list_empty(&adapter->rwi_list))
+				adapter->state = VNIC_CLOSED;
+			else
+				adapter->state = reset_state;
+			rc = 0;
+		} else if (rc && rc != IBMVNIC_INIT_FAILED &&
 		    !adapter->force_reset_recovery)
 			break;
 
@@ -2021,7 +2114,6 @@ static void __ibmvnic_reset(struct work_struct *work)
 	}
 
 	if (adapter->wait_for_reset) {
-		adapter->wait_for_reset = false;
 		adapter->reset_done_rc = rc;
 		complete(&adapter->reset_done);
 	}
@@ -2032,8 +2124,6 @@ static void __ibmvnic_reset(struct work_struct *work)
 	}
 
 	adapter->resetting = false;
-	if (we_lock_rtnl)
-		rtnl_unlock();
 }
 
 static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
@@ -2094,8 +2184,6 @@ static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 
 	return 0;
 err:
-	if (adapter->wait_for_reset)
-		adapter->wait_for_reset = false;
 	return -ret;
 }
 
