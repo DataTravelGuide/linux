@@ -1516,8 +1516,7 @@ S:	Maintained
 F:	mm/zswap.c
 
 ZRAM COMPRESSED RAM BLOCK DEVICE DRVIER
-M:	Seth Jennings <sjenning@redhat.com>
 M:	Jerome Marchand <jmarchan@redhat.com>
 S:	Maintained
-F:	drivers/staging/zram/
+F:	drivers/block/zram/
 F:	Documentation/ABI/testing/sysfs-block-zram
