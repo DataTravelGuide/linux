@@ -234,6 +234,7 @@ ACPI SUBSYSTEM
 M:	Al Stone <ahs3@redhat.com>
 M:	Lenny Szubowicz <lszubowi@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
+M:	David Arcari <darcari@redhat.com>
 S:	Maintained
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -435,9 +436,17 @@ CPU FREQUENCY DRIVERS
 M:	Al Stone <ahs3@redhat.com>
 M:	Lenny Szubowicz <lszubowi@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
+M:	David Arcari <darcari@redhat.com>
 S:	Maintained
 F:	drivers/cpufreq/
 F:	arch/x86/kernel/cpu/cpufreq/
+
+CPU IDLE DRIVERS
+M:	Al Stone <ahs3@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+M:	David Arcari <darcari@redhat.com>
+S:	Maintained
+F:	drivers/cpuidle/
 
 CXGB3 ETHERNET DRIVER (cxgb3)
 M:	Venkatesh Pottem <vpottem@redhat.com>
@@ -1334,6 +1343,7 @@ F:	include/uapi/linux/tipc_config.h
 F:	include/uapi/linux/tipc_socket_diag.h
 
 X86 ARCHITECTURE
+M:	David Arcari <darcari@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	arch/x86/
