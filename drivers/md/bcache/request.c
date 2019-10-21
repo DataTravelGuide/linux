@@ -1023,6 +1023,8 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		s->iop.bio = bio_clone_fast(bio, GFP_NOIO, &dc->disk.bio_split);
 		/* I/O request sent to backing device */
 		bio->bi_end_io = backing_request_endio;
+
+		s->iop.bio->bi_opf   = REQ_OP_WRITE | REQ_PREFLUSH;
 		closure_bio_submit(s->iop.c, bio, cl);
 	}
 
