@@ -449,12 +449,12 @@ S:	Maintained
 F:	drivers/cpuidle/
 
 CXGB3 ETHERNET DRIVER (cxgb3)
-M:	Venkatesh Pottem <vpottem@redhat.com>
+M:	Vishal Kulkarni <viskulka@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/chelsio/cxgb3/
 
 CXGB4 ETHERNET DRIVER (cxgb4)
-M:	Venkatesh Pottem <vpottem@redhat.com>
+M:	Vishal Kulkarni <viskulka@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/chelsio/cxgb4/
 
