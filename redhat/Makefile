@@ -1,14 +1,15 @@
 include Makefile.common
 include Makefile.rhpkg
 
+ZSTREAM=yes
 LANG=C
 
 ifeq ("$(DIST)", ".elrdy")
   BUILD_DEFAULT_TARGET = temp-ark-rhel-8-test
   BUILD_SCRATCH_TARGET = temp-ark-rhel-8-test
 else
-  BUILD_DEFAULT_TARGET = rhel-$(RHEL_MAJOR).$(RHEL_MINOR).0-test-pesign
-  BUILD_SCRATCH_TARGET = rhel-$(RHEL_MAJOR).$(RHEL_MINOR).0-test-pesign
+  BUILD_DEFAULT_TARGET = rhel-$(RHEL_MAJOR).$(RHEL_MINOR).0-z-test-pesign
+  BUILD_SCRATCH_TARGET = rhel-$(RHEL_MAJOR).$(RHEL_MINOR).0-z-test-pesign
 endif
 
 ifeq ("$(ZSTREAM)", "yes")

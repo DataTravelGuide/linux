@@ -22,7 +22,7 @@ else
   PREBUILD:=
 endif
 BUILD:=$(RHEL_RELEASE)
-DIST:=.el8
+DIST:=.el8_1
 PACKAGE_NAME:=kernel
 SPECFILE:=$(PACKAGE_NAME).spec
 RPM:=$(REDHAT)/rpm
