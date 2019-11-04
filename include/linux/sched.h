@@ -807,8 +807,13 @@ struct task_struct {
 	long				rh_reserved3;
 	long				rh_reserved4;
 	struct pid			*rh_pgid;
+#if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
+	RH_KABI_USE(5, unsigned int sequential_io)
+	RH_KABI_USE(6, unsigned int sequential_io_avg)
+#else
 	long				rh_reserved5;
 	long				rh_reserved6;
+#endif
 	struct pid			*rh_sid;
 #endif
 	struct list_head		thread_group;
@@ -1197,10 +1202,6 @@ struct task_struct {
 
 #ifdef CONFIG_UPROBES
 	struct uprobe_task		*utask;
-#endif
-#if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
-	unsigned int			sequential_io;
-	unsigned int			sequential_io_avg;
 #endif
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long			task_state_change;
