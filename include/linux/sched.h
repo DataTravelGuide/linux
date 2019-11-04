@@ -1164,10 +1164,6 @@ struct task_struct {
 #ifdef CONFIG_UPROBES
 	struct uprobe_task		*utask;
 #endif
-#if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
-	unsigned int			sequential_io;
-	unsigned int			sequential_io_avg;
-#endif
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long			task_state_change;
 #endif
@@ -1196,8 +1192,13 @@ struct task_struct {
 	 */
 	randomized_struct_fields_end
 
+#if defined(CONFIG_BCACHE) || defined(CONFIG_BCACHE_MODULE)
+	RH_KABI_USE(1, unsigned int sequential_io)
+	RH_KABI_USE(2, unsigned int sequential_io_avg)
+#else
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
+#endif
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
 	RH_KABI_RESERVE(5)
