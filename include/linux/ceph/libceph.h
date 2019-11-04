@@ -133,7 +133,7 @@ struct ceph_client {
 	struct dentry *debugfs_monmap;
 	struct dentry *debugfs_osdmap;
 	struct dentry *debugfs_options;
-	struct dentry *debugfs_osd_req_timeout;
+	RH_KABI_EXTEND(struct dentry *debugfs_osd_req_timeout)
 #endif
 };
 
