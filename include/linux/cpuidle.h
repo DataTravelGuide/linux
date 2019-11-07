@@ -85,6 +85,7 @@ struct cpuidle_device {
 	unsigned int		cpu;
 
 	int			last_residency;
+	RH_KABI_FILL_HOLE(int			last_state_idx)
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];
 	struct cpuidle_state_kobj *kobjs[CPUIDLE_STATE_MAX];
 	struct cpuidle_driver_kobj *kobj_driver;
