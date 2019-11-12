@@ -1,3 +1,45 @@
+* Tue Nov 12 2019 Frantisek Hrbata <fhrbata@redhat.com> [4.18.0-147.1.1.el8_1]
+- [arm64] arm64/sve: Fix wrong free for task->thread.sve_state (Andrew Jones) [1767358 1756450]
+- [drm] drm/i915/cmdparser: Fix jump whitelist clearing (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Lower RM timeout to avoid DSI hard hangs (Dave Airlie) [1766056 1756805] {CVE-2019-0154}
+- [drm] drm/i915/gen8+: Add RC6 CTX corruption WA (Dave Airlie) [1766056 1756805] {CVE-2019-0154}
+- [drm] drm/i915/cmdparser: Ignore Length operands during command matching (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915/cmdparser: Add support for backward jumps (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915/cmdparser: Use explicit goto for error paths (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Add gen9 BCS cmdparsing (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Allow parsing of unsized batches (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Support ro ppgtt mapped cmdparser shadow buffers (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Add support for mandatory cmdparsing (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Remove Master tables from cmdparser (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Disable Secure Batches for gen6+ (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [drm] drm/i915: Rename gen7 cmdparser tables (Dave Airlie) [1756871 1756873] {CVE-2019-0155}
+- [x86] x86/tsx: Add config options to set tsx=on|off|auto (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [documentation] x86/speculation/taa: Add documentation for TSX Async Abort (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [x86] x86/tsx: Add "auto" option to the tsx= cmdline parameter (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [base] x86/speculation/taa: Add sysfs reporting for TSX Async Abort (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [x86] x86/speculation/taa: Add mitigation for TSX Async Abort (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [x86] x86/cpu: Add a "tsx=" cmdline option with TSX disabled by default (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [x86] x86/cpu: Add a helper function x86_read_arch_cap_msr() (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [x86] x86/msr: Add the IA32_TSX_CTRL MSR (Josh Poimboeuf) [1766550 1766551] {CVE-2019-11135}
+- [documentation] Documentation: Add ITLB_MULTIHIT documentation (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] kvm: x86: mmu: Recovery of shattered NX large pages (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [virt] kvm: Add helper function for creating VM worker threads (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] kvm: mmu: ITLB_MULTIHIT mitigation (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kernel] cpu/speculation: Uninline and export CPU mitigations helpers (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [x86] x86/cpu: Add Tremont to the cpu vulnerability whitelist (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [x86] x86: Add ITLB_MULTIHIT bug infrastructure (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] KVM: vmx, svm: always run with EFER.NXE=1 when shadow paging is active (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] KVM: x86: add tracepoints around __direct_map and FNAME(fetch) (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] KVM: x86: change kvm_mmu_page_get_gfn BUG_ON to WARN_ON (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] KVM: x86: remove now unneeded hugepage gfn adjustment (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] KVM: x86: make FNAME(fetch) and __direct_map more similar (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] kvm: mmu: Do not release the page inside mmu_set_spte() (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] kvm: Convert kvm_lock to a mutex (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] KVM: x86/mmu: Reintroduce fast invalidate/zap for flushing memslot (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] Revert "KVM: x86/mmu: Zap only the relevant pages when removing a memslot" (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [kvm] kvm: x86, powerpc: do not allow clearing largepages debugfs entry (Paolo Bonzini) [1698416 1690344] {CVE-2018-12207}
+- [zstream] switch to zstream (Frantisek Hrbata)
+
 * Thu Sep 26 2019 Herton R. Krzesinski <herton@redhat.com> [4.18.0-147.el8]
 - [x86] perf/x86/intel: Fix spurious NMI on fixed counter (Michael Petlan) [1755110]
 - [x86] perf/x86/intel: Fix race in intel_pmu_disable_event() (Michael Petlan) [1755110]
