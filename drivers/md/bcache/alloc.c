@@ -63,6 +63,7 @@
 
 #include "bcache.h"
 #include "btree.h"
+#include "writeback.h"
 
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
@@ -342,6 +343,14 @@ static int bch_allocator_thread(void *arg)
 			allocator_wait(ca, bch_allocator_push(ca, bucket));
 			wake_up(&ca->set->btree_cache_wait);
 			wake_up(&ca->set->bucket_wait);
+
+			if (ca->set->gc_stats.in_use > CUTOFF_WRITEBACK_SYNC &&
+			    ca->set->copy_gc_enabled &&
+			    !bch_is_gc_moving(ca->set)) {
+				atomic_set(&ca->set->movinggc, 1);
+				ca->invalidate_needs_gc = 1;
+				wake_up_gc(ca->set);
+			}
 		}
 
 		/*
