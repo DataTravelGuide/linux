@@ -9,6 +9,7 @@
 #include "btree.h"
 #include "debug.h"
 #include "request.h"
+#include "writeback.h"
 
 #include <trace/events/bcache.h>
 
@@ -27,7 +28,7 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i) &&
-		    GC_MOVE(PTR_BUCKET(c, k, i)))
+		    GC_MOVE(PTR_BUCKET(c, k, i)) && KEY_DIRTY(k))
 			return true;
 
 	return false;
@@ -198,7 +199,9 @@ void bch_moving_gc(struct cache_set *c)
 	struct bucket *b;
 	unsigned i;
 
-	if (!c->copy_gc_enabled)
+	if (!c->copy_gc_enabled ||
+	    !atomic_read(&c->movinggc) ||
+	    !(c->gc_stats.in_use > CUTOFF_WRITEBACK_SYNC))
 		return;
 
 	mutex_lock(&c->bucket_lock);
@@ -214,7 +217,8 @@ void bch_moving_gc(struct cache_set *c)
 			if (GC_MARK(b) == GC_MARK_METADATA ||
 			    !GC_SECTORS_USED(b) ||
 			    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
-			    atomic_read(&b->pin))
+			    atomic_read(&b->pin) ||
+			    GC_MOVE(b))
 				continue;
 
 			if (!heap_full(&ca->heap)) {
@@ -249,4 +253,13 @@ void bch_moving_init_cache_set(struct cache_set *c)
 {
 	bch_keybuf_init(&c->moving_gc_keys);
 	sema_init(&c->moving_in_flight, 64);
+	atomic_set(&c->movinggc, 0);
+}
+
+int bch_is_gc_moving(struct cache_set *c)
+{
+	return atomic_read(&c->movinggc) ||
+		    (!(c->gc_thread->state & TASK_INTERRUPTIBLE) &&
+		     c->copy_gc_enabled && c->copy_gc_dirty_only);
+
 }
