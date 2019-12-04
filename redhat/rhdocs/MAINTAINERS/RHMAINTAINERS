@@ -61,7 +61,7 @@ S:	Maintained
 F:	redhat/
 
 RHEL 8.2 Kernel Maintainer
-M:	Phillip Lougher <plougher@redhat.com>
+M:	Bruno Meneguele <bmeneg@redhat.com>
 T:	git git://git.host.prod.eng.bos.redhat.com/kernel-rhel.git
 S:	Maintained
 F:	redhat/
@@ -115,7 +115,7 @@ S:	Maintained
 F:	redhat/
 
 RHEL 7.7 Kernel Maintainer
-M:	Bruno E. O. Meneguele <bmeneg@redhat.com>
+M:	Frantisek Hrbata <fhrbata@redhat.com>
 T:	git git://git.host.prod.eng.bos.redhat.com/rhel-7.7.z.git
 S:	Maintained
 F:	redhat/
@@ -181,7 +181,7 @@ S:	Maintained
 F:	redhat/
 
 RHEL 6.6 Kernel Maintainer
-M:	Bruno E. O. Meneguele <bmeneg@redhat.com>
+M:	Herton R. Krzesinski <herton@redhat.com>
 T:	git git://git.host.prod.eng.bos.redhat.com/rhel-6.6.z.git
 S:	Maintained
 F:	redhat/
