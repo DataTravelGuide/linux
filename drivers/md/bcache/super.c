@@ -199,15 +199,27 @@ static void write_bdev_super_endio(struct bio *bio)
 	closure_put(&dc->sb_write);
 }
 
-static void __write_super(struct cache_sb *sb, struct bio *bio)
+static int __write_super(struct cache_sb *sb, struct bio *bio,
+						 struct block_device *bdev)
 {
-	struct cache_sb *out = page_address(bio_first_page_all(bio));
+	struct cache_sb *out;
 	unsigned i;
+	struct buffer_head *bh;
+
+	/*
+	 * The page is held since read_super, this __bread * should not
+	 * cause an extra io read.
+	 */
+	bh = __bread(bdev, 1, SB_SIZE);
+	if (!bh)
+		goto out_bh;
+
+	out = (struct cache_sb *) bh->b_data;
 
 	bio->bi_iter.bi_sector	= SB_SECTOR;
 	bio->bi_iter.bi_size	= SB_SIZE;
 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_SYNC|REQ_META);
-	bch_bio_map(bio, NULL);
+	bch_bio_map(bio, bh->b_data);
 
 	out->offset		= cpu_to_le64(sb->offset);
 	out->version		= cpu_to_le64(sb->version);
@@ -231,7 +243,14 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 	pr_debug("ver %llu, flags %llu, seq %llu",
 		 sb->version, sb->flags, sb->seq);
 
+	/* The page will still be held without this bh.*/
+	put_bh(bh);
 	submit_bio(bio);
+	return 0;
+
+out_bh:
+	pr_err("Couldn't read super block, __write_super failed");
+	return -1;
 }
 
 static void bch_write_bdev_super_unlock(struct closure *cl)
@@ -256,7 +275,8 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 
 	closure_get(cl);
 	/* I/O request sent to backing device */
-	__write_super(&dc->sb, bio);
+	if(__write_super(&dc->sb, bio, dc->bdev))
+		closure_put(cl);
 
 	closure_return_with_destructor(cl, bch_write_bdev_super_unlock);
 }
@@ -304,7 +324,8 @@ void bcache_write_super(struct cache_set *c)
 		bio->bi_private = ca;
 
 		closure_get(cl);
-		__write_super(&ca->sb, bio);
+		if(__write_super(&ca->sb, bio, ca->bdev))
+			closure_put(cl);
 	}
 
 	closure_return_with_destructor(cl, bcache_write_super_unlock);
