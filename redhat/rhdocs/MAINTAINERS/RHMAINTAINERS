@@ -798,12 +798,14 @@ F:	tools/hv/
 F:	Documentation/ABI/stable/sysfs-bus-vmbus
 
 INFINIBAND SUBSYSTEM
+M:	Kamal Heib <kheib@redhat.com>
 M:	Jonathan Toppins <jtoppins@redhat.com>
-M:	Don Dutile <ddutile@redhat.com>
 S:	Maintained
 F:	drivers/infiniband/
 F:	include/rdma/
 F:	include/uapi/rdma/
+F:	include/uapi/linux/if_infiniband.h
+F:	Documentation/infiniband/
 
 IOMMU DRIVERS
 M:	Myron Stowe <myron.stowe@redhat.com>
