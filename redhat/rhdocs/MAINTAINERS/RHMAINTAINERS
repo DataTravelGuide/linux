@@ -458,6 +458,12 @@ M:	Vishal Kulkarni <viskulka@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/chelsio/cxgb4/
 
+CXGB4 IWARP DRIVER (IW_CXGB4)
+M:	Vishal Kulkarni <viskulka@redhat.com>
+S:	Maintained
+F:	drivers/infiniband/hw/cxgb4/
+F:	include/uapi/rdma/cxgb4-abi.h
+
 DEVICE DIRECT ACCESS
 M:	Jeff Moyer <jmoyer@redhat.com>
 S:	Maintained
