@@ -627,6 +627,12 @@ M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/ethernet/intel/i40evf/
 
+INTEL I40IW IWARP DRIVER (i40iw)
+M:	Stefan Assmann <sassmann@redhat.com>
+S:	Maintained
+F:	drivers/infiniband/hw/i40iw/
+F:	include/uapi/rdma/i40iw-abi.h
+
 INTEL IGB ETHERNET DRIVERS (igb)
 M:	Corinna Vinschen <vinschen@redhat.com>
 M:	Stefan Assmann <sassmann@redhat.com>
