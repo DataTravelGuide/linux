@@ -113,6 +113,7 @@ read_attribute(partial_stripes_expensive);
 rw_attribute(synchronous);
 rw_attribute(journal_delay_ms);
 rw_attribute(io_disable);
+rw_attribute(legacy_detach_mode);
 rw_attribute(discard);
 rw_attribute(running);
 rw_attribute(label);
@@ -175,6 +176,7 @@ SHOW(__bch_cached_dev)
 	sysfs_hprint(io_errors,		atomic_read(&dc->io_errors));
 	sysfs_printf(io_error_limit,	"%i", dc->error_limit);
 	sysfs_printf(io_disable,	"%i", dc->io_disable);
+	sysfs_printf(legacy_detach_mode, "%i", dc->legacy_detach_mode);
 	var_print(writeback_rate_update_seconds);
 	var_print(writeback_rate_i_term_inverse);
 	var_print(writeback_rate_p_term_inverse);
@@ -272,6 +274,12 @@ STORE(__cached_dev)
 
 		dc->io_disable = v ? 1 : 0;
 	}
+
+	if (attr == &sysfs_legacy_detach_mode) {
+		int v = strtoul_or_return(buf);
+
+		dc->legacy_detach_mode = v ? 1 : 0;
+        }
 
 	d_strtoi_h(sequential_cutoff);
 	d_strtoi_h(readahead);
@@ -394,6 +402,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_errors,
 	&sysfs_io_error_limit,
 	&sysfs_io_disable,
+	&sysfs_legacy_detach_mode,
 	&sysfs_dirty_data,
 	&sysfs_stripe_size,
 	&sysfs_partial_stripes_expensive,

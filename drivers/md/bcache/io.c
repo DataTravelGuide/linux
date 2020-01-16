@@ -57,6 +57,11 @@ void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio)
 	WARN_ONCE(!dc, "NULL pointer of struct cached_dev");
 
 	errors = atomic_add_return(1, &dc->io_errors);
+
+	/* legacy detach mode, suppress the IO errors but count it */
+	if (dc->legacy_detach_mode)
+		return;
+
 	if (errors < dc->error_limit)
 		pr_err("%s: IO error on backing device, unrecoverable",
 			dc->backing_dev_name);

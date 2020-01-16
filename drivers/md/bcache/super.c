@@ -892,6 +892,15 @@ static int cached_dev_status_update(void *arg)
 			pr_err("%s: device offline for %d seconds",
 			       dc->backing_dev_name,
 			       BACKING_DEV_OFFLINE_TIMEOUT);
+			if (dc->legacy_detach_mode) {
+				pr_info("%s: enter legacy detach mode",
+				        dc->disk.name);
+				if (!IS_ERR_OR_NULL(dc->writeback_thread)) {
+					kthread_stop(dc->writeback_thread);
+					dc->writeback_thread = NULL;
+				}
+				break;
+			}
 			pr_err("%s: disable I/O request due to backing "
 			       "device offline", dc->disk.name);
 			dc->io_disable = true;
