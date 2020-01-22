@@ -5118,8 +5118,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		}
 	}
 
-	assert_list_leaf_cfs_rq(rq);
-
 	hrtick_update(rq);
 }
 
