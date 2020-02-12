@@ -2222,8 +2222,11 @@ static int cache_alloc(struct cache *ca)
 
 	ca->prio_last_buckets = ca->prio_buckets + prio_buckets(ca);
 
-	for_each_bucket(b, ca)
+	for_each_bucket(b, ca) {
 		atomic_set(&b->pin, 0);
+		b->ca = ca;
+	}
+
 	return 0;
 
 err_disk_buckets_alloc:
