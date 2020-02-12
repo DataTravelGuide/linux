@@ -2179,7 +2179,7 @@ static int cache_alloc(struct cache *ca)
 		goto err_prio_alloc;
 	}
 
-	if (!init_fifo(&ca->free[RESERVE_MOVINGGC], free, GFP_KERNEL)) {
+	if (!init_fifo(&ca->free[RESERVE_MOVINGGC], free << 2, GFP_KERNEL)) {
 		err = "ca->free[RESERVE_MOVINGGC] alloc failed";
 		goto err_movinggc_alloc;
 	}

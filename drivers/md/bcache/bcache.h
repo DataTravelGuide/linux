@@ -658,6 +658,7 @@ struct cache_set {
 	struct semaphore	moving_in_flight;
 
 	struct workqueue_struct	*moving_gc_wq;
+	atomic_t		movinggc;
 
 	struct btree		*root;
 

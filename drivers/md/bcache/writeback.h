@@ -68,7 +68,8 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 
 	if (cache_mode != CACHE_MODE_WRITEBACK ||
 	    test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
-	    in_use > bch_cutoff_writeback_sync)
+	    in_use > bch_cutoff_writeback_sync ||
+		bch_is_gc_moving(dc->disk.c))
 		return false;
 
 	if (bio_op(bio) == REQ_OP_DISCARD)
