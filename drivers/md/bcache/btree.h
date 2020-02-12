@@ -256,6 +256,7 @@ int bch_btree_insert(struct cache_set *c, struct keylist *keys,
 		     atomic_t *journal_ref, struct bkey *replace_key);
 
 int bch_gc_thread_start(struct cache_set *c);
+int bch_is_gc_moving(struct cache_set *c);
 void bch_initial_gc_finish(struct cache_set *c);
 void bch_moving_gc(struct cache_set *c);
 int bch_btree_check(struct cache_set *c);
