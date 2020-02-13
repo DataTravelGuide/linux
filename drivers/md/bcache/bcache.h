@@ -367,6 +367,7 @@ struct cached_dev {
 	unsigned int		readahead;
 
 	unsigned int		io_disable:1;
+	unsigned int        legacy_detach_mode:1;
 	unsigned int		verify:1;
 	unsigned int		bypass_torture_test:1;
 
