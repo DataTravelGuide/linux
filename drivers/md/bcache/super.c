@@ -859,7 +859,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 		goto err;
 
 	set_capacity(d->disk, sectors);
-	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", idx);
+	snprintf(d->disk->disk_name, DISK_NAME_LEN, "escache%i", idx);
 
 	d->disk->major		= bcache_major;
 	d->disk->first_minor	= idx_to_first_minor(idx);
@@ -953,7 +953,7 @@ int bch_cached_dev_run(struct cached_dev *dc)
 	struct bcache_device *d = &dc->disk;
 	char *buf = kmemdup_nul(dc->sb.label, SB_LABEL_SIZE, GFP_KERNEL);
 	char *env[] = {
-		"DRIVER=bcache",
+		"DRIVER=escache",
 		kasprintf(GFP_KERNEL, "CACHED_UUID=%pU", dc->sb.uuid),
 		kasprintf(GFP_KERNEL, "CACHED_LABEL=%s", buf ? : ""),
 		NULL,
@@ -1001,7 +1001,7 @@ int bch_cached_dev_run(struct cached_dev *dc)
 
 	if (sysfs_create_link(&d->kobj, &disk_to_dev(d->disk)->kobj, "dev") ||
 	    sysfs_create_link(&disk_to_dev(d->disk)->kobj,
-			      &d->kobj, "bcache")) {
+			      &d->kobj, "escache")) {
 		pr_err("Couldn't create bcache dev <-> disk sysfs symlinks");
 		return -ENOMEM;
 	}
@@ -1379,7 +1379,7 @@ static int register_bdev(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 
 	err = "error creating kobject";
 	if (kobject_add(&dc->disk.kobj, &part_to_dev(bdev->bd_part)->kobj,
-			"bcache"))
+			"escache"))
 		goto err;
 	if (bch_cache_accounting_add_kobjs(&dc->accounting, &dc->disk.kobj))
 		goto err;
@@ -1459,7 +1459,7 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 	bch_flash_dev_request_init(d);
 	add_disk(d->disk);
 
-	if (kobject_add(&d->kobj, &disk_to_dev(d->disk)->kobj, "bcache"))
+	if (kobject_add(&d->kobj, &disk_to_dev(d->disk)->kobj, "escache"))
 		goto err;
 
 	bcache_device_link(d, c, "volume");
@@ -2288,7 +2288,7 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 
 	if (kobject_add(&ca->kobj,
 			&part_to_dev(bdev->bd_part)->kobj,
-			"bcache")) {
+			"escache")) {
 		err = "error calling kobject_add";
 		ret = -ENOMEM;
 		goto out;
@@ -2628,7 +2628,7 @@ static void bcache_exit(void)
 		destroy_workqueue(bch_journal_wq);
 
 	if (bcache_major)
-		unregister_blkdev(bcache_major, "bcache");
+		unregister_blkdev(bcache_major, "escache");
 	unregister_reboot_notifier(&reboot);
 	mutex_destroy(&bch_register_lock);
 }
@@ -2674,7 +2674,7 @@ static int __init bcache_init(void)
 	init_waitqueue_head(&unregister_wait);
 	register_reboot_notifier(&reboot);
 
-	bcache_major = register_blkdev(0, "bcache");
+	bcache_major = register_blkdev(0, "escache");
 	if (bcache_major < 0) {
 		unregister_reboot_notifier(&reboot);
 		mutex_destroy(&bch_register_lock);
@@ -2689,7 +2689,7 @@ static int __init bcache_init(void)
 	if (!bch_journal_wq)
 		goto err;
 
-	bcache_kobj = kobject_create_and_add("bcache", fs_kobj);
+	bcache_kobj = kobject_create_and_add("escache", fs_kobj);
 	if (!bcache_kobj)
 		goto err;
 
