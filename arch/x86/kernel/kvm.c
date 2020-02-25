@@ -45,7 +45,6 @@
 #include <asm/apic.h>
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
-#include <asm/kvm_guest.h>
 #include <asm/tlb.h>
 
 static int kvmapf = 1;
@@ -66,15 +65,6 @@ static int __init parse_no_stealacc(char *arg)
 }
 
 early_param("no-steal-acc", parse_no_stealacc);
-
-static int kvmclock_vsyscall = 1;
-static int __init parse_no_kvmclock_vsyscall(char *arg)
-{
-        kvmclock_vsyscall = 0;
-        return 0;
-}
-
-early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
 
 static DEFINE_PER_CPU_DECRYPTED(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
 static DEFINE_PER_CPU_DECRYPTED(struct kvm_steal_time, steal_time) __aligned(64);
@@ -467,6 +457,7 @@ static void __send_ipi_mask(const struct cpumask *mask, int vector)
 #else
 	u64 ipi_bitmap = 0;
 #endif
+	long ret;
 
 	if (cpumask_empty(mask))
 		return;
@@ -492,8 +483,9 @@ static void __send_ipi_mask(const struct cpumask *mask, int vector)
 		} else if (apic_id < min + KVM_IPI_CLUSTER_SIZE) {
 			max = apic_id < max ? max : apic_id;
 		} else {
-			kvm_hypercall4(KVM_HC_SEND_IPI, (unsigned long)ipi_bitmap,
+			ret = kvm_hypercall4(KVM_HC_SEND_IPI, (unsigned long)ipi_bitmap,
 				(unsigned long)(ipi_bitmap >> BITS_PER_LONG), min, icr);
+			WARN_ONCE(ret < 0, "KVM: failed to send PV IPI: %ld", ret);
 			min = max = apic_id;
 			ipi_bitmap = 0;
 		}
@@ -501,8 +493,9 @@ static void __send_ipi_mask(const struct cpumask *mask, int vector)
 	}
 
 	if (ipi_bitmap) {
-		kvm_hypercall4(KVM_HC_SEND_IPI, (unsigned long)ipi_bitmap,
+		ret = kvm_hypercall4(KVM_HC_SEND_IPI, (unsigned long)ipi_bitmap,
 			(unsigned long)(ipi_bitmap >> BITS_PER_LONG), min, icr);
+		WARN_ONCE(ret < 0, "KVM: failed to send PV IPI: %ld", ret);
 	}
 
 	local_irq_restore(flags);
@@ -655,9 +648,6 @@ static void __init kvm_guest_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
 
-	if (kvmclock_vsyscall)
-		kvm_setup_vsyscall_timeinfo();
-
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
@@ -729,6 +719,7 @@ static void __init kvm_apic_init(void)
 
 static void __init kvm_init_platform(void)
 {
+	kvmclock_init();
 	x86_platform.apic_post_init = kvm_apic_init;
 }
 
@@ -874,3 +865,39 @@ void __init kvm_spinlock_init(void)
 }
 
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */
+
+#ifdef CONFIG_ARCH_CPUIDLE_HALTPOLL
+
+static void kvm_disable_host_haltpoll(void *i)
+{
+	wrmsrl(MSR_KVM_POLL_CONTROL, 0);
+}
+
+static void kvm_enable_host_haltpoll(void *i)
+{
+	wrmsrl(MSR_KVM_POLL_CONTROL, 1);
+}
+
+void arch_haltpoll_enable(unsigned int cpu)
+{
+	if (!kvm_para_has_feature(KVM_FEATURE_POLL_CONTROL)) {
+		pr_err_once("kvm: host does not support poll control\n");
+		pr_err_once("kvm: host upgrade recommended\n");
+		return;
+	}
+
+	/* Enable guest halt poll disables host halt poll */
+	smp_call_function_single(cpu, kvm_disable_host_haltpoll, NULL, 1);
+}
+EXPORT_SYMBOL_GPL(arch_haltpoll_enable);
+
+void arch_haltpoll_disable(unsigned int cpu)
+{
+	if (!kvm_para_has_feature(KVM_FEATURE_POLL_CONTROL))
+		return;
+
+	/* Enable guest halt poll disables host halt poll */
+	smp_call_function_single(cpu, kvm_enable_host_haltpoll, NULL, 1);
+}
+EXPORT_SYMBOL_GPL(arch_haltpoll_disable);
+#endif

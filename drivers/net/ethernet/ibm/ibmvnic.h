@@ -31,6 +31,7 @@
 #define IBMVNIC_INVALID_MAP	-1
 #define IBMVNIC_STATS_TIMEOUT	1
 #define IBMVNIC_INIT_FAILED	2
+#define IBMVNIC_OPEN_FAILED	3
 
 /* basic structures plus 100 2k buffers */
 #define IBMVNIC_IO_ENTITLEMENT_DEFAULT	610305
@@ -48,6 +49,8 @@
 
 #define IBMVNIC_MAX_LTB_SIZE ((1 << (MAX_ORDER - 1)) * PAGE_SIZE)
 #define IBMVNIC_BUFFER_HLEN 500
+
+#define IBMVNIC_RESET_DELAY 100
 
 static const char ibmvnic_priv_flags[][ETH_GSTRING_LEN] = {
 #define IBMVNIC_USE_SERVER_MAXES 0x1
@@ -377,11 +380,16 @@ struct ibmvnic_phys_parms {
 	u8 flags2;
 #define IBMVNIC_LOGICAL_LNK_ACTIVE 0x80
 	__be32 speed;
-#define IBMVNIC_AUTONEG		0x80
-#define IBMVNIC_10MBPS		0x40
-#define IBMVNIC_100MBPS		0x20
-#define IBMVNIC_1GBPS		0x10
-#define IBMVNIC_10GBPS		0x08
+#define IBMVNIC_AUTONEG		0x80000000
+#define IBMVNIC_10MBPS		0x40000000
+#define IBMVNIC_100MBPS		0x20000000
+#define IBMVNIC_1GBPS		0x10000000
+#define IBMVNIC_10GBP		0x08000000
+#define IBMVNIC_40GBPS		0x04000000
+#define IBMVNIC_100GBPS		0x02000000
+#define IBMVNIC_25GBPS		0x01000000
+#define IBMVNIC_50GBPS		0x00800000
+#define IBMVNIC_200GBPS		0x00400000
 	__be32 mtu;
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
@@ -850,6 +858,7 @@ struct ibmvnic_crq_queue {
 	dma_addr_t msg_token;
 	spinlock_t lock;
 	bool active;
+	char name[32];
 };
 
 union sub_crq {
@@ -876,6 +885,7 @@ struct ibmvnic_sub_crq_queue {
 	struct sk_buff *rx_skb_top;
 	struct ibmvnic_adapter *adapter;
 	atomic_t used;
+	char name[32];
 };
 
 struct ibmvnic_long_term_buff {
@@ -962,7 +972,6 @@ struct ibmvnic_tunables {
 	u64 rx_entries;
 	u64 tx_entries;
 	u64 mtu;
-	struct sockaddr mac;
 };
 
 struct ibmvnic_adapter {
@@ -998,6 +1007,9 @@ struct ibmvnic_adapter {
 
 	int phys_link_state;
 	int logical_link_state;
+
+	u32 speed;
+	u8 duplex;
 
 	/* login data */
 	struct ibmvnic_login_buffer *login_buf;
@@ -1075,13 +1087,13 @@ struct ibmvnic_adapter {
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
 	enum ibmvnic_reset_reason reset_reason;
-	struct mutex rwi_lock;
+	spinlock_t rwi_lock;
 	struct list_head rwi_list;
 	struct work_struct ibmvnic_reset;
-	bool resetting;
+	struct delayed_work ibmvnic_delayed_reset;
+	unsigned long resetting;
 	bool napi_enabled, from_passive_init;
 
-	bool mac_change_pending;
 	bool failover_pending;
 	bool force_reset_recovery;
 

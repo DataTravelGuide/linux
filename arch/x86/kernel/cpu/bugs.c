@@ -33,11 +33,14 @@
 #include <asm/hypervisor.h>
 #include <asm/spec_ctrl.h>
 
+#include "cpu.h"
+
 static void __init spectre_v1_select_mitigation(void);
 static void __init spectre_v2_select_mitigation(void);
 static void __init ssb_select_mitigation(void);
 static void __init l1tf_select_mitigation(void);
 static void __init mds_select_mitigation(void);
+static void __init taa_select_mitigation(void);
 
 /* The base value of the SPEC_CTRL MSR that always has to be preserved. */
 u64 x86_spec_ctrl_base;
@@ -101,13 +104,14 @@ void __init check_bugs(void)
 	/* IBRS initialization */
 	spec_ctrl_init();
 
-	/* Select the proper spectre mitigation before patching alternatives */
+	/* Select the proper CPU mitigations before patching alternatives: */
 	spectre_v1_select_mitigation();
 	spectre_v2_select_mitigation();
 	spec_ctrl_cpu_init();
 	ssb_select_mitigation();
 	l1tf_select_mitigation();
 	mds_select_mitigation();
+	taa_select_mitigation();
 
 	arch_smt_update();
 
@@ -272,6 +276,100 @@ static int __init mds_cmdline(char *str)
 early_param("mds", mds_cmdline);
 
 #undef pr_fmt
+#define pr_fmt(fmt)	"TAA: " fmt
+
+/* Default mitigation for TAA-affected CPUs */
+static enum taa_mitigations taa_mitigation __ro_after_init = TAA_MITIGATION_VERW;
+static bool taa_nosmt __ro_after_init;
+
+static const char * const taa_strings[] = {
+	[TAA_MITIGATION_OFF]		= "Vulnerable",
+	[TAA_MITIGATION_UCODE_NEEDED]	= "Vulnerable: Clear CPU buffers attempted, no microcode",
+	[TAA_MITIGATION_VERW]		= "Mitigation: Clear CPU buffers",
+	[TAA_MITIGATION_TSX_DISABLED]	= "Mitigation: TSX disabled",
+};
+
+static void __init taa_select_mitigation(void)
+{
+	u64 ia32_cap;
+
+	if (!boot_cpu_has_bug(X86_BUG_TAA)) {
+		taa_mitigation = TAA_MITIGATION_OFF;
+		return;
+	}
+
+	/* TSX previously disabled by tsx=off */
+	if (!boot_cpu_has(X86_FEATURE_RTM)) {
+		taa_mitigation = TAA_MITIGATION_TSX_DISABLED;
+		goto out;
+	}
+
+	if (cpu_mitigations_off()) {
+		taa_mitigation = TAA_MITIGATION_OFF;
+		return;
+	}
+
+	/* TAA mitigation is turned off on the cmdline (tsx_async_abort=off) */
+	if (taa_mitigation == TAA_MITIGATION_OFF)
+		goto out;
+
+	if (boot_cpu_has(X86_FEATURE_MD_CLEAR))
+		taa_mitigation = TAA_MITIGATION_VERW;
+	else
+		taa_mitigation = TAA_MITIGATION_UCODE_NEEDED;
+
+	/*
+	 * VERW doesn't clear the CPU buffers when MD_CLEAR=1 and MDS_NO=1.
+	 * A microcode update fixes this behavior to clear CPU buffers. It also
+	 * adds support for MSR_IA32_TSX_CTRL which is enumerated by the
+	 * ARCH_CAP_TSX_CTRL_MSR bit.
+	 *
+	 * On MDS_NO=1 CPUs if ARCH_CAP_TSX_CTRL_MSR is not set, microcode
+	 * update is required.
+	 */
+	ia32_cap = x86_read_arch_cap_msr();
+	if ( (ia32_cap & ARCH_CAP_MDS_NO) &&
+	    !(ia32_cap & ARCH_CAP_TSX_CTRL_MSR))
+		taa_mitigation = TAA_MITIGATION_UCODE_NEEDED;
+
+	/*
+	 * TSX is enabled, select alternate mitigation for TAA which is
+	 * the same as MDS. Enable MDS static branch to clear CPU buffers.
+	 *
+	 * For guests that can't determine whether the correct microcode is
+	 * present on host, enable the mitigation for UCODE_NEEDED as well.
+	 */
+	static_branch_enable(&mds_user_clear);
+
+	if (taa_nosmt || cpu_mitigations_auto_nosmt())
+		cpu_smt_disable(false);
+
+out:
+	pr_info("%s\n", taa_strings[taa_mitigation]);
+}
+
+static int __init tsx_async_abort_parse_cmdline(char *str)
+{
+	if (!boot_cpu_has_bug(X86_BUG_TAA))
+		return 0;
+
+	if (!str)
+		return -EINVAL;
+
+	if (!strcmp(str, "off")) {
+		taa_mitigation = TAA_MITIGATION_OFF;
+	} else if (!strcmp(str, "full")) {
+		taa_mitigation = TAA_MITIGATION_VERW;
+	} else if (!strcmp(str, "full,nosmt")) {
+		taa_mitigation = TAA_MITIGATION_VERW;
+		taa_nosmt = true;
+	}
+
+	return 0;
+}
+early_param("tsx_async_abort", tsx_async_abort_parse_cmdline);
+
+#undef pr_fmt
 #define pr_fmt(fmt)     "Spectre V1 : " fmt
 
 enum spectre_v1_mitigation {
@@ -286,18 +384,6 @@ static const char * const spectre_v1_strings[] = {
 	[SPECTRE_V1_MITIGATION_NONE] = "Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers",
 	[SPECTRE_V1_MITIGATION_AUTO] = "Mitigation: usercopy/swapgs barriers and __user pointer sanitization",
 };
-
-static bool is_swapgs_serializing(void)
-{
-	/*
-	 * Technically, swapgs isn't serializing on AMD (despite it previously
-	 * being documented as such in the APM).  But according to AMD, %gs is
-	 * updated non-speculatively, and the issuing of %gs-relative memory
-	 * operands will be blocked until the %gs update completes, which is
-	 * good enough for our purposes.
-	 */
-	return boot_cpu_data.x86_vendor == X86_VENDOR_AMD;
-}
 
 /*
  * Does SMAP provide full mitigation against speculative kernel access to
@@ -349,10 +435,11 @@ static void __init spectre_v1_select_mitigation(void)
 			 * PTI as the CR3 write in the Meltdown mitigation
 			 * is serializing.
 			 *
-			 * If neither is there, mitigate with an LFENCE.
+			 * If neither is there, mitigate with an LFENCE to
+			 * stop speculation through swapgs.
 			 */
-			if (!is_swapgs_serializing() && !boot_cpu_has(X86_FEATURE_PTI) &&
-			    !boot_cpu_has(X86_FEATURE_SPEC_CTRL_ENTRY))
+			if (boot_cpu_has_bug(X86_BUG_SWAPGS) &&
+			    !boot_cpu_has(X86_FEATURE_PTI))
 				setup_force_cpu_cap(X86_FEATURE_FENCE_SWAPGS_USER);
 
 			/*
@@ -837,6 +924,7 @@ static void update_mds_branch_idle(void)
 }
 
 #define MDS_MSG_SMT "MDS CPU bug present and SMT on, data leak possible. See https://www.kernel.org/doc/html/latest/admin-guide/hw-vuln/mds.html for more details.\n"
+#define TAA_MSG_SMT "TAA CPU bug present and SMT on, data leak possible. See https://www.kernel.org/doc/html/latest/admin-guide/hw-vuln/tsx_async_abort.html for more details.\n"
 
 void arch_smt_update(void)
 {
@@ -866,6 +954,17 @@ void arch_smt_update(void)
 		update_mds_branch_idle();
 		break;
 	case MDS_MITIGATION_OFF:
+		break;
+	}
+
+	switch (taa_mitigation) {
+	case TAA_MITIGATION_VERW:
+	case TAA_MITIGATION_UCODE_NEEDED:
+		if (sched_smt_active())
+			pr_warn_once(TAA_MSG_SMT);
+		break;
+	case TAA_MITIGATION_TSX_DISABLED:
+	case TAA_MITIGATION_OFF:
 		break;
 	}
 
@@ -973,6 +1072,16 @@ static enum ssb_mitigation __init __ssb_select_mitigation(void)
 	}
 
 	/*
+	 * If SSBD is controlled by the SPEC_CTRL MSR, then set the proper
+	 * bit in the mask to allow guests to use the mitigation even in the
+	 * case where the host does not enable it.
+	 */
+	if (static_cpu_has(X86_FEATURE_SPEC_CTRL_SSBD) ||
+	    static_cpu_has(X86_FEATURE_AMD_SSBD)) {
+		x86_spec_ctrl_mask |= SPEC_CTRL_SSBD;
+	}
+
+	/*
 	 * We have three CPU feature flags that are in play here:
 	 *  - X86_BUG_SPEC_STORE_BYPASS - CPU is susceptible.
 	 *  - X86_FEATURE_SSBD - CPU is able to turn off speculative store bypass
@@ -989,7 +1098,6 @@ static enum ssb_mitigation __init __ssb_select_mitigation(void)
 			x86_amd_ssb_disable();
 		} else {
 			x86_spec_ctrl_base |= SPEC_CTRL_SSBD;
-			x86_spec_ctrl_mask |= SPEC_CTRL_SSBD;
 			wrmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
 		}
 	}
@@ -1037,15 +1145,25 @@ static int ssb_prctl_set(struct task_struct *task, unsigned long ctrl)
 		if (task_spec_ssb_force_disable(task))
 			return -EPERM;
 		task_clear_spec_ssb_disable(task);
+		task_clear_spec_ssb_noexec(task);
 		task_update_spec_tif(task);
 		break;
 	case PR_SPEC_DISABLE:
 		task_set_spec_ssb_disable(task);
+		task_clear_spec_ssb_noexec(task);
 		task_update_spec_tif(task);
 		break;
 	case PR_SPEC_FORCE_DISABLE:
 		task_set_spec_ssb_disable(task);
 		task_set_spec_ssb_force_disable(task);
+		task_clear_spec_ssb_noexec(task);
+		task_update_spec_tif(task);
+		break;
+	case PR_SPEC_DISABLE_NOEXEC:
+		if (task_spec_ssb_force_disable(task))
+			return -EPERM;
+		task_set_spec_ssb_disable(task);
+		task_set_spec_ssb_noexec(task);
 		task_update_spec_tif(task);
 		break;
 	default:
@@ -1122,6 +1240,8 @@ static int ssb_prctl_get(struct task_struct *task)
 	case SPEC_STORE_BYPASS_PRCTL:
 		if (task_spec_ssb_force_disable(task))
 			return PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE;
+		if (task_spec_ssb_noexec(task))
+			return PR_SPEC_PRCTL | PR_SPEC_DISABLE_NOEXEC;
 		if (task_spec_ssb_disable(task))
 			return PR_SPEC_PRCTL | PR_SPEC_DISABLE;
 		return PR_SPEC_PRCTL | PR_SPEC_ENABLE;
@@ -1174,6 +1294,9 @@ void x86_spec_ctrl_setup_ap(void)
 	if (ssb_mode == SPEC_STORE_BYPASS_DISABLE)
 		x86_amd_ssb_disable();
 }
+
+int itlb_multihit_kvm_mitigation = -1;
+EXPORT_SYMBOL_GPL(itlb_multihit_kvm_mitigation);
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"L1TF: " fmt
@@ -1260,7 +1383,8 @@ static void __init l1tf_select_mitigation(void)
 #endif
 
 	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
-	if (e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
+	if (l1tf_mitigation != L1TF_MITIGATION_OFF &&
+			e820__mapped_any(half_pa, ULLONG_MAX - half_pa, E820_TYPE_RAM)) {
 		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
 				half_pa);
@@ -1330,10 +1454,26 @@ static ssize_t l1tf_show_state(char *buf)
 		       l1tf_vmx_states[l1tf_vmx_mitigation],
 		       sched_smt_active() ? "vulnerable" : "disabled");
 }
+
+static ssize_t itlb_multihit_show_state(char *buf)
+{
+	if (itlb_multihit_kvm_mitigation == -1)
+		return sprintf(buf, "Processor vulnerable\n");
+
+	if (itlb_multihit_kvm_mitigation)
+		return sprintf(buf, "KVM: Mitigation: Split huge pages\n");
+	else
+		return sprintf(buf, "KVM: Vulnerable\n");
+}
 #else
 static ssize_t l1tf_show_state(char *buf)
 {
 	return sprintf(buf, "%s\n", L1TF_DEFAULT_MSG);
+}
+
+static ssize_t itlb_multihit_show_state(char *buf)
+{
+	return sprintf(buf, "Processor vulnerable\n");
 }
 #endif
 
@@ -1351,6 +1491,21 @@ static ssize_t mds_show_state(char *buf)
 	}
 
 	return sprintf(buf, "%s; SMT %s\n", mds_strings[mds_mitigation],
+		       sched_smt_active() ? "vulnerable" : "disabled");
+}
+
+static ssize_t tsx_async_abort_show_state(char *buf)
+{
+	if ((taa_mitigation == TAA_MITIGATION_TSX_DISABLED) ||
+	    (taa_mitigation == TAA_MITIGATION_OFF))
+		return sprintf(buf, "%s\n", taa_strings[taa_mitigation]);
+
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
+		return sprintf(buf, "%s; SMT Host state unknown\n",
+			       taa_strings[taa_mitigation]);
+	}
+
+	return sprintf(buf, "%s; SMT %s\n", taa_strings[taa_mitigation],
 		       sched_smt_active() ? "vulnerable" : "disabled");
 }
 
@@ -1422,6 +1577,12 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 	case X86_BUG_MDS:
 		return mds_show_state(buf);
 
+	case X86_BUG_TAA:
+		return tsx_async_abort_show_state(buf);
+
+	case X86_BUG_ITLB_MULTIHIT:
+		return itlb_multihit_show_state(buf);
+
 	default:
 		break;
 	}
@@ -1457,5 +1618,15 @@ ssize_t cpu_show_l1tf(struct device *dev, struct device_attribute *attr, char *b
 ssize_t cpu_show_mds(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return cpu_show_common(dev, attr, buf, X86_BUG_MDS);
+}
+
+ssize_t cpu_show_tsx_async_abort(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return cpu_show_common(dev, attr, buf, X86_BUG_TAA);
+}
+
+ssize_t cpu_show_itlb_multihit(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return cpu_show_common(dev, attr, buf, X86_BUG_ITLB_MULTIHIT);
 }
 #endif

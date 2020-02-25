@@ -46,10 +46,8 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, pgprot_t newprot,
 			int prot_numa);
-int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-			pmd_t *pmd, pfn_t pfn, bool write);
-int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-			pud_t *pud, pfn_t pfn, bool write);
+int vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
+int vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
 enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_FLAG,
 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
@@ -212,9 +210,9 @@ static inline int hpage_nr_pages(struct page *page)
 }
 
 struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-		pmd_t *pmd, int flags);
+		pmd_t *pmd, int flags, struct dev_pagemap **pgmap);
 struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
-		pud_t *pud, int flags);
+		pud_t *pud, int flags, struct dev_pagemap **pgmap);
 
 extern int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t orig_pmd);
 
@@ -342,13 +340,13 @@ static inline void mm_put_huge_zero_page(struct mm_struct *mm)
 }
 
 static inline struct page *follow_devmap_pmd(struct vm_area_struct *vma,
-		unsigned long addr, pmd_t *pmd, int flags)
+	unsigned long addr, pmd_t *pmd, int flags, struct dev_pagemap **pgmap)
 {
 	return NULL;
 }
 
 static inline struct page *follow_devmap_pud(struct vm_area_struct *vma,
-		unsigned long addr, pud_t *pud, int flags)
+	unsigned long addr, pud_t *pud, int flags, struct dev_pagemap **pgmap)
 {
 	return NULL;
 }
