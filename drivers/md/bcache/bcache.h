@@ -200,8 +200,6 @@ struct bucket {
 	uint8_t		gen;
 	uint8_t		last_gc; /* Most out of date gen in the btree */
 	uint16_t	gc_mark; /* Bitfield used by GC. See below for field */
-	uint16_t	gc_dirty; /* Bitfield used by dirty GC */
-	struct cache	*ca;
 };
 
 /*
@@ -217,7 +215,6 @@ BITMASK(GC_MARK,	 struct bucket, gc_mark, 0, 2);
 #define MAX_GC_SECTORS_USED	(~(~0ULL << GC_SECTORS_USED_SIZE))
 BITMASK(GC_SECTORS_USED, struct bucket, gc_mark, 2, GC_SECTORS_USED_SIZE);
 BITMASK(GC_MOVE, struct bucket, gc_mark, 15, 1);
-BITMASK(GC_DIRTY_USED, struct bucket, gc_dirty, 0, 16);
 
 #include "journal.h"
 #include "stats.h"
@@ -372,7 +369,6 @@ struct cached_dev {
 	unsigned		readahead;
 
 	unsigned		io_disable:1;
-	unsigned		legacy_detach_mode:1;
 	unsigned		verify:1;
 	unsigned		bypass_torture_test:1;
 
@@ -530,7 +526,6 @@ struct cache_set {
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
 	struct closure		caching;
-	struct closure		detaching;
 
 	struct closure		sb_write;
 	struct semaphore	sb_write_mutex;
@@ -643,7 +638,6 @@ struct cache_set {
 	struct semaphore	moving_in_flight;
 
 	struct workqueue_struct	*moving_gc_wq;
-	atomic_t		movinggc;
 
 	struct btree		*root;
 
@@ -708,7 +702,6 @@ struct cache_set {
 	unsigned		gc_always_rewrite:1;
 	unsigned		shrinker_disabled:1;
 	unsigned		copy_gc_enabled:1;
-	unsigned		copy_gc_dirty_only:1;
 
 #define BUCKET_HASH_BITS	12
 	struct hlist_head	bucket_hash[1 << BUCKET_HASH_BITS];
@@ -991,7 +984,6 @@ void bcache_device_stop(struct bcache_device *);
 
 void bch_cache_set_unregister(struct cache_set *);
 void bch_cache_set_stop(struct cache_set *);
-void bch_cache_set_detach(struct cache_set *);
 
 struct cache_set *bch_cache_set_alloc(struct cache_sb *);
 void bch_btree_cache_free(struct cache_set *);
