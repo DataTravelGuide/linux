@@ -113,7 +113,6 @@ read_attribute(partial_stripes_expensive);
 rw_attribute(synchronous);
 rw_attribute(journal_delay_ms);
 rw_attribute(io_disable);
-rw_attribute(legacy_detach_mode);
 rw_attribute(discard);
 rw_attribute(running);
 rw_attribute(label);
@@ -129,7 +128,6 @@ rw_attribute(expensive_debug_checks);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
-rw_attribute(copy_gc_dirty_only);
 rw_attribute(size);
 
 static ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
@@ -176,7 +174,6 @@ SHOW(__bch_cached_dev)
 	sysfs_hprint(io_errors,		atomic_read(&dc->io_errors));
 	sysfs_printf(io_error_limit,	"%i", dc->error_limit);
 	sysfs_printf(io_disable,	"%i", dc->io_disable);
-	sysfs_printf(legacy_detach_mode, "%i", dc->legacy_detach_mode);
 	var_print(writeback_rate_update_seconds);
 	var_print(writeback_rate_i_term_inverse);
 	var_print(writeback_rate_p_term_inverse);
@@ -275,12 +272,6 @@ STORE(__cached_dev)
 		dc->io_disable = v ? 1 : 0;
 	}
 
-	if (attr == &sysfs_legacy_detach_mode) {
-		int v = strtoul_or_return(buf);
-
-		dc->legacy_detach_mode = v ? 1 : 0;
-        }
-
 	d_strtoi_h(sequential_cutoff);
 	d_strtoi_h(readahead);
 
@@ -327,7 +318,7 @@ STORE(__cached_dev)
 		env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
 		if (!env)
 			return -ENOMEM;
-		add_uevent_var(env, "DRIVER=escache");
+		add_uevent_var(env, "DRIVER=bcache");
 		add_uevent_var(env, "CACHED_UUID=%pU", dc->sb.uuid),
 		add_uevent_var(env, "CACHED_LABEL=%s", buf);
 		kobject_uevent_env(
@@ -402,7 +393,6 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_errors,
 	&sysfs_io_error_limit,
 	&sysfs_io_disable,
-	&sysfs_legacy_detach_mode,
 	&sysfs_dirty_data,
 	&sysfs_stripe_size,
 	&sysfs_partial_stripes_expensive,
@@ -660,7 +650,6 @@ SHOW(__bch_cache_set)
 	sysfs_printf(gc_always_rewrite,		"%i", c->gc_always_rewrite);
 	sysfs_printf(btree_shrinker_disabled,	"%i", c->shrinker_disabled);
 	sysfs_printf(copy_gc_enabled,		"%i", c->copy_gc_enabled);
-	sysfs_printf(copy_gc_dirty_only,        "%i", c->copy_gc_dirty_only);
 	sysfs_printf(io_disable,		"%i",
 		     test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
@@ -681,9 +670,6 @@ STORE(__bch_cache_set)
 
 	if (attr == &sysfs_stop)
 		bch_cache_set_stop(c);
-
-	if (attr == &sysfs_detach)
-		bch_cache_set_detach(c);
 
 	if (attr == &sysfs_synchronous) {
 		bool sync = strtoul_or_return(buf);
@@ -775,7 +761,6 @@ STORE(__bch_cache_set)
 	sysfs_strtoul(gc_always_rewrite,	c->gc_always_rewrite);
 	sysfs_strtoul(btree_shrinker_disabled,	c->shrinker_disabled);
 	sysfs_strtoul(copy_gc_enabled,		c->copy_gc_enabled);
-	sysfs_strtoul(copy_gc_dirty_only,	c->copy_gc_dirty_only);
 
 	return size;
 }
@@ -800,7 +785,6 @@ static void bch_cache_set_internal_release(struct kobject *k)
 static struct attribute *bch_cache_set_files[] = {
 	&sysfs_unregister,
 	&sysfs_stop,
-	&sysfs_detach,
 	&sysfs_synchronous,
 	&sysfs_journal_delay_ms,
 	&sysfs_flash_vol_create,
@@ -855,7 +839,6 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_gc_always_rewrite,
 	&sysfs_btree_shrinker_disabled,
 	&sysfs_copy_gc_enabled,
-	&sysfs_copy_gc_dirty_only,
 	&sysfs_io_disable,
 	NULL
 };

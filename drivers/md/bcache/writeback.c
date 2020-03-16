@@ -351,25 +351,7 @@ static void read_dirty(struct cached_dev *dc)
 		nk = 0;
 
 		do {
-			if (ptr_stale(dc->disk.c, &next->key, 0)) {
-				unsigned i;
-				struct cache *ca;
-
-				printk(KERN_ERR "bcache: error on %pU: ", dc->disk.c->sb.set_uuid);
-				printk("key stale: %i, b gen %hhu, ptr gen %llu",
-				       ptr_stale(dc->disk.c, &next->key, 0),
-				       PTR_BUCKET(dc->disk.c, &next->key, 0)->gen, PTR_GEN(&next->key, 0));
-				printk(", disabling caching\n");
-
-				for_each_cache(ca, dc->disk.c, i) {
-					memset(ca->sb.uuid, 0, 16);
-				}
-				bcache_write_super(dc->disk.c);
-				bch_cache_set_stop(dc->disk.c);
-
-				dump_stack();
-				break;
-			}
+			BUG_ON(ptr_stale(dc->disk.c, &next->key, 0));
 
 			/*
 			 * Don't combine too many operations, even if they
@@ -663,10 +645,8 @@ static int bch_writeback_thread(void *arg)
 			 * data on cache. BCACHE_DEV_DETACHING flag is set in
 			 * bch_cached_dev_detach().
 			 */
-			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags)) {
-				up_write(&dc->writeback_lock);
+			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
 				break;
-			}
 		}
 
 		up_write(&dc->writeback_lock);
@@ -686,10 +666,6 @@ static int bch_writeback_thread(void *arg)
 		}
 	}
 
-	if (dc->writeback_write_wq) {
-		flush_workqueue(dc->writeback_write_wq);
-		destroy_workqueue(dc->writeback_write_wq);
-	}
 	cached_dev_put(dc);
 	wait_for_kthread_stop();
 

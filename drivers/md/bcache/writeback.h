@@ -79,8 +79,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 
 	if (cache_mode != CACHE_MODE_WRITEBACK ||
 	    test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
-	    in_use > CUTOFF_WRITEBACK_SYNC ||
-	    bch_is_gc_moving(dc->disk.c))
+	    in_use > CUTOFF_WRITEBACK_SYNC)
 		return false;
 
 	if (dc->partial_stripes_expensive &&
