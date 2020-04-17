@@ -348,7 +348,7 @@ static int bch_allocator_thread(void *arg)
 
 			if (ca->set->gc_stats.in_use > CUTOFF_WRITEBACK_SYNC &&
 			    ca->set->copy_gc_enabled &&
-+			    ca->set->copy_gc_dirty_only &&
+			    ca->set->copy_gc_dirty_only &&
 			    !bch_is_gc_moving(ca->set)) {
 				atomic_set(&ca->set->movinggc, 1);
 				ca->invalidate_needs_gc = 1;
