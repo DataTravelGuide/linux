@@ -147,7 +147,6 @@ extern u64 cpuidle_poll_time(struct cpuidle_driver *drv,
 			     struct cpuidle_device *dev);
 
 extern int cpuidle_register_driver(struct cpuidle_driver *drv);
-extern int rhel_cpuidle_register_driver_hpoll(struct cpuidle_driver *drv);
 extern struct cpuidle_driver *cpuidle_get_driver(void);
 extern struct cpuidle_driver *cpuidle_driver_ref(void);
 extern void cpuidle_driver_unref(void);
