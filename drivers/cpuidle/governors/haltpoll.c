@@ -133,7 +133,7 @@ static int haltpoll_enable_device(struct cpuidle_driver *drv,
 
 static struct cpuidle_governor haltpoll_governor = {
 	.name =			"haltpoll",
-	.rating =		9,
+	.rating =		21,
 	.enable =		haltpoll_enable_device,
 	.select =		haltpoll_select,
 	.reflect =		haltpoll_reflect,
