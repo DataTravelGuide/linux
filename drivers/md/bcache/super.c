@@ -15,7 +15,6 @@
 #include "writeback.h"
 
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/debugfs.h>
 #include <linux/genhd.h>
 #include <linux/idr.h>
@@ -1052,37 +1051,6 @@ static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
 	cancel_delayed_work_sync(&dc->writeback_rate_update);
 }
 
-static bool bcache_device_requires_stable_pages(struct cached_dev *dc)
-{
-	struct cache *ca;
-	struct request_queue *q;
-	unsigned int i;
-
-	q = bdev_get_queue(dc->bdev);
-	if (q && bdi_cap_stable_pages_required(q->backing_dev_info))
-		return true;
-
-	if (!dc->disk.c)
-		return false;
-
-	for_each_cache(ca, dc->disk.c, i) {
-		q = bdev_get_queue(ca->bdev);
-		if (q && bdi_cap_stable_pages_required(q->backing_dev_info))
-			return true;
-	}
-	return false;
-}
-
-static void bcache_device_cap_stable_pages(struct cached_dev *dc)
-{
-	if (bcache_device_requires_stable_pages(dc))
-		dc->disk.disk->queue->backing_dev_info->capabilities |=
-			 BDI_CAP_STABLE_WRITES;
-	else
-		dc->disk.disk->queue->backing_dev_info->capabilities &=
-			 ~BDI_CAP_STABLE_WRITES;
-}
-
 static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
@@ -1112,7 +1080,6 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	calc_cached_dev_sectors(dc->disk.c);
 	bcache_device_detach(&dc->disk);
-	bcache_device_cap_stable_pages(dc);
 	list_move(&dc->list, &uncached_devices);
 
 	clear_bit(BCACHE_DEV_DETACHING, &dc->disk.flags);
@@ -1240,7 +1207,6 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 
 	bcache_device_attach(&dc->disk, c, u - c->uuids);
 	list_move(&dc->list, &c->cached_devs);
-	bcache_device_cap_stable_pages(dc);
 	calc_cached_dev_sectors(c);
 
 	/*
