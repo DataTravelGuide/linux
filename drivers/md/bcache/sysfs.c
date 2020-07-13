@@ -96,6 +96,7 @@ read_attribute(cutoff_writeback);
 read_attribute(cutoff_writeback_sync);
 rw_attribute(congested_read_threshold_us);
 rw_attribute(congested_write_threshold_us);
+rw_attribute(gc_sectors_percent);
 
 rw_attribute(sequential_cutoff);
 rw_attribute(data_csum);
@@ -763,6 +764,7 @@ SHOW(__bch_cache_set)
 	sysfs_printf(idle_max_writeback_rate,	"%i",
 		     c->idle_max_writeback_rate_enabled);
 	sysfs_printf(gc_after_writeback,	"%i", c->gc_after_writeback);
+	sysfs_printf(gc_sectors_percent,	"%i", c->gc_sectors_percent);
 	sysfs_printf(io_disable,		"%i",
 		     test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
@@ -836,6 +838,9 @@ STORE(__bch_cache_set)
 	sysfs_strtoul_clamp(congested_write_threshold_us,
 			    c->congested_write_threshold_us,
 			    0, UINT_MAX);
+
+	sysfs_strtoul_clamp(gc_sectors_percent, c->gc_sectors_percent, 1,
+			    bch_cutoff_writeback_sync);
 
 	if (attr == &sysfs_errors) {
 		v = __sysfs_match_string(error_actions, -1, buf);
@@ -983,6 +988,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_io_disable,
 	&sysfs_cutoff_writeback,
 	&sysfs_cutoff_writeback_sync,
+	&sysfs_gc_sectors_percent,
 	NULL
 };
 KTYPE(bch_cache_set_internal);
