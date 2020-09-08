@@ -2550,7 +2550,8 @@ static void rbd_obj_end_request(struct rbd_obj_request *obj_req)
 		    obj_req->xferred == obj_req->ex.oe_len) ||
 		   (obj_req->result < 0 && !obj_req->xferred));
 	if (!obj_req->result) {
-		img_req->xferred += obj_req->xferred;
+		if (!img_req->result)
+			img_req->xferred += obj_req->xferred;
 		return;
 	}
 
@@ -2560,8 +2561,8 @@ static void rbd_obj_end_request(struct rbd_obj_request *obj_req)
 		 obj_req->ex.oe_off, obj_req->ex.oe_len, obj_req->result,
 		 obj_req->xferred);
 	if (!img_req->result) {
-		img_req->result = obj_req->result;
 		img_req->xferred = 0;
+		img_req->result = obj_req->result;
 	}
 }
 
