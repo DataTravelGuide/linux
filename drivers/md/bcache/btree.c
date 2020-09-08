@@ -1746,6 +1746,8 @@ static void btree_gc_start(struct cache_set *c)
 	if (!c->gc_mark_valid)
 		return;
 
+	pr_info("start gc: on set %pU", c->sb.set_uuid);
+
 	mutex_lock(&c->bucket_lock);
 
 	c->gc_mark_valid = 0;
@@ -1829,6 +1831,9 @@ static void bch_btree_gc_finish(struct cache_set *c)
 	}
 
 	mutex_unlock(&c->bucket_lock);
+
+	pr_info("finish gc: on set %pU, avail_nbuckets is %zu", c->sb.set_uuid,
+		c->avail_nbuckets);
 }
 
 static void bch_btree_gc(struct cache_set *c)

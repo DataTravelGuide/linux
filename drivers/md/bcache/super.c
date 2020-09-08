@@ -26,6 +26,7 @@
 
 unsigned int bch_cutoff_writeback;
 unsigned int bch_cutoff_writeback_sync;
+unsigned int bch_free_inc_percent;
 
 static const char bcache_magic[] = {
 	0xc6, 0x85, 0x73, 0xf6, 0x4e, 0x1a, 0x45, 0xca,
@@ -2179,6 +2180,8 @@ void bch_cache_release(struct kobject *kobj)
 static int cache_alloc(struct cache *ca)
 {
 	size_t free;
+	size_t free_inc;
+	size_t heap;
 	size_t btree_buckets;
 	struct bucket *b;
 	int ret = -ENOMEM;
@@ -2228,12 +2231,18 @@ static int cache_alloc(struct cache *ca)
 		goto err_none_alloc;
 	}
 
-	if (!init_fifo(&ca->free_inc, free << 2, GFP_KERNEL)) {
+	free_inc = bch_free_inc_percent ? \
+		   div_u64(bch_free_inc_percent * ca->sb.nbuckets, 100) : \
+		   free << 2;
+
+	if (!init_fifo(&ca->free_inc, free_inc, GFP_KERNEL)) {
 		err = "ca->free_inc alloc failed";
 		goto err_free_inc_alloc;
 	}
 
-	if (!init_heap(&ca->heap, free << 3, GFP_KERNEL)) {
+	heap = free_inc << 1;
+
+	if (!init_heap(&ca->heap, heap, GFP_KERNEL)) {
 		err = "ca->heap alloc failed";
 		goto err_heap_alloc;
 	}
@@ -2265,6 +2274,10 @@ static int cache_alloc(struct cache *ca)
 		atomic_set(&b->pin, 0);
 		b->ca = ca;
 	}
+
+	pr_info("set %pU with btree_buckets: %zu, free: %zu, free_inc: %zu, "
+		"heap: %zu\n", ca->sb.set_uuid, btree_buckets, free, free_inc,
+		heap);
 
 	return 0;
 
@@ -2672,6 +2685,8 @@ static void bcache_exit(void)
 	mutex_destroy(&bch_register_lock);
 }
 
+#define FREE_INC_PERCENT_MAX 20
+
 /* Check and fixup module parameters */
 static void check_module_parameters(void)
 {
@@ -2695,6 +2710,12 @@ static void check_module_parameters(void)
 		pr_warn("set bch_cutoff_writeback (%u) to %u",
 			bch_cutoff_writeback, bch_cutoff_writeback_sync);
 		bch_cutoff_writeback = bch_cutoff_writeback_sync;
+	}
+
+	if (bch_free_inc_percent > FREE_INC_PERCENT_MAX) {
+		pr_warn("set bch_free_inc_percent (%u) to max value %u",
+			bch_free_inc_percent, FREE_INC_PERCENT_MAX);
+		bch_free_inc_percent = FREE_INC_PERCENT_MAX;
 	}
 }
 
@@ -2753,11 +2774,14 @@ err:
 module_exit(bcache_exit);
 module_init(bcache_init);
 
-module_param(bch_cutoff_writeback, uint, 0);
+module_param(bch_cutoff_writeback, uint, 0444);
 MODULE_PARM_DESC(bch_cutoff_writeback, "threshold to cutoff writeback");
 
-module_param(bch_cutoff_writeback_sync, uint, 0);
+module_param(bch_cutoff_writeback_sync, uint, 0444);
 MODULE_PARM_DESC(bch_cutoff_writeback_sync, "hard threshold to cutoff writeback");
+
+module_param(bch_free_inc_percent, uint, 0444);
+MODULE_PARM_DESC(bch_free_inc_percent, "percent of free_inc");
 
 MODULE_DESCRIPTION("Bcache: a Linux block layer cache");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
