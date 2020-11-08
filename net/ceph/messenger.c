@@ -3374,8 +3374,13 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 		goto out;
 
 	m->hdr.type = cpu_to_le16(type);
-	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
 	m->hdr.front_len = cpu_to_le32(front_len);
+
+	if (type == CEPH_MSG_OSD_OP)
+#define CEPH_MSG_PRIO_CLIENT_OP	63
+		m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_CLIENT_OP);
+	else
+		m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
 
 	INIT_LIST_HEAD(&m->list_head);
 	kref_init(&m->kref);
