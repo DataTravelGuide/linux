@@ -1192,7 +1192,16 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 	bio_set_dev(bio, dc->bdev);
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
 
-	if (cached_dev_get(dc)) {
+	/*
+	 * If BCACHE_DEV_DETACHING_WB_DONE is set,
+	 * we should send request to backing rather than get dc->count to do
+	 * cached_dev_read or cached_dev_write. Otherwise, if there are lots
+	 * of requests here to call cached_dev_get(dc), we could never put
+	 * dc->count to be 0 where calling schedule_work(&dc->detach) to finish
+	 * detaching, that means this detaching will never finish.
+	 */
+	if (!test_bit(BCACHE_DEV_DETACHING_WB_DONE, &dc->disk.flags) &&
+	    cached_dev_get(dc)) {
 		s = search_alloc(bio, d);
 		trace_bcache_request_start(s->d, bio);
 
