@@ -585,7 +585,8 @@ static struct open_bucket *pick_data_bucket(struct cache_set *c,
 		else if (!bkey_cmp(&ret->key, search))
 			goto found;
 		else if (ret->last_write_point == write_point)
-			ret_task = ret;
+			if (!ret_task)
+				ret_task = ret;
 
 	ret = ret_task ?: list_first_entry(&c->data_buckets,
 					   struct open_bucket, list);
