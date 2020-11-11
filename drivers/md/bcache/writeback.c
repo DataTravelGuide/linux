@@ -730,6 +730,13 @@ static int bch_writeback_thread(void *arg)
 				bch_write_bdev_super(dc, &cl);
 				closure_sync(&cl);
 
+				/*
+				 * BCACHE_DEV_DETACHING_WB_DONE will tell
+				 * request should be sent directly to backing
+				 * device directly, without getting dc->count.
+				 */
+				set_bit(BCACHE_DEV_DETACHING_WB_DONE,
+					&dc->disk.flags);
 				up_write(&dc->writeback_lock);
 				break;
 			}
