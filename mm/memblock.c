@@ -1272,7 +1272,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
 static void * __init memblock_virt_alloc_internal(
 				phys_addr_t size, phys_addr_t align,
 				phys_addr_t min_addr, phys_addr_t max_addr,
-				int nid)
+				int nid, bool exact_nid)
 {
 	phys_addr_t alloc;
 	void *ptr;
@@ -1300,7 +1300,7 @@ again:
 	if (alloc && !memblock_reserve(alloc, size))
 		goto done;
 
-	if (nid != NUMA_NO_NODE) {
+	if (nid != NUMA_NO_NODE && !exact_nid) {
 		alloc = memblock_find_in_range_node(size, align, min_addr,
 						    max_addr, NUMA_NO_NODE,
 						    flags);
@@ -1368,11 +1368,48 @@ void * __init memblock_virt_alloc_try_nid_raw(
 		     (u64)max_addr, (void *)_RET_IP_);
 
 	ptr = memblock_virt_alloc_internal(size, align,
-					   min_addr, max_addr, nid);
+					   min_addr, max_addr, nid, false);
 	if (ptr && size > 0)
 		page_init_poison(ptr, size);
 
 	return ptr;
+}
+
+/**
+ * memblock_alloc_exact_nid_raw - allocate boot memory block on the exact node
+ * without zeroing memory
+ * @size: size of memory block to be allocated in bytes
+ * @align: alignment of the region and block's size
+ * @min_addr: the lower bound of the memory region from where the allocation
+ *       is preferred (phys address)
+ * @max_addr: the upper bound of the memory region from where the allocation
+ *           is preferred (phys address), or %MEMBLOCK_ALLOC_ACCESSIBLE to
+ *           allocate only from memory limited by memblock.current_limit value
+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ *
+ * Public function, provides additional debug information (including caller
+ * info), if enabled. Does not zero allocated memory.
+ *
+ * Return:
+ * Virtual address of allocated memory block on success, NULL on failure.
+ */
+void * __init memblock_alloc_exact_nid_raw(
+                       phys_addr_t size, phys_addr_t align,
+                       phys_addr_t min_addr, phys_addr_t max_addr,
+                       int nid)
+{
+	void *ptr;
+
+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=%pa max_addr=%pa %pS\n",
+		     __func__, (u64)size, (u64)align, nid, &min_addr,
+		     &max_addr, (void *)_RET_IP_);
+
+	ptr = memblock_virt_alloc_internal(size, align,
+                                          min_addr, max_addr, nid, true);
+	if (ptr && size > 0)
+		memset(ptr, PAGE_POISON_PATTERN, size);
+
+       return ptr;
 }
 
 /**
@@ -1404,7 +1441,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
 		     (u64)max_addr, (void *)_RET_IP_);
 
 	ptr = memblock_virt_alloc_internal(size, align,
-					   min_addr, max_addr, nid);
+					   min_addr, max_addr, nid, false);
 	if (ptr)
 		memset(ptr, 0, size);
 	return ptr;
@@ -1439,7 +1476,7 @@ void * __init memblock_virt_alloc_try_nid(
 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
 		     (u64)max_addr, (void *)_RET_IP_);
 	ptr = memblock_virt_alloc_internal(size, align,
-					   min_addr, max_addr, nid);
+					   min_addr, max_addr, nid, false);
 	if (ptr) {
 		memset(ptr, 0, size);
 		return ptr;

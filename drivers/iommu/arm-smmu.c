@@ -53,6 +53,8 @@
 
 #include <linux/amba/bus.h>
 
+#include <asm/cputype.h>
+
 #include "io-pgtable.h"
 #include "arm-smmu-regs.h"
 
@@ -996,6 +998,11 @@ static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 	if (!(smmu->features & ARM_SMMU_FEAT_EXIDS) && smr->valid)
 		reg |= SMR_VALID;
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
+
+	if ((read_cpuid_id() & MIDR_CPU_MODEL_MASK) == MIDR_PHYTIUM_FT2000PLUS) {
+		u32 tmp = 0xf0000000 | ((reg & 0xffff) >> 3);
+		writel_relaxed(tmp, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx + 32));
+	}
 }
 
 static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
@@ -1009,6 +1016,9 @@ static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
 	    smmu->smrs[idx].valid)
 		reg |= S2CR_EXIDVALID;
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx));
+
+	if ((read_cpuid_id() & MIDR_CPU_MODEL_MASK) == MIDR_PHYTIUM_FT2000PLUS)
+		writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx + 32));
 }
 
 static void arm_smmu_write_sme(struct arm_smmu_device *smmu, int idx)
