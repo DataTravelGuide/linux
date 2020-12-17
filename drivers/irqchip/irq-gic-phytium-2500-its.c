@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2013-2017 ARM Limited, All Rights Reserved.
- * Author: Marc Zyngier <marc.zyngier@arm.com>
+ * Copyright (C) 2020 Phytium Corporation.
+ * Author: Wang Yinfeng <wangyinfeng@phytium.com.cn>
+ *         Chen Baozi <chenbaozi@phytium.com.cn>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,16 +20,13 @@
 #include <linux/acpi_iort.h>
 #include <linux/bitmap.h>
 #include <linux/cpu.h>
-#include <linux/crash_dump.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
-#include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/log2.h>
-#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -41,11 +39,12 @@
 #include <linux/syscore_ops.h>
 
 #include <linux/irqchip.h>
-#include <linux/irqchip/arm-gic-v3.h>
+#include <linux/irqchip/arm-gic-phytium-2500.h>
 #include <linux/irqchip/arm-gic-v4.h>
 
 #include <asm/cputype.h>
 #include <asm/exception.h>
+#include <asm/smp_plat.h>
 
 #include "irq-gic-common.h"
 
@@ -55,7 +54,6 @@
 #define ITS_FLAGS_SAVE_SUSPEND_STATE		(1ULL << 3)
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING	(1 << 0)
-#define RDIST_FLAGS_RD_TABLES_PREALLOCATED	(1 << 1)
 
 static u32 lpi_id_bits;
 
@@ -166,7 +164,7 @@ static struct {
 } vpe_proxy;
 
 static LIST_HEAD(its_nodes);
-static DEFINE_SPINLOCK(its_lock);
+static DEFINE_RAW_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
 static struct irq_domain *its_parent;
 
@@ -177,7 +175,6 @@ static DEFINE_RAW_SPINLOCK(vmovp_lock);
 static DEFINE_IDA(its_vpeid_ida);
 
 #define gic_data_rdist()		(raw_cpu_ptr(gic_rdists->rdist))
-#define gic_data_rdist_cpu(cpu)		(per_cpu_ptr(gic_rdists->rdist, cpu))
 #define gic_data_rdist_rd_base()	(gic_data_rdist()->rd_base)
 #define gic_data_rdist_vlpi_base()	(gic_data_rdist_rd_base() + SZ_128K)
 
@@ -1033,7 +1030,7 @@ static inline u32 its_get_event_id(struct irq_data *d)
 static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 {
 	irq_hw_number_t hwirq;
-	void *va;
+	struct page *prop_page;
 	u8 *cfg;
 
 	if (irqd_is_forwarded_to_vcpu(d)) {
@@ -1041,7 +1038,7 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 		u32 event = its_get_event_id(d);
 		struct its_vlpi_map *map;
 
-		va = page_address(its_dev->event_map.vm->vprop_page);
+		prop_page = its_dev->event_map.vm->vprop_page;
 		map = &its_dev->event_map.vlpi_maps[event];
 		hwirq = map->vintid;
 
@@ -1049,11 +1046,11 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 		map->properties &= ~clr;
 		map->properties |= set | LPI_PROP_GROUP1;
 	} else {
-		va = gic_rdists->prop_table_va;
+		prop_page = gic_rdists->prop_page;
 		hwirq = d->hwirq;
 	}
 
-	cfg = va + hwirq - 8192;
+	cfg = page_address(prop_page) + hwirq - 8192;
 	*cfg &= ~clr;
 	*cfg |= set | LPI_PROP_GROUP1;
 
@@ -1115,6 +1112,41 @@ static void its_unmask_irq(struct irq_data *d)
 	lpi_update_config(d, 0, LPI_PROP_ENABLED);
 }
 
+#define MAX_MARS3_SKT_COUNT	8
+
+static int its_cpumask_select(struct its_device *its_dev,
+			      const struct cpumask *mask_val,
+			      const struct cpumask *cpu_mask)
+{
+	unsigned int skt, skt_id, i;
+	phys_addr_t its_phys_base;
+	unsigned int cpu, cpus = 0;
+
+	unsigned int skt_cpu_cnt[MAX_MARS3_SKT_COUNT] = {0};
+
+	for (i = 0; i < nr_cpu_ids; i++) {
+		skt = (cpu_logical_map(i) >> 16) & 0xff;
+		if ((skt >= 0) && (skt < MAX_MARS3_SKT_COUNT))
+			skt_cpu_cnt[skt]++;
+		else if (skt != 0xff)
+			pr_err("socket address: %d is out of range.", skt);
+	}
+
+	its_phys_base = its_dev->its->phys_base;
+	skt_id = (its_phys_base >> 41) & 0x7;
+
+	if (0 != skt_id) {
+		for (i = 0; i < skt_id; i++)
+			cpus += skt_cpu_cnt[i];
+	}
+
+	cpu = cpumask_any_and(mask_val, cpu_mask);
+	if ((cpu > cpus) && (cpu < (cpus + skt_cpu_cnt[skt_id])))
+		cpus = cpu;
+
+	return cpus;
+}
+
 static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
 {
@@ -1137,7 +1169,7 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 		}
 	}
 
-	cpu = cpumask_any_and(mask_val, cpu_mask);
+	cpu = its_cpumask_select(its_dev, mask_val, cpu_mask);
 
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
@@ -1172,9 +1204,6 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	msg->address_lo		= lower_32_bits(addr);
 	msg->address_hi		= upper_32_bits(addr);
 	msg->data		= its_get_event_id(d);
-
-	if ((read_cpuid_id() & MIDR_CPU_MODEL_MASK) != MIDR_PHYTIUM_FT2000PLUS)
-		iommu_dma_compose_msi_msg(irq_data_get_msi_desc(d), msg);
 }
 
 static int its_irq_set_irqchip_state(struct irq_data *d,
@@ -1603,15 +1632,6 @@ static void its_lpi_free(unsigned long *bitmap, u32 base, u32 nr_ids)
 	kfree(bitmap);
 }
 
-static void gic_reset_prop_table(void *va)
-{
-	/* Priority 0xa0, Group-1, disabled */
-	memset(va, LPI_PROP_DEFAULT_PRIO | LPI_PROP_GROUP1, LPI_PROPBASE_SZ);
-
-	/* Make sure the GIC will observe the written configuration */
-	gic_flush_dcache_to_poc(va, LPI_PROPBASE_SZ);
-}
-
 static struct page *its_allocate_prop_table(gfp_t gfp_flags)
 {
 	struct page *prop_page;
@@ -1620,7 +1640,13 @@ static struct page *its_allocate_prop_table(gfp_t gfp_flags)
 	if (!prop_page)
 		return NULL;
 
-	gic_reset_prop_table(page_address(prop_page));
+	/* Priority 0xa0, Group-1, disabled */
+	memset(page_address(prop_page),
+	       LPI_PROP_DEFAULT_PRIO | LPI_PROP_GROUP1,
+	       LPI_PROPBASE_SZ);
+
+	/* Make sure the GIC will observe the written configuration */
+	gic_flush_dcache_to_poc(page_address(prop_page), LPI_PROPBASE_SZ);
 
 	return prop_page;
 }
@@ -1631,74 +1657,20 @@ static void its_free_prop_table(struct page *prop_page)
 		   get_order(LPI_PROPBASE_SZ));
 }
 
-static bool gic_check_reserved_range(phys_addr_t addr, unsigned long size)
+static int __init its_alloc_lpi_tables(void)
 {
-	phys_addr_t start, end, addr_end;
-	u64 i;
+	phys_addr_t paddr;
 
-	/*
-	 * We don't bother checking for a kdump kernel as by
-	 * construction, the LPI tables are out of this kernel's
-	 * memory map.
-	 */
-	if (is_kdump_kernel())
-		return true;
-
-	addr_end = addr + size - 1;
-
-	for_each_reserved_mem_region(i, &start, &end) {
-		if (addr >= start && addr_end <= end)
-			return true;
+	lpi_id_bits = min_t(u32, GICD_TYPER_ID_BITS(gic_rdists->gicd_typer),
+				ITS_MAX_LPI_NRBITS);
+	gic_rdists->prop_page = its_allocate_prop_table(GFP_NOWAIT);
+	if (!gic_rdists->prop_page) {
+		pr_err("Failed to allocate PROPBASE\n");
+		return -ENOMEM;
 	}
 
-	/* Not found, not a good sign... */
-	pr_warn("GICv3: Expected reserved range [%pa:%pa], not found\n",
-		&addr, &addr_end);
-	add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
-	return false;
-}
-
-static int gic_reserve_range(phys_addr_t addr, unsigned long size)
-{
-	if (efi_enabled(EFI_CONFIG_TABLES))
-		return efi_mem_reserve_persistent(addr, size);
-
-	return 0;
-}
-
-static int __init its_setup_lpi_prop_table(void)
-{
-	if (gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED) {
-		u64 val;
-
-		val = gicr_read_propbaser(gic_data_rdist_rd_base() + GICR_PROPBASER);
-		lpi_id_bits = (val & GICR_PROPBASER_IDBITS_MASK) + 1;
-
-		gic_rdists->prop_table_pa = val & GENMASK_ULL(51, 12);
-		gic_rdists->prop_table_va = memremap(gic_rdists->prop_table_pa,
-						     LPI_PROPBASE_SZ,
-						     MEMREMAP_WB);
-		gic_reset_prop_table(gic_rdists->prop_table_va);
-	} else {
-		struct page *page;
-
-		lpi_id_bits = min_t(u32,
-				    GICD_TYPER_ID_BITS(gic_rdists->gicd_typer),
-				    ITS_MAX_LPI_NRBITS);
-		page = its_allocate_prop_table(GFP_NOWAIT);
-		if (!page) {
-			pr_err("Failed to allocate PROPBASE\n");
-			return -ENOMEM;
-		}
-
-		gic_rdists->prop_table_pa = page_to_phys(page);
-		gic_rdists->prop_table_va = page_address(page);
-		WARN_ON(gic_reserve_range(gic_rdists->prop_table_pa,
-					  LPI_PROPBASE_SZ));
-	}
-
-	pr_info("GICv3: using LPI property table @%pa\n",
-		&gic_rdists->prop_table_pa);
+	paddr = page_to_phys(gic_rdists->prop_page);
+	pr_info("GIC: using LPI property table @%pa\n", &paddr);
 
 	return its_lpi_init(lpi_id_bits);
 }
@@ -1987,9 +1959,12 @@ static int its_alloc_collections(struct its_node *its)
 static struct page *its_allocate_pending_table(gfp_t gfp_flags)
 {
 	struct page *pend_page;
-
+	/*
+	 * The pending pages have to be at least 64kB aligned,
+	 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
+	 */
 	pend_page = alloc_pages(gfp_flags | __GFP_ZERO,
-				get_order(LPI_PENDBASE_SZ));
+				get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 	if (!pend_page)
 		return NULL;
 
@@ -2001,103 +1976,36 @@ static struct page *its_allocate_pending_table(gfp_t gfp_flags)
 
 static void its_free_pending_table(struct page *pt)
 {
-	free_pages((unsigned long)page_address(pt), get_order(LPI_PENDBASE_SZ));
-}
-
-/*
- * Booting with kdump and LPIs enabled is generally fine. Any other
- * case is wrong in the absence of firmware/EFI support.
- */
-static bool enabled_lpis_allowed(void)
-{
-	phys_addr_t addr;
-	u64 val;
-
-	/* Check whether the property table is in a reserved region */
-	val = gicr_read_propbaser(gic_data_rdist_rd_base() + GICR_PROPBASER);
-	addr = val & GENMASK_ULL(51, 12);
-
-	return gic_check_reserved_range(addr, LPI_PROPBASE_SZ);
-}
-
-static int __init allocate_lpi_tables(void)
-{
-	u64 val;
-	int err, cpu;
-
-	/*
-	 * If LPIs are enabled while we run this from the boot CPU,
-	 * flag the RD tables as pre-allocated if the stars do align.
-	 */
-	val = readl_relaxed(gic_data_rdist_rd_base() + GICR_CTLR);
-	if ((val & GICR_CTLR_ENABLE_LPIS) && enabled_lpis_allowed()) {
-		gic_rdists->flags |= (RDIST_FLAGS_RD_TABLES_PREALLOCATED |
-				      RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING);
-		pr_info("GICv3: Using preallocated redistributor tables\n");
-	}
-
-	err = its_setup_lpi_prop_table();
-	if (err)
-		return err;
-
-	/*
-	 * We allocate all the pending tables anyway, as we may have a
-	 * mix of RDs that have had LPIs enabled, and some that
-	 * don't. We'll free the unused ones as each CPU comes online.
-	 */
-	for_each_possible_cpu(cpu) {
-		struct page *pend_page;
-
-		pend_page = its_allocate_pending_table(GFP_NOWAIT);
-		if (!pend_page) {
-			pr_err("Failed to allocate PENDBASE for CPU%d\n", cpu);
-			return -ENOMEM;
-		}
-
-		gic_data_rdist_cpu(cpu)->pend_page = pend_page;
-	}
-
-	return 0;
+	free_pages((unsigned long)page_address(pt),
+		   get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 }
 
 static void its_cpu_init_lpis(void)
 {
 	void __iomem *rbase = gic_data_rdist_rd_base();
 	struct page *pend_page;
-	phys_addr_t paddr;
 	u64 val, tmp;
 
-	if (gic_data_rdist()->lpi_enabled)
-		return;
+	/* If we didn't allocate the pending table yet, do it now */
+	pend_page = gic_data_rdist()->pend_page;
+	if (!pend_page) {
+		phys_addr_t paddr;
 
-	val = readl_relaxed(rbase + GICR_CTLR);
-	if ((gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED) &&
-	    (val & GICR_CTLR_ENABLE_LPIS)) {
-		/*
-		 * Check that we get the same property table on all
-		 * RDs. If we don't, this is hopeless.
-		 */
-		paddr = gicr_read_propbaser(rbase + GICR_PROPBASER);
-		paddr &= GENMASK_ULL(51, 12);
-		if (WARN_ON(gic_rdists->prop_table_pa != paddr))
-			add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
+		pend_page = its_allocate_pending_table(GFP_NOWAIT);
+		if (!pend_page) {
+			pr_err("Failed to allocate PENDBASE for CPU%d\n",
+			       smp_processor_id());
+			return;
+		}
 
-		paddr = gicr_read_pendbaser(rbase + GICR_PENDBASER);
-		paddr &= GENMASK_ULL(51, 16);
-
-		WARN_ON(!gic_check_reserved_range(paddr, LPI_PENDBASE_SZ));
-		its_free_pending_table(gic_data_rdist()->pend_page);
-		gic_data_rdist()->pend_page = NULL;
-
-		goto out;
+		paddr = page_to_phys(pend_page);
+		pr_info("CPU%d: using LPI pending table @%pa\n",
+			smp_processor_id(), &paddr);
+		gic_data_rdist()->pend_page = pend_page;
 	}
 
-	pend_page = gic_data_rdist()->pend_page;
-	paddr = page_to_phys(pend_page);
-	WARN_ON(gic_reserve_range(paddr, LPI_PENDBASE_SZ));
-
 	/* set PROPBASE */
-	val = (gic_rdists->prop_table_pa |
+	val = (page_to_phys(gic_rdists->prop_page) |
 	       GICR_PROPBASER_InnerShareable |
 	       GICR_PROPBASER_RaWaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
@@ -2147,17 +2055,13 @@ static void its_cpu_init_lpis(void)
 
 	/* Make sure the GIC has seen the above */
 	dsb(sy);
-out:
-	gic_data_rdist()->lpi_enabled = true;
-	pr_info("GICv3: CPU%d: using %s LPI pending table @%pa\n",
-		smp_processor_id(),
-		gic_data_rdist()->pend_page ? "allocated" : "reserved",
-		&paddr);
 }
 
 static void its_cpu_init_collection(struct its_node *its)
 {
 	int cpu = smp_processor_id();
+	unsigned long mpid, skt_id;
+	phys_addr_t its_phys_base;
 	u64 target;
 
 	/* avoid cross node collections and its mapping */
@@ -2169,6 +2073,10 @@ static void its_cpu_init_collection(struct its_node *its)
 			its->numa_node != of_node_to_nid(cpu_node))
 			return;
 	}
+
+	mpid = cpu_logical_map(cpu);
+	its_phys_base = its->phys_base;
+	skt_id = (its_phys_base >> 41) & 0x7;
 
 	/*
 	 * We now have to bind each collection to its target
@@ -2198,12 +2106,12 @@ static void its_cpu_init_collections(void)
 {
 	struct its_node *its;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 
 	list_for_each_entry(its, &its_nodes, entry)
 		its_cpu_init_collection(its);
 
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 }
 
 static struct its_device *its_find_device(struct its_node *its, u32 dev_id)
@@ -2400,14 +2308,13 @@ static void its_free_device(struct its_device *its_dev)
 	kfree(its_dev);
 }
 
-static int its_alloc_device_irq(struct its_device *dev, int nvecs, irq_hw_number_t *hwirq)
+static int its_alloc_device_irq(struct its_device *dev, irq_hw_number_t *hwirq)
 {
 	int idx;
 
-	idx = bitmap_find_free_region(dev->event_map.lpi_map,
-				      dev->event_map.nr_lpis,
-				      get_count_order(nvecs));
-	if (idx < 0)
+	idx = find_first_zero_bit(dev->event_map.lpi_map,
+				  dev->event_map.nr_lpis);
+	if (idx == dev->event_map.nr_lpis)
 		return -ENOSPC;
 
 	*hwirq = dev->event_map.lpi_base + idx;
@@ -2499,33 +2406,59 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	msi_alloc_info_t *info = args;
 	struct its_device *its_dev = info->scratchpad[0].ptr;
-	struct its_node *its = its_dev->its;
 	irq_hw_number_t hwirq;
 	int err;
 	int i;
 
-	err = its_alloc_device_irq(its_dev, nr_irqs, &hwirq);
-	if (err)
-		return err;
-
-	err = iommu_dma_prepare_msi(info->desc, its->get_msi_base(its_dev));
-	if (err)
-		return err;
-
 	for (i = 0; i < nr_irqs; i++) {
-		err = its_irq_gic_domain_alloc(domain, virq + i, hwirq + i);
+		err = its_alloc_device_irq(its_dev, &hwirq);
+		if (err)
+			return err;
+
+		err = its_irq_gic_domain_alloc(domain, virq + i, hwirq);
 		if (err)
 			return err;
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i,
-					      hwirq + i, &its_irq_chip, its_dev);
+					      hwirq, &its_irq_chip, its_dev);
 		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq + i)));
 		pr_debug("ID:%d pID:%d vID:%d\n",
-			 (int)(hwirq + i - its_dev->event_map.lpi_base),
-			 (int)(hwirq + i), virq + i);
+			 (int)(hwirq - its_dev->event_map.lpi_base),
+			 (int) hwirq, virq + i);
 	}
 
 	return 0;
+}
+
+static int its_cpumask_first(struct its_device *its_dev,
+			     const struct cpumask *cpu_mask)
+{
+	unsigned int skt, skt_id, i;
+	phys_addr_t its_phys_base;
+	unsigned int cpu, cpus = 0;
+	unsigned int skt_cpu_cnt[MAX_MARS3_SKT_COUNT] = {0};
+
+	for (i = 0; i < nr_cpu_ids; i++) {
+		skt = (cpu_logical_map(i) >> 16) & 0xff;
+		if ((skt >= 0) && (skt < MAX_MARS3_SKT_COUNT))
+			skt_cpu_cnt[skt]++;
+		else if (0xff != skt )
+			pr_err("socket address: %d is out of range.", skt);
+	}
+
+	its_phys_base = its_dev->its->phys_base;
+	skt_id = (its_phys_base >> 41) & 0x7;
+
+	if (0 != skt_id) {
+		for (i = 0; i < skt_id; i++)
+			cpus += skt_cpu_cnt[i];
+	}
+
+	cpu = cpumask_first(cpu_mask);
+	if ((cpu > cpus) && (cpu < (cpus + skt_cpu_cnt[skt_id])))
+		cpus = cpu;
+
+	return cpus;
 }
 
 static int its_irq_domain_activate(struct irq_domain *domain,
@@ -2541,13 +2474,9 @@ static int its_irq_domain_activate(struct irq_domain *domain,
 		cpu_mask = cpumask_of_node(its_dev->its->numa_node);
 
 	/* Bind the LPI to the first possible CPU */
-	cpu = cpumask_first_and(cpu_mask, cpu_online_mask);
-	if (cpu >= nr_cpu_ids) {
-		if (its_dev->its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_23144)
-			return -EINVAL;
-
-		cpu = cpumask_first(cpu_online_mask);
-	}
+	cpu = its_cpumask_first(its_dev, cpu_mask);
+	printk("its_irq_domain_activate: MAPTI irq %d hwirq %ld on cpu %d\n",
+	       d->irq, d->hwirq, cpu);
 
 	its_dev->event_map.col_map[event] = cpu;
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
@@ -3280,7 +3209,7 @@ static int its_save_disable(void)
 	struct its_node *its;
 	int err = 0;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 
@@ -3312,7 +3241,7 @@ err:
 			writel_relaxed(its->ctlr_save, base + GITS_CTLR);
 		}
 	}
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 
 	return err;
 }
@@ -3322,7 +3251,7 @@ static void its_restore_enable(void)
 	struct its_node *its;
 	int ret;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 		int i;
@@ -3374,7 +3303,7 @@ static void its_restore_enable(void)
 		    GITS_TYPER_HCC(gic_read_typer(base + GITS_TYPER)))
 			its_cpu_init_collection(its);
 	}
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 }
 
 static struct syscore_ops its_syscore_ops = {
@@ -3608,9 +3537,9 @@ static int __init its_probe_one(struct resource *res,
 	if (err)
 		goto out_free_tables;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_add(&its->entry, &its_nodes);
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 
 	return 0;
 
@@ -3637,6 +3566,16 @@ static int redist_disable_lpis(void)
 	u64 timeout = USEC_PER_SEC;
 	u64 val;
 
+	/*
+	 * If coming via a CPU hotplug event, we don't need to disable
+	 * LPIs before trying to re-enable them. They are already
+	 * configured and all is well in the world. Detect this case
+	 * by checking the allocation of the pending table for the
+	 * current CPU.
+	 */
+	if (gic_data_rdist()->pend_page)
+		return 0;
+
 	if (!gic_rdists_supports_plpis()) {
 		pr_info("CPU%d: LPIs not supported\n", smp_processor_id());
 		return -ENXIO;
@@ -3646,21 +3585,7 @@ static int redist_disable_lpis(void)
 	if (!(val & GICR_CTLR_ENABLE_LPIS))
 		return 0;
 
-	/*
-	 * If coming via a CPU hotplug event, we don't need to disable
-	 * LPIs before trying to re-enable them. They are already
-	 * configured and all is well in the world.
-	 *
-	 * If running with preallocated tables, there is nothing to do.
-	 */
-	if (gic_data_rdist()->lpi_enabled ||
-	    (gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED))
-		return 0;
-
-	/*
-	 * From that point on, we only try to do some damage control.
-	 */
-	pr_warn("GICv3: CPU%d: Booted with LPIs enabled, memory probably corrupted\n",
+	pr_warn("CPU%d: Booted with LPIs enabled, memory probably corrupted\n",
 		smp_processor_id());
 	add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
 
@@ -3699,7 +3624,7 @@ static int redist_disable_lpis(void)
 	return 0;
 }
 
-int its_cpu_init(void)
+int phytium_its_cpu_init(void)
 {
 	if (!list_empty(&its_nodes)) {
 		int ret;
@@ -3860,7 +3785,7 @@ static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
 
 	dom_handle = irq_domain_alloc_fwnode((void *)its_entry->base_address);
 	if (!dom_handle) {
-		pr_err("ITS@%pa: Unable to allocate GICv3 ITS domain token\n",
+		pr_err("ITS@%pa: Unable to allocate GIC-Phytium-2500 ITS domain token\n",
 		       &res.start);
 		return -ENOMEM;
 	}
@@ -3868,7 +3793,7 @@ static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
 	err = iort_register_domain_token(its_entry->translation_id, res.start,
 					 dom_handle);
 	if (err) {
-		pr_err("ITS@%pa: Unable to register GICv3 ITS domain token (ITS ID %d) to IORT\n",
+		pr_err("ITS@%pa: Unable to register GIC-Phytium-2500 ITS domain token (ITS ID %d) to IORT\n",
 		       &res.start, its_entry->translation_id);
 		goto dom_err;
 	}
@@ -3895,7 +3820,7 @@ static void __init its_acpi_probe(void)
 static void __init its_acpi_probe(void) { }
 #endif
 
-int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
+int __init phytium_its_init(struct fwnode_handle *handle, struct rdists *rdists,
 		    struct irq_domain *parent_domain)
 {
 	struct device_node *of_node;
@@ -3916,8 +3841,7 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	}
 
 	gic_rdists = rdists;
-
-	err = allocate_lpi_tables();
+	err = its_alloc_lpi_tables();
 	if (err)
 		return err;
 
