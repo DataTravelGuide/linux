@@ -406,10 +406,27 @@ static void *sparsemap_buf_end __meminitdata;
 static void __init sparse_buffer_init(unsigned long size, int nid)
 {
 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
-	sparsemap_buf =
-		memblock_alloc_exact_nid_raw(size, section_map_size(),
-						__pa(MAX_DMA_ADDRESS),
-						BOOTMEM_ALLOC_ACCESSIBLE, nid);
+
+#ifdef CONFIG_ARM64
+    /* PHYTIUM platform */
+    if (read_cpuid_implementor() == ARM_CPU_IMP_PHYTIUM && is_hyp_mode_available()) {
+        sparsemap_buf =
+            memblock_alloc_exact_nid_raw(size, section_map_size(),
+                                         __pa(MAX_DMA_ADDRESS),
+                                         BOOTMEM_ALLOC_ACCESSIBLE, nid);
+    } else { /* Other platform or VM */
+        sparsemap_buf =
+            memblock_virt_alloc_try_nid_raw(size, PAGE_SIZE,
+                                            __pa(MAX_DMA_ADDRESS),
+                                            BOOTMEM_ALLOC_ACCESSIBLE, nid);
+    }
+#else
+    sparsemap_buf =
+               memblock_virt_alloc_try_nid_raw(size, PAGE_SIZE,
+                                               __pa(MAX_DMA_ADDRESS),
+                                               BOOTMEM_ALLOC_ACCESSIBLE, nid);
+#endif
+
 	sparsemap_buf_end = sparsemap_buf + size;
 }
 
