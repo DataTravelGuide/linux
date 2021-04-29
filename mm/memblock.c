@@ -1299,14 +1299,34 @@ again:
 					    nid, flags);
 	if (alloc && !memblock_reserve(alloc, size))
 		goto done;
-
-	if (nid != NUMA_NO_NODE && !exact_nid) {
-		alloc = memblock_find_in_range_node(size, align, min_addr,
-						    max_addr, NUMA_NO_NODE,
-						    flags);
-		if (alloc && !memblock_reserve(alloc, size))
-			goto done;
-	}
+#ifdef CONFIG_ARM64
+    /* PHYTIUM platform */
+    if (read_cpuid_implementor() == ARM_CPU_IMP_PHYTIUM && is_hyp_mode_available()) {
+	    if (nid != NUMA_NO_NODE && !exact_nid) {
+		    alloc = memblock_find_in_range_node(size, align, min_addr,
+						                        max_addr, NUMA_NO_NODE,
+						                        flags);
+		    if (alloc && !memblock_reserve(alloc, size))
+			    goto done;
+        }
+    } else { /* Other platform or VM */
+	    if (nid != NUMA_NO_NODE) {
+		    alloc = memblock_find_in_range_node(size, align, min_addr,
+						                        max_addr, NUMA_NO_NODE,
+						                        flags);
+		    if (alloc && !memblock_reserve(alloc, size))
+			    goto done;
+        }
+    }
+#else
+   if (nid != NUMA_NO_NODE) {
+        alloc = memblock_find_in_range_node(size, align, min_addr,
+                                            max_addr, NUMA_NO_NODE,
+                                            flags);
+               if (alloc && !memblock_reserve(alloc, size))
+                   goto done;
+   }
+#endif
 
 	if (min_addr) {
 		min_addr = 0;
