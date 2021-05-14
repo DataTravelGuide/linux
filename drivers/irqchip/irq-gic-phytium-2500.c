@@ -798,10 +798,6 @@ static void gic_cpu_init(void)
 		}
 	}
 
-	/* Give LPIs a spin */
-	if (gic_dist_supports_lpis())
-		phytium_its_cpu_init();
-
 	/* initialise system registers */
 	gic_cpu_sys_reg_init();
 }
@@ -814,6 +810,10 @@ static void gic_cpu_init(void)
 static int gic_starting_cpu(unsigned int cpu)
 {
 	gic_cpu_init();
+
+	if (gic_dist_supports_lpis())
+		phytium_its_cpu_init();
+
 	return 0;
 }
 
@@ -1275,13 +1275,15 @@ static int __init gic_init_bases(void __iomem *dist_base,
 
 	gic_update_vlpi_properties();
 
-	if (gic_dist_supports_lpis())
-		phytium_its_init(handle, &gic_data.rdists, gic_data.domain);
-
 	gic_smp_init();
 	gic_dist_init();
 	gic_cpu_init();
 	gic_cpu_pm_init();
+
+	if (gic_dist_supports_lpis()) {
+		phytium_its_init(handle, &gic_data.rdists, gic_data.domain);
+		phytium_its_cpu_init();
+	}
 
 	return 0;
 
