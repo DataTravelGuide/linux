@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
+#include <linux/crash_dump.h>
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -290,6 +291,11 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct xhci_hcd *xhci;
 	struct hc_driver *driver;
 	struct usb_hcd *hcd;
+
+#ifdef CONFIG_ARM_GIC_PHYTIUM_2500
+	if (is_kdump_kernel())
+		return 0;
+#endif
 
 	driver = (struct hc_driver *)id->driver_data;
 
