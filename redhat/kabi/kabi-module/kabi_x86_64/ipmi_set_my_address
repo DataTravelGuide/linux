@@ -1,0 +1,2 @@
+#0-
+0xfaaa4831	ipmi_set_my_address	drivers/char/ipmi/ipmi_msghandler	EXPORT_SYMBOL

@@ -1,0 +1,96 @@
+The act of creating and modifying CONFIG files has been mystifying for many
+users because of poor understanding of the the priority levels of the
+configuration options.  To solve this (and other issues with the configs)
+evaluate_configs command line script and a user-friendly editconfig
+menu utility have been added to the RHEL tree.
+
+An example CONFIG map can be seen below.
+
+			a p s x s
+			a p 3 8 3
+			r c 9 6 9
+			c 6 0 _ 0
+			h 4 x 6 x
+			6 l   4 k
+			4 e     d
+
+	debug/arch	x x x x n
+	debug		y y y y -
+	generic/arch    m x x x x
+	generic		m m m m m
+
+Legend:
+       x undefined/inherited from level below
+       y built-in
+       m module
+       n is not set
+       c numeric/text setting (currently unsupported)
+       - s390/zfcpdump is not affected at this level
+
+note: The generic term is confusing for some engineers; "generic" is what is
+used to form the "base" kernel or "non-debug" kernel.  It is a directory
+name only.
+
+All the data for the CONFIG option is displayed above.  The veritical
+indicates the architecture settings and the y-axis indicates the kernel config
+directories.  The priority for each level is inherited from the level
+below (see s390x-zfcpdump note below).   In the example above the CONFIG is set
+to m for all kernels, is set to y for debug kernels, and on s390x-zfcpdump, the
+CONFIG is overridden to n.
+
+The config settings can be read on each arch column.  For example, the
+resulting x86_64 configs will have the CONFIG option set to m in
+kernel-x86_64.config, and set to y in the kernel-x86_64-debug.config.
+
+s390x-dump: The configuration files for s390x-zfcpdump are different from
+the other architectures.  s390x & s390x-zfcpdump are the same for the
+generic and generic/arch level.  There is no s390x-zfcpdump-debug kernel,
+and the entry at the debug/arch level is really the generic/s390x/zfcpdump
+entry.  s390x zfcpdump has been displayed this way for ease of coding.
+
+As mentioned there are two utilities that have been introduced to aid in the
+setting of CONFIG options.  Most engineers will only use the editconfig menu
+utility and maintainers will use the evaluate_configs command line utility.
+
+1) editconfig menu utility
+
+editconfig is a menu-driven script which is an interface to evaluate_configs,
+and allows a user to view, modify, and locally commit CONFIG changes.
+
+When editconfig is invoked with no options a menu to invoke the
+evaluate_configs script is presented to the user.
+
+editconfig can also take a single option of the name of the CONFIG to be
+modified, for example, 'editconfig CONFIG_PCI'.  In this mode editconfig will
+allow a user to view, modify, and locally commit changes to the selected
+CONFIG.
+
+editconfig currently only handles y/m/n/is not set settings and does not
+handle configs with text or numeric values.
+
+2) evaluate_configs command line utility
+
+evaluate_configs is a script that evaluates the CONFIG entries in
+redhat/configs for correctness of the CONFIG entries.  It can be run on the
+command line in a RHEL8 tree with the following options:
+
+evaluate_configs [ -b | -c | -d | -s | -f ]
+
+The -b option balances priority levels (generic, generic/arch, debug,
+debug/arch) CONFIGs against each other and optimizes the CONFIG settings
+between levels.  For example if the majority of arches have the generic/arch
+level set to =m, and the generic level is set to =y, then the generic level
+should be flipped to =m and the generic/arches should be set appropriately.
+
+The -c option checks each arch CONFIGs settings and removes unnecessary CONFIG
+entries.  For example, if x86_64 has generic =y there is no need for a
+generic/arch also =y.
+
+The -s option enables CONFIG syntax checking.  The syntax checker looks for
+empty files, and that the config is set to  one of "is not set", "=y", or
+"=m".
+
+The -f option finds configs that are defined in our config files but are not
+found in the final .configs.
+
+The -d option enables additional output useful for debugging.

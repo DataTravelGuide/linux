@@ -1,0 +1,7 @@
+# We set CONFIG_SYSTEM_TRUSTED_KEYS="certs/rhel.pem" for module signing.
+# This file was created with DUP/kpatch certificates through openssl:
+# openssl x509 -inform der -in <cert 1>.x509 -out <cert 1>.pem
+# ...
+# openssl x509 -inform der -in <cert n>.x509 -out <cert n>.pem
+# cat <cert 1>.pem ... <cert n>.pem > certs/rhel.pem
+CONFIG_SYSTEM_TRUSTED_KEYS="certs/rhel.pem"

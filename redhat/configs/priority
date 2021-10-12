@@ -1,0 +1,21 @@
+# config-variant=config:config:config
+# kernel.config files are build on the fly based on this config,
+# the first arg is arch and variant, the second is a hierarchy of
+# config options, lowest priority to highest
+
+# x86_64
+x86_64=generic:generic-x86_64
+x86_64-debug=generic:generic-x86_64:debug:debug-x86_64
+# ppc64
+#ppc64=generic:generic-powerpc64
+#ppc64-debug=generic:generic-powerpc64:debug:debug-powerpc64
+# ppc64le
+ppc64le=generic:generic-powerpc64:generic-powerpc64le
+ppc64le-debug=generic:generic-powerpc64:generic-powerpc64le:debug:debug-powerpc64
+# s390x
+s390x=generic:generic-s390x
+s390x-debug=generic:generic-s390x:debug:debug-s390x
+s390x-zfcpdump=generic:generic-s390x:generic-s390x-zfcpdump
+# aarch64
+aarch64=generic:generic-aarch64
+aarch64-debug=generic:generic-aarch64:debug:debug-aarch64

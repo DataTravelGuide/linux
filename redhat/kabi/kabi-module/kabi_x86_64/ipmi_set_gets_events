@@ -1,0 +1,2 @@
+#0-
+0x50f65edf	ipmi_set_gets_events	drivers/char/ipmi/ipmi_msghandler	EXPORT_SYMBOL

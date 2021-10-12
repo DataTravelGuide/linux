@@ -1,0 +1,4 @@
+# We inherited this setting from RHEL 7, where it was enabled as a module.
+# Starting with kernel 4.16, this is a boolean option, thus it's now enabled == y
+# (https://bugzilla.redhat.com/show_bug.cgi?id=1560083)
+CONFIG_LIRC=y

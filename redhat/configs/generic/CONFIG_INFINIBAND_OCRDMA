@@ -1,0 +1,2 @@
+# bz1504534 - disable ocrdma for all arches as it is depercated
+# CONFIG_INFINIBAND_OCRDMA is not set

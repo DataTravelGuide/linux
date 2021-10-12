@@ -1,0 +1,5 @@
+# On RHEL 7 we enabled many CONFIG_SND_* options through bugs 1220299 and
+# 1463624. With the rebase to 4.15, some of those options started to depend on
+# CONFIG_SND_SOC_INTEL_SST_TOPLEVEL, so we enabled it (=m) through bug 1551136.
+# Starting with 4.16, the option is now a boolean choice (bug 1561197).
+CONFIG_SND_SOC_INTEL_SST_TOPLEVEL=y

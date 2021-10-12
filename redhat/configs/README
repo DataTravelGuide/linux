@@ -1,0 +1,62 @@
+Red Hat Enterprise Linux 7 kernel config option scheme
+------------------------------------------------------
+
+Like the RHEL6 kernel before it, the RHEL7 kernel is forked from a Fedora
+kernel. We tracked the Fedora kernel and config options up to the point
+of forking, and maintained the RHEL kernel config option differences from
+Fedora to be applied over the top of the Fedora kernel config options
+separately until just prior to beta release, at which time things were
+reworked so that Fedora ancestry is delved by looking at git log, and we
+only maintain the config option files we care about for RHEL7.
+
+Unlike RHEL6, the RHEL7 config options are split out into a hierarchical
+tree structure, with one file per configg option at each level of the
+hierarchy. The config options are merged and properly layered according to
+the file "variants" in the same directory as this README to generate the
+final kernel-3.10.0-<arch>-<variant>.config files we need for building the
+actual RHEL7 kernels.
+
+At the top level, we have generic/CONFIG_* and debug/CONFIG_*, then
+generic/<arch>/CONFIG_* and generic/<arch>/<variant>/CONFIG_*, as well as
+debug/<arch>/CONFIG_*. While this may seem overly complex compared with
+past RHEL kernel config setups at first glance, its actually quite
+straight-forward and should be less error-prone -- there are no Fedora
+config option files for people to accidentally modify and no patch fuzz to
+worry about when merging several config option changes. It should also be
+far more obvious where to put a config option to have it apply to the
+exact kernel variants you want it to apply to.
+
+Further demystifying things, we have only 7 kernel variants to worry
+about in RHEL7, and their end result config files can all be constructed
+as follows (override priority increasing towards the right):
+
+x86_64:
+generic/ < generic/x86_64/
+
+x86_64-debug:
+generic/ < generic/x86_64/    < debug/ < debug/x86_64/
+
+powerpc64:
+generic/ < generic/powerpc64/
+
+powerpc64-debug:
+generic/ < generic/powerpc64/ < debug/ < debug/powerpc64/
+
+s390x:
+generic/ < generic/s390x/
+
+s390x-debug:
+generic/ < generic/s390x/     < debug/ < debug/s390x/
+
+s390x-zfcpdump:
+generic/ < generic/s390x/ < generic/s390x/zfcpdump/
+
+If you want to make a change that applies to all RHEL8 kernels, debug and
+non-debug alike, add a config option file under generic/. If it should
+only apply to all debug kernels, add it under debug/. Arch-specific
+options go under generic/<arch>/ and so on. Each layer's individual config
+option files are concatenated together with all other options at the same
+level, then stacked atop the lower layers until reaching the highest
+precedence layer for the given config option.
+
+Send any questions, comments or concerns to rhkernel-list@redhat.com.

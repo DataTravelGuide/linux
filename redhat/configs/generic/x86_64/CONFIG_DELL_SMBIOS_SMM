@@ -1,0 +1,10 @@
+# The dell-smbios driver was enabled in RHEL7 through bug 1396495.
+# In Linux 4.15, it was splitted in two drivers: dell-smbios and
+# dell-smbios-smm (commit 549b4930f057 upstream). After this split, a WMI based
+# driver was also added right after (commit 1a258e670434). Due these changes, we
+# had to pick SMM/WMI versions of the drivers, we chose WMI driver while the SMM
+# driver was disabled by default (bug 1551012). Starting with 4.16 kernel,
+# WMI/SMM driver can only be built-in in the dell-smbios module. We keep
+# WMI part enabled while SMM stays disabled as before.
+# (https://bugzilla.redhat.com/show_bug.cgi?id=1561134)
+# CONFIG_DELL_SMBIOS_SMM is not set

@@ -1,0 +1,2 @@
+# https://bugzilla.redhat.com/show_bug.cgi?id=1574618
+CONFIG_HARDENED_USERCOPY=y

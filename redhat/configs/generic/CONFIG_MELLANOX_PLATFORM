@@ -1,0 +1,7 @@
+# Bug 1550920 enabled Mellanox platform support kernel options for kernel 4.15,
+# including CONFIG_MLX_CPLD_PLATFORM. However starting with 4.16 kernel, since
+# upstream commit 1f976f6978bf ("platform/x86: Move Mellanox platform hotplug
+# driver to platform/mellanox"), CONFIG_MLX_CPLD_PLATFORM was renamed to
+# CONFIG_MLXREG_HOTPLUG, and depends on CONFIG_MELLANOX_PLATFORM being enabled.
+# (https://bugzilla.redhat.com/show_bug.cgi?id=1560751)
+CONFIG_MELLANOX_PLATFORM=y

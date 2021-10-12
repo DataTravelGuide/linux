@@ -1,0 +1,2 @@
+#0-
+0xbefa94a8	ipmi_register_smi	drivers/char/ipmi/ipmi_msghandler	EXPORT_SYMBOL

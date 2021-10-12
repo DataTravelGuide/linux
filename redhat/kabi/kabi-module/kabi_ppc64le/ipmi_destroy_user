@@ -1,0 +1,2 @@
+#0-
+0xf388b18b	ipmi_destroy_user	drivers/char/ipmi/ipmi_msghandler	EXPORT_SYMBOL

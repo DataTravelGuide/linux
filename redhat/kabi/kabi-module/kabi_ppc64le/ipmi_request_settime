@@ -1,0 +1,2 @@
+#0-
+0x4c2054d7	ipmi_request_settime	drivers/char/ipmi/ipmi_msghandler	EXPORT_SYMBOL

@@ -1,0 +1,3 @@
+# I don't expect that Realtek card readers are available for s390 hardware
+# (this was reviewed/set while making changes for bug 1560106)
+# CONFIG_MISC_RTSX_PCI is not set
