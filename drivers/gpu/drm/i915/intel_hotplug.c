@@ -278,7 +278,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 
 			/* Don't check MST ports, they don't have pins */
 			if (!intel_connector->mst_port &&
-			    intel_connector->encoder->hpd_pin == pin) {
+			    intel_connector->encoder->hpd_pin == i) {
 				if (connector->polled != intel_connector->polled)
 					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
 							 connector->name);
@@ -447,18 +447,18 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		enum hpd_pin pin = encoder->hpd_pin;
-		bool has_hpd_pulse = intel_encoder_has_hpd_pulse(encoder);
+	for_each_hpd_pin(i) {
 		bool long_hpd = true;
 
-		if (!(BIT(pin) & pin_mask))
+		if (!(BIT(i) & pin_mask))
 			continue;
 
-		if (has_hpd_pulse) {
-			enum port port = encoder->port;
+		port = intel_hpd_pin_to_port(dev_priv, i);
+		is_dig_port = port != PORT_NONE &&
+			dev_priv->hotplug.irq_port[port];
 
-			long_hpd = long_mask & BIT(pin);
+		if (is_dig_port) {
+			long_hpd = long_mask & BIT(i);
 
 			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n", port_name(port),
 					 long_hpd ? "long" : "short");
@@ -490,8 +490,8 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			queue_hp = true;
 		}
 
-		if (intel_hpd_irq_storm_detect(dev_priv, pin, long_hpd)) {
-			dev_priv->hotplug.event_bits &= ~BIT(pin);
+		if (intel_hpd_irq_storm_detect(dev_priv, i, long_hpd)) {
+			dev_priv->hotplug.event_bits &= ~BIT(i);
 			storm_detected = true;
 			queue_hp = true;
 		}

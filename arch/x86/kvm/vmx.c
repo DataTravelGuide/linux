@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/sched.h>
+#include <linux/sched/smt.h>
 #include <linux/moduleparam.h>
 #include <linux/mod_devicetable.h>
 #include <linux/trace_events.h>
@@ -188,6 +189,12 @@ static unsigned int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 module_param(ple_window_max, uint, 0444);
 
 extern const ulong vmx_return;
+
+enum ept_pointers_status {
+	EPT_POINTERS_CHECK = 0,
+	EPT_POINTERS_MATCH = 1,
+	EPT_POINTERS_MISMATCH = 2
+};
 
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_should_flush);
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_flush_cond);
@@ -8448,6 +8455,7 @@ static void free_nested(struct vcpu_vmx *vmx)
 	if (!vmx->nested.vmxon && !vmx->nested.smm.vmxon)
 		return;
 
+	hrtimer_cancel(&vmx->nested.preemption_timer);
 	vmx->nested.vmxon = false;
 	vmx->nested.smm.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
@@ -11096,7 +11104,7 @@ static int vmx_vm_init(struct kvm *kvm)
 			 * Warn upon starting the first VM in a potentially
 			 * insecure environment.
 			 */
-			if (cpu_smt_control == CPU_SMT_ENABLED)
+			if (sched_smt_active())
 				pr_warn_once(L1TF_MSG_SMT);
 			if (l1tf_vmx_mitigation == VMENTER_L1D_FLUSH_NEVER)
 				pr_warn_once(L1TF_MSG_L1D);
@@ -12641,6 +12649,9 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 		kvm_make_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
 	}
 
+	/* Hide L1D cache contents from the nested guest.  */
+	vmx->vcpu.arch.l1tf_flush_l1d = true;
+
 	/*
 	 * If L1 had a pending IRQ/NMI until it executed
 	 * VMLAUNCH/VMRESUME which wasn't delivered because it was
@@ -12758,9 +12769,6 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		vmx->nested.nested_run_pending = 0;
 		return 1;
 	}
-
-	/* Hide L1D cache contents from the nested guest.  */
-	vmx->vcpu.arch.l1tf_flush_l1d = true;
 
 	/*
 	 * Must happen outside of enter_vmx_non_root_mode() as it will

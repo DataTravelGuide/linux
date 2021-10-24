@@ -33,113 +33,6 @@
 
 #include <asm/cacheflush.h>
 
-static struct gen_pool *atomic_pool __ro_after_init;
-
-#define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
-static size_t atomic_pool_size __initdata = DEFAULT_DMA_COHERENT_POOL_SIZE;
-
-static int __init early_coherent_pool(char *p)
-{
-	atomic_pool_size = memparse(p, &p);
-	return 0;
-}
-early_param("coherent_pool", early_coherent_pool);
-
-static void *__alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
-{
-	unsigned long val;
-	void *ptr = NULL;
-
-	if (!atomic_pool) {
-		WARN(1, "coherent pool not initialised!\n");
-		return NULL;
-	}
-
-	val = gen_pool_alloc(atomic_pool, size);
-	if (val) {
-		phys_addr_t phys = gen_pool_virt_to_phys(atomic_pool, val);
-
-		*ret_page = phys_to_page(phys);
-		ptr = (void *)val;
-		memset(ptr, 0, size);
-	}
-
-	return ptr;
-}
-
-static bool __in_atomic_pool(void *start, size_t size)
-{
-	return addr_in_gen_pool(atomic_pool, (unsigned long)start, size);
-}
-
-static int __free_from_pool(void *start, size_t size)
-{
-	if (!__in_atomic_pool(start, size))
-		return 0;
-
-	gen_pool_free(atomic_pool, (unsigned long)start, size);
-
-	return 1;
-}
-
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t flags, unsigned long attrs)
-{
-	struct page *page;
-	void *ptr, *coherent_ptr;
-	pgprot_t prot = pgprot_writecombine(PAGE_KERNEL);
-
-	size = PAGE_ALIGN(size);
-
-	if (!gfpflags_allow_blocking(flags)) {
-		struct page *page = NULL;
-		void *addr = __alloc_from_pool(size, &page, flags);
-
-		if (addr)
-			*dma_handle = phys_to_dma(dev, page_to_phys(page));
-
-		return addr;
-	}
-
-	ptr = dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
-	if (!ptr)
-		goto no_mem;
-
-	/* remove any dirty cache lines on the kernel alias */
-	__dma_flush_area(ptr, size);
-
-	/* create a coherent mapping */
-	page = virt_to_page(ptr);
-	coherent_ptr = dma_common_contiguous_remap(page, size, VM_USERMAP,
-						   prot, __builtin_return_address(0));
-	if (!coherent_ptr)
-		goto no_map;
-
-	return coherent_ptr;
-
-no_map:
-	dma_direct_free_pages(dev, size, ptr, *dma_handle, attrs);
-no_mem:
-	return NULL;
-}
-
-void arch_dma_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_handle, unsigned long attrs)
-{
-	if (!__free_from_pool(vaddr, PAGE_ALIGN(size))) {
-		void *kaddr = phys_to_virt(dma_to_phys(dev, dma_handle));
-
-		vunmap(vaddr);
-		dma_direct_free_pages(dev, size, kaddr, dma_handle, attrs);
-	}
-}
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return __phys_to_pfn(dma_to_phys(dev, dma_addr));
-}
-
 pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
 		unsigned long attrs)
 {
@@ -158,6 +51,11 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		size_t size, enum dma_data_direction dir)
 {
 	__dma_unmap_area(phys_to_virt(paddr), size, dir);
+}
+
+void arch_dma_prep_coherent(struct page *page, size_t size)
+{
+	__dma_flush_area(page_address(page), size);
 }
 
 #ifdef CONFIG_IOMMU_DMA
@@ -197,8 +95,7 @@ static int __init arm64_dma_init(void)
 		   TAINT_CPU_OUT_OF_SPEC,
 		   "ARCH_DMA_MINALIGN smaller than CTR_EL0.CWG (%d < %d)",
 		   ARCH_DMA_MINALIGN, cache_line_size());
-
-	return atomic_pool_init();
+	return dma_atomic_pool_init(GFP_DMA32, __pgprot(PROT_NORMAL_NC));
 }
 arch_initcall(arm64_dma_init);
 
@@ -244,7 +141,7 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 			page = alloc_pages(gfp, get_order(size));
 			addr = page ? page_address(page) : NULL;
 		} else {
-			addr = __alloc_from_pool(size, &page, gfp);
+			addr = dma_alloc_from_pool(size, &page, gfp);
 		}
 		if (!addr)
 			return NULL;
@@ -254,7 +151,7 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 			if (coherent)
 				__free_pages(page, get_order(size));
 			else
-				__free_from_pool(addr, size);
+				dma_free_from_pool(addr, size);
 			addr = NULL;
 		}
 	} else if (attrs & DMA_ATTR_FORCE_CONTIGUOUS) {
@@ -318,9 +215,9 @@ static void __iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	 *   coherent devices.
 	 * Hence how dodgy the below logic looks...
 	 */
-	if (__in_atomic_pool(cpu_addr, size)) {
+	if (dma_in_atomic_pool(cpu_addr, size)) {
 		iommu_dma_unmap_page(dev, handle, iosize, 0, 0);
-		__free_from_pool(cpu_addr, size);
+		dma_free_from_pool(cpu_addr, size);
 	} else if (attrs & DMA_ATTR_FORCE_CONTIGUOUS) {
 		struct page *page = vmalloc_to_page(cpu_addr);
 
@@ -400,7 +297,7 @@ static void __iommu_sync_single_for_cpu(struct device *dev,
 	if (dev_is_dma_coherent(dev))
 		return;
 
-	phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev), dev_addr);
+	phys = iommu_iova_to_phys(iommu_get_dma_domain(dev), dev_addr);
 	arch_sync_dma_for_cpu(dev, phys, size, dir);
 }
 
@@ -413,7 +310,7 @@ static void __iommu_sync_single_for_device(struct device *dev,
 	if (dev_is_dma_coherent(dev))
 		return;
 
-	phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev), dev_addr);
+	phys = iommu_iova_to_phys(iommu_get_dma_domain(dev), dev_addr);
 	arch_sync_dma_for_device(dev, phys, size, dir);
 }
 

@@ -516,14 +516,13 @@ int ib_register_device(struct ib_device *device,
 
 	ret = setup_port_pkey_list(device);
 	if (ret) {
-		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
+		pr_warn("Couldn't create per port_pkey_list\n");
 		goto port_cleanup;
 	}
 
 	ret = ib_cache_setup_one(device);
 	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't set up InfiniBand P_Key/GID cache\n");
+		pr_warn("Couldn't set up InfiniBand P_Key/GID cache\n");
 		goto pkey_cleanup;
 	}
 

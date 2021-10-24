@@ -33,7 +33,10 @@
 
 #define HCLGE_BUF_SIZE_UNIT	256
 
-static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
+static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
+				     enum hclge_mta_dmac_sel_type mta_mac_sel,
+				     bool enable);
+static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
@@ -1047,7 +1050,7 @@ static int hclge_knic_setup(struct hclge_vport *vport,
 		return -ENOMEM;
 
 	ret = hclge_assign_tqp(vport);
-	if (ret)
+	if (ret) {
 		dev_err(&hdev->pdev->dev, "fail to assign TQPs %d.\n", ret);
 		return -EINVAL;
 	}
@@ -4639,7 +4642,7 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 			return 0;
 
 		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND) {
-			dev_warn(&hdev->pdev->dev,
+			dev_warn_once(&hdev->pdev->dev,
 				 "vlan %d filter is not in vf vlan table\n",
 				 vlan);
 			return 0;

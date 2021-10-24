@@ -6718,6 +6718,10 @@ int kvm_arch_init(void *opaque)
 		set_hv_tscchange_cb(kvm_hyperv_tsc_notifier);
 #endif
 
+	/* RHEL-only: running as a nested hypervisor is TechPreview */
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
+		mark_tech_preview("Running as a nested hypervisor", THIS_MODULE);
+
 	return 0;
 
 out_free_percpu:

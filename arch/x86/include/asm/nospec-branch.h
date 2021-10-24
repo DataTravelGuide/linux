@@ -226,6 +226,9 @@ enum spectre_v2_mitigation {
 	SPECTRE_V2_RETPOLINE_GENERIC,
 	SPECTRE_V2_RETPOLINE_AMD,
 	SPECTRE_V2_IBRS_ENHANCED,
+	SPECTRE_V2_IBRS,
+	SPECTRE_V2_RETPOLINE_IBRS_USER,
+	SPECTRE_V2_IBRS_ALWAYS,
 };
 
 /* The indirect branch speculation control variants */

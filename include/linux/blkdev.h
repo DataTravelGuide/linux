@@ -343,6 +343,15 @@ struct queue_limits {
 	unsigned char		cluster;
 	unsigned char		raid_partial_stripes_expensive;
 	enum blk_zoned_model	zoned;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
+	RH_KABI_RESERVE(5)
+	RH_KABI_RESERVE(6)
+	RH_KABI_RESERVE(7)
+	RH_KABI_RESERVE(8)
 };
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -494,7 +503,7 @@ struct request_queue {
 
 	struct queue_limits	limits;
 
-#ifdef CONFIG_BLK_DEV_ZONED
+#if 1 /* CONFIG_BLK_DEV_ZONED */
 	/*
 	 * Zoned block device information for request dispatch control.
 	 * nr_zones is the total number of zones of the device. This is always
@@ -578,6 +587,7 @@ struct request_queue {
 #define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
 #define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
 #define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
+#define QUEUE_FLAG_UNPRIV_SGIO  8	/* SG_IO free for unprivileged users */
 #define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
 #define QUEUE_FLAG_IO_STAT     10	/* do IO stats */
@@ -599,8 +609,7 @@ struct request_queue {
 #define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
 #define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
 #define QUEUE_FLAG_QUIESCED    28	/* queue has been quiesced */
-#define QUEUE_FLAG_PREEMPT_ONLY	29	/* only process REQ_PREEMPT requests */
-#define QUEUE_FLAG_PCI_P2PDMA  30	/* device supports PCI p2p requests */
+#define QUEUE_FLAG_PCI_P2PDMA  29	/* device supports PCI p2p requests */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
@@ -620,6 +629,8 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_noxmerges(q)	\
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
+#define blk_queue_unpriv_sgio(q) \
+	test_bit(QUEUE_FLAG_UNPRIV_SGIO, &(q)->queue_flags)
 #define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
 #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
 #define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
@@ -1214,7 +1225,8 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 				    gfp_mask, 0);
 }
 
-extern int blk_verify_command(unsigned char *cmd, fmode_t mode);
+extern int blk_verify_command(struct request_queue *q, unsigned char *cmd,
+			      fmode_t mode);
 
 enum blk_default_limits {
 	BLK_MAX_SEGMENTS	= 128,
@@ -1499,6 +1511,9 @@ struct blk_integrity_profile {
 	integrity_processing_fn		*generate_fn;
 	integrity_processing_fn		*verify_fn;
 	const char			*name;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
 };
 
 extern void blk_integrity_register(struct gendisk *, struct blk_integrity *);
@@ -1663,6 +1678,11 @@ struct block_device_operations {
 			    gfp_t gfp_mask);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
 };
 
 extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,

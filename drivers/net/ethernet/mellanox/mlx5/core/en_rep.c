@@ -1055,12 +1055,6 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static int mlx5e_get_rep_max_num_channels(struct mlx5_core_dev *mdev)
-{
-#define	MLX5E_PORT_REPRESENTOR_NCH 1
-	return MLX5E_PORT_REPRESENTOR_NCH;
-}
-
 static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init			= mlx5e_init_rep,
 	.cleanup		= mlx5e_cleanup_rep,

@@ -100,6 +100,8 @@ struct aq_stats_s {
 #define AQ_HW_MEDIA_TYPE_TP    1U
 #define AQ_HW_MEDIA_TYPE_FIBRE 2U
 
+#define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
 #define AQ_HW_TXD_MULTIPLE 8U
 #define AQ_HW_RXD_MULTIPLE 8U
 

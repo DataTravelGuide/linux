@@ -2377,7 +2377,7 @@ static void __release_sock(struct sock *sk)
 			next = skb->next;
 			prefetch(next);
 			WARN_ON_ONCE(skb_dst_is_noref(skb));
-			skb_mark_not_on_list(skb);
+			skb->next = NULL;
 			sk_backlog_rcv(sk, skb);
 
 			cond_resched();

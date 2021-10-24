@@ -769,8 +769,8 @@ int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, int probe)
 	pcie_write_cmd_nowait(ctrl, ctrl_mask, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
-	if (pciehp_poll_mode)
-		int_poll_timeout(&ctrl->poll_timer);
+
+	up_write(&ctrl->reset_lock);
 	return rc;
 }
 

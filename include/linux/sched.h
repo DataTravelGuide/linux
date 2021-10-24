@@ -28,6 +28,7 @@
 #include <linux/mm_types_task.h>
 #include <linux/task_io_accounting.h>
 #include <linux/rseq.h>
+#include <linux/rh_kabi.h>
 
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
@@ -478,6 +479,11 @@ struct sched_entity {
 	 */
 	struct sched_avg		avg;
 #endif
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
 };
 
 struct sched_rt_entity {
@@ -571,12 +577,8 @@ union rcu_special {
 	struct {
 		u8			blocked;
 		u8			need_qs;
-		u8			exp_need_qs;
-
-		/* Otherwise the compiler can store garbage here: */
-		u8			pad;
 	} b; /* Bits. */
-	u32 s; /* Set of bits. */
+	u16 s; /* Set of bits. */
 };
 
 enum perf_event_task_context {
@@ -1193,6 +1195,15 @@ struct task_struct {
 	 * they are included in the randomized portion of task_struct.
 	 */
 	randomized_struct_fields_end
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
+	RH_KABI_RESERVE(5)
+	RH_KABI_RESERVE(6)
+	RH_KABI_RESERVE(7)
+	RH_KABI_RESERVE(8)
 
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;

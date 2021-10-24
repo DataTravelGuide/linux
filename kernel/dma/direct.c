@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * DMA operations that map physical memory directly without using an IOMMU or
- * flushing caches.
+ * Copyright (C) 2018 Christoph Hellwig.
+ *
+ * DMA operations that map physical memory directly without using an IOMMU.
  */
 #include <linux/bootmem.h> /* for max_pfn */
 #include <linux/export.h>
@@ -9,6 +10,7 @@
 #include <linux/dma-direct.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-contiguous.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/pfn.h>
 #include <linux/set_memory.h>
 #include <linux/swiotlb.h>
@@ -269,7 +271,7 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 	for_each_sg(sgl, sg, nents, i) {
 		if (!dev_is_dma_coherent(dev))
 			arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
-	
+
 		if (unlikely(is_swiotlb_buffer(sg_phys(sg))))
 			swiotlb_tbl_sync_single(dev, sg_phys(sg), sg->length, dir,
 					SYNC_FOR_CPU);
@@ -317,7 +319,8 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
 		unsigned long attrs)
 {
-	dma_addr_t dma_addr = phys_to_dma(dev, page_to_phys(page)) + offset;
+	phys_addr_t phys = page_to_phys(page) + offset;
+	dma_addr_t dma_addr = phys_to_dma(dev, phys);
 
 	if (unlikely(!dma_direct_possible(dev, dma_addr, size)) &&
 	    !swiotlb_map(dev, &phys, &dma_addr, size, dir, attrs)) {

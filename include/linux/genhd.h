@@ -131,6 +131,11 @@ struct hd_struct {
 #endif
 	struct percpu_ref ref;
 	struct rcu_work rcu_work;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
 };
 
 #define GENHD_FL_REMOVABLE			1
@@ -168,6 +173,9 @@ struct blk_integrity {
 	unsigned char				tuple_size;
 	unsigned char				interval_exp;
 	unsigned char				tag_size;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
 };
 
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
@@ -212,6 +220,11 @@ struct gendisk {
 	int node_id;
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
 };
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)

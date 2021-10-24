@@ -328,12 +328,12 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 
 	if (data_is == FSNOTIFY_EVENT_PATH)
 		mnt = real_mount(((const struct path *)data)->mnt);
-		sb = mnt->mnt.mnt_sb;
-		mnt_or_sb_mask = mnt->mnt_fsnotify_mask | sb->s_fsnotify_mask;
-	}
-	/* An event "on child" is not intended for a mount/sb mark */
+	else
+		mnt = NULL;
+
+	/* An event "on child" is not intended for a mount mark */
 	if (mask & FS_EVENT_ON_CHILD)
-		mnt_or_sb_mask = 0;
+		mnt = NULL;
 
 	/*
 	 * Optimization: srcu_read_lock() has a memory barrier which can

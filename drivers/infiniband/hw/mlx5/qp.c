@@ -4386,8 +4386,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	u8 next_fence = 0;
 	u8 fence;
 
-	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR &&
-		     !drain)) {
+	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
 		*bad_wr = wr;
 		return -EIO;
 	}
@@ -4711,8 +4710,7 @@ int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	int ind;
 	int i;
 
-	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR &&
-		     !drain)) {
+	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
 		*bad_wr = wr;
 		return -EIO;
 	}

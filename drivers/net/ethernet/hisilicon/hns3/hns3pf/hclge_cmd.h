@@ -109,6 +109,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
 	HCLGE_OPC_SERDES_LOOPBACK       = 0x0315,
+	/* MACSEC command */
 
 	/* PFC/Pause CMD*/
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
@@ -602,6 +603,15 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	__le16  egress_port;
 	__le16  egress_queue;
 	u8      rsv2[6];
+};
+
+#define HCLGE_VLAN_MASK_EN_B		0x0
+struct hclge_mac_vlan_mask_entry_cmd {
+	u8 rsv0[2];
+	u8 vlan_mask;
+	u8 rsv1;
+	u8 mac_mask[6];
+	u8 rsv2[14];
 };
 
 #define HCLGE_UMV_SPC_ALC_B	0

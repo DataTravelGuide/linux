@@ -32,6 +32,7 @@ struct vm86;
 #include <linux/err.h>
 #include <linux/irqflags.h>
 #include <linux/mem_encrypt.h>
+#include <linux/rh_kabi.h>
 
 /*
  * We handle most unaligned accesses in hardware.  On the other hand
@@ -80,6 +81,9 @@ extern u16 __read_mostly tlb_lld_4k[NR_INFO];
 extern u16 __read_mostly tlb_lld_2m[NR_INFO];
 extern u16 __read_mostly tlb_lld_4m[NR_INFO];
 extern u16 __read_mostly tlb_lld_1g[NR_INFO];
+
+struct cpuinfo_x86_extended_rh {
+};
 
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
@@ -135,6 +139,7 @@ struct cpuinfo_x86 {
 	/* Address space bits used by the cache internally */
 	u8			x86_cache_bits;
 	unsigned		initialized : 1;
+	RH_KABI_SIZE_AND_EXTEND(cpuinfo_x86_extended);
 } __randomize_layout;
 
 struct cpuid_regs {

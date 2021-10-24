@@ -323,7 +323,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 	page = migration_entry_to_page(entry);
 
 	/*
-	 * Once page cache replacement of page migration started, page_count
+	 * Once radix-tree replacement of page migration started, page_count
 	 * is zero; but we must not call put_and_wait_on_page_locked() without
 	 * a ref. Use get_page_unless_zero(), and just fault again if it fails.
 	 */

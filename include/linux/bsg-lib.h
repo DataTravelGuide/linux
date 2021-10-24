@@ -70,6 +70,9 @@ struct bsg_job {
 	unsigned int reply_payload_rcv_len;
 
 	void *dd_data;		/* Used for driver-specific storage */
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
 };
 
 void bsg_job_done(struct bsg_job *job, int result,

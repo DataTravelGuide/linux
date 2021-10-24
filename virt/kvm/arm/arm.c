@@ -500,7 +500,6 @@ static void update_vttbr(struct kvm *kvm)
 {
 	phys_addr_t pgd_phys;
 	u64 vmid, cnp = kvm_cpu_has_cnp() ? VTTBR_CNP_BIT : 0;
-	bool new_gen;
 
 	if (!need_new_vmid_gen(kvm))
 		return;

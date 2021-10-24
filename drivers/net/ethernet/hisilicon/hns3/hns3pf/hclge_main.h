@@ -471,10 +471,6 @@ struct hclge_dev {
 
 	unsigned long vlan_table[VLAN_N_VID][BITS_TO_LONGS(HCLGE_VPORT_NUM)];
 
-	struct hclge_fd_cfg fd_cfg;
-	struct hlist_head fd_rule_list;
-	u16 hclge_fd_rule_num;
-
 	u16 wanted_umv_size;
 	/* max available unicast mac vlan space */
 	u16 max_umv_size;

@@ -509,6 +509,9 @@ void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
 				    enable ? "enable" : "disable");
 			h->ae_algo->ops->enable_vlan_filter(h, enable);
 		}
+
+		if (h->ae_algo->ops->update_mta_status)
+			h->ae_algo->ops->update_mta_status(h);
 	}
 }
 
@@ -1130,7 +1133,7 @@ static int hns3_nic_maybe_stop_tx(struct sk_buff **out_skb, int *bnum,
 		*out_skb = new_skb;
 	}
 
-	if (unlikely(ring_space(ring) < buf_num))
+	if (buf_num > ring_space(ring))
 		return -EBUSY;
 
 	*bnum = buf_num;
@@ -3565,6 +3568,10 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	netif_carrier_off(netdev);
 
 	hns3_restore_coal(priv);
+
+	ret = hns3_get_ring_config(priv);
+	if (ret)
+		return ret;
 
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)

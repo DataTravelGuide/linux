@@ -151,6 +151,13 @@ _GLOBAL(tm_reclaim)
 	mtmsrd	r5, 1
 
 	/*
+	 * Move the saved user r1 to the kernel stack in case PACATMSCRATCH is
+	 * clobbered by an exception once we turn on MSR_RI below.
+	 */
+	ld	r11, PACATMSCRATCH(r13)
+	std	r11, GPR1(r1)
+
+	/*
 	 * BE CAREFUL HERE:
 	 * At this point we can't take an SLB miss since we have MSR_RI
 	 * off. Load only to/from the stack/paca which are in SLB bolted regions

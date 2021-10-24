@@ -568,6 +568,7 @@ asmlinkage __visible void __init start_kernel(void)
 	page_alloc_init();
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
+	pr_notice("Specific versions of hardware are certified with Red Hat Enterprise Linux 8. Please see the list of hardware certified with Red Hat Enterprise Linux 8 at https://access.redhat.com/ecosystem.\n");
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
@@ -1018,6 +1019,17 @@ static int __init set_debug_rodata(char *str)
 	return strtobool(str, &rodata_enabled);
 }
 __setup("rodata=", set_debug_rodata);
+#endif
+
+#ifdef CONFIG_LOCKUP_DETECTOR
+extern int watchdog_thresh;
+
+static int __init watchdog_thresh_setup(char *str)
+{
+	get_option(&str, &watchdog_thresh);
+	return 1;
+}
+__setup("watchdog_thresh=", watchdog_thresh_setup);
 #endif
 
 #ifdef CONFIG_STRICT_KERNEL_RWX

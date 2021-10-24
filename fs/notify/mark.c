@@ -168,13 +168,12 @@ static void *fsnotify_detach_connector_from_object(
 	struct inode *inode = NULL;
 
 	*type = conn->type;
-	if (conn->type == FSNOTIFY_OBJ_TYPE_DETACHED)
-		return NULL;
-
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE) {
 		inode = conn->inode;
 		rcu_assign_pointer(inode->i_fsnotify_marks, NULL);
 		inode->i_fsnotify_mask = 0;
+		conn->inode = NULL;
+		conn->type = FSNOTIFY_OBJ_TYPE_DETACHED;
 		atomic_long_inc(&inode->i_sb->s_fsnotify_inode_refs);
 	} else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
 		rcu_assign_pointer(real_mount(conn->mnt)->mnt_fsnotify_marks,

@@ -851,7 +851,7 @@ void tipc_link_reset(struct tipc_link *l)
 
 	__skb_queue_head_init(&list);
 
-	l->in_session = false;
+	l->peer_session = ANY_SESSION;
 	l->session++;
 	l->mtu = l->advertised_mtu;
 
@@ -1493,47 +1493,6 @@ tnl:
 	}
 }
 
-/* tipc_link_validate_msg(): validate message against current link state
- * Returns true if message should be accepted, otherwise false
- */
-bool tipc_link_validate_msg(struct tipc_link *l, struct tipc_msg *hdr)
-{
-	u16 curr_session = l->peer_session;
-	u16 session = msg_session(hdr);
-	int mtyp = msg_type(hdr);
-
-	if (msg_user(hdr) != LINK_PROTOCOL)
-		return true;
-
-	switch (mtyp) {
-	case RESET_MSG:
-		if (!l->in_session)
-			return true;
-		/* Accept only RESET with new session number */
-		return more(session, curr_session);
-	case ACTIVATE_MSG:
-		if (!l->in_session)
-			return true;
-		/* Accept only ACTIVATE with new or current session number */
-		return !less(session, curr_session);
-	case STATE_MSG:
-		/* Accept only STATE with current session number */
-		if (!l->in_session)
-			return false;
-		if (session != curr_session)
-			return false;
-		/* Extra sanity check */
-		if (!link_is_up(l) && msg_ack(hdr))
-			return false;
-		if (!(l->peer_caps & TIPC_LINK_PROTO_SEQNO))
-			return true;
-		/* Accept only STATE with new sequence number */
-		return !less(msg_seqno(hdr), l->rcv_nxt_state);
-	default:
-		return false;
-	}
-}
-
 /* tipc_link_proto_rcv(): receive link level protocol message :
  * Note that network plane id propagates through the network, and may
  * change at any time. The node with lowest numerical id determines
@@ -1591,6 +1550,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			l->tolerance = peers_tol;
 			l->bc_rcvlink->tolerance = peers_tol;
 		}
+
 		/* Update own priority if peer's priority is higher */
 		if (in_range(peers_prio, l->priority + 1, TIPC_MAX_LINK_PRI))
 			l->priority = peers_prio;

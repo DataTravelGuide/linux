@@ -167,16 +167,16 @@ static struct tcf_meta_ops *find_ife_oplist(u16 metaid)
 {
 	struct tcf_meta_ops *o;
 
-	read_lock_bh(&ife_mod_lock);
+	read_lock(&ife_mod_lock);
 	list_for_each_entry(o, &ifeoplist, list) {
 		if (o->metaid == metaid) {
 			if (!try_module_get(o->owner))
 				o = NULL;
-			read_unlock_bh(&ife_mod_lock);
+			read_unlock(&ife_mod_lock);
 			return o;
 		}
 	}
-	read_unlock_bh(&ife_mod_lock);
+	read_unlock(&ife_mod_lock);
 
 	return NULL;
 }
@@ -190,12 +190,12 @@ int register_ife_op(struct tcf_meta_ops *mops)
 	    !mops->get || !mops->alloc)
 		return -EINVAL;
 
-	write_lock_bh(&ife_mod_lock);
+	write_lock(&ife_mod_lock);
 
 	list_for_each_entry(m, &ifeoplist, list) {
 		if (m->metaid == mops->metaid ||
 		    (strcmp(mops->name, m->name) == 0)) {
-			write_unlock_bh(&ife_mod_lock);
+			write_unlock(&ife_mod_lock);
 			return -EEXIST;
 		}
 	}
@@ -204,7 +204,7 @@ int register_ife_op(struct tcf_meta_ops *mops)
 		mops->release = ife_release_meta_gen;
 
 	list_add_tail(&mops->list, &ifeoplist);
-	write_unlock_bh(&ife_mod_lock);
+	write_unlock(&ife_mod_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(unregister_ife_op);
@@ -214,7 +214,7 @@ int unregister_ife_op(struct tcf_meta_ops *mops)
 	struct tcf_meta_ops *m;
 	int err = -ENOENT;
 
-	write_lock_bh(&ife_mod_lock);
+	write_lock(&ife_mod_lock);
 	list_for_each_entry(m, &ifeoplist, list) {
 		if (m->metaid == mops->metaid) {
 			list_del(&mops->list);
@@ -222,7 +222,7 @@ int unregister_ife_op(struct tcf_meta_ops *mops)
 			break;
 		}
 	}
-	write_unlock_bh(&ife_mod_lock);
+	write_unlock(&ife_mod_lock);
 
 	return err;
 }
@@ -361,13 +361,13 @@ static int use_all_metadata(struct tcf_ife_info *ife, bool exists)
 	int rc = 0;
 	int installed = 0;
 
-	read_lock_bh(&ife_mod_lock);
+	read_lock(&ife_mod_lock);
 	list_for_each_entry(o, &ifeoplist, list) {
 		rc = add_metainfo_and_get_ops(o, ife, o->metaid, exists);
 		if (rc == 0)
 			installed += 1;
 	}
-	read_unlock_bh(&ife_mod_lock);
+	read_unlock(&ife_mod_lock);
 
 	if (installed)
 		return 0;
@@ -855,8 +855,7 @@ static int tcf_ife_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index,
-			  struct netlink_ext_ack *extack)
+static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 

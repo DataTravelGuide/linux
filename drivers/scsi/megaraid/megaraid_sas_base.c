@@ -172,6 +172,28 @@ static struct pci_device_id megasas_pci_table[] = {
 	{}
 };
 
+static struct pci_device_id megasas_pci_ids_removed[] = {
+
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1064R)},
+	/* xscale IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078R)},
+	/* ppc IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078DE)},
+	/* ppc IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078GEN2)},
+	/* gen2*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0079GEN2)},
+	/* gen2*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0073SKINNY)},
+	/* skinny*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0071SKINNY)},
+	/* skinny*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VERDE_ZCR)},
+	/* xscale IOP, vega */
+	{PCI_DEVICE(PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DELL_PERC5)},
+	{}
+};
+
 MODULE_DEVICE_TABLE(pci, megasas_pci_table);
 
 static int megasas_mgmt_majorno;
@@ -223,10 +245,10 @@ megasas_free_ctrl_dma_buffers(struct megasas_instance *instance);
 static inline void
 megasas_init_ctrl_params(struct megasas_instance *instance);
 
-u32 megasas_readl(struct megasas_instance *instance,
-		  const volatile void __iomem *addr)
+u32 megasas_readl(const volatile void __iomem *addr)
 {
 	u32 i = 0, ret_val;
+
 	/*
 	 * Due to a HW errata in Aero controllers, reads to certain
 	 * Fusion registers could intermittently return all zeroes.
@@ -234,15 +256,12 @@ u32 megasas_readl(struct megasas_instance *instance,
 	 * return valid value. As a workaround in driver, retry readl for
 	 * upto three times until a non-zero value is read.
 	 */
-	if (instance->adapter_type == AERO_SERIES) {
-		do {
-			ret_val = readl(addr);
-			i++;
-		} while (ret_val == 0 && i < 3);
-		return ret_val;
-	} else {
-		return readl(addr);
-	}
+	do {
+		ret_val = readl(addr);
+		i++;
+	} while (ret_val == 0 && i < 3);
+
+	return ret_val;
 }
 
 /**
@@ -3859,7 +3878,6 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				if (instance->adapter_type != MFI_SERIES) {
 					for (i = 0; i < (10 * 1000); i += 20) {
 						if (megasas_readl(
-							    instance,
 							    &instance->
 							    reg_set->
 							    doorbell) & 1)
@@ -5326,10 +5344,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	fusion = instance->ctrl_context;
 
 	if (instance->adapter_type >= VENTURA_SERIES) {
-		scratch_pad_2 =
-			megasas_readl(instance,
-				      &instance->reg_set->outbound_scratch_pad_2);
-		instance->max_raid_mapsize = ((scratch_pad_2 >>
+		scratch_pad_3 =
+			megasas_readl(&instance->reg_set->outbound_scratch_pad_3);
+		instance->max_raid_mapsize = ((scratch_pad_3 >>
 			MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
 			MR_MAX_RAID_MAP_SIZE_MASK);
 	}
@@ -5340,8 +5357,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (msix_enable && !msix_disable) {
 		int irq_flags = PCI_IRQ_MSIX;
 
-		scratch_pad_1 = megasas_readl
-			(instance, &instance->reg_set->outbound_scratch_pad_1);
+		scratch_pad_2 = megasas_readl
+			(&instance->reg_set->outbound_scratch_pad_2);
 		/* Check max MSI-X vectors */
 		if (fusion) {
 			if (instance->adapter_type == THUNDERBOLT_SERIES) {
@@ -5353,26 +5370,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->msix_vectors = ((scratch_pad_2
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
 					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
-
-				/*
-				 * For Invader series, > 8 MSI-x vectors
-				 * supported by FW/HW implies combined
-				 * reply queue mode is enabled.
-				 * For Ventura series, > 16 MSI-x vectors
-				 * supported by FW/HW implies combined
-				 * reply queue mode is enabled.
-				 */
-				switch (instance->adapter_type) {
-				case INVADER_SERIES:
-					if (instance->msix_vectors > 8)
-						instance->msix_combined = true;
-					break;
-				case AERO_SERIES:
-				case VENTURA_SERIES:
-					if (instance->msix_vectors > 16)
-						instance->msix_combined = true;
-					break;
-				}
+				if (instance->msix_vectors > 16)
+					instance->msix_combined = true;
 
 				if (rdpq_enable)
 					instance->is_rdpq = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ?
@@ -5451,10 +5450,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		goto fail_init_adapter;
 
 	if (instance->adapter_type >= VENTURA_SERIES) {
-		scratch_pad_3 =
-			megasas_readl(instance,
-				      &instance->reg_set->outbound_scratch_pad_3);
-		if ((scratch_pad_3 & MR_NVME_PAGE_SIZE_MASK) >=
+		scratch_pad_4 =
+			megasas_readl(&instance->reg_set->outbound_scratch_pad_4);
+		if ((scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK) >=
 			MR_DEFAULT_NVME_PAGE_SHIFT)
 			instance->nvme_page_size =
 				(1 << (scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK));
@@ -6090,7 +6088,7 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 
 	pdev = instance->pdev;
 	consistent_mask = (instance->adapter_type >= VENTURA_SERIES) ?
-				DMA_BIT_MASK(64) : DMA_BIT_MASK(32);
+				DMA_BIT_MASK(63) : DMA_BIT_MASK(32);
 
 	if (IS_DMA64) {
 		if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(63)) &&
@@ -6104,8 +6102,8 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 			 * If 32 bit DMA mask fails, then try for 64 bit mask
 			 * for FW capable of handling 64 bit DMA.
 			 */
-			scratch_pad_1 = megasas_readl
-				(instance, &instance->reg_set->outbound_scratch_pad_1);
+			scratch_pad_2 = megasas_readl
+				(&instance->reg_set->outbound_scratch_pad_2);
 
 			if (!(scratch_pad_2 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET))
 				goto fail_set_dma_mask;
@@ -6159,6 +6157,7 @@ static inline void megasas_set_adapter_type(struct megasas_instance *instance)
 		case PCI_DEVICE_ID_LSI_AERO_10E5:
 		case PCI_DEVICE_ID_LSI_AERO_10E6:
 			instance->adapter_type = AERO_SERIES;
+			mark_tech_preview("Avago MegaRAID SAS Driver", THIS_MODULE);
 			break;
 		case PCI_DEVICE_ID_LSI_VENTURA:
 		case PCI_DEVICE_ID_LSI_CRUSADER:
@@ -6513,6 +6512,10 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	struct Scsi_Host *host;
 	struct megasas_instance *instance;
 	u16 control = 0;
+
+	if (pci_device_support_removed(megasas_pci_table,
+				megasas_pci_ids_removed, pdev))
+		return -ENODEV;
 
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_LSI_AERO_10E1:

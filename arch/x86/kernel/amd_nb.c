@@ -199,11 +199,9 @@ EXPORT_SYMBOL_GPL(amd_df_indirect_read);
 
 int amd_cache_northbridges(void)
 {
-	const struct pci_device_id *misc_ids = amd_nb_misc_ids;
-	const struct pci_device_id *link_ids = amd_nb_link_ids;
 	const struct pci_device_id *root_ids = amd_root_ids;
-	struct pci_dev *root, *misc, *link;
 	struct amd_northbridge *nb;
+	struct pci_dev *root, *misc, *link;
 	u16 roots_per_misc = 0;
 	u16 misc_count = 0;
 	u16 root_count = 0;
@@ -213,7 +211,7 @@ int amd_cache_northbridges(void)
 		return 0;
 
 	misc = NULL;
-	while ((misc = next_northbridge(misc, misc_ids)) != NULL)
+	while ((misc = next_northbridge(misc, amd_nb_misc_ids)) != NULL)
 		misc_count++;
 
 	if (!misc_count)
@@ -250,7 +248,7 @@ int amd_cache_northbridges(void)
 		node_to_amd_nb(i)->misc = misc =
 			next_northbridge(misc, amd_nb_misc_ids);
 		node_to_amd_nb(i)->link = link =
-			next_northbridge(link, link_ids);
+			next_northbridge(link, amd_nb_link_ids);
 
 		/*
 		 * If there are more PCI root devices than data fabric/

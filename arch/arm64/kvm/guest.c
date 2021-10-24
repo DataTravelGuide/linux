@@ -152,17 +152,17 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	}
 
 	if (off == KVM_REG_ARM_CORE_REG(regs.pstate)) {
-		u64 mode = (*(u64 *)valp) & PSR_AA32_MODE_MASK;
+		u64 mode = (*(u64 *)valp) & COMPAT_PSR_MODE_MASK;
 		switch (mode) {
-		case PSR_AA32_MODE_USR:
+		case COMPAT_PSR_MODE_USR:
 			if (!system_supports_32bit_el0())
 				return -EINVAL;
 			break;
-		case PSR_AA32_MODE_FIQ:
-		case PSR_AA32_MODE_IRQ:
-		case PSR_AA32_MODE_SVC:
-		case PSR_AA32_MODE_ABT:
-		case PSR_AA32_MODE_UND:
+		case COMPAT_PSR_MODE_FIQ:
+		case COMPAT_PSR_MODE_IRQ:
+		case COMPAT_PSR_MODE_SVC:
+		case COMPAT_PSR_MODE_ABT:
+		case COMPAT_PSR_MODE_UND:
 			if (!vcpu_el1_is_32bit(vcpu))
 				return -EINVAL;
 			break;

@@ -378,7 +378,7 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	}
 
 	ndev->num_inline_segments = min(NVME_RDMA_MAX_INLINE_SEGMENTS,
-					ndev->dev->attrs.max_sge - 1);
+					ndev->dev->attrs.max_send_sge - 1);
 	list_add(&ndev->entry, &device_list);
 out_unlock:
 	mutex_unlock(&device_list_mutex);

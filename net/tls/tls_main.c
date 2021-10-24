@@ -725,6 +725,9 @@ static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
 
 static int __init tls_register(void)
 {
+	BUILD_BUG_ON(sizeof(union tls_crypto_context) >
+		     RH_KABI_TLS_CRYPT_CONTEXT_SIZE);
+
 	build_protos(tls_prots[TLSV4], &tcp_prot);
 
 	tls_sw_proto_ops = inet_stream_ops;
@@ -736,6 +739,7 @@ static int __init tls_register(void)
 #endif
 	tcp_register_ulp(&tcp_tls_ulp_ops);
 
+	mark_tech_preview("kTLS", THIS_MODULE);
 	return 0;
 }
 

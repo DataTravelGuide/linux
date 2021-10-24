@@ -601,38 +601,20 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 		destroy_rcu_head(&cmd->rcu);
 	}
 
-	if (req->mq_ctx) {
-		/*
-		 * In the MQ case the command gets freed by __blk_mq_end_request,
-		 * so we have to do all cleanup that depends on it earlier.
-		 *
-		 * We also can't kick the queues from irq context, so we
-		 * will have to defer it to a workqueue.
-		 */
-		scsi_mq_uninit_cmd(cmd);
+	/*
+	 * In the MQ case the command gets freed by __blk_mq_end_request,
+	 * so we have to do all cleanup that depends on it earlier.
+	 *
+	 * We also can't kick the queues from irq context, so we
+	 * will have to defer it to a workqueue.
+	 */
+	scsi_mq_uninit_cmd(cmd);
 
-		/*
-		 * queue is still alive, so grab the ref for preventing it
-		 * from being cleaned up during running queue.
-		 */
-		percpu_ref_get(&q->q_usage_counter);
-
-		__blk_mq_end_request(req, error);
-
-		if (scsi_target(sdev)->single_lun ||
-		    !list_empty(&sdev->host->starved_list))
-			kblockd_schedule_work(&sdev->requeue_work);
-		else
-			blk_mq_run_hw_queues(q, true);
-
-		percpu_ref_put(&q->q_usage_counter);
-	} else {
-		unsigned long flags;
-
-		if (bidi_bytes)
-			scsi_release_bidi_buffers(cmd);
-		scsi_release_buffers(cmd);
-		scsi_put_command(cmd);
+	/*
+	 * queue is still alive, so grab the ref for preventing it
+	 * from being cleaned up during running queue.
+	 */
+	percpu_ref_get(&q->q_usage_counter);
 
 	__blk_mq_end_request(req, error);
 
@@ -641,6 +623,8 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 		kblockd_schedule_work(&sdev->requeue_work);
 	else
 		blk_mq_run_hw_queues(q, true);
+
+	percpu_ref_put(&q->q_usage_counter);
 
 	put_device(&sdev->sdev_gendev);
 	return false;

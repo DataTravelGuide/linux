@@ -1161,6 +1161,19 @@ static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+/* RHEL: remove the extra reserved fields at the end of rtnl_link_stats64.
+ * We assume the fields are 64bit aligned. */
+static void trim_reserved_stats(struct sk_buff *skb, struct nlattr *attr)
+{
+	size_t extra;
+
+	extra = sizeof(struct rtnl_link_stats64) - sizeof_rtnl_link_stats64;
+	attr->nla_len -= extra;
+
+	/* We can subtract 'extra' here due to proper structure alignment */
+	__skb_trim(skb, skb->len - extra);
+}
+
 static noinline_for_stack int rtnl_fill_stats(struct sk_buff *skb,
 					      struct net_device *dev)
 {
@@ -1175,8 +1188,10 @@ static noinline_for_stack int rtnl_fill_stats(struct sk_buff *skb,
 	sp = nla_data(attr);
 	dev_get_stats(dev, sp);
 
+	trim_reserved_stats(skb, attr);
+
 	attr = nla_reserve(skb, IFLA_STATS,
-			   sizeof(struct rtnl_link_stats));
+			   sizeof_rtnl_link_stats);
 	if (!attr)
 		return -EMSGSIZE;
 
@@ -4238,7 +4253,7 @@ static int rtnl_get_offload_stats_attr_size(int attr_id)
 {
 	switch (attr_id) {
 	case IFLA_OFFLOAD_XSTATS_CPU_HIT:
-		return sizeof(struct rtnl_link_stats64);
+		return sizeof_rtnl_link_stats64;
 	}
 
 	return 0;
@@ -4353,6 +4368,8 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 
 		sp = nla_data(attr);
 		dev_get_stats(dev, sp);
+
+		trim_reserved_stats(skb, attr);
 	}
 
 	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS, *idxattr)) {

@@ -2199,7 +2199,7 @@ wait_again:
 	/* Wait for callbacks to appear. */
 	if (!rcu_nocb_poll) {
 		trace_rcu_nocb_wake(rcu_state.name, my_rdp->cpu, TPS("Sleep"));
-		swait_event_interruptible_exclusive(my_rdp->nocb_wq,
+		swait_event_interruptible(my_rdp->nocb_wq,
 				!READ_ONCE(my_rdp->nocb_leader_sleep));
 		raw_spin_lock_irqsave(&my_rdp->nocb_lock, flags);
 		my_rdp->nocb_leader_sleep = true;
@@ -2281,7 +2281,7 @@ static void nocb_follower_wait(struct rcu_data *rdp)
 {
 	for (;;) {
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("FollowerSleep"));
-		swait_event_interruptible_exclusive(rdp->nocb_wq,
+		swait_event_interruptible(rdp->nocb_wq,
 					 READ_ONCE(rdp->nocb_follower_head));
 		if (smp_load_acquire(&rdp->nocb_follower_head)) {
 			/* ^^^ Ensure CB invocation follows _head test. */

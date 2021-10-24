@@ -1354,41 +1354,6 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		*match_level = MLX5_MATCH_L2;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CVLAN)) {
-		struct flow_dissector_key_vlan *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CVLAN,
-						  f->key);
-		struct flow_dissector_key_vlan *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CVLAN,
-						  f->mask);
-		if (mask->vlan_id || mask->vlan_priority || mask->vlan_tpid) {
-			if (key->vlan_tpid == htons(ETH_P_8021AD)) {
-				MLX5_SET(fte_match_set_misc, misc_c,
-					 outer_second_svlan_tag, 1);
-				MLX5_SET(fte_match_set_misc, misc_v,
-					 outer_second_svlan_tag, 1);
-			} else {
-				MLX5_SET(fte_match_set_misc, misc_c,
-					 outer_second_cvlan_tag, 1);
-				MLX5_SET(fte_match_set_misc, misc_v,
-					 outer_second_cvlan_tag, 1);
-			}
-
-			MLX5_SET(fte_match_set_misc, misc_c, outer_second_vid,
-				 mask->vlan_id);
-			MLX5_SET(fte_match_set_misc, misc_v, outer_second_vid,
-				 key->vlan_id);
-			MLX5_SET(fte_match_set_misc, misc_c, outer_second_prio,
-				 mask->vlan_priority);
-			MLX5_SET(fte_match_set_misc, misc_v, outer_second_prio,
-				 key->vlan_priority);
-
-			*match_level = MLX5_MATCH_L2;
-		}
-	}
-
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_dissector_key_eth_addrs *key =
 			skb_flow_dissector_target(f->dissector,
@@ -2614,7 +2579,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	LIST_HEAD(actions);
 	bool encap = false;
 	u32 action = 0;
-	int err, i;
+	int i;
 
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
@@ -2732,8 +2697,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		return -EOPNOTSUPP;
 
 	if (attr->mirror_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "current firmware doesn't support split rule for port mirroring");
 		netdev_warn_once(priv->netdev, "current firmware doesn't support split rule for port mirroring\n");
 		return -EOPNOTSUPP;
 	}

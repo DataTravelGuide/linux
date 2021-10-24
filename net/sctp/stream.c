@@ -37,66 +37,6 @@
 #include <net/sctp/sm.h>
 #include <net/sctp/stream_sched.h>
 
-static struct flex_array *fa_alloc(size_t elem_size, size_t elem_count,
-				   gfp_t gfp)
-{
-	struct flex_array *result;
-	int err;
-
-	result = flex_array_alloc(elem_size, elem_count, gfp);
-	if (result) {
-		err = flex_array_prealloc(result, 0, elem_count, gfp);
-		if (err) {
-			flex_array_free(result);
-			result = NULL;
-		}
-	}
-
-	return result;
-}
-
-static void fa_free(struct flex_array *fa)
-{
-	if (fa)
-		flex_array_free(fa);
-}
-
-static void fa_copy(struct flex_array *fa, struct flex_array *from,
-		    size_t index, size_t count)
-{
-	void *elem;
-
-	while (count--) {
-		elem = flex_array_get(from, index);
-		flex_array_put(fa, index, elem, 0);
-		index++;
-	}
-}
-
-static void fa_zero(struct flex_array *fa, size_t index, size_t count)
-{
-	void *elem;
-
-	while (count--) {
-		elem = flex_array_get(fa, index);
-		memset(elem, 0, fa->element_size);
-		index++;
-	}
-}
-
-static size_t fa_index(struct flex_array *fa, void *elem, size_t count)
-{
-	size_t index = 0;
-
-	while (count--) {
-		if (elem == flex_array_get(fa, index))
-			break;
-		index++;
-	}
-
-	return index;
-}
-
 /* Migrates chunks from stream queues to new stream queues if needed,
  * but not across associations. Also, removes those chunks to streams
  * higher than the new max.
@@ -158,15 +98,12 @@ static int sctp_stream_alloc_out(struct sctp_stream *stream, __u16 outcnt,
 		return -ENOMEM;
 
 	if (stream->out) {
-		fa_copy(out, stream->out, 0, min(outcnt, stream->outcnt));
-		if (stream->out_curr) {
-			size_t index = fa_index(stream->out, stream->out_curr,
-						stream->outcnt);
-
-			BUG_ON(index == stream->outcnt);
-			stream->out_curr = flex_array_get(out, index);
-		}
-		fa_free(stream->out);
+		memcpy(out, stream->out, min(outcnt, stream->outcnt) *
+					 sizeof(*out));
+		if (stream->out_curr)
+			stream->out_curr = out +
+					   (stream->out_curr - stream->out);
+		kfree(stream->out);
 	}
 
 	if (outcnt > stream->outcnt)

@@ -3866,6 +3866,30 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM, 0x9084,
 				quirk_bridge_cavm_thrx2_pcie_root);
 
 /*
+ * PCI BAR 5 is not setup correctly for the on-board AHCI controller
+ * on Broadcom's Vulcan processor. Added a quirk to fix BAR 5 by
+ * using BAR 4's resources which are populated correctly and NOT
+ * actually used by the AHCI controller.
+ */
+static void quirk_fix_vulcan_ahci_bars(struct pci_dev *dev)
+{
+	struct resource *r =  &dev->resource[4];
+
+	if (!(r->flags & IORESOURCE_MEM) || (r->start == 0))
+		return;
+
+	/* Set BAR5 resource to BAR4 */
+	dev->resource[5] = *r;
+
+	/* Update BAR5 in pci config space */
+	pci_write_config_dword(dev, PCI_BASE_ADDRESS_5, r->start);
+
+	/* Clear BAR4's resource */
+	memset(r, 0, sizeof(*r));
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM, 0x9027, quirk_fix_vulcan_ahci_bars);
+
+/*
  * Intersil/Techwell TW686[4589]-based video capture cards have an empty (zero)
  * class code.  Fix it.
  */
@@ -4810,6 +4834,61 @@ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
 			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
 
 /*
+ * Some IDT switches incorrectly flag an ACS Source Validation error on
+ * completions for config read requests even though PCIe r4.0, sec
+ * 6.12.1.1, says that completions are never affected by ACS Source
+ * Validation.  Here's the text of IDT 89H32H8G3-YC, erratum #36:
+ *
+ *   Item #36 - Downstream port applies ACS Source Validation to Completions
+ *   Section 6.12.1.1 of the PCI Express Base Specification 3.1 states that
+ *   completions are never affected by ACS Source Validation.  However,
+ *   completions received by a downstream port of the PCIe switch from a
+ *   device that has not yet captured a PCIe bus number are incorrectly
+ *   dropped by ACS Source Validation by the switch downstream port.
+ *
+ * The workaround suggested by IDT is to issue a config write to the
+ * downstream device before issuing the first config read.  This allows the
+ * downstream device to capture its bus and device numbers (see PCIe r4.0,
+ * sec 2.2.9), thus avoiding the ACS error on the completion.
+ *
+ * However, we don't know when the device is ready to accept the config
+ * write, so we do config reads until we receive a non-Config Request Retry
+ * Status, then do the config write.
+ *
+ * To avoid hitting the erratum when doing the config reads, we disable ACS
+ * SV around this process.
+ */
+int pci_idt_bus_quirk(struct pci_bus *bus, int devfn, u32 *l, int timeout)
+{
+	int pos;
+	u16 ctrl = 0;
+	bool found;
+	struct pci_dev *bridge = bus->self;
+
+	pos = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ACS);
+
+	/* Disable ACS SV before initial config reads */
+	if (pos) {
+		pci_read_config_word(bridge, pos + PCI_ACS_CTRL, &ctrl);
+		if (ctrl & PCI_ACS_SV)
+			pci_write_config_word(bridge, pos + PCI_ACS_CTRL,
+					      ctrl & ~PCI_ACS_SV);
+	}
+
+	found = pci_bus_generic_read_dev_vendor_id(bus, devfn, l, timeout);
+
+	/* Write Vendor ID (read-only) so the endpoint latches its bus/dev */
+	if (found)
+		pci_bus_write_config_word(bus, devfn, PCI_VENDOR_ID, 0);
+
+	/* Re-enable ACS_SV if it was previously enabled */
+	if (ctrl & PCI_ACS_SV)
+		pci_write_config_word(bridge, pos + PCI_ACS_CTRL, ctrl);
+
+	return found;
+}
+
+/*
  * Microsemi Switchtec NTB uses devfn proxy IDs to move TLPs between
  * NT endpoints via the internal switch fabric. These IDs replace the
  * originating requestor ID TLPs which access host memory on peer NTB
@@ -4947,3 +5026,68 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8575,
 			quirk_switchtec_ntb_dma_alias);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, 0x8576,
 			quirk_switchtec_ntb_dma_alias);
+
+/*
+ * On certain Lenovo Thinkpad P50 SKUs, specifically those with a Nvidia
+ * Quadro M1000M, the BIOS will occasionally make the mistake of not resetting
+ * the nvidia GPU between reboots if the system is configured to use hybrid
+ * graphics mode. This results in the GPU being left in whatever state it was
+ * in during the previous boot which causes spurious interrupts from the GPU,
+ * which in turn cause us to disable the wrong IRQs and end up breaking the
+ * touchpad. Unsurprisingly, this also completely breaks nouveau.
+ *
+ * Luckily, it seems a simple reset of the PCI device for the nvidia GPU
+ * manages to bring the GPU back into a clean state and fix all of these
+ * issues. Additionally since the GPU will report NoReset+ when the machine is
+ * configured in Dedicated display mode, we don't need to worry about
+ * accidentally resetting the GPU when it's supposed to already be
+ * initialized.
+ */
+static void
+quirk_lenovo_thinkpad_p50_nvgpu_survives_reboot(struct pci_dev *pdev)
+{
+	void __iomem *map;
+	int ret;
+
+	if (pdev->subsystem_vendor != PCI_VENDOR_ID_LENOVO ||
+	    pdev->subsystem_device != 0x222e ||
+	    !pdev->reset_fn)
+		return;
+
+	/*
+	 * If we can't enable the device's mmio space, it's probably not even
+	 * initialized. This is fine, and means we can just skip the quirk
+	 * entirely.
+	 */
+	if (pci_enable_device_mem(pdev)) {
+		pci_dbg(pdev, "Can't enable device mem, no reset needed\n");
+		return;
+	}
+
+	/* Taken from drivers/gpu/drm/nouveau/engine/device/base.c */
+	map = ioremap(pci_resource_start(pdev, 0), 0x102000);
+	if (!map) {
+		pci_err(pdev, "Can't map MMIO space, this is probably very bad\n");
+		goto out_disable;
+	}
+
+	/*
+	 * Be extra careful, and make sure that the GPU firmware is posted
+	 * before trying a reset
+	 */
+	if (ioread32(map + 0x2240c) & 0x2) {
+		pci_info(pdev,
+			 FW_BUG "GPU left initialized by EFI, resetting\n");
+		ret = pci_reset_function(pdev);
+		if (ret < 0)
+			pci_err(pdev, "Failed to reset GPU: %d\n", ret);
+	}
+
+	iounmap(map);
+out_disable:
+	pci_disable_device(pdev);
+}
+
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, 0x13b1,
+			      PCI_CLASS_DISPLAY_VGA, 8,
+			      quirk_lenovo_thinkpad_p50_nvgpu_survives_reboot);

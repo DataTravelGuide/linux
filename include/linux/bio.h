@@ -312,6 +312,10 @@ struct bio_integrity_payload {
 	struct work_struct	bip_work;	/* I/O completion */
 
 	struct bio_vec		*bip_vec;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+
 	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
 };
 
@@ -498,17 +502,17 @@ do {						\
 do {						\
 	(dst)->bi_disk = (src)->bi_disk;	\
 	(dst)->bi_partno = (src)->bi_partno;	\
-	bio_clone_blkcg_association(dst, src);	\
+	bio_clone_blkg_association(dst, src);	\
 } while (0)
 
 #define bio_dev(bio) \
 	disk_devt((bio)->bi_disk)
 
 #if defined(CONFIG_MEMCG) && defined(CONFIG_BLK_CGROUP)
-int bio_associate_blkg_from_page(struct bio *bio, struct page *page);
+void bio_associate_blkg_from_page(struct bio *bio, struct page *page);
 #else
-static inline int bio_associate_blkg_from_page(struct bio *bio,
-					       struct page *page) { return 0; }
+static inline void bio_associate_blkg_from_page(struct bio *bio,
+						struct page *page) { }
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
@@ -722,6 +726,11 @@ struct bio_set {
 	struct bio_list		rescue_list;
 	struct work_struct	rescue_work;
 	struct workqueue_struct	*rescue_workqueue;
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
 };
 
 struct biovec_slab {

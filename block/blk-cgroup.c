@@ -301,7 +301,7 @@ err_free_blkg:
  * that all non-root blkg's have access to the parent blkg.  This function
  * should be called under RCU read lock and @q->queue_lock.
  *
- * Returns the blkg or the closest blkg if blkg_create fails as it walks
+ * Returns the blkg or the closest blkg if blkg_create() fails as it walks
  * down from root.
  */
 struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
@@ -310,14 +310,7 @@ struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	struct blkcg_gq *blkg;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	lockdep_assert_held(q->queue_lock);
-
-	/*
-	 * This could be the first entry point of blkcg implementation and
-	 * we shouldn't allow anything to go through for a bypassing queue.
-	 */
-	if (unlikely(blk_queue_bypass(q)))
-		return q->root_blkg;
+	lockdep_assert_held(&q->queue_lock);
 
 	blkg = __blkg_lookup(blkcg, q, true);
 	if (blkg)
@@ -364,7 +357,6 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 				    struct request_queue *q)
 {
 	struct blkcg_gq *blkg = blkg_lookup(blkcg, q);
-	unsigned long flags;
 
 	if (unlikely(!blkg)) {
 		unsigned long flags;
@@ -447,39 +439,27 @@ static void blkg_destroy_all(struct request_queue *q)
 }
 
 /*
- * The next function used by blk_queue_for_each_rl().  It's a bit tricky
- * because the root blkg uses @q->root_rl instead of its own rl.
+ * A group is RCU protected, but having an rcu lock does not mean that one
+ * can access all the fields of blkg and assume these are valid.  For
+ * example, don't try to follow throtl_data and request queue links.
+ *
+ * Having a reference to blkg under an rcu allows accesses to only values
+ * local to groups like group stats and group rate limits.
  */
-struct request_list *__blk_queue_next_rl(struct request_list *rl,
-					 struct request_queue *q)
+void __blkg_release_rcu(struct rcu_head *rcu_head)
 {
-	struct list_head *ent;
-	struct blkcg_gq *blkg;
+	struct blkcg_gq *blkg = container_of(rcu_head, struct blkcg_gq, rcu_head);
 
-	/*
-	 * Determine the current blkg list_head.  The first entry is
-	 * root_rl which is off @q->blkg_list and mapped to the head.
-	 */
-	if (rl == &q->root_rl) {
-		ent = &q->blkg_list;
-		/* There are no more block groups, hence no request lists */
-		if (list_empty(ent))
-			return NULL;
-	} else {
-		blkg = container_of(rl, struct blkcg_gq, rl);
-		ent = &blkg->q_node;
-	}
+	/* release the blkcg and parent blkg refs this blkg has been holding */
+	css_put(&blkg->blkcg->css);
+	if (blkg->parent)
+		blkg_put(blkg->parent);
 
-	/* walk to the next list_head, skip root blkcg */
-	ent = ent->next;
-	if (ent == &q->root_blkg->q_node)
-		ent = ent->next;
-	if (ent == &q->blkg_list)
-		return NULL;
+	wb_congested_put(blkg->wb_congested);
 
-	blkg = container_of(ent, struct blkcg_gq, q_node);
-	return &blkg->rl;
+	blkg_free(blkg);
 }
+EXPORT_SYMBOL_GPL(__blkg_release_rcu);
 
 static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 			     struct cftype *cftype, u64 val)

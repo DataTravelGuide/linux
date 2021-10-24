@@ -66,6 +66,7 @@ extern struct megasas_cmd *megasas_get_cmd(struct megasas_instance
 extern void
 megasas_complete_cmd(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd, u8 alt_status);
+extern u32 megasas_readl(const volatile void __iomem *addr);
 int
 wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	      int seconds);
@@ -95,9 +96,6 @@ static void megasas_free_rdpq_fusion(struct megasas_instance *instance);
 static void megasas_free_reply_fusion(struct megasas_instance *instance);
 static inline
 void megasas_configure_queue_sizes(struct megasas_instance *instance);
-static void megasas_fusion_crash_dump(struct megasas_instance *instance);
-extern u32 megasas_readl(struct megasas_instance *instance,
-			 const volatile void __iomem *addr);
 
 /**
  * megasas_check_same_4gb_region -	check if allocation
@@ -174,7 +172,7 @@ megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs)
 	/*
 	 * Check if it is our interrupt
 	 */
-	status = readl(&regs->outbound_intr_status);
+	status = megasas_readl(&regs->outbound_intr_status);
 
 	if (status & 1) {
 		writel(status, &regs->outbound_intr_status);
@@ -268,8 +266,7 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 	/* ventura FW does not fill outbound_scratch_pad_3 with queue depth */
 	if (instance->adapter_type < VENTURA_SERIES)
 		cur_max_fw_cmds =
-		megasas_readl(instance,
-			      &instance->reg_set->outbound_scratch_pad_2) & 0x00FFFF;
+		megasas_readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
 
 	if (dual_qdepth_disable || !cur_max_fw_cmds)
 		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
@@ -989,8 +986,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	cmd = fusion->ioc_init_cmd;
 
-	scratch_pad_1 = megasas_readl
-		(instance, &instance->reg_set->outbound_scratch_pad_1);
+	scratch_pad_2 = megasas_readl
+		(&instance->reg_set->outbound_scratch_pad_2);
 
 	cur_rdpq_mode = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ? 1 : 0;
 
@@ -1111,7 +1108,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	instance->instancet->disable_intr(instance);
 
 	for (i = 0; i < (10 * 1000); i += 20) {
-		if (megasas_readl(instance, &instance->reg_set->doorbell) & 1)
+		if (megasas_readl(&instance->reg_set->doorbell) & 1)
 			msleep(20);
 		else
 			break;
@@ -1663,9 +1660,8 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	megasas_configure_queue_sizes(instance);
 
-	scratch_pad_1 = megasas_readl(instance,
-				      &instance->reg_set->outbound_scratch_pad_1);
-	/* If scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
+	scratch_pad_2 = megasas_readl(&instance->reg_set->outbound_scratch_pad_2);
+	/* If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
 	 * Firmware support extended IO chain frame which is 4 times more than
 	 * legacy Firmware.
 	 * Legacy Firmware - Frame size is (8 * 128) = 1K
@@ -2648,6 +2644,8 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	cmd->request_desc->SCSIIO.MSIxIndex =
 		instance->reply_map[raw_smp_processor_id()];
 
+	praid_context = &io_request->RaidContext;
+
 	if (instance->adapter_type >= VENTURA_SERIES) {
 		/* FP for Optimal raid level 1.
 		 * All large RAID-1 writes (> 32 KiB, both WT and WB modes)
@@ -2719,9 +2717,12 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
 		} else if (instance->adapter_type >= VENTURA_SERIES) {
-			rctx_g35->nseg_type |= (1 << RAID_CONTEXT_NSEG_SHIFT);
-			rctx_g35->nseg_type |= (MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
-			rctx_g35->routing_flags |= (1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+						(1 << RAID_CONTEXT_NSEG_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+						(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+			io_request->RaidContext.raid_context_g35.routing_flags |=
+						(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->IoFlags |=
 				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 		}
@@ -2735,7 +2736,8 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 			if (instance->adapter_type >= VENTURA_SERIES)
-				rctx_g35->span_arm = io_info.span_arm;
+				io_request->RaidContext.raid_context_g35.span_arm
+					= io_info.span_arm;
 			else
 				io_request->RaidContext.raid_context.span_arm
 					= io_info.span_arm;
@@ -2777,12 +2779,15 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				= MPI2_TYPE_CUDA;
 			io_request->RaidContext.raid_context.reg_lock_flags |=
 				(MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
-					MR_RL_FLAGS_SEQ_NUM_ENABLE);
-			rctx->nseg = 0x1;
+				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
+			io_request->RaidContext.raid_context.nseg = 0x1;
 		} else if (instance->adapter_type >= VENTURA_SERIES) {
-			rctx_g35->routing_flags |= (1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
-			rctx_g35->nseg_type |= (1 << RAID_CONTEXT_NSEG_SHIFT);
-			rctx_g35->nseg_type |= (MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+			io_request->RaidContext.raid_context_g35.routing_flags |=
+					(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+					(1 << RAID_CONTEXT_NSEG_SHIFT);
+			io_request->RaidContext.raid_context_g35.nseg_type |=
+					(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
 		}
 		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = cpu_to_le16(device_id);
@@ -3690,7 +3695,7 @@ megasas_release_fusion(struct megasas_instance *instance)
 static u32
 megasas_read_fw_status_reg_fusion(struct megasas_register_set __iomem *regs)
 {
-	return megasas_readl(instance, &instance->reg_set->outbound_scratch_pad_0);
+	return megasas_readl(&(regs)->outbound_scratch_pad);
 }
 
 /**
@@ -3752,12 +3757,11 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	writel(MPI2_WRSEQ_6TH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
 
 	/* Check that the diag write enable (DRWE) bit is on */
-	host_diag = megasas_readl(instance, &instance->reg_set->fusion_host_diag);
+	host_diag = megasas_readl(&instance->reg_set->fusion_host_diag);
 	retry = 0;
 	while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
 		msleep(100);
-		host_diag = megasas_readl(instance,
-					  &instance->reg_set->fusion_host_diag);
+		host_diag = megasas_readl(&instance->reg_set->fusion_host_diag);
 		if (retry++ == 100) {
 			dev_warn(&instance->pdev->dev,
 				"Host diag unlock failed from %s %d\n",
@@ -3774,12 +3778,11 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	msleep(3000);
 
 	/* Make sure reset adapter bit is cleared */
-	host_diag = megasas_readl(instance, &instance->reg_set->fusion_host_diag);
+	host_diag = megasas_readl(&instance->reg_set->fusion_host_diag);
 	retry = 0;
 	while (host_diag & HOST_DIAG_RESET_ADAPTER) {
 		msleep(100);
-		host_diag = megasas_readl(instance,
-					  &instance->reg_set->fusion_host_diag);
+		host_diag = megasas_readl(&instance->reg_set->fusion_host_diag);
 		if (retry++ == 1000) {
 			dev_warn(&instance->pdev->dev,
 				"Diag reset adapter never cleared %s %d\n",
@@ -4525,7 +4528,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		dev_info(&instance->pdev->dev, "IO/DCMD timeout is detected, "
 			"forcibly FAULT Firmware\n");
 		atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_INFAULT);
-		status_reg = megasas_readl(instance, &instance->reg_set->doorbell);
+		status_reg = megasas_readl(&instance->reg_set->doorbell);
 		writel(status_reg | MFI_STATE_FORCE_OCR,
 			&instance->reg_set->doorbell);
 		readl(&instance->reg_set->doorbell);

@@ -389,11 +389,8 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 	/* Check pending SBIOS requests */
 	count = amdgpu_atif_get_sbios_requests(atif, &req);
 
-		/* Check pending SBIOS requests */
-		count = amdgpu_atif_get_sbios_requests(atif, &req);
-
-		if (count <= 0)
-			return NOTIFY_BAD;
+	if (count <= 0)
+		return NOTIFY_BAD;
 
 	DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 

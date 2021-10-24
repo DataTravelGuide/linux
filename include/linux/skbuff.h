@@ -41,6 +41,8 @@
 #include <linux/if_packet.h>
 #include <net/flow.h>
 
+#include <linux/rh_kabi.h>
+
 /* The interface for checksum offload between the stack and networking drivers
  * is as follows...
  *
@@ -587,6 +589,8 @@ typedef unsigned int sk_buff_data_t;
 typedef unsigned char *sk_buff_data_t;
 #endif
 
+#define RH_KABI_SKBUFF_RESERVED	16
+
 /** 
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
@@ -678,7 +682,6 @@ struct sk_buff {
 			};
 		};
 		struct rb_node		rbnode; /* used in netem, ip4 defrag, and tcp stack */
-		struct list_head	list;
 	};
 
 	union {
@@ -841,9 +844,31 @@ struct sk_buff {
 	__u16			network_header;
 	__u16			mac_header;
 
+#ifndef __GENKSYMS__
+	/* RHEL kABI: if a new field needs to be copied by
+	 * __copy_skb_header, append it here (after the existing ones)
+	 * and update the size of the *non-__GENKSYMS__* rh_reserved
+	 * padding. Be mindful of alignments, and use pahole to check.
+	 */
+	char rh_reserved_start[0];
+#endif
+
 	/* private: */
 	__u32			headers_end[0];
 	/* public: */
+
+#ifdef __GENKSYMS__
+	char rh_reserved[RH_KABI_SKBUFF_RESERVED];
+#else
+	char rh_reserved[RH_KABI_SKBUFF_RESERVED];
+
+	/* RHEL kABI: add new fields that don't need to be copied by
+	 * __copy_skb_header here (just above rh_reserved_end), and
+	 * update the size of the rh_reserved array. Be mindful of
+	 * alignments, and use pahole to check.
+	 */
+	char rh_reserved_end[0];
+#endif
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;

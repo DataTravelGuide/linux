@@ -887,7 +887,7 @@ unstuff:
 	iomap->addr = be64_to_cpu(*ptr) << inode->i_blkbits;
 	iomap->length = len << inode->i_blkbits;
 	iomap->type = IOMAP_MAPPED;
-	iomap->flags = IOMAP_F_MERGED;
+	iomap->flags |= IOMAP_F_MERGED;
 	if (eob)
 		iomap->flags |= IOMAP_F_GFS2_BOUNDARY;
 
@@ -1049,7 +1049,7 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 			goto out_qunlock;
 		}
 	}
-	if (gfs2_is_jdata(ip))
+	if (!gfs2_is_stuffed(ip) && gfs2_is_jdata(ip))
 		iomap->page_done = gfs2_iomap_journaled_page_done;
 	return 0;
 
@@ -1072,6 +1072,8 @@ static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct metapath mp = { .mp_aheight = 1, };
 	int ret;
+
+	iomap->flags |= IOMAP_F_BUFFER_HEAD;
 
 	trace_gfs2_iomap_start(ip, pos, length, flags);
 	if ((flags & IOMAP_WRITE) && !(flags & IOMAP_DIRECT)) {

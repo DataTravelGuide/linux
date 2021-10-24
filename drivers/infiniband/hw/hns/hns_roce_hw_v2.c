@@ -37,6 +37,7 @@
 #include <linux/types.h>
 #include <net/addrconf.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
 #include <rdma/ib_umem.h>
 
 #include "hnae3.h"
@@ -171,9 +172,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 				 int attr_mask, enum ib_qp_state cur_state,
 				 enum ib_qp_state new_state);
 
-static int hns_roce_v2_post_send(struct ib_qp *ibqp,
-				 const struct ib_send_wr *wr,
-				 const struct ib_send_wr **bad_wr)
+static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+				 struct ib_send_wr **bad_wr)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_ah *ah = to_hr_ah(ud_wr(wr)->ah);
@@ -3563,10 +3563,12 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	if (attr_mask & IB_QP_AV) {
 		const struct ib_global_route *grh =
 					    rdma_ah_read_grh(&attr->ah_attr);
-		const struct ib_gid_attr *gid_attr = NULL;
+		struct ib_gid_attr gid_attr = {.gid_type = IB_GID_TYPE_ROCE};
 		u8 src_mac[ETH_ALEN];
 		int is_roce_protocol;
 		u16 vlan = 0xffff;
+		union ib_gid gid;
+		int status;
 		u8 ib_port;
 		u8 hr_port;
 
@@ -3577,9 +3579,19 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			       rdma_ah_get_ah_flags(&attr->ah_attr) & IB_AH_GRH;
 
 		if (is_roce_protocol) {
-			gid_attr = attr->ah_attr.grh.sgid_attr;
-			vlan = rdma_vlan_dev_vlan_id(gid_attr->ndev);
-			memcpy(src_mac, gid_attr->ndev->dev_addr, ETH_ALEN);
+			int index = grh->sgid_index;
+
+			status = ib_get_cached_gid(ibqp->device, ib_port, index,
+						   &gid, &gid_attr);
+			if (!status && !memcmp(&gid, &zgid, sizeof(gid))) {
+				dev_err(hr_dev->dev,
+						"get gid during modifing QP failed\n");
+				ret = -EAGAIN;
+				goto out;
+			}
+
+			vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
+			memcpy(src_mac, gid_attr.ndev->dev_addr, ETH_ALEN);
 		}
 
 		roce_set_field(context->byte_24_mtu_tc,
@@ -3606,7 +3618,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 
 		roce_set_field(context->byte_52_udpspn_dmac,
 			   V2_QPC_BYTE_52_UDPSPN_M, V2_QPC_BYTE_52_UDPSPN_S,
-			   (gid_attr->gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP) ?
+			   (gid_attr.gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP) ?
 			   0 : 0x12b7);
 
 		roce_set_field(qpc_mask->byte_52_udpspn_dmac,

@@ -391,17 +391,6 @@ static u8 nfit_dsm_revid(unsigned family, unsigned func)
 	return id;
 }
 
-static bool payload_dumpable(struct nvdimm *nvdimm, unsigned int func)
-{
-	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
-
-	if (nfit_mem && nfit_mem->family == NVDIMM_FAMILY_INTEL
-			&& func >= NVDIMM_INTEL_GET_SECURITY_STATE
-			&& func <= NVDIMM_INTEL_MASTER_SECURE_ERASE)
-		return IS_ENABLED(CONFIG_NFIT_SECURITY_DEBUG);
-	return true;
-}
-
 static int cmd_to_func(struct nfit_mem *nfit_mem, unsigned int cmd,
 		struct nd_cmd_pkg *call_pkg)
 {

@@ -504,6 +504,30 @@ static inline int hyp_map_aux_data(void)
 
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
 
+/*
+ * Get the magic number 'x' for VTTBR:BADDR of this KVM instance.
+ * With v8.2 LVA extensions, 'x' should be a minimum of 6 with
+ * 52bit IPS.
+ */
+static inline int arm64_vttbr_x(u32 ipa_shift, u32 levels)
+{
+	int x = ARM64_VTTBR_X(ipa_shift, levels);
+
+	return (IS_ENABLED(CONFIG_ARM64_PA_BITS_52) && x < 6) ? 6 : x;
+}
+
+static inline u64 vttbr_baddr_mask(u32 ipa_shift, u32 levels)
+{
+	unsigned int x = arm64_vttbr_x(ipa_shift, levels);
+
+	return GENMASK_ULL(PHYS_MASK_SHIFT - 1, x);
+}
+
+static inline u64 kvm_vttbr_baddr_mask(struct kvm *kvm)
+{
+	return vttbr_baddr_mask(kvm_phys_shift(kvm), kvm_stage2_levels(kvm));
+}
+
 static inline bool kvm_cpu_has_cnp(void)
 {
 	return system_supports_cnp();

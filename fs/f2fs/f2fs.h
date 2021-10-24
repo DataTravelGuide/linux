@@ -1321,7 +1321,7 @@ static inline bool f2fs_time_over(struct f2fs_sb_info *sbi, int type)
 
 static inline bool is_idle(struct f2fs_sb_info *sbi)
 {
-	return f2fs_time_over(sbi, type);
+	return f2fs_time_over(sbi, REQ_TIME);
 }
 
 /*

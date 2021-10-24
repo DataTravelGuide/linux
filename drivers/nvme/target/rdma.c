@@ -887,7 +887,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 
 	inline_page_count = num_pages(port->inline_data_size);
 	inline_sge_count = max(cm_id->device->attrs.max_sge_rd,
-				cm_id->device->attrs.max_sge) - 1;
+				cm_id->device->attrs.max_recv_sge) - 1;
 	if (inline_page_count > inline_sge_count) {
 		pr_warn("inline_data_size %d cannot be supported by device %s. Reducing to %lu.\n",
 			port->inline_data_size, cm_id->device->name,

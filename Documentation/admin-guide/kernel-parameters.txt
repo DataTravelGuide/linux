@@ -3104,7 +3104,30 @@
 			See header of drivers/block/paride/pcd.c.
 			See also Documentation/blockdev/paride.txt.
 
-	pci=option[,option...]	[PCI] various PCI subsystem options:
+	pci=option[,option...]	[PCI] various PCI subsystem options.
+
+				Some options herein operate on a specific device
+				or a set of devices (<pci_dev>). These are
+				specified in one of the following formats:
+
+				[<domain>:]<bus>:<dev>.<func>[/<dev>.<func>]*
+				pci:<vendor>:<device>[:<subvendor>:<subdevice>]
+
+				Note: the first format specifies a PCI
+				bus/device/function address which may change
+				if new hardware is inserted, if motherboard
+				firmware changes, or due to changes caused
+				by other kernel parameters. If the
+				domain is left unspecified, it is
+				taken to be zero. Optionally, a path
+				to a device through multiple device/function
+				addresses can be specified after the base
+				address (this is more robust against
+				renumbering issues).  The second format
+				selects devices using IDs from the
+				configuration space which may match multiple
+				devices in the system.
+
 		earlydump	dump PCI config space before the kernel
 				changes anything
 		off		[X86] don't probe for the PCI bus
@@ -4164,6 +4187,13 @@
 			retpoline	  - replace indirect branches
 			retpoline,generic - google's original retpoline
 			retpoline,amd     - AMD-specific minimal thunk
+			ibrs		  - use IBRS to protect kernel
+			ibrs_always	  - use IBRS to protect both kernel
+					    and userland
+			retpoline,ibrs_user
+					  - replace indirect branches
+					    with retpolines and use
+					    IBRS to protect userland
 
 			Not specifying this option is equivalent to
 			spectre_v2=auto.
@@ -4600,6 +4630,14 @@
 	unknown_nmi_panic
 			[X86] Cause panic on unknown NMI.
 
+	unprivileged_bpf_disabled=
+			Format: { "0" | "1" }
+			Sets the initial value of
+			kernel.unprivileged_bpf_disabled sysctl knob.
+			0 - unprivileged bpf() syscall access is enabled.
+			1 - unprivileged bpf() syscall access is disabled.
+			Default value is 1.
+
 	usbcore.authorized_default=
 			[USB] Default USB device authorization:
 			(default -1 = authorized except for wireless USB,
@@ -4932,6 +4970,13 @@
 			see Documentation/watchdog/watchdog-parameters.txt
 			or other driver-specific files in the
 			Documentation/watchdog/ directory.
+
+	watchdog_thresh=
+			This parameter allows early boot to change the
+			value of the watchdog timeout threshold from the default
+			of 10 seconds to avoid hard lockups.  Example:
+			watchdog_thresh=30
+			Default: 10
 
 	workqueue.watchdog_thresh=
 			If CONFIG_WQ_WATCHDOG is configured, workqueue can

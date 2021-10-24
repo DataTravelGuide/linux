@@ -83,7 +83,7 @@ static int bsg_scsi_fill_hdr(struct request *rq, struct sg_io_v4 *hdr,
 
 	if (copy_from_user(sreq->cmd, uptr64(hdr->request), sreq->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(sreq->cmd, mode))
+	if (blk_verify_command(rq->q, sreq->cmd, mode))
 		return -EPERM;
 	return 0;
 }

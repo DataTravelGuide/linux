@@ -240,11 +240,12 @@ static int sg_check_file_access(struct file *filp, const char *caller)
 static int sg_allow_access(struct file *filp, unsigned char *cmd)
 {
 	struct sg_fd *sfp = filp->private_data;
+	struct scsi_device *device = sfp->parentdp->device;
 
 	if (sfp->parentdp->device->type == TYPE_SCANNER)
 		return 0;
 
-	return blk_verify_command(cmd, filp->f_mode);
+	return blk_verify_command(device->request_queue, cmd, filp->f_mode);
 }
 
 static int

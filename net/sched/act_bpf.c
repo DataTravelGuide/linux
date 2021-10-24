@@ -21,6 +21,8 @@
 #include <linux/tc_act/tc_bpf.h>
 #include <net/tc_act/tc_bpf.h>
 
+#include <linux/rh_features.h>
+
 #define ACT_BPF_NAME_LEN	256
 
 struct tcf_bpf_cfg {
@@ -240,6 +242,8 @@ static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 		}
 	}
 
+	rh_mark_used_feature("eBPF/act");
+
 	cfg->bpf_name = name;
 	cfg->filter = fp;
 	cfg->is_ebpf = true;
@@ -387,8 +391,7 @@ static int tcf_bpf_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_bpf_search(struct net *net, struct tc_action **a, u32 index,
-			  struct netlink_ext_ack *extack)
+static int tcf_bpf_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, bpf_net_id);
 

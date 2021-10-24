@@ -254,19 +254,19 @@ void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 }
 
 /**
- * sd_zbc_read_zoned_characteristics - Read zoned block device characteristics
+ * sd_zbc_check_zoned_characteristics - Check zoned block device characteristics
  * @sdkp: Target disk
  * @buf: Buffer where to store the VPD page data
  *
- * Read VPD page B6.
+ * Read VPD page B6, get information and check that reads are unconstrained.
  */
-static int sd_zbc_read_zoned_characteristics(struct scsi_disk *sdkp,
-					     unsigned char *buf)
+static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
+					      unsigned char *buf)
 {
 
 	if (scsi_get_vpd_page(sdkp->device, 0xb6, buf, 64)) {
 		sd_printk(KERN_NOTICE, sdkp,
-			  "Unconstrained-read check failed\n");
+			  "Read zoned characteristics VPD page failed\n");
 		return -ENODEV;
 	}
 
@@ -282,6 +282,18 @@ static int sd_zbc_read_zoned_characteristics(struct scsi_disk *sdkp,
 		sdkp->zones_optimal_open = 0;
 		sdkp->zones_optimal_nonseq = 0;
 		sdkp->zones_max_open = get_unaligned_be32(&buf[16]);
+	}
+
+	/*
+	 * Check for unconstrained reads: host-managed devices with
+	 * constrained reads (drives failing read after write pointer)
+	 * are not supported.
+	 */
+	if (!sdkp->urswrz) {
+		if (sdkp->first_scan)
+			sd_printk(KERN_NOTICE, sdkp,
+			  "constrained reads devices are not supported\n");
+		return -ENODEV;
 	}
 
 	return 0;
@@ -407,8 +419,11 @@ out:
 		ret = 0;
 	}
 
-	sdkp->zone_blocks = zone_blocks;
-	sdkp->zone_shift = ilog2(zone_blocks);
+out_free:
+	kfree(buf);
+
+	return ret;
+}
 
 int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 {
@@ -424,8 +439,8 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 		 */
 		return 0;
 
-	/* Get zoned block device characteristics */
-	ret = sd_zbc_read_zoned_characteristics(sdkp, buf);
+	/* Check zoned block device characteristics (unconstrained reads) */
+	ret = sd_zbc_check_zoned_characteristics(sdkp, buf);
 	if (ret)
 		goto err;
 

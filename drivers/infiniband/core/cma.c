@@ -3459,8 +3459,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 {
 	struct rdma_id_private *id_priv = cm_id->context;
 	struct rdma_cm_event event = {};
-	const struct ib_cm_sidr_rep_event_param *rep =
-				&ib_event->param.sidr_rep_rcvd;
+	struct ib_cm_sidr_rep_event_param *rep = &ib_event->param.sidr_rep_rcvd;
 	int ret = 0;
 
 	mutex_lock(&id_priv->handler_mutex);

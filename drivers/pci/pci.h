@@ -294,6 +294,15 @@ struct pci_sriov {
 	u16		subsystem_device; /* VF subsystem device */
 	resource_size_t	barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
 	bool		drivers_autoprobe; /* Auto probing of VFs by driver */
+
+	RH_KABI_RESERVE(1)
+	RH_KABI_RESERVE(2)
+	RH_KABI_RESERVE(3)
+	RH_KABI_RESERVE(4)
+	RH_KABI_RESERVE(5)
+	RH_KABI_RESERVE(6)
+	RH_KABI_RESERVE(7)
+	RH_KABI_RESERVE(8)
 };
 
 /* pci_dev priv_flags */
@@ -309,6 +318,16 @@ static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 static inline bool pci_dev_is_disconnected(const struct pci_dev *dev)
 {
 	return test_bit(PCI_DEV_DISCONNECTED, &dev->priv_flags);
+}
+
+static inline void pci_dev_assign_added(struct pci_dev *dev, bool added)
+{
+	assign_bit(PCI_DEV_ADDED, &dev->priv_flags, added);
+}
+
+static inline bool pci_dev_is_added(const struct pci_dev *dev)
+{
+	return test_bit(PCI_DEV_ADDED, &dev->priv_flags);
 }
 
 #ifdef CONFIG_PCIEAER

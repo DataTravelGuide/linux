@@ -499,7 +499,6 @@ static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 {
 	int npages = 0, current_seq, page_shift, ret, np;
 	bool implicit = false;
-	struct ib_umem_odp *odp_mr = to_ib_umem_odp(mr->umem);
 	u64 access_mask = ODP_READ_ALLOWED_BIT;
 	u64 start_idx, page_mask;
 	struct ib_umem_odp *odp;
@@ -663,7 +662,7 @@ next_mr:
 			goto srcu_unlock;
 		}
 
-		if (!mr->umem->is_odp) {
+		if (!mr->umem->odp_data) {
 			mlx5_ib_dbg(dev, "skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
 				    key);
 			if (bytes_mapped)

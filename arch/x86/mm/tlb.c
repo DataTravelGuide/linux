@@ -341,6 +341,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 		return;
 	} else {
+		u16 new_asid;
+		bool need_flush;
+
 		/*
 		 * Avoid user/user BTB poisoning by flushing the branch
 		 * predictor when switching between processes. This stops
@@ -392,8 +395,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			/* The new ASID is already up to date. */
 			load_new_mm_cr3(next->pgd, new_asid, false);
 
-	/* Make sure we write CR3 before loaded_mm. */
-	barrier();
+			/* See above wrt _rcuidle. */
+			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
+		}
 
 		/* Make sure we write CR3 before loaded_mm. */
 		barrier();

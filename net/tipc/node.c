@@ -1558,6 +1558,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 			tipc_link_create_dummy_tnl_msg(l, xmitq);
 			n->failover_sent = true;
 		}
+
 		/* If pkts arrive out of order, use lowest calculated syncpt */
 		if (less(syncpt, n->sync_point))
 			n->sync_point = syncpt;

@@ -45,6 +45,7 @@
 #include <asm/apic.h>
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
+#include <asm/kvm_guest.h>
 #include <asm/tlb.h>
 
 static int kvmapf = 1;

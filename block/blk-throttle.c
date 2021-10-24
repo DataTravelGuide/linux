@@ -2135,9 +2135,6 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 
 	throtl_update_latency_buckets(td);
 
-	if (unlikely(blk_queue_bypass(q)))
-		goto out_unlock;
-
 	blk_throtl_update_idletime(tg);
 
 	sq = &tg->service_queue;

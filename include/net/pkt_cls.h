@@ -79,6 +79,10 @@ struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 					     tc_setup_cb_t *cb, void *cb_ident,
 					     void *cb_priv,
 					     struct netlink_ext_ack *extack);
+/* RHEL: Increase the version of tcf_block_cb_register() kABI when TC subsystem
+ * is changed in a kABI incompatible way. This includes changes to ndo_setup_tc,
+ * inline function changes and TC struct changes. */
+RH_KABI_FORCE_CHANGE(1)
 int tcf_block_cb_register(struct tcf_block *block,
 			  tc_setup_cb_t *cb, void *cb_ident,
 			  void *cb_priv, struct netlink_ext_ack *extack);

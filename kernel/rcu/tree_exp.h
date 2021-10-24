@@ -212,7 +212,7 @@ static void __rcu_report_exp_rnp(struct rcu_node *rnp,
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 			if (wake) {
 				smp_mb(); /* EGP done before wake_up(). */
-				swake_up_one(&rcu_state.expedited_wq);
+				swake_up(&rcu_state.expedited_wq);
 			}
 			break;
 		}
@@ -481,7 +481,7 @@ static void synchronize_sched_expedited_wait(void)
 	jiffies_start = jiffies;
 
 	for (;;) {
-		ret = swait_event_timeout_exclusive(
+		ret = swait_event_timeout(
 				rcu_state.expedited_wq,
 				sync_rcu_preempt_exp_done_unlocked(rnp_root),
 				jiffies_stall);

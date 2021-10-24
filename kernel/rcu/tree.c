@@ -479,25 +479,6 @@ unsigned long rcu_get_gp_seq(void)
 EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
 
 /*
- * Return the number of RCU-sched GPs completed thus far for debug & stats.
- */
-unsigned long rcu_sched_get_gp_seq(void)
-{
-	return rcu_get_gp_seq();
-}
-EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
-
-/*
- * Return the number of RCU GPs completed thus far for debug & stats.
- * This is a transitional API and will soon be removed.
- */
-unsigned long rcu_bh_get_gp_seq(void)
-{
-	return READ_ONCE(rcu_state.gp_seq);
-}
-EXPORT_SYMBOL_GPL(rcu_bh_get_gp_seq);
-
-/*
  * Return the number of RCU expedited batches completed thus far for
  * debug & stats.  Odd numbers mean that a batch is in progress, even
  * numbers mean idle.  The value returned will thus be roughly double
@@ -510,16 +491,6 @@ unsigned long rcu_exp_batches_completed(void)
 EXPORT_SYMBOL_GPL(rcu_exp_batches_completed);
 
 /*
- * Return the number of RCU-sched expedited batches completed thus far
- * for debug & stats.  Similar to rcu_exp_batches_completed().
- */
-unsigned long rcu_exp_batches_completed_sched(void)
-{
-	return rcu_state.expedited_sequence;
-}
-EXPORT_SYMBOL_GPL(rcu_exp_batches_completed_sched);
-
-/*
  * Force a quiescent state.
  */
 void rcu_force_quiescent_state(void)
@@ -527,24 +498,6 @@ void rcu_force_quiescent_state(void)
 	force_quiescent_state();
 }
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
-
-/*
- * Force a quiescent state for RCU BH.
- */
-void rcu_bh_force_quiescent_state(void)
-{
-	force_quiescent_state();
-}
-EXPORT_SYMBOL_GPL(rcu_bh_force_quiescent_state);
-
-/*
- * Force a quiescent state for RCU-sched.
- */
-void rcu_sched_force_quiescent_state(void)
-{
-	rcu_force_quiescent_state();
-}
-EXPORT_SYMBOL_GPL(rcu_sched_force_quiescent_state);
 
 /*
  * Show the state of the grace-period kthreads.
@@ -1601,7 +1554,7 @@ static void rcu_gp_kthread_wake(void)
 	    !READ_ONCE(rcu_state.gp_flags) ||
 	    !rcu_state.gp_kthread)
 		return;
-	swake_up_one(&rcu_state.gp_wq);
+	swake_up(&rcu_state.gp_wq);
 }
 
 /*
@@ -1978,7 +1931,7 @@ static void rcu_gp_fqs_loop(void)
 				       READ_ONCE(rcu_state.gp_seq),
 				       TPS("fqswait"));
 		rcu_state.gp_state = RCU_GP_WAIT_FQS;
-		ret = swait_event_idle_timeout_exclusive(
+		ret = swait_event_idle_timeout(
 				rcu_state.gp_wq, rcu_gp_fqs_check_wake(&gf), j);
 		rcu_state.gp_state = RCU_GP_DOING_FQS;
 		/* Locking provides needed memory barriers. */
@@ -2118,7 +2071,7 @@ static int __noreturn rcu_gp_kthread(void *unused)
 					       READ_ONCE(rcu_state.gp_seq),
 					       TPS("reqwait"));
 			rcu_state.gp_state = RCU_GP_WAIT_GPS;
-			swait_event_idle_exclusive(rcu_state.gp_wq,
+			swait_event_idle(rcu_state.gp_wq,
 					 READ_ONCE(rcu_state.gp_flags) &
 					 RCU_GP_FLAG_INIT);
 			rcu_state.gp_state = RCU_GP_DONE_GPS;

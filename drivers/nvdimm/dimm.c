@@ -54,12 +54,6 @@ static int nvdimm_probe(struct device *dev)
 	if (rc)
 		goto err;
 
-	/*
-	 * EACCES failures reading the namespace label-data are
-	 * interpreted as the label area being locked in addition to the
-	 * DIMM capacity. We fail the dimm probe to prevent regions from
-	 * attempting to parse the label area.
-	 */
 	rc = nd_label_data_init(ndd);
 	if (rc == -EACCES)
 		nvdimm_set_locked(dev);

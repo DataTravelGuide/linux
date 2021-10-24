@@ -1059,17 +1059,7 @@ nft_chain_lookup_byhandle(const struct nft_table *table, u64 handle, u8 genmask)
 	return ERR_PTR(-ENOENT);
 }
 
-static bool lockdep_commit_lock_is_held(const struct net *net)
-{
-#ifdef CONFIG_PROVE_LOCKING
-	return lockdep_is_held(&net->nft.commit_mutex);
-#else
-	return true;
-#endif
-}
-
-static struct nft_chain *nft_chain_lookup(struct net *net,
-					  struct nft_table *table,
+static struct nft_chain *nft_chain_lookup(struct nft_table *table,
 					  const struct nlattr *nla, u8 genmask)
 {
 	char search[NFT_CHAIN_MAXNAMELEN + 1];
@@ -4803,7 +4793,7 @@ struct nft_object *nft_obj_lookup(const struct net *net,
 	k.name = search;
 
 	WARN_ON_ONCE(!rcu_read_lock_held() &&
-		     !lockdep_commit_lock_is_held(net));
+		     !lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES));
 
 	rcu_read_lock();
 	list = rhltable_lookup(&nft_objname_ht, &k, nft_objname_ht_params);
@@ -7343,18 +7333,14 @@ static int __init nf_tables_module_init(void)
 	if (err < 0)
 		goto err3;
 
+	register_netdevice_notifier(&nf_tables_flowtable_notifier);
+
 	err = rhltable_init(&nft_objname_ht, &nft_objname_ht_params);
 	if (err < 0)
 		goto err4;
 
-	/* must be last */
-	err = nfnetlink_subsys_register(&nf_tables_subsys);
-	if (err < 0)
-		goto err5;
 
-	return err;
-err5:
-	rhltable_destroy(&nft_objname_ht);
+	return register_pernet_subsys(&nf_tables_net_ops);
 err4:
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
 err3:

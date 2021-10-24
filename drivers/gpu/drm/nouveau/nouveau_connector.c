@@ -417,12 +417,18 @@ static struct nouveau_encoder *
 nouveau_connector_ddc_detect(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct nouveau_encoder *nv_encoder = NULL, *found = NULL;
+	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
-	int i, ret;
-	bool switcheroo_ddc = false;
+	int i;
 
-	drm_connector_for_each_possible_encoder(connector, encoder, i) {
+	for (i = 0; nv_encoder = NULL, i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+		int id = connector->encoder_ids[i];
+		if (id == 0)
+			break;
+
+		encoder = drm_encoder_find(dev, NULL, id);
+		if (!encoder)
+			continue;
 		nv_encoder = nouveau_encoder(encoder);
 
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
@@ -449,7 +455,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 		}
 	}
 
-	return found;
+	return nv_encoder;
 }
 
 static struct nouveau_encoder *

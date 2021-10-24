@@ -1230,7 +1230,7 @@ static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
 	struct page *page = pfn_to_page(pfn);
 
 	/*
-	 * PageTransCompoungMap() returns true for THP and
+	 * PageTransCompoundMap() returns true for THP and
 	 * hugetlbfs. Make sure the adjustment is done only for THP
 	 * pages.
 	 */
@@ -1569,15 +1569,9 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 	}
 
-	vma_pagesize = vma_kernel_pagesize(vma);
-	/*
-	 * PUD level may not exist for a VM but PMD is guaranteed to
-	 * exist.
-	 */
-	if ((vma_pagesize == PMD_SIZE ||
-	     (vma_pagesize == PUD_SIZE && kvm_stage2_has_pud(kvm))) &&
-	    !force_pte) {
-		gfn = (fault_ipa & huge_page_mask(hstate_vma(vma))) >> PAGE_SHIFT;
+	if (vma_kernel_pagesize(vma) == PMD_SIZE && !force_pte) {
+		hugetlb = true;
+		gfn = (fault_ipa & PMD_MASK) >> PAGE_SHIFT;
 	}
 	up_read(&current->mm->mmap_sem);
 

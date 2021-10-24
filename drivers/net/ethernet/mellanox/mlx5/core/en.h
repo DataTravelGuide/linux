@@ -566,7 +566,6 @@ struct mlx5e_rq {
 
 	/* XDP */
 	struct bpf_prog       *xdp_prog;
-	unsigned int           hw_mtu;
 	struct mlx5e_xdpsq     xdpsq;
 	DECLARE_BITMAP(flags, 8);
 	struct page_pool      *page_pool;

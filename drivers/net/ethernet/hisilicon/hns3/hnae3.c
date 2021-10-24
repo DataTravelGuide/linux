@@ -96,7 +96,7 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 		ret = ae_dev->ops->init_client_instance(client, ae_dev);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
-				"fail to instantiate client, ret = %d\n", ret);
+				"fail to instantiate client\n");
 
 		return ret;
 	}
