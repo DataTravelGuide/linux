@@ -50,6 +50,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <asm/machine_types.h>
 
 #include <linux/amba/bus.h>
 
@@ -1409,6 +1410,17 @@ static int arm_smmu_add_device(struct device *dev)
 		return -ENODEV;
 	}
 
+        /* ft2000+ */
+        if (read_cpuid_implementor() == 0x70 && read_cpuid_part_number() == 0x662) {
+                int num = fwspec->num_ids;
+                for (i = 0; i < num; i++) {
+#define FWID_READ(id) (((u16)(id) >> 3) | (((id) >> SMR_MASK_SHIFT | 0x7000) << SMR_MASK_SHIFT))
+                        u32 fwid = FWID_READ(fwspec->ids[i]);
+                        iommu_fwspec_add_ids(dev, &fwid, 1);
+                }
+        }
+
+
 	ret = -EINVAL;
 	for (i = 0; i < fwspec->num_ids; i++) {
 		u16 sid = fwspec->ids[i];
@@ -1479,12 +1491,25 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 	struct iommu_group *group = NULL;
 	int i, idx;
 
-	for_each_cfg_sme(fwspec, i, idx) {
-		if (group && smmu->s2crs[idx].group &&
-		    group != smmu->s2crs[idx].group)
-			return ERR_PTR(-EINVAL);
+	if (!(typeof_ft2000plus()||(typeof_s2500()))) {
+		for_each_cfg_sme(fwspec, i, idx) {
+			if (group && smmu->s2crs[idx].group &&
+			    group != smmu->s2crs[idx].group)
+				return ERR_PTR(-EINVAL);
 
-		group = smmu->s2crs[idx].group;
+			group = smmu->s2crs[idx].group;
+		}
+	}
+
+	if (read_cpuid_implementor() == 0x70 && read_cpuid_part_number() == 0x662){
+		for_each_cfg_sme(fwspec, i, idx) {
+                        if (group && smmu->s2crs[idx].group &&
+                            group != smmu->s2crs[idx].group)
+                                return ERR_PTR(-EINVAL);
+
+			if (smmu->s2crs[idx].group)
+	                        group = smmu->s2crs[idx].group;
+                }
 	}
 
 	if (group)

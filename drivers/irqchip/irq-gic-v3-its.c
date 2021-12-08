@@ -1173,6 +1173,9 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	msg->address_hi		= upper_32_bits(addr);
 	msg->data		= its_get_event_id(d);
 
+	if (read_cpuid_implementor() == 0x70 && read_cpuid_part_number() == 0x662)
+		return ;
+
 	if ((read_cpuid_id() & MIDR_CPU_MODEL_MASK) != MIDR_PHYTIUM_FT2000PLUS)
 		iommu_dma_compose_msi_msg(irq_data_get_msi_desc(d), msg);
 }
