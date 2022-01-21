@@ -336,6 +336,7 @@ struct ceph_connection {
 
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
+	struct delayed_work con_timeout_work;
 };
 
 

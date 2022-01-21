@@ -101,6 +101,7 @@
 #define CON_FLAG_WRITE_PENDING	   2  /* we have data ready to send */
 #define CON_FLAG_SOCK_CLOSED	   3  /* socket state changed to closed */
 #define CON_FLAG_BACKOFF           4  /* need to retry queuing delayed work */
+#define CON_FLAG_CONN_PENDING      5  /* we need to wait for connection ready */
 
 static bool con_flag_valid(unsigned long con_flag)
 {
@@ -110,6 +111,7 @@ static bool con_flag_valid(unsigned long con_flag)
 	case CON_FLAG_WRITE_PENDING:
 	case CON_FLAG_SOCK_CLOSED:
 	case CON_FLAG_BACKOFF:
+	case CON_FLAG_CONN_PENDING:
 		return true;
 	default:
 		return false;
@@ -411,6 +413,61 @@ static void ceph_sock_write_space(struct sock *sk)
 	}
 }
 
+static void handle_conn_timeout(struct work_struct *work) {
+	struct ceph_connection *con = container_of(work, struct ceph_connection,
+						   con_timeout_work.work);
+	int sock_state;
+
+	dout("%s conn %p\n", __func__, con);
+
+	sock_state = atomic_read(&con->sock_state);
+	if (sock_state != CON_SOCK_STATE_CONNECTED) {
+		dout("%s %p socket conn broken\n", __func__, con);
+		con->ops->put(con);
+		return;
+	}
+	mutex_lock(&con->mutex);
+	if (con->state == CON_STATE_CONNECTING) {
+		dout("%s con %p wait for ready timeout", __func__, con);
+		con_flag_set(con, CON_FLAG_SOCK_CLOSED);
+		queue_con(con);
+	}
+	mutex_unlock(&con->mutex);
+
+	con->ops->put(con);
+}
+
+static void queue_con_ready(struct ceph_connection *con)
+{
+	dout("%s osd conn %p\n", __func__, con);
+
+	if (!con->ops->get(con)) {
+		dout("%s %p ref count 0\n", __func__, con);
+		return;
+	}
+
+	con_flag_set(con, CON_FLAG_CONN_PENDING);
+	if (!queue_delayed_work(ceph_msgr_wq, &con->con_timeout_work,
+				CEPH_OSD_CONN_READY_TIMEOUT_DEFAULT)) {
+		dout("%s %p - already queued\n", __func__, con);
+		con->ops->put(con);
+	}
+}
+
+static void cancel_con_ready(struct ceph_connection *con)
+{
+	if (!con_flag_test_and_clear(con, CON_FLAG_CONN_PENDING)) {
+		return;
+	}
+
+	dout("%s osd conn %p\n", __func__, con);
+
+	if (cancel_delayed_work(&con->con_timeout_work)) {
+		dout("%s %p\n", __func__, con);
+		con->ops->put(con);
+	}
+}
+
 /* socket's state has changed */
 static void ceph_sock_state_change(struct sock *sk)
 {
@@ -418,6 +475,8 @@ static void ceph_sock_state_change(struct sock *sk)
 
 	dout("%s %p state = %lu sk_state = %u\n", __func__,
 	     con, con->state, sk->sk_state);
+
+	cancel_con_ready(con);
 
 	switch (sk->sk_state) {
 	case TCP_CLOSE:
@@ -433,6 +492,7 @@ static void ceph_sock_state_change(struct sock *sk)
 		dout("%s TCP_ESTABLISHED\n", __func__);
 		con_sock_state_connected(con);
 		queue_con(con);
+		queue_con_ready(con);
 		break;
 	default:	/* Everything else is uninteresting */
 		break;
@@ -707,6 +767,7 @@ void ceph_con_close(struct ceph_connection *con)
 	con_flag_clear(con, CON_FLAG_KEEPALIVE_PENDING);
 	con_flag_clear(con, CON_FLAG_WRITE_PENDING);
 	con_flag_clear(con, CON_FLAG_BACKOFF);
+	con_flag_clear(con, CON_FLAG_CONN_PENDING);
 
 	reset_connection(con);
 	con->peer_global_seq = 0;
@@ -766,6 +827,7 @@ void ceph_con_init(struct ceph_connection *con, void *private,
 	INIT_LIST_HEAD(&con->out_queue);
 	INIT_LIST_HEAD(&con->out_sent);
 	INIT_DELAYED_WORK(&con->work, ceph_con_workfn);
+	INIT_DELAYED_WORK(&con->con_timeout_work, handle_conn_timeout);
 
 	con->state = CON_STATE_CLOSED;
 }
@@ -2223,6 +2285,7 @@ static int process_connect(struct ceph_connection *con)
 
 	case CEPH_MSGR_TAG_SEQ:
 	case CEPH_MSGR_TAG_READY:
+		cancel_con_ready(con);
 		if (req_feat & ~server_feat) {
 			pr_err("%s%lld %s protocol feature mismatch,"
 			       " my required %llx > server's %llx, need %llx\n",
