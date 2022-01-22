@@ -27,7 +27,7 @@
 
 #define CPU_GP_REG_OFFSET(x)	(CPU_GP_REGS + x)
 #define CPU_XREG_OFFSET(x)	CPU_GP_REG_OFFSET(CPU_USER_PT_REGS + 8*x)
-
+#define CPU_SP_EL0_OFFSET      (CPU_XREG_OFFSET(30) + 8)
 	.text
 	.pushsection	.hyp.text, "ax"
 
@@ -49,6 +49,16 @@
 	ldp	x29, lr,  [\ctxt, #CPU_XREG_OFFSET(29)]
 .endm
 
+.macro save_sp_el0 ctxt, tmp
+        mrs     \tmp,   sp_el0
+        str     \tmp,   [\ctxt, #CPU_SP_EL0_OFFSET]
+.endm
+
+.macro restore_sp_el0 ctxt, tmp
+        ldr     \tmp,     [\ctxt, #CPU_SP_EL0_OFFSET]
+        msr     sp_el0, \tmp
+.endm
+
 /*
  * u64 __guest_enter(struct kvm_vcpu *vcpu,
  *		     struct kvm_cpu_context *host_ctxt);
@@ -62,7 +72,13 @@ ENTRY(__guest_enter)
 	// Store the host regs
 	save_callee_saved_regs x1
 
+        // Save the host's sp_el0
+        save_sp_el0     x1, x2
+
 	add	x18, x0, #VCPU_CONTEXT
+
+        // Restore the guest's sp_el0
+        restore_sp_el0 x18, x0
 
 	// Restore guest regs x0-x17
 	ldp	x0, x1,   [x18, #CPU_XREG_OFFSET(0)]
@@ -116,7 +132,13 @@ ENTRY(__guest_exit)
 	// Store the guest regs x19-x29, lr
 	save_callee_saved_regs x1
 
+        // Store the guest's sp_el0
+        save_sp_el0 x1, x2
+
 	get_host_ctxt	x2, x3
+
+        // Restore hyp's sp_el0
+        restore_sp_el0 x2, x3
 
 	// Now restore the host regs
 	restore_callee_saved_regs x2
