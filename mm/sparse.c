@@ -409,7 +409,7 @@ static void __init sparse_buffer_init(unsigned long size, int nid)
 
 #ifdef CONFIG_ARM64
     /* PHYTIUM platform */
-    if (read_cpuid_implementor() == ARM_CPU_IMP_PHYTIUM && is_hyp_mode_available()) {
+    if (read_cpuid_implementor() == ARM_CPU_IMP_PHYTIUM) {
         sparsemap_buf =
             memblock_alloc_exact_nid_raw(size, section_map_size(),
                                          __pa(MAX_DMA_ADDRESS),

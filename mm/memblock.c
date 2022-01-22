@@ -1301,7 +1301,7 @@ again:
 		goto done;
 #ifdef CONFIG_ARM64
     /* PHYTIUM platform */
-    if (read_cpuid_implementor() == ARM_CPU_IMP_PHYTIUM && is_hyp_mode_available()) {
+    if (read_cpuid_implementor() == ARM_CPU_IMP_PHYTIUM) {
 	    if (nid != NUMA_NO_NODE && !exact_nid) {
 		    alloc = memblock_find_in_range_node(size, align, min_addr,
 						                        max_addr, NUMA_NO_NODE,
@@ -1427,7 +1427,7 @@ void * __init memblock_alloc_exact_nid_raw(
 	ptr = memblock_virt_alloc_internal(size, align,
                                           min_addr, max_addr, nid, true);
 	if (ptr && size > 0)
-		memset(ptr, PAGE_POISON_PATTERN, size);
+		page_init_poison(ptr, size);
 
        return ptr;
 }
