@@ -506,6 +506,10 @@ struct gc_stat {
 #define	CACHE_SET_RUNNING		2
 #define CACHE_SET_IO_DISABLE		3
 
+#define JOURNAL_BATCH_STATUS_MIN	0
+#define JOURNAL_BATCH_STATUS_MAX	20
+#define JOURNAL_BATCH_STATUS_DEFAULT	10
+
 struct cache_set {
 	struct closure		cl;
 
@@ -614,6 +618,7 @@ struct cache_set {
 	 * used for GC, identify if any front side I/Os is inflight
 	 */
 	atomic_t		search_inflight;
+	atomic_t		write_inflight;
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount
 	 * of good data to determine which buckets to reuse first - to weight
@@ -726,8 +731,31 @@ struct cache_set {
 	unsigned int		error_limit;
 	unsigned int		error_decay;
 
-	unsigned short		journal_delay_ms;
+	unsigned int		journal_delay_us;
+	bool			journal_delay_bonus;
+	unsigned int		journal_delay_bonus_us;
+	unsigned int		journal_batch_high_water;
+	unsigned int		journal_batch_low_water;
+	/*
+	 * journal_batch_status is initialized by JOURNAL_BATCH_STATUS_DEFAULT,
+	 * the range [JOURNAL_BATCH_STATUS_MIN, JOURNAL_BATCH_STATUS_MAX].
+	 *
+	 * (1) When the journal_write->wait_num >= journal_batch_high_water,
+	 * increace_journal_status() will be called and journal_batch_status
+	 * add 1. When the journal_batch_status == JOURNAL_BATCH_STATUS_MAX,
+	 * journal_delay_us will set to journal_delay_bonus_us,
+	 * if journal_delay_us is 0.
+	 *
+	 * (2) When the journal_write->wait_num <= journal_batch_low_water,
+	 * decreace_journal_status() will be called and journal_batch_status
+	 * sub 1. When the journal_batch_status == JOURNAL_BATCH_STATUS_MIN,
+	 * journal_delay_us will reset to 0, if journal_delay_us is
+	 * journal_delay_bonus_us and journal_delay_bonus is true.
+	 *
+	 */
+	unsigned int		journal_batch_status;
 	bool			expensive_debug_checks;
+	bool			ack_after_journal_write;
 	unsigned int		verify:1;
 	unsigned int		key_merging_disabled:1;
 	unsigned int		gc_always_rewrite:1;

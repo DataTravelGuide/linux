@@ -118,7 +118,11 @@ read_attribute(stripe_size);
 read_attribute(partial_stripes_expensive);
 
 rw_attribute(synchronous);
-rw_attribute(journal_delay_ms);
+rw_attribute(ack_after_journal_write);
+rw_attribute(journal_delay_us);
+rw_attribute(journal_delay_bonus_us);
+rw_attribute(journal_batch_high_water);
+rw_attribute(journal_batch_low_water);
 rw_attribute(io_disable);
 rw_attribute(legacy_detach_mode);
 rw_attribute(discard);
@@ -698,7 +702,11 @@ SHOW(__bch_cache_set)
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
 
 	sysfs_print(synchronous,		CACHE_SYNC(&c->sb));
-	sysfs_print(journal_delay_ms,		c->journal_delay_ms);
+	sysfs_print(ack_after_journal_write,	c->ack_after_journal_write);
+	sysfs_print(journal_delay_us,		c->journal_delay_us);
+	sysfs_print(journal_delay_bonus_us,	c->journal_delay_bonus_us);
+	sysfs_print(journal_batch_high_water,	c->journal_batch_high_water);
+	sysfs_print(journal_batch_low_water,	c->journal_batch_low_water);
 	sysfs_hprint(bucket_size,		bucket_bytes(c));
 	sysfs_hprint(block_size,		block_bytes(c));
 	sysfs_print(tree_depth,			c->root->level);
@@ -802,6 +810,12 @@ STORE(__bch_cache_set)
 		}
 	}
 
+	if (attr == &sysfs_ack_after_journal_write) {
+		int v = strtoul_or_return(buf);
+
+		c->ack_after_journal_write = v ? 1 : 0;
+	}
+
 	if (attr == &sysfs_flash_vol_create) {
 		int r;
 		uint64_t v;
@@ -878,9 +892,22 @@ STORE(__bch_cache_set)
 		}
 	}
 
-	sysfs_strtoul_clamp(journal_delay_ms,
-			    c->journal_delay_ms,
-			    0, USHRT_MAX);
+	sysfs_strtoul_clamp(journal_delay_us,
+			    c->journal_delay_us,
+			    0, UINT_MAX);
+
+	if (attr == &sysfs_journal_delay_us)
+		c->journal_delay_bonus = false;
+
+	sysfs_strtoul_clamp(journal_delay_bonus_us,
+			    c->journal_delay_bonus_us,
+			    0, UINT_MAX);
+	sysfs_strtoul_clamp(journal_batch_high_water,
+			    c->journal_batch_high_water,
+			    0, UINT_MAX);
+	sysfs_strtoul_clamp(journal_batch_low_water,
+			    c->journal_batch_low_water,
+			    0, UINT_MAX);
 	sysfs_strtoul_bool(verify,		c->verify);
 	sysfs_strtoul_bool(key_merging_disabled, c->key_merging_disabled);
 	sysfs_strtoul(expensive_debug_checks,	c->expensive_debug_checks);
@@ -929,7 +956,11 @@ static struct attribute *bch_cache_set_files[] = {
 	&sysfs_stop,
 	&sysfs_detach,
 	&sysfs_synchronous,
-	&sysfs_journal_delay_ms,
+	&sysfs_journal_delay_us,
+	&sysfs_journal_delay_bonus_us,
+	&sysfs_journal_batch_high_water,
+	&sysfs_journal_batch_low_water,
+	&sysfs_ack_after_journal_write,
 	&sysfs_flash_vol_create,
 
 	&sysfs_bucket_size,

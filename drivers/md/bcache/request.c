@@ -62,9 +62,14 @@ static void bch_data_insert_keys(struct closure *cl)
 	struct bkey *replace_key = op->replace ? &op->replace_key : NULL;
 	int ret;
 
-	if (!op->replace)
-		journal_ref = bch_journal(op->c, &op->insert_keys,
-					  op->flush_journal ? cl : NULL);
+	if (!op->replace) {
+		if (op->c->ack_after_journal_write)
+			journal_ref = bch_journal(op->c, &op->insert_keys,
+						cl, true);
+		else
+			journal_ref = bch_journal(op->c, &op->insert_keys,
+					op->flush_journal ? cl : NULL, false);
+	}
 
 	ret = bch_btree_insert(op->c, &op->insert_keys,
 			       journal_ref, replace_key);
@@ -696,6 +701,12 @@ static void search_free(struct closure *cl)
 	struct search *s = container_of(cl, struct search, cl);
 
 	atomic_dec(&s->iop.c->search_inflight);
+	if (s->write)
+		atomic_dec(&s->iop.c->write_inflight);
+
+	pr_debug("search_inflight: %d, write_inflight: %d",
+		 atomic_read(&s->iop.c->search_inflight),
+		 atomic_read(&s->iop.c->write_inflight));
 
 	if (s->iop.bio)
 		bio_put(s->iop.bio);
@@ -734,6 +745,9 @@ static inline struct search *search_alloc(struct bio *bio,
 	s->iop.flags		= 0;
 	s->iop.flush_journal	= op_is_flush(bio->bi_opf);
 	s->iop.wq		= bcache_wq;
+
+	if (s->write)
+		atomic_inc(&d->c->write_inflight);
 
 	return s;
 }

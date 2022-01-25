@@ -98,6 +98,7 @@ struct journal_write {
 	struct closure_waitlist	wait;
 	bool			dirty;
 	bool			need_write;
+	u32			wait_num;
 };
 
 /* Embedded in struct cache_set */
@@ -173,7 +174,8 @@ struct keylist;
 
 atomic_t *bch_journal(struct cache_set *c,
 		      struct keylist *keys,
-		      struct closure *parent);
+		      struct closure *parent,
+		      bool batch);
 void bch_journal_next(struct journal *j);
 void bch_journal_mark(struct cache_set *c, struct list_head *list);
 void bch_journal_meta(struct cache_set *c, struct closure *cl);

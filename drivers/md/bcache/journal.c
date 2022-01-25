@@ -717,6 +717,7 @@ void bch_journal_next(struct journal *j)
 	j->cur->dirty		= false;
 	j->cur->need_write	= false;
 	j->cur->data->keys	= 0;
+	j->cur->wait_num	= 0;
 
 	if (fifo_full(&j->pin))
 		pr_debug("journal_pin full (%zu)", fifo_used(&j->pin));
@@ -750,6 +751,36 @@ static void journal_write_unlock(struct closure *cl)
 
 	c->journal.io_in_flight = 0;
 	spin_unlock(&c->journal.lock);
+}
+
+static void increace_journal_status(struct cache_set *c)
+{
+	if (c->journal_batch_status < JOURNAL_BATCH_STATUS_MAX - 1)
+		c->journal_batch_status++;
+	else {
+		c->journal_batch_status = JOURNAL_BATCH_STATUS_MAX;
+		if (c->journal_delay_us == 0) {
+			c->journal_delay_bonus = true;
+			c->journal_delay_us = c->journal_delay_bonus_us;
+		}
+	}
+}
+
+static void decreace_journal_status(struct cache_set *c)
+{
+	if (c->journal_batch_status > JOURNAL_BATCH_STATUS_MIN + 1)
+		c->journal_batch_status--;
+	else {
+		c->journal_batch_status = JOURNAL_BATCH_STATUS_MIN;
+		/* we cant reset it to zero simply, we must be sure that
+		 * the delay_us was set by increase_journal_status.
+		 */
+		if (c->journal_delay_us == c->journal_delay_bonus_us &&
+			c->journal_delay_bonus) {
+			c->journal_delay_bonus = false;
+			c->journal_delay_us = 0;
+		}
+	}
 }
 
 static void journal_write_unlocked(struct closure *cl)
@@ -821,6 +852,14 @@ static void journal_write_unlocked(struct closure *cl)
 
 	/* If KEY_PTRS(k) == 0, this jset gets lost in air */
 	BUG_ON(i == 0);
+
+	pr_debug("wait_num: %u, delay: %u, journal_batch_status: %u",
+		  w->wait_num, c->journal_delay_us, c->journal_batch_status);
+
+	if (w->wait_num >= c->journal_batch_high_water)
+		increace_journal_status(c);
+	else if (w->wait_num <= c->journal_batch_low_water)
+		decreace_journal_status(c);
 
 	atomic_dec_bug(&fifo_back(&c->journal.pin));
 	bch_journal_next(&c->journal);
@@ -933,9 +972,11 @@ static void journal_write_work(struct work_struct *work)
 
 atomic_t *bch_journal(struct cache_set *c,
 		      struct keylist *keys,
-		      struct closure *parent)
+		      struct closure *parent,
+		      bool batch)
 {
 	struct journal_write *w;
+	bool write_directly = false;
 	atomic_t *ret;
 
 	/* No journaling if CACHE_SET_IO_DISABLE set already */
@@ -955,16 +996,28 @@ atomic_t *bch_journal(struct cache_set *c,
 
 	if (parent) {
 		closure_wait(&w->wait, parent);
+		w->wait_num++;
+		if (!batch)
+			write_directly = true;
+		else if (w->wait_num >= c->journal_batch_high_water ||
+			atomic_read(&c->write_inflight) <=
+			c->journal_batch_low_water)
+			write_directly = true;
+		else {
+			write_directly = false;
+		}
+	}
+
+	if (write_directly) {
 		journal_try_write(c);
 	} else if (!w->dirty) {
 		w->dirty = true;
 		schedule_delayed_work(&c->journal.work,
-				      msecs_to_jiffies(c->journal_delay_ms));
+				      usecs_to_jiffies(c->journal_delay_us));
 		spin_unlock(&c->journal.lock);
 	} else {
 		spin_unlock(&c->journal.lock);
 	}
-
 
 	return ret;
 }
@@ -976,7 +1029,7 @@ void bch_journal_meta(struct cache_set *c, struct closure *cl)
 
 	bch_keylist_init(&keys);
 
-	ref = bch_journal(c, &keys, cl);
+	ref = bch_journal(c, &keys, cl, false);
 	if (ref)
 		atomic_dec_bug(ref);
 }
@@ -996,7 +1049,12 @@ int bch_journal_alloc(struct cache_set *c)
 	spin_lock_init(&j->flush_write_lock);
 	INIT_DELAYED_WORK(&j->work, journal_write_work);
 
-	c->journal_delay_ms = 100;
+	c->journal_delay_us = 100000;
+	c->journal_delay_bonus = false;
+	c->journal_delay_bonus_us = 1;
+	c->journal_batch_high_water = 32;
+	c->journal_batch_low_water = 4;
+	c->journal_batch_status = JOURNAL_BATCH_STATUS_DEFAULT;
 
 	j->w[0].c = c;
 	j->w[1].c = c;
