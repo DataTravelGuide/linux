@@ -24,6 +24,10 @@ struct iblock_dev {
 	struct bio_set	ibd_bio_set;
 	struct block_device *ibd_bd;
 	bool ibd_readonly;
+	struct bio_list	submit_list;
+	spinlock_t	submit_lock;
+	struct work_struct	submit_work;
+	struct workqueue_struct *submit_wq;
 } ____cacheline_aligned;
 
 #endif /* TARGET_CORE_IBLOCK_H */

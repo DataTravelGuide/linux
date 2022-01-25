@@ -64,6 +64,50 @@ static void iblock_detach_hba(struct se_hba *hba)
 {
 }
 
+#define IBLOCK_PLUG_MAX	64
+
+static void iblock_queue_bios(struct iblock_dev *ib_dev, struct bio_list *list)
+{
+	spin_lock(&ib_dev->submit_lock);
+	bio_list_merge(&ib_dev->submit_list, list);
+	spin_unlock(&ib_dev->submit_lock);
+
+	queue_work(ib_dev->submit_wq, &ib_dev->submit_work);
+}
+
+static void iblock_submit_fn(struct work_struct *work)
+{
+	struct iblock_dev *ib_dev = container_of(work, struct iblock_dev, submit_work);
+	struct bio_list to_submit;
+	struct blk_plug plug;
+	struct bio *bio;
+	int submitted = 0;
+
+	blk_start_plug(&plug);
+again:
+	spin_lock(&ib_dev->submit_lock);
+	if (bio_list_empty(&ib_dev->submit_list)) {
+		spin_unlock(&ib_dev->submit_lock);
+		blk_finish_plug(&plug);
+		return;
+	}
+
+	bio_list_init(&to_submit);
+	bio_list_merge(&to_submit, &ib_dev->submit_list);
+	bio_list_init(&ib_dev->submit_list);
+	spin_unlock(&ib_dev->submit_lock);
+
+	while ((bio = bio_list_pop(&to_submit))) {
+		submit_bio(bio);
+		if (++submitted >= IBLOCK_PLUG_MAX) {
+			blk_finish_plug(&plug);
+			submitted = 0;
+			blk_start_plug(&plug);
+		}
+	}
+	goto again;
+}
+
 static struct se_device *iblock_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct iblock_dev *ib_dev = NULL;
@@ -94,10 +138,22 @@ static int iblock_configure_device(struct se_device *dev)
 		return -EINVAL;
 	}
 
+
+	ib_dev->submit_wq = alloc_workqueue("iblock_submit_wq",
+						WQ_MEM_RECLAIM, 1);
+	if (!ib_dev->submit_wq) {
+		pr_err("IBLOCK: unable to alloc submit workqueue\n");
+		goto out;
+	}
+
+	bio_list_init(&ib_dev->submit_list);
+	spin_lock_init(&ib_dev->submit_lock);
+	INIT_WORK(&ib_dev->submit_work, iblock_submit_fn);
+
 	ret = bioset_init(&ib_dev->ibd_bio_set, IBLOCK_BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	if (ret) {
 		pr_err("IBLOCK: Unable to create bioset\n");
-		goto out;
+		goto out_destroy_wq;
 	}
 
 	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
@@ -175,6 +231,8 @@ out_blkdev_put:
 	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 out_free_bioset:
 	bioset_exit(&ib_dev->ibd_bio_set);
+out_destroy_wq:
+	destroy_workqueue(ib_dev->submit_wq);
 out:
 	return ret;
 }
@@ -196,6 +254,7 @@ static void iblock_destroy_device(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
+	destroy_workqueue(ib_dev->submit_wq);
 	if (ib_dev->ibd_bd != NULL)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 	bioset_exit(&ib_dev->ibd_bio_set);
@@ -693,6 +752,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		  enum dma_data_direction data_direction)
 {
 	struct se_device *dev = cmd->se_dev;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 	sector_t block_lba = target_to_linux_sector(dev, cmd->t_task_lba);
 	struct iblock_req *ibr;
 	struct bio *bio;
@@ -704,7 +764,6 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct sg_mapping_iter prot_miter;
 
 	if (data_direction == DMA_TO_DEVICE) {
-		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
 		/*
 		 * Force writethrough using REQ_FUA if a volatile write cache
@@ -762,7 +821,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			}
 
 			if (bio_cnt >= IBLOCK_MAX_BIO_PER_TASK) {
-				iblock_submit_bios(&list);
+				iblock_queue_bios(ib_dev, &list);
 				bio_cnt = 0;
 			}
 
@@ -787,7 +846,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			goto fail_put_bios;
 	}
 
-	iblock_submit_bios(&list);
+	iblock_queue_bios(ib_dev, &list);
 	iblock_complete_cmd(cmd);
 	return 0;
 
