@@ -291,6 +291,7 @@ struct rbd_img_request {
 	int			result;	/* first nonzero obj_request result */
 
 	struct list_head	object_extents;	/* obj_req.ex structs */
+	struct list_head	blacklisted_node;
 	u32			obj_request_count;
 	u32			pending_count;
 
@@ -370,6 +371,10 @@ struct rbd_device {
 	wait_queue_head_t	lock_waitq;
 
 	struct workqueue_struct	*task_wq;
+
+	struct list_head 	blacklisted;
+	spinlock_t		blacklisted_lock;
+	bool			end_bl_directly;
 
 	struct rbd_spec		*parent_spec;
 	u64			parent_overlap;
@@ -1656,6 +1661,7 @@ static struct rbd_img_request *rbd_img_request_create(
 
 	spin_lock_init(&img_request->completion_lock);
 	INIT_LIST_HEAD(&img_request->object_extents);
+	INIT_LIST_HEAD(&img_request->blacklisted_node);
 	kref_init(&img_request->kref);
 
 	dout("%s: rbd_dev %p %s -> img %p\n", __func__, rbd_dev,
@@ -2592,6 +2598,25 @@ static void rbd_img_end_request(struct rbd_img_request *img_req)
 	rbd_img_request_put(img_req);
 }
 
+static void clean_blacklisted(struct rbd_device *rbd_dev)
+{
+	struct rbd_img_request *img_req, *next;
+
+	list_for_each_entry_safe(img_req, next, &rbd_dev->blacklisted,
+				 blacklisted_node) {
+		list_del(&img_req->blacklisted_node);
+		rbd_img_end_request(img_req);
+	}
+}
+
+static void add_blacklisted(struct rbd_img_request *img_req)
+{
+	struct rbd_device *rbd_dev = img_req->rbd_dev;
+
+	list_add_tail(&img_req->blacklisted_node, &rbd_dev->blacklisted);
+}
+
+
 static void rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 {
 	struct rbd_img_request *img_req;
@@ -2614,7 +2639,23 @@ again:
 		obj_req = img_req->obj_request;
 		rbd_img_end_child_request(img_req);
 		goto again;
+	} else {
+		struct rbd_device *rbd_dev = img_req->rbd_dev;
+
+		if (img_req->result == -EBLACKLISTED) {
+			spin_lock(&rbd_dev->blacklisted_lock);
+			if (rbd_dev->end_bl_directly) {
+				spin_unlock(&rbd_dev->blacklisted_lock);
+				goto end_directly;
+			}
+
+			add_blacklisted(img_req);
+			spin_unlock(&rbd_dev->blacklisted_lock);
+			return;
+		}
 	}
+
+end_directly:
 	rbd_img_end_request(img_req);
 }
 
@@ -4250,6 +4291,41 @@ static ssize_t rbd_image_refresh(struct device *dev,
 	return size;
 }
 
+static ssize_t end_bl_req_directly_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+
+	return sprintf(buf, "%u\n", rbd_dev->end_bl_directly);
+}
+
+static ssize_t end_bl_req_directly_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf,
+					 size_t size)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+	unsigned int end;
+	char opt_buf[6];
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	opt_buf[0] = '\0';
+	sscanf(buf, "%u %5s", &end, opt_buf);
+	if (end != 0 && end != 1)
+		return -EINVAL;
+
+	spin_lock(&rbd_dev->blacklisted_lock);
+	rbd_dev->end_bl_directly = end;
+	if (rbd_dev->end_bl_directly)
+		clean_blacklisted(rbd_dev);
+	spin_unlock(&rbd_dev->blacklisted_lock);
+
+	return size;
+}
+
 static DEVICE_ATTR(size, 0444, rbd_size_show, NULL);
 static DEVICE_ATTR(features, 0444, rbd_features_show, NULL);
 static DEVICE_ATTR(major, 0444, rbd_major_show, NULL);
@@ -4267,6 +4343,8 @@ static DEVICE_ATTR(refresh, 0200, NULL, rbd_image_refresh);
 static DEVICE_ATTR(current_snap, 0444, rbd_snap_show, NULL);
 static DEVICE_ATTR(snap_id, 0444, rbd_snap_id_show, NULL);
 static DEVICE_ATTR(parent, 0444, rbd_parent_show, NULL);
+static DEVICE_ATTR(end_bl_req_directly, 0644, end_bl_req_directly_show,
+		   end_bl_req_directly_store);
 
 static struct attribute *rbd_attrs[] = {
 	&dev_attr_size.attr,
@@ -4286,6 +4364,7 @@ static struct attribute *rbd_attrs[] = {
 	&dev_attr_snap_id.attr,
 	&dev_attr_parent.attr,
 	&dev_attr_refresh.attr,
+	&dev_attr_end_bl_req_directly.attr,
 	NULL
 };
 
@@ -4450,6 +4529,10 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 					 GFP_KERNEL);
 	if (rbd_dev->dev_id < 0)
 		goto fail_rbd_dev;
+
+	rbd_dev->end_bl_directly = true;
+	INIT_LIST_HEAD(&rbd_dev->blacklisted);
+	spin_lock_init(&rbd_dev->blacklisted_lock);
 
 	sprintf(rbd_dev->name, RBD_DRV_NAME "%d", rbd_dev->dev_id);
 	rbd_dev->task_wq = alloc_ordered_workqueue("%s-tasks", WQ_MEM_RECLAIM,
@@ -5987,6 +6070,7 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 	}
 }
 
+static void clean_blacklisted(struct rbd_device *rbd_dev);
 static ssize_t do_rbd_remove(struct bus_type *bus,
 			     const char *buf,
 			     size_t count)
@@ -6038,6 +6122,11 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 		return ret;
 
 	if (force) {
+		spin_lock(&rbd_dev->blacklisted_lock);
+		rbd_dev->end_bl_directly = true;
+		clean_blacklisted(rbd_dev);
+		spin_unlock(&rbd_dev->blacklisted_lock);
+
 		/*
 		 * Prevent new IO from being queued and wait for existing
 		 * IO to complete/fail.
