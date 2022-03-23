@@ -76,6 +76,15 @@ static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
 
 static struct kmem_cache *mm_slot_cache __read_mostly;
 
+/*
+ * To check if cpu part number matches with S2500
+ * then do cond_resched() in __collapse_huge_page_copy
+ * 1 means yes,0 means no
+ */
+#ifdef CONFIG_ARM64
+int khugepaged_need_cond_resched = 0;
+#endif
+
 /**
  * struct mm_slot - hash lookup from mm to mm_slot
  * @hash: hash collision list
@@ -618,6 +627,10 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 				      spinlock_t *ptl)
 {
 	pte_t *_pte;
+#ifdef CONFIG_ARM64
+	int need_cond_resched = khugepaged_need_cond_resched;
+#endif
+
 	for (_pte = pte; _pte < pte + HPAGE_PMD_NR;
 				_pte++, page++, address += PAGE_SIZE) {
 		pte_t pteval = *_pte;
@@ -658,6 +671,14 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 			spin_unlock(ptl);
 			free_page_and_swap_cache(src_page);
 		}
+#ifdef CONFIG_ARM64
+		/*
+		 * We need cond_resched here for S2500 to avoid
+		 * that khugepaged affects other processes running.
+		 */
+		if (need_cond_resched == 1)
+		    cond_resched();
+#endif
 	}
 }
 
@@ -1852,6 +1873,12 @@ static void khugepaged_wait_work(void)
 static int khugepaged(void *none)
 {
 	struct mm_slot *mm_slot;
+
+/* Check whether cpu part number matches with S2500*/
+#ifdef CONFIG_ARM64
+	if (read_cpuid_part_number() == PHYTIUM_CPU_PART_2500)
+	    khugepaged_need_cond_resched = 1;
+#endif
 
 	set_freezable();
 	set_user_nice(current, MAX_NICE);
