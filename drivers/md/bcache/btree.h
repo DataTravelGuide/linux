@@ -375,6 +375,8 @@ static inline void force_wake_up_gc(struct cache_set *c)
 	_r;                                                             \
 })
 
+void bch_cannibalize_unlock(struct cache_set *c);
+
 #define MAP_DONE	0
 #define MAP_CONTINUE	1
 

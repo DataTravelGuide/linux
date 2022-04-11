@@ -851,6 +851,14 @@ static int bch_root_node_dirty_init(struct cache_set *c,
 		}
 	} while (ret == -EAGAIN);
 
+	/* The op may be added to cache_set's btree_cache_wait
+	 * in mca_cannibalize(), must ensure it is removed from
+	 * the list and release btree_cache_alloc_lock before
+	 * free op memory.
+	 * Otherwise, the btree_cache_wait will be damaged.
+	 */
+	bch_cannibalize_unlock(c);
+	finish_wait(&c->btree_cache_wait, &(&op.op)->wait);
 	return ret;
 }
 
