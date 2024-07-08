@@ -1,0 +1,23 @@
+config BLK_DEV_CBD
+	tristate "CXL Block Device"
+	help
+	  CBD allows you to register a CXL memory device as a CBD transport.
+	  This enables you to expose any block device through this CBD
+	  transport for access by others. Any machine that has registered
+	  the same CXL memory device can see the block devices exposed
+	  through this CBD transport and can map them locally, allowing
+	  remote block devices to be accessed as if they were local block
+	  devices.
+
+	  Select 'y' to build this module directly into the kernel.
+	  Select 'm' to build this module as a loadable kernel module.
+
+	  If unsure say 'N'.
+
+config CBD_CRC
+	bool "Enable CBD checksum"
+	help
+	  When CBD_CRC is enabled, all data sent by CBD will include
+	  a checksum. This includes a data checksum, a submit entry checksum,
+	  and a completion entry checksum. This ensures the integrity of the
+	  data transmitted through the CXL memory device.
