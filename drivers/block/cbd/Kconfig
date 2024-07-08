@@ -1,0 +1,45 @@
+config BLK_DEV_CBD
+	tristate "CXL Block Device (Experimental)"
+	depends on DEV_DAX && FS_DAX
+	help
+	  CBD allows you to register a persistent memory device as a CBD transport.
+	  You can use this persistent memory as a data cache to improve your block
+	  device performance. Additionally, if you enable CBD_MULTIHOST, cbd allows
+	  you to access block devices on a remote host as if they were local disks.
+
+	  Select 'y' to build this module directly into the kernel.
+	  Select 'm' to build this module as a loadable kernel module.
+
+	  If unsure say 'N'.
+
+config CBD_CRC
+	bool "Enable CBD checksum"
+	default N
+	depends on BLK_DEV_CBD
+	help
+	  When CBD_CRC is enabled, all data sent by CBD will include
+	  a checksum. This includes a data checksum, a submit entry checksum,
+	  and a completion entry checksum. This ensures the integrity of the
+	  data transmitted through the CXL memory device.
+
+config CBD_DEBUG
+	bool "Enable CBD debug"
+	default N
+	depends on BLK_DEV_CBD
+	help
+	  When CBD_DEBUG is enabled, cbd module will print more messages
+	  for debugging. But that will affact performance, so do not use it
+	  in production case.
+
+config CBD_MULTIHOST
+	bool "multi-hosts CXL Dlock Device"
+	default N
+	depends on BLK_DEV_CBD
+	help
+	  When CBD_MULTIHOST is enabled, cbd allows the use of a shared memory device
+	  as a cbd transport. In this mode, the blkdev and backends on different
+	  hosts can be connected through the shared memory device, enabling cross-node
+	  disk access.
+
+	  IMPORTANT: This Require your shared memory device support Hardware-consistency
+	  as CXL 3.0 described.
