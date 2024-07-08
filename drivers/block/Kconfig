@@ -219,6 +219,8 @@ config BLK_DEV_NBD
 
 	  If unsure, say N.
 
+source "drivers/block/cbd/Kconfig"
+
 config BLK_DEV_RAM
 	tristate "RAM block device support"
 	help
