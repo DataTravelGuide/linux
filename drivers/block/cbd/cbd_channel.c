@@ -21,12 +21,12 @@ int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)
 }
 
 void cbdc_copy_to_bio(struct cbd_channel *channel,
-		u64 data_off, u32 data_len, struct bio *bio)
+		u32 data_off, u32 data_len, struct bio *bio)
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
 	void *src, *dst;
-	u64 data_head = data_off;
+	u32 data_head = data_off;
 	u32 to_copy, page_off = 0;
 
 next:
@@ -60,12 +60,12 @@ again:
 }
 
 void cbdc_copy_from_bio(struct cbd_channel *channel,
-		u64 data_off, u32 data_len, struct bio *bio)
+		u32 data_off, u32 data_len, struct bio *bio)
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
 	void *src, *dst;
-	u64 data_head = data_off;
+	u32 data_head = data_off;
 	u32 to_copy, page_off = 0;
 
 next:
@@ -99,11 +99,11 @@ again:
 	}
 }
 
-u32 cbd_channel_crc(struct cbd_channel *channel, u64 data_off, u32 data_len)
+u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len)
 {
 	u32 crc = 0;
 	u32 crc_size;
-	u64 data_head = data_off;
+	u32 data_head = data_off;
 
 	while (data_len) {
 		if (data_head >= CBDC_DATA_SIZE)

@@ -49,7 +49,7 @@ static void queue_req_se_init(struct cbd_request *cbd_req)
 {
 	struct cbd_se	*se;
 	u64 offset = (u64)blk_rq_pos(cbd_req->req) << SECTOR_SHIFT;
-	u64 length = blk_rq_bytes(cbd_req->req);
+	u32 length = blk_rq_bytes(cbd_req->req);
 
 	se = get_submit_entry(cbd_req->cbdq);
 	memset(se, 0, sizeof(struct cbd_se));
@@ -70,7 +70,7 @@ static void queue_req_se_init(struct cbd_request *cbd_req)
 static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 {
 	struct cbd_channel *channel = &cbdq->channel;
-	u64 space_available = channel->data_size;
+	u32 space_available = channel->data_size;
 	u32 space_needed;
 
 	if (channel->data_head > channel->data_tail) {
@@ -83,7 +83,7 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 	space_needed = round_up(cbd_req->data_len, CBDC_DATA_ALIGH);
 
 	if (space_available - CBDC_DATA_RESERVED < space_needed) {
-		cbd_queue_err(cbdq, "data space is not enough: availaible: %llu needed: %u",
+		cbd_queue_err(cbdq, "data space is not enough: availaible: %u needed: %u",
 			      space_available, space_needed);
 		return false;
 	}
@@ -93,7 +93,7 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 
 static bool submit_ring_full(struct cbd_queue *cbdq)
 {
-	u64 space_available = cbdq->channel_info->submr_size;
+	u32 space_available = cbdq->channel_info->submr_size;
 	struct cbd_channel_info *info = cbdq->channel_info;
 
 	if (info->submr_head > info->submr_tail) {
@@ -226,7 +226,7 @@ out:
 	return;
 }
 
-static bool __advance_data_tail(struct cbd_queue *cbdq, u64 data_off, u32 data_len)
+static bool __advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
 	if (data_off == cbdq->channel.data_tail) {
 		cbdq->released_extents[data_off / PAGE_SIZE] = 0;
@@ -239,7 +239,7 @@ static bool __advance_data_tail(struct cbd_queue *cbdq, u64 data_off, u32 data_l
 	return false;
 }
 
-static void advance_data_tail(struct cbd_queue *cbdq, u64 data_off, u32 data_len)
+static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
 	cbdq->released_extents[data_off / PAGE_SIZE] = data_len;
 
@@ -253,7 +253,7 @@ static void advance_data_tail(struct cbd_queue *cbdq, u64 data_off, u32 data_len
 
 static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret)
 {
-	u64 data_off;
+	u32 data_off;
 	u32 data_len;
 	bool advance_data = false;
 

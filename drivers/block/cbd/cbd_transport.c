@@ -317,7 +317,7 @@ out:
 	return ret;
 }
 
-void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u64 size)
+void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size)
 {
 	memset(pos, 0, size);
 }
@@ -326,7 +326,7 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 {
 	struct cbd_transport_info *info = cbdt->transport_info;
 	u64 transport_dev_size;
-	u64 seg_size;
+	u32 seg_size;
 	u32 nr_segs;
 	u64 magic;
 	u16 flags = 0;
@@ -480,7 +480,7 @@ static ssize_t cbd_transport_info(struct cbd_transport *cbdt, char *buf)
 			"bytes_per_blkdev_info: %u\n"
 			"blkdev_num: %u\n\n"
 			"segment_area_off: %llu\n"
-			"bytes_per_segment: %llu\n"
+			"bytes_per_segment: %u\n"
 			"segment_num: %u\n",
 			le64_to_cpu(info->magic),
 			le16_to_cpu(info->version),

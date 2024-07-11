@@ -49,7 +49,7 @@ static int cbd_map_pages(struct cbd_transport *cbdt, struct cbd_handler *handler
 			 struct cbd_backend_io *io)
 {
 	struct cbd_se *se = io->se;
-	u64 off = se->data_off;
+	u32 off = se->data_off;
 	u32 size = se->data_len;
 	u32 done = 0;
 	struct page *page;
@@ -60,7 +60,7 @@ static int cbd_map_pages(struct cbd_transport *cbdt, struct cbd_handler *handler
 	id = dax_read_lock();
 	while (size) {
 		unsigned int len = min_t(size_t, PAGE_SIZE, size);
-		u64 channel_off = off + done;
+		u32 channel_off = off + done;
 
 		if (channel_off >= CBDC_DATA_SIZE)
 			channel_off %= CBDC_DATA_SIZE;

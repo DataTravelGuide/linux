@@ -356,7 +356,7 @@ struct cbd_transport_info {
 	u32 blkdev_num;
 
 	u64 segment_area_off;
-	u64 segment_size;
+	u32 segment_size;
 	u32 segment_num;
 };
 
@@ -416,7 +416,7 @@ void cbdt_del_blkdev(struct cbd_transport *cbdt, struct cbd_blkdev *blkdev);
 struct cbd_blkdev *cbdt_get_blkdev(struct cbd_transport *cbdt, u32 id);
 
 struct page *cbdt_page(struct cbd_transport *cbdt, u64 transport_off, u32 *page_off);
-void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u64 size);
+void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size);
 
 /* cbd_host */
 CBD_DEVICE(host);
@@ -535,9 +535,9 @@ struct cbd_channel {
 	void				*compr;
 	void				*data;
 
-	u64				data_size;
-	u64				data_head;
-	u64				data_tail;
+	u32				data_size;
+	u32				data_head;
+	u32				data_tail;
 
 	spinlock_t			submr_lock;
 	spinlock_t			compr_lock;
@@ -546,10 +546,10 @@ struct cbd_channel {
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id);
 void cbd_channel_exit(struct cbd_channel *channel);
 void cbdc_copy_from_bio(struct cbd_channel *channel,
-		u64 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio);
 void cbdc_copy_to_bio(struct cbd_channel *channel,
-		u64 data_off, u32 data_len, struct bio *bio);
-u32 cbd_channel_crc(struct cbd_channel *channel, u64 data_off, u32 data_len);
+		u32 data_off, u32 data_len, struct bio *bio);
+u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf);
 
@@ -650,7 +650,7 @@ struct cbd_se {
 	u64			offset;
 	u32			len;
 
-	u64			data_off;
+	u32			data_off;
 	u32			data_len;
 };
 
@@ -687,7 +687,7 @@ struct cbd_request {
 	u64			req_tid;
 	struct list_head	inflight_reqs_node;
 
-	u64			data_off;
+	u32			data_off;
 	u32			data_len;
 
 	struct work_struct	work;
