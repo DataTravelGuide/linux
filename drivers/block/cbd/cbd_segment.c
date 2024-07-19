@@ -121,8 +121,8 @@ next:
 		dst = kmap_local_page(bv.bv_page);
 		page_off = bv.bv_offset;
 again:
-		if (data_head == segment->data_size) {
-			data_head = 0;
+		while (data_head >= segment->data_size) {
+			data_head -= segment->data_size;
 			segment = segment->next;
 		}
 
@@ -161,8 +161,8 @@ next:
 		src = kmap_local_page(bv.bv_page);
 		page_off = bv.bv_offset;
 again:
-		if (data_head == segment->data_size) {
-			data_head = 0;
+		while (data_head >= segment->data_size) {
+			data_head -= segment->data_size;
 			segment = segment->next;
 		}
 
@@ -194,8 +194,8 @@ u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len)
 	u32 data_head = data_off;
 
 	while (data_len) {
-		if (data_head == segment->data_size) {
-			data_head = 0;
+		while (data_head >= segment->data_size) {
+			data_head -= segment->data_size;
 			segment = segment->next;
 		}
 
