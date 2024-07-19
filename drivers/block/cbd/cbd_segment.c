@@ -106,3 +106,106 @@ int cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)
 
 	return 0;
 }
+
+void cbds_copy_to_bio(struct cbd_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio)
+{
+	struct bio_vec bv;
+	struct bvec_iter iter;
+	void *dst;
+	u32 data_head = data_off;
+	u32 to_copy, page_off = 0;
+
+next:
+	bio_for_each_segment(bv, bio, iter) {
+		dst = kmap_local_page(bv.bv_page);
+		page_off = bv.bv_offset;
+again:
+		if (data_head == segment->data_size) {
+			data_head = 0;
+			segment = segment->next;
+		}
+
+		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
+				segment->data_size - data_head);
+		flush_dcache_page(bv.bv_page);
+		memcpy_flushcache(dst + page_off, segment->data + data_head, to_copy);
+
+		/* advance */
+		data_head += to_copy;
+		page_off += to_copy;
+
+		/* more data in this bv page */
+		if (page_off < bv.bv_offset + bv.bv_len)
+			goto again;
+		kunmap_local(dst);
+	}
+
+	if (bio->bi_next) {
+		bio = bio->bi_next;
+		goto next;
+	}
+}
+
+void cbds_copy_from_bio(struct cbd_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio)
+{
+	struct bio_vec bv;
+	struct bvec_iter iter;
+	void *src;
+	u32 data_head = data_off;
+	u32 to_copy, page_off = 0;
+
+next:
+	bio_for_each_segment(bv, bio, iter) {
+		src = kmap_local_page(bv.bv_page);
+		page_off = bv.bv_offset;
+again:
+		if (data_head == segment->data_size) {
+			data_head = 0;
+			segment = segment->next;
+		}
+
+		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
+				segment->data_size - data_head);
+		memcpy_flushcache(segment->data + data_head, src + page_off, to_copy);
+		flush_dcache_page(bv.bv_page);
+
+		/* advance */
+		data_head += to_copy;
+		page_off += to_copy;
+
+		/* more data in this bv page */
+		if (page_off < bv.bv_offset + bv.bv_len)
+			goto again;
+		kunmap_local(src);
+	}
+
+	if (bio->bi_next) {
+		bio = bio->bi_next;
+		goto next;
+	}
+}
+
+u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len)
+{
+	u32 crc = 0;
+	u32 crc_size;
+	u32 data_head = data_off;
+
+	while (data_len) {
+		if (data_head == segment->data_size) {
+			data_head = 0;
+			segment = segment->next;
+		}
+
+		crc_size = min(segment->data_size - data_head, data_len);
+
+		crc = crc32(crc, segment->data + data_head, crc_size);
+
+		data_len -= crc_size;
+		data_head += crc_size;
+	}
+
+	return crc;
+}

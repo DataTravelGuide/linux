@@ -479,9 +479,12 @@ struct cbd_segment {
 	u32				seg_id;
 	struct cbd_segment_info		*segment_info;
 
+	void				*data;
+	u32				data_size;
+
 	struct cbd_segment		*next;
 
-	struct delayed_work	hb_work; /* heartbeat work */
+	struct delayed_work		hb_work; /* heartbeat work */
 };
 
 int cbd_segment_clear(struct cbd_transport *cbdt, u32 segment_id);
@@ -489,6 +492,11 @@ void cbd_segment_init(struct cbd_segment *segment,
 		      struct cbd_transport *cbdt, u32 segment_id);
 void cbd_segment_exit(struct cbd_segment *segment);
 bool cbd_segment_info_is_alive(struct cbd_segment_info *info);
+void cbds_copy_to_bio(struct cbd_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio);
+void cbds_copy_from_bio(struct cbd_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio);
+u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
 
 /* cbd_channel */
 
@@ -531,9 +539,9 @@ struct cbd_channel {
 
 	struct cbd_transport		*cbdt;
 
+	void				*data;
 	void				*submr;
 	void				*compr;
-	void				*data;
 
 	u32				data_size;
 	u32				data_head;
@@ -735,6 +743,29 @@ int cbd_queue_start(struct cbd_queue *cbdq);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
 
+/* cbd cache */
+struct cbd_ck_seg_info {
+	struct cbd_segment_info seg_info;	/* must be the first member */
+	u8	blkdev_state;
+	u32	blkdev_id;
+
+	u8	backend_state;
+	u32	backend_id;
+
+	u32	submr_off;
+	u32	submr_size;
+	u32	submr_head;
+	u32	submr_tail;
+
+	u32	compr_head;
+	u32	compr_tail;
+	u32	compr_off;
+	u32	compr_size;
+};
+
+struct cbd_cd_seg_info {
+};
+
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);
 
@@ -791,6 +822,8 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues);
 int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force);
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid);
 bool cbd_blkdev_info_is_alive(struct cbd_blkdev_info *info);
+
+/* cbd_cache */
 
 extern struct workqueue_struct	*cbd_wq;
 
