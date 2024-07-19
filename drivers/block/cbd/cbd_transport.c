@@ -415,6 +415,7 @@ static ssize_t adm_store(struct device *dev,
 	}
 	kfree(buf);
 
+	mutex_lock(&cbdt->adm_lock);
 	switch (opts.op) {
 	case CBDT_ADM_OP_B_START:
 		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id);
@@ -427,6 +428,7 @@ static ssize_t adm_store(struct device *dev,
 		break;
 	case CBDT_ADM_OP_DEV_START:
 		if (opts.blkdev.queues > CBD_QUEUES_MAX) {
+			mutex_unlock(&cbdt->adm_lock);
 			cbdt_err(cbdt, "invalid queues = %u, larger than max %u\n",
 					opts.blkdev.queues, CBD_QUEUES_MAX);
 			return -EINVAL;
@@ -446,9 +448,11 @@ static ssize_t adm_store(struct device *dev,
 		ret = cbd_segment_clear(cbdt, opts.segment.sid);
 		break;
 	default:
+		mutex_unlock(&cbdt->adm_lock);
 		cbdt_err(cbdt, "invalid op: %d\n", opts.op);
 		return -EINVAL;
 	}
+	mutex_unlock(&cbdt->adm_lock);
 
 	if (ret < 0)
 		return ret;
@@ -650,6 +654,7 @@ static int cbd_transport_init(struct cbd_transport *cbdt)
 	struct device *dev;
 
 	mutex_init(&cbdt->lock);
+	mutex_init(&cbdt->adm_lock);
 	INIT_LIST_HEAD(&cbdt->backends);
 	INIT_LIST_HEAD(&cbdt->devices);
 

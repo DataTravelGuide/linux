@@ -57,7 +57,7 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 	struct cbd_channel_info *channel_info = cbdt_get_channel_info(cbdt, seg_id);
 	struct cbd_segment *segment = &channel->segment;
 
-	cbd_segment_init(segment, cbdt, seg_id);
+	cbd_segment_init(segment, cbdt, seg_id, cbds_type_channel);
 
 	segment->next = segment;
 	segment->data_size = CBDC_DATA_SIZE;

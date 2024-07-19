@@ -364,6 +364,7 @@ struct cbd_transport {
 	u16	id;
 	struct device device;
 	struct mutex lock;
+	struct mutex adm_lock;
 
 	struct cbd_transport_info *transport_info;
 
@@ -456,13 +457,17 @@ enum cbd_segment_state {
 };
 
 enum cbd_seg_type {
-	cbds_type_channel = 0
+	cbds_type_none = 0,
+	cbds_type_channel,
+	cbds_type_cache
 };
 
 static inline const char *cbds_type_str(enum cbd_seg_type type)
 {
 	if (type == cbds_type_channel)
 		return "channel";
+	else if (type == cbds_type_cache)
+		return "cache";
 
 	return "Unknown";
 }
@@ -489,8 +494,8 @@ struct cbd_segment {
 };
 
 int cbd_segment_clear(struct cbd_transport *cbdt, u32 segment_id);
-void cbd_segment_init(struct cbd_segment *segment,
-		      struct cbd_transport *cbdt, u32 segment_id);
+void cbd_segment_init(struct cbd_segment *segment, struct cbd_transport *cbdt,
+		u32 seg_id, enum cbd_seg_type type);
 void cbd_segment_exit(struct cbd_segment *segment);
 bool cbd_segment_info_is_alive(struct cbd_segment_info *info);
 void cbds_copy_to_bio(struct cbd_segment *segment,
@@ -562,6 +567,24 @@ int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io);
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf);
 
+/* cbd cache */
+struct cbd_cache_seg_info {
+	struct cbd_segment_info seg_info;	/* must be the first member */
+	u8	blkdev_state;
+	u32	blkdev_id;
+
+	u8	backend_state;
+	u32	backend_id;
+
+	u32	n_segs;
+};
+
+struct cbd_cache {
+	struct cbd_cache_seg_info	*cache_seg_info;
+
+	struct cbd_segment		*segments;
+};
+
 /* cbd_handler */
 struct cbd_handler {
 	struct cbd_backend	*cbdb;
@@ -629,6 +652,8 @@ struct cbd_backend {
 	struct cbd_backend_device *backend_device;
 
 	struct kmem_cache	*backend_io_cache;
+
+	struct cbd_cache	*cbd_cache;
 };
 
 int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id);
@@ -743,28 +768,6 @@ struct cbd_queue {
 int cbd_queue_start(struct cbd_queue *cbdq);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
-
-/* cbd cache */
-struct cbd_ck_seg_info {
-	struct cbd_segment_info seg_info;	/* must be the first member */
-	u8	blkdev_state;
-	u32	blkdev_id;
-
-	u8	backend_state;
-	u32	backend_id;
-
-	u32	cache_data_seg;
-
-	u32	submr_head;
-	u32	submr_tail;
-
-	u32	compr_head;
-	u32	compr_tail;
-};
-
-struct cbd_cd_seg_info {
-	struct cbd_segment_info seg_info;	/* must be the first member */
-};
 
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);
