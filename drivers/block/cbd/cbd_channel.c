@@ -68,6 +68,8 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 	channel->seg_id = seg_id;
 	channel->submr = (void *)channel_info + CBDC_SUBMR_OFF;
 	channel->compr = (void *)channel_info + CBDC_COMPR_OFF;
+	channel->submr_size = rounddown(CBDC_SUBMR_SIZE, sizeof(struct cbd_se));
+	channel->compr_size = rounddown(CBDC_COMPR_SIZE, sizeof(struct cbd_ce));
 	channel->data_size = CBDC_DATA_SIZE;
 
 	spin_lock_init(&channel->submr_lock);

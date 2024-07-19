@@ -29,7 +29,7 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 #endif
 	CBDC_UPDATE_COMPR_HEAD(handler->channel_info->compr_head,
 			       sizeof(struct cbd_ce),
-			       handler->channel_info->compr_size);
+			       handler->channel.compr_size);
 }
 
 static void backend_bio_end(struct bio *bio)
@@ -165,7 +165,7 @@ again:
 		/* this se is handled */
 		handler->req_tid_expected = req_tid + 1;
 		handler->se_to_handle = (handler->se_to_handle + sizeof(struct cbd_se)) %
-							handler->channel_info->submr_size;
+							handler->channel.submr_size;
 	}
 
 	goto again;

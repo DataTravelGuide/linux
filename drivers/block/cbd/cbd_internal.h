@@ -522,15 +522,11 @@ struct cbd_channel_info {
 	u8	backend_state;
 	u32	backend_id;
 
-	u32	submr_off;
-	u32	submr_size;
 	u32	submr_head;
 	u32	submr_tail;
 
 	u32	compr_head;
 	u32	compr_tail;
-	u32	compr_off;
-	u32	compr_size;
 };
 
 struct cbd_channel {
@@ -543,6 +539,9 @@ struct cbd_channel {
 
 	void				*submr;
 	void				*compr;
+
+	u32				submr_size;
+	u32				compr_size;
 
 	u32				data_size;
 	u32				data_head;
@@ -754,18 +753,17 @@ struct cbd_ck_seg_info {
 	u8	backend_state;
 	u32	backend_id;
 
-	u32	submr_off;
-	u32	submr_size;
+	u32	cache_data_seg;
+
 	u32	submr_head;
 	u32	submr_tail;
 
 	u32	compr_head;
 	u32	compr_tail;
-	u32	compr_off;
-	u32	compr_size;
 };
 
 struct cbd_cd_seg_info {
+	struct cbd_segment_info seg_info;	/* must be the first member */
 };
 
 /* cbd_blkdev */

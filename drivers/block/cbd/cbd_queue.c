@@ -93,11 +93,11 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 
 static bool submit_ring_full(struct cbd_queue *cbdq)
 {
-	u32 space_available = cbdq->channel_info->submr_size;
+	u32 space_available = cbdq->channel.submr_size;
 	struct cbd_channel_info *info = cbdq->channel_info;
 
 	if (info->submr_head > info->submr_tail) {
-		space_available = info->submr_size - info->submr_head;
+		space_available = cbdq->channel.submr_size - info->submr_head;
 		space_available += info->submr_tail;
 	} else if (info->submr_head < info->submr_tail) {
 		space_available = info->submr_tail - info->submr_head;
@@ -196,7 +196,7 @@ static void cbd_queue_workfn(struct work_struct *work)
 
 	CBDC_UPDATE_SUBMR_HEAD(cbdq->channel_info->submr_head,
 			sizeof(struct cbd_se),
-			cbdq->channel_info->submr_size);
+			cbdq->channel.submr_size);
 	spin_unlock(&cbdq->channel.submr_lock);
 
 	return;
@@ -219,7 +219,7 @@ again:
 	if (cbd_se_flags_test(se, CBD_SE_FLAGS_DONE)) {
 		CBDC_UPDATE_SUBMR_TAIL(cbdq->channel_info->submr_tail,
 				sizeof(struct cbd_se),
-				cbdq->channel_info->submr_size);
+				cbdq->channel.submr_size);
 		goto again;
 	}
 out:
@@ -349,7 +349,7 @@ again:
 	cbdwc_hit(&cbdq->complete_worker_cfg);
 	CBDC_UPDATE_COMPR_TAIL(cbdq->channel_info->compr_tail,
 			       sizeof(struct cbd_ce),
-			       cbdq->channel_info->compr_size);
+			       cbdq->channel.compr_size);
 
 	if (req_op(cbd_req->req) == REQ_OP_READ) {
 		spin_lock(&cbdq->channel.submr_lock);
@@ -444,12 +444,6 @@ static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	cbdq->channel.data_head = cbdq->channel.data_tail = 0;
 	cbdq->channel_info->submr_tail = cbdq->channel_info->submr_head = 0;
 	cbdq->channel_info->compr_tail = cbdq->channel_info->compr_head = 0;
-
-	/* Initialise the channel_info of the ring buffer */
-	cbdq->channel_info->submr_off = CBDC_SUBMR_OFF;
-	cbdq->channel_info->submr_size = rounddown(CBDC_SUBMR_SIZE, sizeof(struct cbd_se));
-	cbdq->channel_info->compr_off = CBDC_COMPR_OFF;
-	cbdq->channel_info->compr_size = rounddown(CBDC_COMPR_SIZE, sizeof(struct cbd_ce));
 
 	cbdq->channel_info->backend_id = cbd_blkdev->backend_id;
 	cbdq->channel_info->blkdev_id = cbd_blkdev->blkdev_id;
