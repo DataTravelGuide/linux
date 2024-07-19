@@ -45,46 +45,6 @@ static void backend_bio_end(struct bio *bio)
 	kmem_cache_free(cbdb->backend_io_cache, backend_io);
 }
 
-static int cbd_map_pages(struct cbd_transport *cbdt, struct cbd_handler *handler,
-			 struct cbd_backend_io *io)
-{
-	struct cbd_se *se = io->se;
-	u32 off = se->data_off;
-	u32 size = se->data_len;
-	u32 done = 0;
-	struct page *page;
-	u32 page_off;
-	int ret = 0;
-	int id;
-
-	id = dax_read_lock();
-	while (size) {
-		unsigned int len = min_t(size_t, PAGE_SIZE, size);
-		u32 data_off = off + done;
-
-		if (data_off >= CBDC_DATA_SIZE)
-			data_off %= CBDC_DATA_SIZE;
-		u64 transport_off = (void *)handler->channel.segment.data -
-					(void *)cbdt->transport_info + data_off;
-
-		page = cbdt_page(cbdt, transport_off, &page_off);
-
-		ret = bio_add_page(io->bio, page, len, 0);
-		if (unlikely(ret != len)) {
-			cbdt_err(cbdt, "failed to add page");
-			goto out;
-		}
-
-		done += len;
-		size -= len;
-	}
-
-	ret = 0;
-out:
-	dax_read_unlock(id);
-	return ret;
-}
-
 static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 						 struct cbd_se *se, blk_opf_t opf)
 {
@@ -145,7 +105,7 @@ static int handle_backend_cmd(struct cbd_handler *handler, struct cbd_se *se)
 	if (!backend_io)
 		return -ENOMEM;
 
-	ret = cbd_map_pages(cbdb->cbdt, handler, backend_io);
+	ret = cbdc_map_pages(&handler->channel, backend_io);
 	if (ret) {
 		kmem_cache_free(cbdb->backend_io_cache, backend_io);
 		return ret;

@@ -37,6 +37,12 @@ u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len)
 	return cbd_seg_crc(&channel->segment, data_off, data_len);
 }
 
+
+int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io)
+{
+	return cbds_map_pages(&channel->segment, io);
+}
+
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf)
 {
 	return sprintf(buf, "channel backend id: %u\n"

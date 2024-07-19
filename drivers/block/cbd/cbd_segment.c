@@ -209,3 +209,46 @@ u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len)
 
 	return crc;
 }
+
+int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io)
+{
+	struct cbd_transport *cbdt = segment->cbdt;
+	struct cbd_se *se = io->se;
+	u32 off = se->data_off;
+	u32 size = se->data_len;
+	u32 done = 0;
+	struct page *page;
+	u32 page_off;
+	int ret = 0;
+	int id;
+
+	id = dax_read_lock();
+	while (size) {
+		unsigned int len = min_t(size_t, PAGE_SIZE, size);
+		u32 data_head = off + done;
+
+		while (data_head >= segment->data_size) {
+			data_head -= segment->data_size;
+			segment = segment->next;
+		}
+
+		u64 transport_off = segment->data -
+					(void *)cbdt->transport_info + data_head;
+
+		page = cbdt_page(cbdt, transport_off, &page_off);
+
+		ret = bio_add_page(io->bio, page, len, 0);
+		if (unlikely(ret != len)) {
+			cbdt_err(cbdt, "failed to add page");
+			goto out;
+		}
+
+		done += len;
+		size -= len;
+	}
+
+	ret = 0;
+out:
+	dax_read_unlock(id);
+	return ret;
+}

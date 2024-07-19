@@ -390,6 +390,7 @@ struct cbdt_register_options {
 
 struct cbd_blkdev;
 struct cbd_backend;
+struct cbd_backend_io;
 
 int cbdt_register(struct cbdt_register_options *opts);
 int cbdt_unregister(u32 transport_id);
@@ -497,6 +498,7 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 void cbds_copy_from_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio);
 u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
+int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io);
 
 /* cbd_channel */
 
@@ -557,6 +559,7 @@ void cbdc_copy_from_bio(struct cbd_channel *channel,
 void cbdc_copy_to_bio(struct cbd_channel *channel,
 		u32 data_off, u32 data_len, struct bio *bio);
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
+int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io);
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf);
 
