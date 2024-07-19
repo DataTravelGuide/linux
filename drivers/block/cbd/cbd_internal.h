@@ -539,7 +539,6 @@ struct cbd_channel {
 
 	struct cbd_transport		*cbdt;
 
-	void				*data;
 	void				*submr;
 	void				*compr;
 

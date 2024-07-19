@@ -60,12 +60,12 @@ static int cbd_map_pages(struct cbd_transport *cbdt, struct cbd_handler *handler
 	id = dax_read_lock();
 	while (size) {
 		unsigned int len = min_t(size_t, PAGE_SIZE, size);
-		u32 channel_off = off + done;
+		u32 data_off = off + done;
 
-		if (channel_off >= CBDC_DATA_SIZE)
-			channel_off %= CBDC_DATA_SIZE;
-		u64 transport_off = (void *)handler->channel.data -
-					(void *)cbdt->transport_info + channel_off;
+		if (data_off >= CBDC_DATA_SIZE)
+			data_off %= CBDC_DATA_SIZE;
+		u64 transport_off = (void *)handler->channel.segment.data -
+					(void *)cbdt->transport_info + data_off;
 
 		page = cbdt_page(cbdt, transport_off, &page_off);
 

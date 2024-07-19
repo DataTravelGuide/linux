@@ -34,23 +34,7 @@ void cbdc_copy_from_bio(struct cbd_channel *channel,
 
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len)
 {
-	u32 crc = 0;
-	u32 crc_size;
-	u32 data_head = data_off;
-
-	while (data_len) {
-		if (data_head >= CBDC_DATA_SIZE)
-			data_head %= CBDC_DATA_SIZE;
-
-		crc_size = min(CBDC_DATA_SIZE - data_head, data_len);
-
-		crc = crc32(crc, channel->data + data_head, crc_size);
-
-		data_len -= crc_size;
-		data_head += crc_size;
-	}
-
-	return crc;
+	return cbd_seg_crc(&channel->segment, data_off, data_len);
 }
 
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf)
@@ -78,7 +62,6 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 	channel->seg_id = seg_id;
 	channel->submr = (void *)channel_info + CBDC_SUBMR_OFF;
 	channel->compr = (void *)channel_info + CBDC_COMPR_OFF;
-	channel->data = (void *)channel_info + CBDC_DATA_OFF;
 	channel->data_size = CBDC_DATA_SIZE;
 
 	spin_lock_init(&channel->submr_lock);
