@@ -81,14 +81,18 @@ void cbd_segment_init(struct cbd_segment *segment, struct cbd_transport *cbdt,
 	segment->seg_id = seg_id;
 
 	segment_info->type = type;
-	segment_info->state = cbd_segment_state_running;
 
 	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
 	queue_delayed_work(cbd_wq, &segment->hb_work, 0);
+
+	segment_info->state = cbd_segment_state_running;
 }
 
 void cbd_segment_exit(struct cbd_segment *segment)
 {
+	if (!segment->segment_info ||
+			segment->segment_info->state != cbd_segment_state_running)
+		return;
 	cancel_delayed_work_sync(&segment->hb_work);
 
 	segment->segment_info->state = cbd_segment_state_none;
