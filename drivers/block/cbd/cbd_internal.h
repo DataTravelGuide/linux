@@ -476,6 +476,7 @@ static inline const char *cbds_type_str(enum cbd_seg_type type)
 struct cbd_segment_info {
 	u8 state;
 	u8 type;
+	u8 ref;
 	u32 next_seg;
 	u64 alive_ts;
 };

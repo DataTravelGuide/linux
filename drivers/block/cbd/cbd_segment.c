@@ -85,6 +85,7 @@ void cbd_segment_init(struct cbd_segment *segment, struct cbd_transport *cbdt,
 	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
 	queue_delayed_work(cbd_wq, &segment->hb_work, 0);
 
+	segment_info->ref++;
 	segment_info->state = cbd_segment_state_running;
 }
 
@@ -96,8 +97,11 @@ void cbd_segment_exit(struct cbd_segment *segment)
 
 	cancel_delayed_work_sync(&segment->hb_work);
 
-	if (segment->seg_ops->seg_state_none(segment->segment_info))
-		segment->segment_info->state = cbd_segment_state_none;
+	if (--segment->segment_info->ref > 0)
+		return;
+
+	segment->segment_info->state = cbd_segment_state_none;
+	segment->segment_info->alive_ts = 0;
 }
 
 int cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)

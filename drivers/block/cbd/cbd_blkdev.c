@@ -255,7 +255,9 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 {
 	struct cbd_blkdev *cbd_blkdev;
 	struct cbd_backend_info *backend_info;
+	struct cbd_segment *segment;
 	u64 dev_size;
+	int i;
 	int ret;
 
 	backend_info = cbdt_get_backend_info(cbdt, backend_id);
@@ -309,11 +311,22 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 
 
 	if (cbd_backend_cache_on(backend_info)) {
+		u32 seg_id;
+
 		cbd_blkdev->cbd_cache = cbd_cache_alloc(&backend_info->cache_info);
 		if (!cbd_blkdev->cbd_cache) {
 			ret = -ENOMEM;
 			goto destroy_wq;
 		}
+
+		seg_id = backend_info->cache_info.seg_id;
+		for (i = 0; i < cbd_blkdev->cbd_cache->n_segs; i++) {
+			segment = &cbd_blkdev->cbd_cache->segments[i];
+			cbd_segment_init(segment, cbdt, seg_id, cbds_type_cache);
+			pr_err("init seg: %u\n", seg_id);
+			seg_id = segment->segment_info->next_seg;
+		}
+
 	}
 
 	ret = cbd_blkdev_create_queues(cbd_blkdev);
@@ -336,8 +349,11 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 destroy_queues:
 	cbd_blkdev_destroy_queues(cbd_blkdev);
 destroy_cache:
-	if (cbd_blkdev->cbd_cache)
+	if (cbd_blkdev->cbd_cache) {
+		for (i = 0; i < cbd_blkdev->cbd_cache->n_segs; i++)
+			cbd_segment_exit(&cbd_blkdev->cbd_cache->segments[i]);
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
+	}
 destroy_wq:
 	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
@@ -387,6 +403,14 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	destroy_workqueue(cbd_blkdev->task_wq);
 	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
 	backend_info = cbdt_get_backend_info(cbdt, cbd_blkdev->backend_id);
+
+	if (cbd_blkdev->cbd_cache) {
+		int i;
+
+		for (i = 0; i < cbd_blkdev->cbd_cache->n_segs; i++)
+			cbd_segment_exit(&cbd_blkdev->cbd_cache->segments[i]);
+		cbd_cache_destroy(cbd_blkdev->cbd_cache);
+	}
 
 	kfree(cbd_blkdev);
 

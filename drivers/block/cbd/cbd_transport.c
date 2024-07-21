@@ -383,8 +383,20 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	return 0;
 }
 
-
-
+/*
+ * Any transport metadata allocation or reclaim should be in the
+ * control operation rutine
+ *
+ * All transport space allocation and deallocation should occur within the control flow,
+ * specifically within `adm_store()`, so that all transport space allocation
+ * and deallocation are managed within this function. This prevents other processes
+ * from involving transport space allocation and deallocation. By making `adm_store`
+ * exclusive, we can manage space effectively. For a single-host scenario, `adm_lock`
+ * can ensure mutual exclusion of `adm_store`. However, in a multi-host scenario,
+ * we need a distributed lock to guarantee that all `adm_store` calls are mutually exclusive.
+ *
+ * TODO: Is there a way to lock the CXL shared memory device?
+ */
 static ssize_t adm_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *ubuf,

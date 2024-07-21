@@ -200,7 +200,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 {
 	struct cbd_backend *backend;
 	struct cbd_backend_info *backend_info;
-	struct cbd_cache *cache;
 	struct cbd_cache_info *cache_info;
 	struct cbd_segment_info *prev_seg_info = NULL;
 	struct cbd_segment *segment;
@@ -242,7 +241,7 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 			goto segments_exit;
 
 		pr_err("get seg: %u", seg_id);
-		segment = &cache->segments[i];
+		segment = &backend->cbd_cache->segments[i];
 		cbd_segment_init(segment, cbdt, seg_id, cbds_type_cache);
 
 		if (prev_seg_info) {
@@ -271,11 +270,12 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 	return 0;
 
 segments_exit:
-	for (i = 0; i < cache->n_segs; i++)
-		cbd_segment_exit(&cache->segments[i]);
+	if (backend->cbd_cache) {
+		for (i = 0; i < backend->cbd_cache->n_segs; i++)
+			cbd_segment_exit(&backend->cbd_cache->segments[i]);
 
-	if (backend->cbd_cache)
 		cbd_cache_destroy(backend->cbd_cache);
+	}
 backend_free:
 	kfree(backend);
 
