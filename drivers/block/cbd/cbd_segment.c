@@ -93,9 +93,11 @@ void cbd_segment_exit(struct cbd_segment *segment)
 	if (!segment->segment_info ||
 			segment->segment_info->state != cbd_segment_state_running)
 		return;
+
 	cancel_delayed_work_sync(&segment->hb_work);
 
-	segment->segment_info->state = cbd_segment_state_none;
+	if (segment->seg_ops->seg_state_none(segment->segment_info))
+		segment->segment_info->state = cbd_segment_state_none;
 }
 
 int cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)

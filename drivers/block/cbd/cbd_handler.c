@@ -215,8 +215,8 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 
 	cancel_delayed_work_sync(&handler->handle_work);
 
-	cbd_channel_exit(&handler->channel);
 	handler->channel_info->backend_state = cbdc_backend_state_none;
+	cbd_channel_exit(&handler->channel);
 
 	bioset_exit(&handler->bioset);
 	kfree(handler);

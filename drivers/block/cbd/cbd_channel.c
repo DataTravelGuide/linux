@@ -51,6 +51,20 @@ ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char 
 			channel_info->blkdev_id);
 }
 
+static bool cbd_channel_seg_state_none(struct cbd_segment_info *seg_info)
+{
+	struct cbd_channel_info *channel_info = (struct cbd_channel_info *)seg_info;
+
+	if (channel_info->blkdev_state == cbdc_blkdev_state_none &&
+			channel_info->backend_state == cbdc_backend_state_none)
+		return true;
+
+	return false;
+}
+
+static struct cbd_seg_ops cbd_channel_seg_ops = {
+	.seg_state_none = cbd_channel_seg_state_none
+};
 
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id)
 {
@@ -59,6 +73,7 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 
 	cbd_segment_init(segment, cbdt, seg_id, cbds_type_channel);
 
+	segment->seg_ops = &cbd_channel_seg_ops;
 	segment->next = segment;
 	segment->data_size = CBDC_DATA_SIZE;
 	segment->data = (void *)(segment->segment_info) + CBDC_DATA_OFF;

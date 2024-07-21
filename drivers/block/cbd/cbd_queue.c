@@ -515,6 +515,6 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 	}
 
 	kfree(cbdq->released_extents);
-	cbd_channel_exit(&cbdq->channel);
 	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_none;
+	cbd_channel_exit(&cbdq->channel);
 }

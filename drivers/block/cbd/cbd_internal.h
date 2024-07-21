@@ -392,6 +392,7 @@ struct cbdt_register_options {
 struct cbd_blkdev;
 struct cbd_backend;
 struct cbd_backend_io;
+struct cbd_cache;
 
 int cbdt_register(struct cbdt_register_options *opts);
 int cbdt_unregister(u32 transport_id);
@@ -479,11 +480,16 @@ struct cbd_segment_info {
 	u64 alive_ts;
 };
 
+struct cbd_seg_ops {
+	bool (*seg_state_none)(struct cbd_segment_info *seg_info);
+};
+
 struct cbd_segment {
 	struct cbd_transport		*cbdt;
 
 	u32				seg_id;
 	struct cbd_segment_info		*segment_info;
+	struct cbd_seg_ops		*seg_ops;
 
 	void				*data;
 	u32				data_size;
@@ -588,6 +594,9 @@ struct cbd_cache {
 	struct cbd_segment		segments[];
 };
 
+struct cbd_cache *cbd_cache_alloc(struct cbd_cache_info *cache_info);
+void cbd_cache_destroy(struct cbd_cache *cache);
+
 /* cbd_handler */
 struct cbd_handler {
 	struct cbd_backend	*cbdb;
@@ -667,6 +676,7 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id);
 void cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 bool cbd_backend_info_is_alive(struct cbd_backend_info *info);
+bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
 
 /* cbd_queue */
 enum cbd_op {
@@ -822,6 +832,8 @@ struct cbd_blkdev {
 	struct cbd_blkdev_info *blkdev_info;
 
 	struct cbd_transport *cbdt;
+
+	struct cbd_cache	*cbd_cache;
 };
 
 int cbd_blkdev_init(void);
@@ -830,8 +842,6 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues);
 int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force);
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid);
 bool cbd_blkdev_info_is_alive(struct cbd_blkdev_info *info);
-
-/* cbd_cache */
 
 extern struct workqueue_struct	*cbd_wq;
 

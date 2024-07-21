@@ -230,13 +230,11 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 	if (!backend)
 		return -ENOMEM;
 
-	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
-	if (!cache) {
+	backend->cbd_cache = cbd_cache_alloc(cache_info);
+	if (!backend->cbd_cache) {
 		ret = -ENOMEM;
 		goto backend_free;
 	}
-	cache->n_segs = cache_info->n_segs;
-	backend->cbd_cache = cache;
 
 	for (i = 0; i < cache_info->n_segs; i++) {
 		ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
@@ -277,7 +275,7 @@ segments_exit:
 		cbd_segment_exit(&cache->segments[i]);
 
 	if (backend->cbd_cache)
-		kfree(backend->cbd_cache);
+		cbd_cache_destroy(backend->cbd_cache);
 backend_free:
 	kfree(backend);
 
@@ -325,7 +323,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 		for (i = 0; i < cbdb->cbd_cache->n_segs; i++)
 			cbd_segment_exit(&cbdb->cbd_cache->segments[i]);
 
-		kfree(cbdb->cbd_cache);
+		cbd_cache_destroy(cbdb->cbd_cache);
 	}
 
 	fput(cbdb->bdev_file);
@@ -350,4 +348,9 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 	backend_info->state = cbd_backend_state_none;
 
 	return 0;
+}
+
+bool cbd_backend_cache_on(struct cbd_backend_info *backend_info)
+{
+	return (backend_info->cache_info.n_segs != 0);
 }
