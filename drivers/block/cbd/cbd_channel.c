@@ -79,6 +79,8 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 
 	cbd_segment_init(cbdt, segment, &seg_options);
 
+	segment->next = segment;
+
 	channel->cbdt = cbdt;
 	channel->channel_info = channel_info;
 	channel->seg_id = seg_id;
