@@ -385,6 +385,11 @@ static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct cbd_queue *cbdq = hctx->driver_data;
 	struct cbd_request *cbd_req = blk_mq_rq_to_pdu(bd->rq);
 
+	/*
+	if (cbdq->cbd_blkdev->cbd_cache)
+		return cbd_cache_queue_rq(cbdq->cbd_blkdev->cbd_cache, req);
+	*/
+
 	memset(cbd_req, 0, sizeof(struct cbd_request));
 	INIT_LIST_HEAD(&cbd_req->inflight_reqs_node);
 
@@ -457,6 +462,9 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 	struct cbd_transport *cbdt = cbdq->cbd_blkdev->cbdt;
 	u32 channel_id;
 	int ret;
+
+	if (cbdq->cbd_blkdev->cbd_cache)
+		return 0;
 
 	ret = cbd_get_empty_channel_id(cbdt, &channel_id);
 	if (ret < 0) {

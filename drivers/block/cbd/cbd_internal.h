@@ -594,12 +594,21 @@ enum cbd_cache_blkdev_state {
 	cbd_cache_blkdev_state_running
 };
 
+struct cbd_cache_pos {
+	u32	cache_seg_id;	/* index in cache->segments */
+	u32	seg_off;
+};
+
 struct cbd_cache_info {
 	u8	blkdev_state;
 	u32	blkdev_id;
 
 	u32	seg_id;
 	u32	n_segs;
+
+	struct cbd_cache_pos key_tail_pos;
+	struct cbd_cache_pos dirty_tail_pos;
+	u32	lats_key_epoch;
 };
 
 struct cbd_cache {
@@ -607,6 +616,7 @@ struct cbd_cache {
 	struct cbd_cache_info		*cache_info;
 
 	u32				n_segs;
+	unsigned long			*seg_map;
 	struct cbd_segment		segments[];
 };
 

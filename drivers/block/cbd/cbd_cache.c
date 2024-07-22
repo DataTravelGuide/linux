@@ -17,6 +17,12 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 	if (!cache)
 		return NULL;
 
+	cache->seg_map = bitmap_zalloc(cache_info->n_segs, GFP_KERNEL);
+	if (!cache->seg_map) {
+		ret = -ENOMEM;
+		goto destroy_cache;
+	}
+
 	cache->cbdt = cbdt;
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
@@ -62,6 +68,9 @@ destroy_cache:
 void cbd_cache_destroy(struct cbd_cache *cache)
 {
 	int i;
+
+	if (cache->seg_map)
+		bitmap_free(cache->seg_map);
 
 	for (i = 0; i < cache->n_segs; i++)
 		cbd_segment_exit(&cache->segments[i]);
