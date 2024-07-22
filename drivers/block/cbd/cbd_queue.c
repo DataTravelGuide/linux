@@ -479,7 +479,7 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 	cbdq->released_extents = kzalloc(sizeof(u64) * (CBDC_DATA_SIZE >> PAGE_SHIFT), GFP_KERNEL);
 	if (!cbdq->released_extents) {
 		ret = -ENOMEM;
-		goto err;
+		goto channel_exit;
 	}
 
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
@@ -487,6 +487,10 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 	atomic_set(&cbdq->state, cbd_queue_state_running);
 
 	return 0;
+
+channel_exit:
+	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_none;
+	cbd_channel_exit(&cbdq->channel);
 err:
 	return ret;
 }
