@@ -118,6 +118,9 @@
 	cbdt_debug(channel->cbdt, "channel%d: " fmt,				\
 		 channel->seg_id, ##__VA_ARGS__)
 
+#define KB	(1024)
+#define MB	(KB * KB)
+
 #define CBD_TRANSPORT_MAX	1024
 #define CBD_PATH_LEN	512
 #define CBD_NAME_LEN	32
@@ -671,7 +674,7 @@ struct cbd_backend {
 	struct cbd_cache	*cbd_cache;
 };
 
-int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id);
+int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs);
 int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force);
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id);
 void cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);

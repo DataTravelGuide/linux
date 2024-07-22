@@ -174,6 +174,7 @@ enum {
 	CBDT_ADM_OPT_QUEUES,
 	CBDT_ADM_OPT_HID,
 	CBDT_ADM_OPT_SID,
+	CBDT_ADM_OPT_CACHE_SIZE,
 };
 
 enum {
@@ -207,6 +208,7 @@ static const match_table_t adm_opt_tokens = {
 	{ CBDT_ADM_OPT_QUEUES,		"queues=%u" },
 	{ CBDT_ADM_OPT_HID,		"host_id=%u" },
 	{ CBDT_ADM_OPT_SID,		"segment_id=%u" },
+	{ CBDT_ADM_OPT_CACHE_SIZE,	"cache_size=%u" },	/* unit is MiB */
 	{ CBDT_ADM_OPT_ERR,		NULL	}
 };
 
@@ -221,6 +223,7 @@ struct cbd_adm_options {
 		} host;
 		struct backend_options {
 			char path[CBD_PATH_LEN];
+			u64 cache_size_M;
 		} backend;
 		struct segment_options {
 			u32 sid;
@@ -305,6 +308,13 @@ static int parse_adm_options(struct cbd_transport *cbdt,
 				goto out;
 			}
 			opts->segment.sid = token;
+			break;
+		case CBDT_ADM_OPT_CACHE_SIZE:
+			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			opts->backend.cache_size_M = token;
 			break;
 		default:
 			cbdt_err(cbdt, "unknown parameter or missing value '%s'\n", p);
@@ -430,7 +440,12 @@ static ssize_t adm_store(struct device *dev,
 	mutex_lock(&cbdt->adm_lock);
 	switch (opts.op) {
 	case CBDT_ADM_OP_B_START:
-		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id);
+		u32 cache_segs = 0;
+
+		if (opts.backend.cache_size_M > 0)
+			cache_segs = DIV_ROUND_UP(opts.backend.cache_size_M, cbdt->transport_info->segment_size / MB);
+
+		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id, cache_segs);
 		break;
 	case CBDT_ADM_OP_B_STOP:
 		ret = cbd_backend_stop(cbdt, opts.backend_id, opts.force);

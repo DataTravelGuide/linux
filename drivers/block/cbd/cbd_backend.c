@@ -196,7 +196,7 @@ static int cbd_backend_init(struct cbd_backend *cbdb)
 	return 0;
 }
 
-int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
+int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs)
 {
 	struct cbd_backend *backend;
 	struct cbd_backend_info *backend_info;
@@ -204,7 +204,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 	struct cbd_segment_info *prev_seg_info = NULL;
 	struct cbd_segment *segment;
 	u32 seg_id;
-	u32 cache_segs = 32;
 	bool alloc_backend = false;
 	int ret;
 	int i;
@@ -229,28 +228,29 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 	if (!backend)
 		return -ENOMEM;
 
-	backend->cbd_cache = cbd_cache_alloc(cache_info);
-	if (!backend->cbd_cache) {
-		ret = -ENOMEM;
-		goto backend_free;
-	}
-
-	for (i = 0; i < cache_info->n_segs; i++) {
-		ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
-		if (ret)
-			goto segments_exit;
-
-		pr_err("get seg: %u", seg_id);
-		segment = &backend->cbd_cache->segments[i];
-		cbd_segment_init(segment, cbdt, seg_id, cbds_type_cache);
-
-		if (prev_seg_info) {
-			prev_seg_info->next_seg = seg_id;
-		} else {
-			cache_info->seg_id = seg_id;
+	if (cache_info->n_segs) {
+		backend->cbd_cache = cbd_cache_alloc(cache_info);
+		if (!backend->cbd_cache) {
+			ret = -ENOMEM;
+			goto backend_free;
 		}
-		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 
+		for (i = 0; i < cache_info->n_segs; i++) {
+			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
+			if (ret)
+				goto segments_exit;
+
+			pr_err("get seg: %u", seg_id);
+			segment = &backend->cbd_cache->segments[i];
+			cbd_segment_init(segment, cbdt, seg_id, cbds_type_cache);
+
+			if (prev_seg_info) {
+				prev_seg_info->next_seg = seg_id;
+			} else {
+				cache_info->seg_id = seg_id;
+			}
+			prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
+		}
 	}
 
 	strscpy(backend->path, path, CBD_PATH_LEN);
