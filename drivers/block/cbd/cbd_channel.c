@@ -62,8 +62,20 @@ static bool cbd_channel_seg_state_none(struct cbd_segment_info *seg_info)
 	return false;
 }
 
+static void cbd_channel_seg_sanitize_pos(struct cbd_seg_pos *pos)
+{
+	struct cbd_segment *segment = pos->segment;
+
+	/* channel only use one segment as a ring */
+	while (pos->off >= segment->data_size) {
+		//pr_err("segment: %p, ops %p off: %u, datasize: %u", segment, segment->seg_ops, pos->off, segment->data_size);
+		pos->off -= segment->data_size;
+	}
+}
+
 static struct cbd_seg_ops cbd_channel_seg_ops = {
-	.seg_state_none = cbd_channel_seg_state_none
+	.seg_state_none = cbd_channel_seg_state_none,
+	.sanitize_pos = cbd_channel_seg_sanitize_pos
 };
 
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id)
@@ -78,8 +90,6 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 	seg_options.seg_ops = &cbd_channel_seg_ops;
 
 	cbd_segment_init(cbdt, segment, &seg_options);
-
-	segment->next = segment;
 
 	channel->cbdt = cbdt;
 	channel->channel_info = channel_info;

@@ -82,6 +82,7 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	segment_info->type = options->type;
 	segment->seg_ops = options->seg_ops;
 	segment->data_size = CBDT_SEG_SIZE - options->data_off;
+	//pr_err("datasize: %u", segment->data_size);
 	segment->data = (void *)(segment->segment_info) + options->data_off;
 
 	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
@@ -127,26 +128,27 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 	struct bio_vec bv;
 	struct bvec_iter iter;
 	void *dst;
-	u32 data_head = data_off;
 	u32 to_copy, page_off = 0;
+	struct cbd_seg_pos pos = { .segment = segment,
+				   .off = data_off };
 
+	//pr_err("into copy_to_bio segment: %p, off: %u", segment, data_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		dst = kmap_local_page(bv.bv_page);
 		page_off = bv.bv_offset;
 again:
-		while (data_head >= segment->data_size) {
-			data_head -= segment->data_size;
-			segment = segment->next;
-		}
+		//pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
+		segment->seg_ops->sanitize_pos(&pos);
+		segment = pos.segment;
 
 		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
-				segment->data_size - data_head);
+				segment->data_size - pos.off);
 		flush_dcache_page(bv.bv_page);
-		memcpy_flushcache(dst + page_off, segment->data + data_head, to_copy);
+		memcpy_flushcache(dst + page_off, segment->data + pos.off, to_copy);
 
 		/* advance */
-		data_head += to_copy;
+		pos.off += to_copy;
 		page_off += to_copy;
 
 		/* more data in this bv page */
@@ -167,26 +169,27 @@ void cbds_copy_from_bio(struct cbd_segment *segment,
 	struct bio_vec bv;
 	struct bvec_iter iter;
 	void *src;
-	u32 data_head = data_off;
 	u32 to_copy, page_off = 0;
+	struct cbd_seg_pos pos = { .segment = segment,
+				   .off = data_off };
 
+	//pr_err("into copy_from_bio segment: %p, off: %u", segment, data_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		src = kmap_local_page(bv.bv_page);
 		page_off = bv.bv_offset;
 again:
-		while (data_head >= segment->data_size) {
-			data_head -= segment->data_size;
-			segment = segment->next;
-		}
+		//pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
+		segment->seg_ops->sanitize_pos(&pos);
+		segment = pos.segment;
 
 		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
-				segment->data_size - data_head);
-		memcpy_flushcache(segment->data + data_head, src + page_off, to_copy);
+				segment->data_size - pos.off);
+		memcpy_flushcache(segment->data + pos.off, src + page_off, to_copy);
 		flush_dcache_page(bv.bv_page);
 
 		/* advance */
-		data_head += to_copy;
+		pos.off += to_copy;
 		page_off += to_copy;
 
 		/* more data in this bv page */
@@ -205,20 +208,19 @@ u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len)
 {
 	u32 crc = 0;
 	u32 crc_size;
-	u32 data_head = data_off;
+	struct cbd_seg_pos pos = { .segment = segment,
+				   .off = data_off };
 
 	while (data_len) {
-		while (data_head >= segment->data_size) {
-			data_head -= segment->data_size;
-			segment = segment->next;
-		}
+		segment->seg_ops->sanitize_pos(&pos);
+		segment = pos.segment;
 
-		crc_size = min(segment->data_size - data_head, data_len);
+		crc_size = min(segment->data_size - pos.off, data_len);
 
-		crc = crc32(crc, segment->data + data_head, crc_size);
+		crc = crc32(crc, segment->data + pos.off, crc_size);
 
 		data_len -= crc_size;
-		data_head += crc_size;
+		pos.off += crc_size;
 	}
 
 	return crc;
@@ -239,15 +241,14 @@ int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io)
 	id = dax_read_lock();
 	while (size) {
 		unsigned int len = min_t(size_t, PAGE_SIZE, size);
-		u32 data_head = off + done;
+		struct cbd_seg_pos pos = { .segment = segment,
+					   .off = off + done };
 
-		while (data_head >= segment->data_size) {
-			data_head -= segment->data_size;
-			segment = segment->next;
-		}
+		segment->seg_ops->sanitize_pos(&pos);
+		segment = pos.segment;
 
 		u64 transport_off = segment->data -
-					(void *)cbdt->transport_info + data_head;
+					(void *)cbdt->transport_info + pos.off;
 
 		page = cbdt_page(cbdt, transport_off, &page_off);
 

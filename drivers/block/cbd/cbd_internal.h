@@ -484,8 +484,14 @@ struct cbd_segment_info {
 	u64 alive_ts;
 };
 
+struct cbd_seg_pos {
+	struct cbd_segment *segment;
+	u32 off;
+};
+
 struct cbd_seg_ops {
 	bool (*seg_state_none)(struct cbd_segment_info *seg_info);
+	void (*sanitize_pos)(struct cbd_seg_pos *pos);
 };
 
 struct cbds_init_options {
@@ -504,8 +510,6 @@ struct cbd_segment {
 
 	void				*data;
 	u32				data_size;
-
-	struct cbd_segment		*next;
 
 	struct delayed_work		hb_work; /* heartbeat work */
 };
