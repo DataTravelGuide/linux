@@ -71,16 +71,18 @@ const struct device_type cbd_segments_type = {
 	.release	= cbd_segment_release,
 };
 
-void cbd_segment_init(struct cbd_segment *segment, struct cbd_transport *cbdt,
-		u32 seg_id, enum cbd_seg_type type)
+void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
+		      struct cbds_init_options *options)
 {
-	struct cbd_segment_info *segment_info = cbdt_get_segment_info(cbdt, seg_id);
+	struct cbd_segment_info *segment_info = cbdt_get_segment_info(cbdt, options->seg_id);
 
 	segment->cbdt = cbdt;
 	segment->segment_info = segment_info;
-	segment->seg_id = seg_id;
-
-	segment_info->type = type;
+	segment->seg_id = options->seg_id;
+	segment_info->type = options->type;
+	segment->seg_ops = options->seg_ops;
+	segment->data_size = CBDT_SEG_SIZE - options->data_off;
+	segment->data = (void *)(segment->segment_info) + options->data_off;
 
 	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
 	queue_delayed_work(cbd_wq, &segment->hb_work, 0);

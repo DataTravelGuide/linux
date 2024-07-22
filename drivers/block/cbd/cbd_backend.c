@@ -201,12 +201,8 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 	struct cbd_backend *backend;
 	struct cbd_backend_info *backend_info;
 	struct cbd_cache_info *cache_info;
-	struct cbd_segment_info *prev_seg_info = NULL;
-	struct cbd_segment *segment;
-	u32 seg_id;
 	bool alloc_backend = false;
 	int ret;
-	int i;
 
 	if (backend_id == U32_MAX)
 		alloc_backend = true;
@@ -229,27 +225,10 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		return -ENOMEM;
 
 	if (cache_info->n_segs) {
-		backend->cbd_cache = cbd_cache_alloc(cache_info);
+		backend->cbd_cache = cbd_cache_alloc(cbdt, cache_info, true);
 		if (!backend->cbd_cache) {
 			ret = -ENOMEM;
 			goto backend_free;
-		}
-
-		for (i = 0; i < cache_info->n_segs; i++) {
-			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
-			if (ret)
-				goto segments_exit;
-
-			pr_err("get seg: %u", seg_id);
-			segment = &backend->cbd_cache->segments[i];
-			cbd_segment_init(segment, cbdt, seg_id, cbds_type_cache);
-
-			if (prev_seg_info) {
-				prev_seg_info->next_seg = seg_id;
-			} else {
-				cache_info->seg_id = seg_id;
-			}
-			prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 		}
 	}
 
@@ -261,7 +240,7 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 
 	ret = cbd_backend_init(backend);
 	if (ret)
-		goto segments_exit;
+		goto cache_destroy;
 
 	backend_info->state = cbd_backend_state_running;
 
@@ -269,13 +248,9 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 
 	return 0;
 
-segments_exit:
-	if (backend->cbd_cache) {
-		for (i = 0; i < backend->cbd_cache->n_segs; i++)
-			cbd_segment_exit(&backend->cbd_cache->segments[i]);
-
+cache_destroy:
+	if (backend->cbd_cache)
 		cbd_cache_destroy(backend->cbd_cache);
-	}
 backend_free:
 	kfree(backend);
 
@@ -317,14 +292,8 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 
 	kmem_cache_destroy(cbdb->backend_io_cache);
 
-	if (cbdb->cbd_cache) {
-		int i;
-
-		for (i = 0; i < cbdb->cbd_cache->n_segs; i++)
-			cbd_segment_exit(&cbdb->cbd_cache->segments[i]);
-
+	if (cbdb->cbd_cache)
 		cbd_cache_destroy(cbdb->cbd_cache);
-	}
 
 	fput(cbdb->bdev_file);
 	kfree(cbdb);

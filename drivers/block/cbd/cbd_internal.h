@@ -488,6 +488,13 @@ struct cbd_seg_ops {
 	bool (*seg_state_none)(struct cbd_segment_info *seg_info);
 };
 
+struct cbds_init_options {
+	u32 seg_id;
+	enum cbd_seg_type type;
+	u32 data_off;
+	struct cbd_seg_ops *seg_ops;
+};
+
 struct cbd_segment {
 	struct cbd_transport		*cbdt;
 
@@ -504,8 +511,8 @@ struct cbd_segment {
 };
 
 int cbd_segment_clear(struct cbd_transport *cbdt, u32 segment_id);
-void cbd_segment_init(struct cbd_segment *segment, struct cbd_transport *cbdt,
-		u32 seg_id, enum cbd_seg_type type);
+void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
+		      struct cbds_init_options *options);
 void cbd_segment_exit(struct cbd_segment *segment);
 bool cbd_segment_info_is_alive(struct cbd_segment_info *info);
 void cbds_copy_to_bio(struct cbd_segment *segment,
@@ -592,14 +599,21 @@ struct cbd_cache_info {
 };
 
 struct cbd_cache {
+	struct cbd_transport		*cbdt;
 	struct cbd_cache_info		*cache_info;
 
 	u32				n_segs;
 	struct cbd_segment		segments[];
 };
 
-struct cbd_cache *cbd_cache_alloc(struct cbd_cache_info *cache_info);
+struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
+				  struct cbd_cache_info *cache_info,
+				  bool alloc_seg);
 void cbd_cache_destroy(struct cbd_cache *cache);
+
+struct cbd_cache_seg_info {
+	struct cbd_segment_info segment_info;	/* first member */
+};
 
 /* cbd_handler */
 struct cbd_handler {

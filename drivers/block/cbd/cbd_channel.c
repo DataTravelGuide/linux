@@ -70,13 +70,14 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 {
 	struct cbd_channel_info *channel_info = cbdt_get_channel_info(cbdt, seg_id);
 	struct cbd_segment *segment = &channel->segment;
+	struct cbds_init_options seg_options;
 
-	cbd_segment_init(segment, cbdt, seg_id, cbds_type_channel);
+	seg_options.seg_id = seg_id;
+	seg_options.type = cbds_type_channel;
+	seg_options.data_off = CBDC_DATA_OFF;
+	seg_options.seg_ops = &cbd_channel_seg_ops;
 
-	segment->seg_ops = &cbd_channel_seg_ops;
-	segment->next = segment;
-	segment->data_size = CBDC_DATA_SIZE;
-	segment->data = (void *)(segment->segment_info) + CBDC_DATA_OFF;
+	cbd_segment_init(cbdt, segment, &seg_options);
 
 	channel->cbdt = cbdt;
 	channel->channel_info = channel_info;
