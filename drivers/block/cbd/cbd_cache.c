@@ -9,107 +9,220 @@ static struct cache_key {
 
 	struct rb_node rb_node;
 
-	uint64_t	l_off;
-	uint64_t	p_off;
-	uint32_t	len;
-	uint64_t	flags;
-	uint64_t	seg_gen;
+	uint64_t		off;
+	uint32_t		len;
+
+	struct cbd_cache_pos	cache_pos;
+
+	uint64_t		flags;
+	uint64_t		seg_gen;
 };
 
-/*
+static struct cbd_seg_ops cbd_cache_seg_ops = {};
+
+static u32 get_cache_segment(struct cbd_cache *cache)
+{
+	u32 cache_seg;
+again:
+	spin_lock(&cache->seg_map_lock);
+	cache_seg = find_next_zero_bit(cache->seg_map, cache->n_segs, 0);
+	if (cache_seg == cache->n_segs) {
+		spin_unlock(&cache->seg_map_lock);
+		pr_err("no seg avaialbe.");
+		msleep(100);
+		goto again;
+	}
+
+	set_bit(cache_seg, cache->seg_map);
+	spin_unlock(&cache->seg_map_lock);
+
+	return cache_seg;
+}
+
+
+static void cache_data_head_init(struct cbd_cache *cache)
+{
+	cache->data_head.cache_seg_id = get_cache_segment(cache);
+	cache->data_head.seg_off = 0;
+}
+
+static inline void *cache_get_addr(struct cbd_cache *cache, struct cbd_cache_pos *pos)
+{
+	return (cache->segments[pos->cache_seg_id].data + pos->seg_off);
+}
+
+static struct cache_key *cache_key_alloc(struct cbd_cache *cache)
+{
+	return NULL;
+}
+
+static void cache_key_destroy(struct cache_key *key)
+{
+}
+
+static void cache_key_put(struct cache_key *key)
+{
+}
+
+static void cache_copy_from_bio(struct cbd_cache *cache, struct cbd_cache_pos *pos, struct bio *bio)
+{
+	return;
+}
+
+static void cache_insert_key(struct cbd_cache *cache, struct cache_key *key)
+{
+	return;
+}
+
+static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
+{
+	return 0;
+}
+
 blk_status_t cbd_cache_queue_rq(struct cbd_cache *cache, struct request *req)
 {
-	u64 offset = (u64)blk_rq_pos(cbd_req->req) << SECTOR_SHIFT;
-	u32 length = blk_rq_bytes(cbd_req->req);
+	u64 offset = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
+	u32 length = blk_rq_bytes(req);
 	u32 io_done = 0;
 	struct cache_key *key;
+	int ret;
 
 	while (true) {
 		if (io_done >= length)
 			break;
 
-		key = cache_key_alloc(cache_b, io->queue_id);
+		key = cache_key_alloc(cache);
 		if (!key) {
 			ret = -ENOMEM;
-			goto finish;
+			goto err;
 		}
 
-		key->l_off = offset + io_done;
-		key->len = io->len - io_done;
-		if (key->len > CACHE_KEY_LIST_SIZE - (key->l_off & CACHE_KEY_LIST_MASK))
-			key->len = CACHE_KEY_LIST_SIZE - (key->l_off & CACHE_KEY_LIST_MASK);
+		key->off = offset + io_done;
+		key->len = length- io_done;
 
-		ret = cache_data_alloc(cache_b, key, io);
+		ret = cache_data_alloc(cache, key);
 		if (ret) {
 			cache_key_put(key);
-			goto finish;
+			goto err;
 		}
 
-		if (!key->len) {
-			ubbd_err("len of key is 0\n");
-			cache_key_put(key);
-			continue;
-		}
+		cache_copy_from_bio(cache, &key->cache_pos, req->bio);
 
-		backend_index = get_cache_backend(cache_b, key->p_off);
-		backend = cache_b->cache_backends[backend_index];
-
-		cache_io = prepare_backend_io(cache_b, backend, io, io_done, key->len, cache_backend_write_io_finish);
-		if (!cache_io) {
-			cache_key_put(key);
-			ret = -ENOMEM;
-			goto finish;
-		}
-		cache_io->offset = key->p_off - (backend_index * (cache_b->cache_sb.segs_per_device << CACHE_SEG_SHIFT));
-
-		struct cache_backend_io_ctx_data *data;
-
-		data = (struct cache_backend_io_ctx_data *)cache_io->ctx->data;
-		data->cache_io = true;
-		data->key = key;
-		data->cache_b = cache_b;
-		cache_seg_get(cache_b, key->p_off >> CACHE_SEG_SHIFT);
-
-		if (cache_b->lcache_debug)
-			ubbd_err("submit write cache io: %lu:%u seg: %lu\n",
-					cache_io->offset, cache_io->len,
-					cache_io->offset >> CACHE_SEG_SHIFT);
-
-		ret = backend->backend_ops->writev(backend, cache_io);
-
-		if (ret) {
-			ubbd_err("cache io failed.\n");
-			cache_seg_put(cache_b, key->p_off >> CACHE_SEG_SHIFT);
-			cache_key_put(key);
-			goto finish;
-		}
+		cache_insert_key(cache, key);
 
 		io_done += key->len;
 	}
 
-	if (cache_b->cache_mode == UBBD_CACHE_MODE_WT) {
-		struct ubbd_backend_io *backing_io;
-		backing_io = prepare_backend_io(cache_b, cache_b->backing_backend, io, 0, io->len, cache_backend_read_io_finish);
-		if (cache_b->lcache_debug)
-			ubbd_err("submit write backing io: %lu:%u crc: %lu, iov_len: %lu, iocnt: %d\n",
-					backing_io->offset, backing_io->len,
-					crc64(backing_io->iov[0].iov_base, backing_io->iov[0].iov_len),
-					backing_io->iov[0].iov_len, backing_io->iov_cnt);
+	return BLK_STS_OK;
+err:
+	if (ret == -ENOMEM || ret == -EBUSY)
+		blk_mq_requeue_request(req, true);
+	else
+		blk_mq_end_request(req, errno_to_blk_status(ret));
 
-		ret = cache_b->backing_backend->backend_ops->writev(cache_b->backing_backend, backing_io);
+	return BLK_STS_OK;
+}
+
+static int cache_replay(struct cbd_cache *cache)
+{
+	/*
+	char kset_buf[CACHE_KSET_SIZE] __attribute__ ((__aligned__ (4096)));
+	uint64_t seg = cache_b->cache_sb.key_tail_pos.seg;
+	uint32_t off_in_seg = cache_b->cache_sb.key_tail_pos.off_in_seg;
+	uint64_t addr;
+	struct cache_kset_ondisk *kset_disk;
+	struct cache_key_ondisk *key_disk;
+	struct cache_key *key = NULL;
+	int i;
+	int ret = 0;
+	uint32_t key_epoch;
+	bool key_epoch_found = false;
+	bool cache_key_written = false;
+
+	while (true) {
+again:
+		addr = seg * CACHE_SEG_SIZE + off_in_seg; 
+		ret = ubbd_backend_read(cache_b->cache_backend, addr, CACHE_KSET_SIZE, kset_buf);
 		if (ret) {
-			ubbd_err("failed to submit backing io\n");
+			ubbd_err("failed to read kset: %d\n", ret);
+			goto err;
 		}
+
+		kset_disk = (struct cache_kset_ondisk *)kset_buf;
+		if (kset_disk->magic != CACHE_KSET_MAGIC) {
+			ubbd_err("magic is unexpected.\n");
+			break;
+		}
+
+		if (kset_disk->kset_len > CACHE_KSET_SIZE) {
+			ubbd_err("kset len larger than CACHE_KSET_SIZE\n");
+			ret = -EFAULT;
+			goto err;
+		}
+
+		if (key_epoch_found) {
+			if (key_epoch != kset_disk->key_epoch) {
+				ubbd_err("not expected epoch: expected: %u, got: %u\n", key_epoch, kset_disk->key_epoch);
+				ret = -EFAULT;
+				break;
+			}
+		} else {
+			key_epoch = kset_disk->key_epoch;
+			key_epoch_found = true;
+		}
+
+		if (kset_disk->flags & CACHE_KSET_FLAGS_LASTKSET) {
+			seg = kset_disk->next_seg;
+			off_in_seg = 0;
+			key_epoch++;
+			ubbd_info("goto next seg: %lu, epoch: %u\n", seg, key_epoch);
+			ubbd_bit_set(cache_b->cache_sb.seg_bitmap, seg);
+			continue;
+		}
+
+		ubbd_bit_set(cache_b->cache_sb.seg_bitmap, seg);
+
+		for (i = 0; i < kset_disk->keys; i++) {
+			key_disk = &kset_disk->data[i];
+			key = cache_key_decode(cache_b, key_disk);
+			if (!key) {
+				ret = -ENOMEM;
+				goto err;
+			}
+
+			if (cache_key_seg(cache_b, key)->gen < key->seg_gen)
+				cache_key_seg(cache_b, key)->gen = key->seg_gen;
+
+			ret = cache_key_insert(cache_b, key);
+			cache_key_put(key);
+			if (ret) {
+				goto err;
+			}
+		}
+		off_in_seg += kset_disk->kset_len;
 	}
 
-	ret = 0;
-finish:
-	ubbd_backend_io_finish(io, ret);
+	cache_b->cache_sb.key_head_pos.seg = seg;
+	cache_b->cache_sb.key_head_pos.off_in_seg = off_in_seg;
+	ubbd_bit_set(cache_b->cache_sb.seg_bitmap, seg);
+
+	if (!cache_key_written) {
+		cache_key_ondisk_write_all(cache_b);
+		cache_key_written = true;
+		goto again;
+	}
+err:
+	return ret;
+	*/
+	/* replay keys */
+
+	/* init key head */
+	set_bit(0, cache->seg_map);
+	cache->key_head.cache_seg_id = 0;
+	cache->key_head.seg_off = 0;
+
 	return 0;
 }
-*/
-
-static struct cbd_seg_ops cbd_cache_seg_ops = {};
 
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_info *cache_info, bool alloc_seg)
 {
@@ -135,6 +248,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
 	cache->cache_tree = RB_ROOT;
+	spin_lock_init(&cache->seg_map_lock);
 
 	seg_options.type = cbds_type_cache;
 	seg_options.data_off = round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE);
@@ -165,6 +279,17 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 	}
+
+	/* start writeback */
+	/* start gc */
+
+	ret = cache_replay(cache);
+	if (ret) {
+		pr_err("failed to replay\n");
+		goto destroy_cache;
+	}
+
+	cache_data_head_init(cache);
 
 	return cache;
 

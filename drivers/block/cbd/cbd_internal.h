@@ -617,8 +617,12 @@ struct cbd_cache {
 	struct cbd_transport		*cbdt;
 	struct cbd_cache_info		*cache_info;
 
+	struct cbd_cache_pos		data_head;
+	struct cbd_cache_pos		key_head;
+
 	u32				n_segs;
 	unsigned long			*seg_map;
+	spinlock_t			seg_map_lock;
 	struct rb_root			cache_tree;
 	struct cbd_segment		segments[];
 };
