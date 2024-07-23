@@ -84,6 +84,7 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	segment->data_size = CBDT_SEG_SIZE - options->data_off;
 	//pr_err("datasize: %u", segment->data_size);
 	segment->data = (void *)(segment->segment_info) + options->data_off;
+	segment->priv_data = options->priv_data;
 
 	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
 	queue_delayed_work(cbd_wq, &segment->hb_work, 0);

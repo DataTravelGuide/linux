@@ -490,7 +490,6 @@ struct cbd_seg_pos {
 };
 
 struct cbd_seg_ops {
-	bool (*seg_state_none)(struct cbd_segment_info *seg_info);
 	void (*sanitize_pos)(struct cbd_seg_pos *pos);
 };
 
@@ -499,6 +498,7 @@ struct cbds_init_options {
 	enum cbd_seg_type type;
 	u32 data_off;
 	struct cbd_seg_ops *seg_ops;
+	void *priv_data;
 };
 
 struct cbd_segment {
@@ -510,6 +510,8 @@ struct cbd_segment {
 
 	void				*data;
 	u32				data_size;
+
+	void				*priv_data;
 
 	struct delayed_work		hb_work; /* heartbeat work */
 };
@@ -617,6 +619,7 @@ struct cbd_cache {
 
 	u32				n_segs;
 	unsigned long			*seg_map;
+	struct rb_root			cache_tree;
 	struct cbd_segment		segments[];
 };
 
