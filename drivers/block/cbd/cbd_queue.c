@@ -385,11 +385,6 @@ static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct cbd_queue *cbdq = hctx->driver_data;
 	struct cbd_request *cbd_req = blk_mq_rq_to_pdu(bd->rq);
 
-	/*
-	if (cbdq->cbd_blkdev->cbd_cache)
-		return cbd_cache_queue_rq(cbdq->cbd_blkdev->cbd_cache, req);
-	*/
-
 	memset(cbd_req, 0, sizeof(struct cbd_request));
 	INIT_LIST_HEAD(&cbd_req->inflight_reqs_node);
 

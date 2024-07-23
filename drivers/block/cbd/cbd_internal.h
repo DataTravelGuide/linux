@@ -591,6 +591,10 @@ int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf);
 
 /* cbd cache */
+struct cbd_cache_seg_info {
+	struct cbd_segment_info segment_info;	/* first member */
+};
+
 enum cbd_cache_blkdev_state {
 	cbd_cache_blkdev_state_none = 0,
 	cbd_cache_blkdev_state_running
@@ -620,6 +624,8 @@ struct cbd_cache {
 	struct cbd_cache_pos		data_head;
 	struct cbd_cache_pos		key_head;
 
+	struct kmem_cache		*key_cache;
+
 	u32				n_segs;
 	unsigned long			*seg_map;
 	spinlock_t			seg_map_lock;
@@ -631,10 +637,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_info *cache_info,
 				  bool alloc_seg);
 void cbd_cache_destroy(struct cbd_cache *cache);
-
-struct cbd_cache_seg_info {
-	struct cbd_segment_info segment_info;	/* first member */
-};
 
 /* cbd_handler */
 struct cbd_handler {
@@ -778,6 +780,12 @@ struct cbd_request {
 	u32			data_off;
 	u32			data_len;
 
+	struct work_struct	work;
+};
+
+struct cbd_cache_req {
+	struct cbd_cache	*cache;
+	enum cbd_op		op;
 	struct work_struct	work;
 };
 

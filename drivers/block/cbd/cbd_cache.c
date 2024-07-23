@@ -79,7 +79,7 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	return 0;
 }
 
-blk_status_t cbd_cache_queue_rq(struct cbd_cache *cache, struct request *req)
+blk_status_t cache_write(struct cbd_cache *cache, struct request *req)
 {
 	u64 offset = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
 	u32 length = blk_rq_bytes(req);
@@ -119,6 +119,42 @@ err:
 		blk_mq_requeue_request(req, true);
 	else
 		blk_mq_end_request(req, errno_to_blk_status(ret));
+
+	return BLK_STS_OK;
+}
+
+static void cache_write_workfn(struct work_struct *work)
+{
+}
+
+static void cache_read_workfn(struct work_struct *work)
+{
+}
+
+blk_status_t cbd_cache_queue_rq(struct cbd_cache *cache, struct cbd_request *cbd_req)
+{
+	struct request *req = cbd_req->req;
+
+	blk_mq_start_request(req);
+
+	switch (req_op(req)) {
+	case REQ_OP_FLUSH:
+		break;
+	case REQ_OP_DISCARD:
+		break;
+	case REQ_OP_WRITE_ZEROES:
+		break;
+	case REQ_OP_WRITE:
+		INIT_WORK(&cbd_req->work, cache_write_workfn);
+		break;
+	case REQ_OP_READ:
+		INIT_WORK(&cbd_req->work, cache_read_workfn);
+		break;
+	default:
+		return BLK_STS_IOERR;
+	}
+
+	//queue_work(cache->cbd_blkdev->task_wq, &cbd_req->work);
 
 	return BLK_STS_OK;
 }
@@ -244,6 +280,12 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 		goto destroy_cache;
 	}
 
+	cache->key_cache = KMEM_CACHE(cache_key, 0);
+	if (!cache->key_cache) {
+		ret = -ENOMEM;
+		goto destroy_cache;
+	}
+
 	cache->cbdt = cbdt;
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
@@ -302,6 +344,9 @@ destroy_cache:
 void cbd_cache_destroy(struct cbd_cache *cache)
 {
 	int i;
+
+	if (cache->key_cache)
+		kmem_cache_destroy(cache->key_cache);
 
 	if (cache->seg_map)
 		bitmap_free(cache->seg_map);
