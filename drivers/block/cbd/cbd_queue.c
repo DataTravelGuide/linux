@@ -219,6 +219,7 @@ static void cbd_queue_workfn(struct work_struct *work)
 		ret = cbd_cache_handle_req(cbdq->cbd_blkdev->cbd_cache, cbd_req);
 		if (ret)
 			goto err;
+		blk_mq_end_request(cbd_req->req, errno_to_blk_status(0));
 		return;
 	}
 

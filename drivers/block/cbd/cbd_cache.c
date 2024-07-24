@@ -84,6 +84,8 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	struct cbd_segment *segment;
 	struct cbd_cache_pos *pos = &key->cache_pos;
 
+	return;
+
 	segment = &cache->segments[pos->cache_seg_id];
 
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
@@ -123,6 +125,22 @@ static inline void cache_key_cutback(struct cache_key *key, uint32_t cut_len)
 static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
+}
+
+
+static void dump_cache(struct cbd_cache *cache)
+{
+	struct cache_key *key;
+	struct rb_node *node;
+
+	pr_err("=====start dump");
+	node = rb_first(&cache->cache_tree);
+	while (node) {
+		key = CACHE_KEY(node);
+		pr_err("key->off: %llu, len: %u\n", key->off, key->len);
+		node = rb_next(node);
+	}
+	pr_err("=====end dump");
 }
 
 static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup);
@@ -245,6 +263,9 @@ static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool
   	rb_link_node(&key->rb_node, parent, new);
   	rb_insert_color(&key->rb_node, &cache->cache_tree);
 
+	pr_err("after insert off: %llu, len: %u\n", key->off, key->len);
+	dump_cache(cache);
+
 	return 0;
 err:
 	return ret;;
@@ -279,7 +300,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		}
 
 		key->off = offset + io_done;
-		key->len = length- io_done;
+		key->len = length - io_done;
 
 		ret = cache_data_alloc(cache, key);
 		if (ret) {
@@ -290,6 +311,8 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		cache_copy_from_bio(cache, key, cbd_req->bio);
 
 		ret = cache_insert_key(cache, key, true);
+		if (ret)
+			goto err;
 
 		io_done += key->len;
 	}
