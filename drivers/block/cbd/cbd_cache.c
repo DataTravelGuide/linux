@@ -79,10 +79,10 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	return 0;
 }
 
-blk_status_t cache_write(struct cbd_cache *cache, struct request *req)
+int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
-	u64 offset = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
-	u32 length = blk_rq_bytes(req);
+	u64 offset = cbd_req->off;
+	u32 length = cbd_req->data_len;
 	u32 io_done = 0;
 	struct cache_key *key;
 	int ret;
@@ -106,21 +106,16 @@ blk_status_t cache_write(struct cbd_cache *cache, struct request *req)
 			goto err;
 		}
 
-		cache_copy_from_bio(cache, &key->cache_pos, req->bio);
+		cache_copy_from_bio(cache, &key->cache_pos, cbd_req->bio);
 
 		cache_insert_key(cache, key);
 
 		io_done += key->len;
 	}
 
-	return BLK_STS_OK;
+	return 0;
 err:
-	if (ret == -ENOMEM || ret == -EBUSY)
-		blk_mq_requeue_request(req, true);
-	else
-		blk_mq_end_request(req, errno_to_blk_status(ret));
-
-	return BLK_STS_OK;
+	return ret;
 }
 
 static void cache_write_workfn(struct work_struct *work)
@@ -131,32 +126,24 @@ static void cache_read_workfn(struct work_struct *work)
 {
 }
 
-blk_status_t cbd_cache_queue_rq(struct cbd_cache *cache, struct cbd_request *cbd_req)
+int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
-	struct request *req = cbd_req->req;
-
-	blk_mq_start_request(req);
-
-	switch (req_op(req)) {
-	case REQ_OP_FLUSH:
+	switch (cbd_req->op) {
+	case CBD_OP_FLUSH:
 		break;
-	case REQ_OP_DISCARD:
+	case CBD_OP_DISCARD:
 		break;
-	case REQ_OP_WRITE_ZEROES:
+	case CBD_OP_WRITE_ZEROES:
 		break;
-	case REQ_OP_WRITE:
-		INIT_WORK(&cbd_req->work, cache_write_workfn);
-		break;
-	case REQ_OP_READ:
-		INIT_WORK(&cbd_req->work, cache_read_workfn);
-		break;
+	case CBD_OP_WRITE:
+		return cache_write(cache, cbd_req);
+	case CBD_OP_READ:
+		return cache_read(cache, cbd_req);
 	default:
-		return BLK_STS_IOERR;
+		return -EIO;
 	}
 
-	//queue_work(cache->cbd_blkdev->task_wq, &cbd_req->work);
-
-	return BLK_STS_OK;
+	return 0;
 }
 
 static int cache_replay(struct cbd_cache *cache)

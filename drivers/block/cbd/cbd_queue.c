@@ -216,8 +216,7 @@ static void cbd_queue_workfn(struct work_struct *work)
 	int ret;
 
 	if (cbdq->cbd_blkdev->cbd_cache) {
-		//ret = cache_handle_req(cbdq->cbd_blkdev->cbd_cache, cbd_req);
-		ret = 0;
+		ret = cbd_cache_handle_req(cbdq->cbd_blkdev->cbd_cache, cbd_req);
 		if (ret)
 			goto err;
 		return;
