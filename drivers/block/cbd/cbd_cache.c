@@ -242,7 +242,7 @@ static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool
   		key_tmp = container_of(*new, struct cache_key, rb_node);
 
 		parent = *new;
-		if (key_tmp->off > key->off) {
+		if (key_tmp->off >= key->off) {
 			next_node = *new;
   			new = &((*new)->rb_left);
 		} else {
