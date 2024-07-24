@@ -5,6 +5,7 @@ static struct cache_key {
 	int deleted:1;
 	int fullylinked:1;
 
+	struct cbd_cache *cache;
 	struct kref ref;
 
 	struct rb_node rb_node;
@@ -53,15 +54,29 @@ static inline void *cache_get_addr(struct cbd_cache *cache, struct cbd_cache_pos
 
 static struct cache_key *cache_key_alloc(struct cbd_cache *cache)
 {
-	return NULL;
+	struct cache_key *key;
+
+	key = kmem_cache_zalloc(cache->key_cache, GFP_KERNEL);
+	if (!key)
+		return NULL;
+
+	kref_init(&key->ref);
+	key->cache = cache;
+
+	return key;
 }
 
-static void cache_key_destroy(struct cache_key *key)
+static void cache_key_destroy(struct kref *ref)
 {
+	struct cache_key *key = container_of(ref, struct cache_key, ref);
+	struct cbd_cache *cache = key->cache;
+
+	kmem_cache_free(cache->key_cache, key);
 }
 
 static void cache_key_put(struct cache_key *key)
 {
+	kref_put(&key->ref, cache_key_destroy);
 }
 
 static void cache_copy_from_bio(struct cbd_cache *cache, struct cbd_cache_pos *pos, struct bio *bio)
@@ -121,14 +136,6 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	return 0;
 err:
 	return ret;
-}
-
-static void cache_write_workfn(struct work_struct *work)
-{
-}
-
-static void cache_read_workfn(struct work_struct *work)
-{
 }
 
 int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
