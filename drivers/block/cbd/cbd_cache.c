@@ -89,9 +89,165 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
 }
 
-static void cache_insert_key(struct cbd_cache *cache, struct cache_key *key)
+#define CACHE_KEY(node)		(container_of(node, struct cache_key, rb_node))
+
+static inline uint64_t cache_key_lstart(struct cache_key *key)
 {
-	return;
+	return key->off;
+}
+
+static inline uint64_t cache_key_lend(struct cache_key *key)
+{
+	return key->off + key->len;
+}
+
+static inline void cache_key_copy(struct cache_key *key_dst, struct cache_key *key_src)
+{
+	key_dst->off = key_src->off;
+	key_dst->len = key_src->len;
+}
+
+static inline void cache_key_cutfront(struct cache_key *key, uint32_t cut_len)
+{
+	/*TODO advance seg pos */
+	key->cache_pos.seg_off += cut_len;
+	key->off += cut_len;
+	key->len -= cut_len;
+}
+
+static inline void cache_key_cutback(struct cache_key *key, uint32_t cut_len)
+{
+	key->len -= cut_len;
+}
+
+static inline void cache_key_delete(struct cache_key *key)
+{
+	rb_erase(&key->rb_node, &key->cache->cache_tree);
+}
+
+static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup);
+static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, struct rb_node *prev_node)
+{
+	struct rb_node *node_tmp;
+	struct cache_key *key_tmp;
+	int ret;
+
+	if (!prev_node)
+		return 0;
+
+	node_tmp = prev_node;
+	while (node_tmp) {
+		key_tmp = CACHE_KEY(node_tmp);
+		/*
+		 * |----------|
+		 *		|=====|
+		 * */
+		if (cache_key_lend(key_tmp) <= cache_key_lstart(key))
+			goto next;
+
+		/*
+		 *	  |--------|
+		 * |====|
+		 */
+		if (cache_key_lstart(key_tmp) >= cache_key_lend(key))
+			break;
+
+		/* overlap */
+		if (cache_key_lstart(key_tmp) >= cache_key_lstart(key)) {
+			/*
+			 *     |----------------|	key_tmp
+			 * |===========|		key
+			 */
+			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
+				cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
+				if (key_tmp->len == 0) {
+					cache_key_delete(key_tmp);
+				}
+
+				goto next;
+			}
+
+			/*
+			 *    |----|		key_tmp
+			 * |==========|		key
+			 */
+			cache_key_delete(key_tmp);
+			goto next;
+		}
+
+		/*
+		 * |-----------|	key_tmp
+		 *   |====|		key
+		 */
+		if (cache_key_lend(key_tmp) > cache_key_lend(key)) {
+			struct cache_key *key_fixup;
+
+			key_fixup = cache_key_alloc(cache);
+			if (!key_fixup) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			cache_key_copy(key_fixup, key_tmp);
+
+			cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+			cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
+
+			cache_insert_key(cache, key_fixup, false);
+
+			cache_key_put(key_fixup);
+			break;
+		}
+
+		/*
+		 * |--------|		key_tmp
+		 *   |==========|	key
+		 */
+		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+next:
+		node_tmp = rb_next(node_tmp);
+	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup)
+{
+  	struct rb_node **new = &(cache->cache_tree.rb_node), *parent = NULL;
+	struct cache_key *key_tmp = NULL;
+	struct rb_node	*prev_node = NULL, *next_node = NULL;
+	int ret;
+
+  	while (*new) {
+  		key_tmp = container_of(*new, struct cache_key, rb_node);
+
+		parent = *new;
+		if (key_tmp->off > key->off) {
+			next_node = *new;
+  			new = &((*new)->rb_left);
+		} else {
+			prev_node = *new;
+  			new = &((*new)->rb_right);
+		}
+  	}
+
+	if (!prev_node)
+		prev_node = rb_first(&cache->cache_tree);
+
+	if (fixup) {
+		ret = cache_insert_fixup(cache, key, prev_node);
+		if (ret)
+			goto err;
+	}
+
+  	rb_link_node(&key->rb_node, parent, new);
+  	rb_insert_color(&key->rb_node, &cache->cache_tree);
+
+	return 0;
+err:
+	return ret;;
 }
 
 static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
@@ -133,7 +289,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		cache_copy_from_bio(cache, key, cbd_req->bio);
 
-		cache_insert_key(cache, key);
+		ret = cache_insert_key(cache, key, true);
 
 		io_done += key->len;
 	}
