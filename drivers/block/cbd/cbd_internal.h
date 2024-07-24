@@ -625,11 +625,11 @@ struct cbd_cache {
 	struct cbd_cache_pos		key_head;
 
 	struct kmem_cache		*key_cache;
+	struct rb_root			cache_tree;
 
 	u32				n_segs;
 	unsigned long			*seg_map;
 	spinlock_t			seg_map_lock;
-	struct rb_root			cache_tree;
 	struct cbd_segment		segments[];
 };
 
@@ -781,6 +781,10 @@ struct cbd_request {
 	u32			data_len;
 
 	struct work_struct	work;
+
+	struct kref		ref;
+	int			ret;
+	struct cbd_request	*parent;
 };
 
 struct cbd_cache_req {

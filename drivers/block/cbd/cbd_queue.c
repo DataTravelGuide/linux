@@ -141,13 +141,11 @@ static void cbd_req_crc_init(struct cbd_request *cbd_req)
 #endif
 
 static void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret);
-static void cbd_queue_workfn(struct work_struct *work)
+static void queue_req_to_backend(struct cbd_request *cbd_req)
 {
-	struct cbd_request *cbd_req =
-		container_of(work, struct cbd_request, work);
 	struct cbd_queue *cbdq = cbd_req->cbdq;
-	int ret = 0;
 	size_t command_size;
+	int ret;
 
 	spin_lock(&cbdq->inflight_reqs_lock);
 	if (atomic_read(&cbdq->state) == cbd_queue_state_removing) {
@@ -208,6 +206,18 @@ end_request:
 		blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
 }
 
+static void cbd_queue_workfn(struct work_struct *work)
+{
+	struct cbd_request *cbd_req =
+		container_of(work, struct cbd_request, work);
+	struct cbd_queue *cbdq = cbd_req->cbdq;
+
+	if (cbdq->cbd_blkdev->cbd_cache)
+		return;
+
+	return queue_req_to_backend(cbd_req);
+}
+
 static void advance_subm_ring(struct cbd_queue *cbdq)
 {
 	struct cbd_se *se;
@@ -251,6 +261,13 @@ static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len
 	}
 }
 
+static void parent_req_complete(struct kref *ref)
+{
+	struct cbd_request *cbd_req = container_of(ref, struct cbd_request, ref);
+
+	blk_mq_end_request(cbd_req->req, errno_to_blk_status(cbd_req->ret));
+}
+
 static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret)
 {
 	u32 data_off;
@@ -266,7 +283,13 @@ static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_requ
 	data_len = cbd_req->data_len;
 	advance_data = (!cbd_req_nodata(cbd_req));
 
-	blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
+	if (cbd_req->parent) {
+		if (ret && !cbd_req->parent->ret)
+			cbd_req->parent->ret = ret;
+		kref_put(&cbd_req->parent->ref, parent_req_complete);
+	} else {
+		blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
+	}
 
 	spin_lock(&cbdq->channel.submr_lock);
 	advance_subm_ring(cbdq);
@@ -293,7 +316,7 @@ static struct cbd_request *find_inflight_req(struct cbd_queue *cbdq, u64 req_tid
 	return NULL;
 }
 
-static void copy_data_from_cbdteq(struct cbd_request *cbd_req)
+static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 {
 	struct bio *bio = cbd_req->req->bio;
 	struct cbd_queue *cbdq = cbd_req->cbdq;
@@ -353,7 +376,7 @@ again:
 
 	if (req_op(cbd_req->req) == REQ_OP_READ) {
 		spin_lock(&cbdq->channel.submr_lock);
-		copy_data_from_cbdteq(cbd_req);
+		copy_data_from_cbdreq(cbd_req);
 		spin_unlock(&cbdq->channel.submr_lock);
 	}
 
@@ -457,9 +480,6 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 	struct cbd_transport *cbdt = cbdq->cbd_blkdev->cbdt;
 	u32 channel_id;
 	int ret;
-
-	if (cbdq->cbd_blkdev->cbd_cache)
-		return 0;
 
 	ret = cbd_get_empty_channel_id(cbdt, &channel_id);
 	if (ret < 0) {
