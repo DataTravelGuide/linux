@@ -79,9 +79,14 @@ static void cache_key_put(struct cache_key *key)
 	kref_put(&key->ref, cache_key_destroy);
 }
 
-static void cache_copy_from_bio(struct cbd_cache *cache, struct cbd_cache_pos *pos, struct bio *bio)
+static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, struct bio *bio)
 {
-	return;
+	struct cbd_segment *segment;
+	struct cbd_cache_pos *pos = &key->cache_pos;
+
+	segment = &cache->segments[pos->cache_seg_id];
+
+	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
 }
 
 static void cache_insert_key(struct cbd_cache *cache, struct cache_key *key)
@@ -126,7 +131,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 			goto err;
 		}
 
-		cache_copy_from_bio(cache, &key->cache_pos, cbd_req->bio);
+		cache_copy_from_bio(cache, key, cbd_req->bio);
 
 		cache_insert_key(cache, key);
 
