@@ -79,6 +79,11 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	return 0;
 }
 
+int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
+{
+	return 0;
+}
+
 int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	u64 offset = cbd_req->off;

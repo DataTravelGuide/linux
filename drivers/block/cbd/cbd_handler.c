@@ -89,7 +89,7 @@ static int handle_backend_cmd(struct cbd_handler *handler, struct cbd_se *se)
 		ret = blkdev_issue_discard(cbdb->bdev, se->offset >> SECTOR_SHIFT,
 				se->len, GFP_KERNEL);
 		goto complete_cmd;
-	case CBD_OP_WRITE_ZEROS:
+	case CBD_OP_WRITE_ZEROES:
 		ret = blkdev_issue_zeroout(cbdb->bdev, se->offset >> SECTOR_SHIFT,
 				se->len, GFP_KERNEL, 0);
 		goto complete_cmd;

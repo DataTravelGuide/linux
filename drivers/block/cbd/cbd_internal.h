@@ -633,6 +633,7 @@ struct cbd_cache {
 	struct cbd_segment		segments[];
 };
 
+struct cbd_request;
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_info *cache_info,
 				  bool alloc_seg);
@@ -725,7 +726,7 @@ enum cbd_op {
 	CBD_OP_WRITE = 0,
 	CBD_OP_READ,
 	CBD_OP_DISCARD,
-	CBD_OP_WRITE_ZEROS,
+	CBD_OP_WRITE_ZEROES,
 	CBD_OP_FLUSH,
 };
 
