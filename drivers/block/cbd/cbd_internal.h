@@ -773,6 +773,9 @@ struct cbd_request {
 	struct cbd_ce		*ce;
 	struct request		*req;
 
+	u64			off;
+	struct bio		*bio;
+
 	enum cbd_op		op;
 	u64			req_tid;
 	struct list_head	inflight_reqs_node;
