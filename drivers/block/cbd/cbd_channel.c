@@ -23,7 +23,7 @@ int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)
 void cbdc_copy_to_bio(struct cbd_channel *channel,
 		u32 data_off, u32 data_len, struct bio *bio)
 {
-	cbds_copy_to_bio(&channel->segment, data_off, data_len, bio);
+	cbds_copy_to_bio(&channel->segment, data_off, data_len, bio, 0);
 }
 
 void cbdc_copy_from_bio(struct cbd_channel *channel,

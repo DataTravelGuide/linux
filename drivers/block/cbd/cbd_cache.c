@@ -15,7 +15,25 @@ static struct cache_key {
 	uint64_t		seg_gen;
 };
 
-static struct cbd_seg_ops cbd_cache_seg_ops = {};
+static void cbd_cache_seg_sanitize_pos(struct cbd_seg_pos *pos)
+{
+	struct cbd_segment *segment;
+	struct cbd_cache_segment *cache_seg;
+
+again:
+	segment = pos->segment;
+	cache_seg = container_of(segment, struct cbd_cache_segment, segment);
+	if (pos->off >= segment->data_size) {
+		pos->off -= segment->data_size;
+		cache_seg = cache_seg->next;
+		pos->segment = &cache_seg->segment;
+		goto again;
+	}
+}
+
+static struct cbd_seg_ops cbd_cache_seg_ops = {
+	.sanitize_pos = cbd_cache_seg_sanitize_pos
+};
 
 static struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache)
 {
@@ -83,10 +101,11 @@ static void cache_key_put(struct cache_key *key)
 
 static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, struct bio *bio)
 {
-	struct cbd_segment *segment;
 	struct cbd_cache_pos *pos = &key->cache_pos;
-
-	return;
+	struct cbd_segment *segment;
+	
+	segment = &pos->cache_seg->segment;
+	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
 }
 
 #define CACHE_KEY(node)		(container_of(node, struct cache_key, rb_node))
@@ -345,7 +364,11 @@ again:
 static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 			    u32 off, u32 len, struct cbd_cache_pos *pos)
 {
+	struct cbd_cache_segment *cache_seg = pos->cache_seg;
+	struct cbd_segment *segment = &cache_seg->segment;
+
 	pr_err("cache off %u, len %u\n", off, len);
+	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
 	return 0;
 }
 

@@ -523,7 +523,7 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 void cbd_segment_exit(struct cbd_segment *segment);
 bool cbd_segment_info_is_alive(struct cbd_segment_info *info);
 void cbds_copy_to_bio(struct cbd_segment *segment,
-		u32 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void cbds_copy_from_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio);
 u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
