@@ -436,8 +436,10 @@ next:
 		node_tmp = rb_next(node_tmp);
 	}
 
-	submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len);
-	io_done += key->len;
+	if (key->len) {
+		submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len);
+		io_done += key->len;
+	}
 
 	total_io_done += io_done;
 	io_done = 0;
