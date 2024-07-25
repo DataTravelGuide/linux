@@ -125,8 +125,8 @@ static inline void cache_key_cutback(struct cache_key *key, uint32_t cut_len)
 static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
+	kmem_cache_free(key->cache->key_cache, key);
 }
-
 
 static void dump_cache(struct cbd_cache *cache)
 {
@@ -699,6 +699,13 @@ destroy_cache:
 void cbd_cache_destroy(struct cbd_cache *cache)
 {
 	int i;
+
+	while (!RB_EMPTY_ROOT(&cache->cache_tree)) {
+		struct rb_node *node = rb_first(&cache->cache_tree);
+		struct cache_key *key = CACHE_KEY(node);
+
+		cache_key_delete(key);
+	}
 
 	if (cache->key_cache)
 		kmem_cache_destroy(cache->key_cache);
