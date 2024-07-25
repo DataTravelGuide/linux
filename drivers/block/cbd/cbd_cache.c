@@ -300,12 +300,19 @@ static struct cbd_cache_segment *get_data_head_segment(struct cbd_cache *cache)
 	return cache->data_head.cache_seg;
 }
 
+static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
+{
+	memcpy(dst, src, sizeof(struct cbd_cache_pos));
+}
+
 static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 {
 	struct cbd_cache_pos *head_pos;
 	struct cbd_cache_segment *cache_seg;
 	struct cbd_segment *segment;
 	u32 seg_remain;
+
+	cache_pos_copy(&key->cache_pos, &cache->data_head);
 
 again:
 	head_pos = &cache->data_head;
@@ -337,11 +344,6 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 {
 	pr_err("backing off %u, len %u\n", off, len);
 	return 0;
-}
-
-static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
-{
-	memcpy(dst, src, sizeof(struct cbd_cache_pos));
 }
 
 int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
