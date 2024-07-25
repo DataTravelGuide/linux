@@ -181,8 +181,6 @@ static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
 	kmem_cache_free(key->cache->key_cache, key);
-	pr_err("after delete\n");
-	dump_cache(key->cache);
 }
 
 static void dump_cache(struct cbd_cache *cache)
@@ -556,6 +554,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cache_key *key;
 	int ret;
 
+	mutex_lock(&cache->cache_tree_lock);
 	while (true) {
 		if (io_done >= length)
 			break;
@@ -585,8 +584,9 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		io_done += key->len;
 	}
 
-	return 0;
+	ret = 0;
 err:
+	mutex_unlock(&cache->cache_tree_lock);
 	return ret;
 }
 
@@ -760,6 +760,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
 	cache->cache_tree = RB_ROOT;
+	mutex_init(&cache->cache_tree_lock);
 	spin_lock_init(&cache->seg_map_lock);
 
 	for (i = 0; i < cache_info->n_segs; i++) {
