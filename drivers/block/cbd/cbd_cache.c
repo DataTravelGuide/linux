@@ -176,10 +176,13 @@ static inline void cache_key_cutback(struct cache_key *key, uint32_t cut_len)
 	key->len -= cut_len;
 }
 
+static void dump_cache(struct cbd_cache *cache);
 static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
 	kmem_cache_free(key->cache->key_cache, key);
+	pr_err("after delete\n");
+	dump_cache(key->cache);
 }
 
 static void dump_cache(struct cbd_cache *cache)
@@ -231,8 +234,10 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 			 * |===========|		key
 			 */
 			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
+				pr_err("before cutfront");
 				cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
 				if (key_tmp->len == 0) {
+					pr_err("delete key_tmp\n");
 					cache_key_delete(key_tmp);
 				}
 
@@ -289,15 +294,19 @@ static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool
 {
   	struct rb_node **new = &(cache->cache_tree.rb_node), *parent = NULL;
 	struct cache_key *key_tmp = NULL;
-	struct rb_node	*prev_node = NULL, *next_node = NULL;
+	struct rb_node	*prev_node = NULL;
 	int ret;
 
+again:
+	new = &(cache->cache_tree.rb_node);
+	parent = NULL;
+	key_tmp = NULL;
+	prev_node = NULL;
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
-			next_node = *new;
   			new = &((*new)->rb_left);
 		} else {
 			prev_node = *new;
@@ -312,6 +321,8 @@ static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool
 		ret = cache_insert_fixup(cache, key, prev_node);
 		if (ret)
 			goto err;
+		fixup = false;
+		goto again;
 	}
 
   	rb_link_node(&key->rb_node, parent, new);
