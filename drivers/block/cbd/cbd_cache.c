@@ -101,10 +101,13 @@ static inline uint64_t cache_key_lend(struct cache_key *key)
 	return key->off + key->len;
 }
 
+static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src);
 static inline void cache_key_copy(struct cache_key *key_dst, struct cache_key *key_src)
 {
 	key_dst->off = key_src->off;
 	key_dst->len = key_src->len;
+
+	cache_pos_copy(&key_dst->cache_pos, &key_src->cache_pos);
 }
 
 static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
@@ -116,10 +119,12 @@ static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
 
 again:
 	cache_seg = pos->cache_seg;
+	pr_err("advance pos: %p", pos);
+	BUG_ON(!cache_seg);
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - pos->seg_off;
 
-	if (seg_remain > len) {
+	if (seg_remain >= len) {
 		pos->seg_off += len;
 		advanced += len;
 	} else if (seg_remain) {
@@ -127,6 +132,8 @@ again:
 		advanced += seg_remain;
 	} else {
 		pos->cache_seg = cache_seg->next;
+		if (!pos->cache_seg)
+			pr_err("next is NULL\n");
 		pos->seg_off = 0;
 	}
 
@@ -136,7 +143,10 @@ again:
 
 static inline void cache_key_cutfront(struct cache_key *key, uint32_t cut_len)
 {
-	cache_pos_advance(&key->cache_pos, cut_len);
+	if (key->cache_pos.cache_seg) {
+		pr_err("cutfront: %p\n", &key->cache_pos);
+		cache_pos_advance(&key->cache_pos, cut_len);
+	}
 	key->off += cut_len;
 	key->len -= cut_len;
 }
@@ -529,6 +539,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 			goto err;
 		}
 
+		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio);
 
 		ret = cache_insert_key(cache, key, true);
