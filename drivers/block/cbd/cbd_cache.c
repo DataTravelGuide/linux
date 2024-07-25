@@ -105,6 +105,7 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	struct cbd_segment *segment;
 	
 	segment = &pos->cache_seg->segment;
+	pr_err("copy_from_bio to segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, key->len);
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
 }
 
@@ -368,6 +369,7 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	pr_err("cache off %u, len %u\n", off, len);
+	pr_err("copy_from_bio to segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
 	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
 	return 0;
 }
