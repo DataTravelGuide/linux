@@ -389,10 +389,6 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	backend_info = cbdt_get_backend_info(cbdt, cbd_blkdev->backend_id);
 
 	if (cbd_blkdev->cbd_cache) {
-		int i;
-
-		for (i = 0; i < cbd_blkdev->cbd_cache->n_segs; i++)
-			cbd_segment_exit(&cbd_blkdev->cbd_cache->segments[i]);
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 	}
 

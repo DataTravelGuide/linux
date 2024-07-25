@@ -503,6 +503,7 @@ struct cbds_init_options {
 
 struct cbd_segment {
 	struct cbd_transport		*cbdt;
+	struct cbd_segment		*next;
 
 	u32				seg_id;
 	struct cbd_segment_info		*segment_info;
@@ -601,9 +602,15 @@ enum cbd_cache_blkdev_state {
 	cbd_cache_blkdev_state_running
 };
 
+struct cbd_cache_segment {
+	u32			cache_seg_id;	/* index in cache->segments */
+	struct cbd_cache_segment *next;
+	struct cbd_segment	segment;
+};
+
 struct cbd_cache_pos {
-	u32	cache_seg_id;	/* index in cache->segments */
-	u32	seg_off;
+	struct cbd_cache_segment *cache_seg;
+	u32		seg_off;
 };
 
 struct cbd_cache_info {
@@ -632,7 +639,7 @@ struct cbd_cache {
 	u32				n_segs;
 	unsigned long			*seg_map;
 	spinlock_t			seg_map_lock;
-	struct cbd_segment		segments[];
+	struct cbd_cache_segment	segments[];
 };
 
 struct cbd_request;
