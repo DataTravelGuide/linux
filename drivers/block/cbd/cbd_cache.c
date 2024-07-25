@@ -143,6 +143,11 @@ static void dump_cache(struct cbd_cache *cache)
 	pr_err("=====end dump");
 }
 
+static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
+{
+	return;
+}
+
 static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup);
 static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, struct rb_node *prev_node)
 {
@@ -276,8 +281,173 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	return 0;
 }
 
+static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
+			    u32 off, u32 len, struct cbd_cache_pos *pos)
+{
+	pr_err("cache off %u, len %u\n", off, len);
+	return 0;
+}
+
+static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
+			    u32 off, u32 len)
+{
+	pr_err("backing off %u, len %u\n", off, len);
+	return 0;
+}
+
 int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
+  	struct rb_node **new = &(cache->cache_tree.rb_node), *parent = NULL;
+	struct cache_key *key_tmp = NULL;
+	struct rb_node	*prev_node = NULL, *next_node = NULL;
+	struct cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
+	struct cache_key *key = &key_data;
+	struct cbd_cache_pos pos;
+	u32 io_done = 0, total_io_done = 0, io_len = 0;
+	int ret;
+
+  	while (*new) {
+  		key_tmp = container_of(*new, struct cache_key, rb_node);
+
+		parent = *new;
+		if (key_tmp->off >= key->off) {
+			next_node = *new;
+  			new = &((*new)->rb_left);
+		} else {
+			prev_node = *new;
+  			new = &((*new)->rb_right);
+		}
+  	}
+
+	if (!prev_node)
+		prev_node = rb_first(&cache->cache_tree);
+
+	struct rb_node *node_tmp;
+
+	if (!prev_node) {
+		submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
+		return 0;
+	}
+
+	node_tmp = prev_node;
+	while (node_tmp) {
+		if (io_done >= cbd_req->data_len)
+			break;;
+
+		key_tmp = CACHE_KEY(node_tmp);
+
+		/*
+		 * |----------|
+		 *		|=====|
+		 * */
+		if (cache_key_lend(key_tmp) <= cache_key_lstart(key)) {
+			goto next;
+		}
+
+		/*
+		 *	  |--------|
+		 * |====|
+		 */
+		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
+			submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len);
+			io_done += key->len;
+			cache_key_cutfront(key, key->len);
+
+			break;
+		}
+
+		/* overlap */
+		if (cache_key_lstart(key_tmp) >= cache_key_lstart(key)) {
+			/*
+			 *     |----------------|	key_tmp
+			 * |===========|		key
+			 */
+			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
+				io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
+				if (io_len) {
+					submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len);
+					io_done += io_len;
+					cache_key_cutfront(key, io_len);
+				}
+
+				io_len = cache_key_lend(key) - cache_key_lstart(key_tmp);
+				submit_cache_io(cache, cbd_req, total_io_done + io_done, io_len, &key_tmp->cache_pos);
+				io_done += io_len;
+				cache_key_cutfront(key, io_len);
+				break;
+			}
+
+			/*
+			 *    |----|		key_tmp
+			 * |==========|		key
+			 */
+			io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
+			if (io_len) {
+				submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len);
+				io_done += io_len;
+				cache_key_cutfront(key, io_len);
+			}
+
+			io_len = key_tmp->len;
+			ret = submit_cache_io(cache, cbd_req, total_io_done + io_done, io_len, &key_tmp->cache_pos);
+			if (ret)
+				ret = 0;
+			io_done += io_len;
+			cache_key_cutfront(key, io_len);
+			goto next;
+		}
+
+
+		/*
+		 * |-----------|	key_tmp
+		 *   |====|		key
+		 */
+		if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
+			pos.cache_seg_id = key_tmp->cache_pos.cache_seg_id;
+			pos.seg_off = key_tmp->cache_pos.seg_off;
+			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp));
+
+			ret = submit_cache_io(cache, cbd_req, total_io_done + io_done, key->len, &pos);
+			io_done += key->len;
+			if (ret)
+				ret = 0;
+
+			cache_key_cutfront(key, key->len);
+			break;
+		}
+
+
+		/*
+		 * |--------|		key_tmp
+		 *   |==========|	key
+		 */
+		io_len = cache_key_lend(key_tmp) - cache_key_lstart(key);
+
+		pos.cache_seg_id = key_tmp->cache_pos.cache_seg_id;
+		pos.seg_off = key_tmp->cache_pos.seg_off;
+		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp));
+
+		ret = submit_cache_io(cache, cbd_req, total_io_done + io_done, io_len, &pos);
+		if (ret)
+			ret = 0;
+		io_done += io_len;
+		cache_key_cutfront(key, io_len);
+next:
+		node_tmp = rb_next(node_tmp);
+	}
+
+	submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len);
+	io_done += key->len;
+
+	total_io_done += io_done;
+	io_done = 0;
+
+	/*
+	if (!ret && total_io_done < io->len) {
+		goto next_skiplist;
+	}
+	*/
+
 	return 0;
 }
 

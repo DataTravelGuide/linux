@@ -149,7 +149,7 @@ static void cbd_req_crc_init(struct cbd_request *cbd_req)
 #endif
 
 static void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret);
-static int queue_req_to_backend(struct cbd_request *cbd_req)
+int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 {
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 	size_t command_size;
@@ -223,7 +223,7 @@ static void cbd_queue_workfn(struct work_struct *work)
 		return;
 	}
 
-	ret = queue_req_to_backend(cbd_req);
+	ret = cbd_queue_req_to_backend(cbd_req);
 	if (ret)
 		goto err;
 	return;

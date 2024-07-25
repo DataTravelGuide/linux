@@ -527,6 +527,7 @@ void cbds_copy_from_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio);
 u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
 int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io);
+int cbds_pos_advance(struct cbd_seg_pos *seg_pos);
 
 /* cbd_channel */
 
@@ -626,6 +627,7 @@ struct cbd_cache {
 
 	struct kmem_cache		*key_cache;
 	struct rb_root			cache_tree;
+	struct mutex			cache_tree_lock;
 
 	u32				n_segs;
 	unsigned long			*seg_map;
@@ -839,6 +841,7 @@ struct cbd_queue {
 int cbd_queue_start(struct cbd_queue *cbdq);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
+int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
 
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);

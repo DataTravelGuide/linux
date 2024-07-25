@@ -268,3 +268,8 @@ out:
 	dax_read_unlock(id);
 	return ret;
 }
+
+int cbds_pos_advance(struct cbd_seg_pos *seg_pos)
+{
+	return 0;
+}
