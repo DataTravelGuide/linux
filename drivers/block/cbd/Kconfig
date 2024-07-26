@@ -1,5 +1,6 @@
 config BLK_DEV_CBD
 	tristate "CXL Block Device"
+	select DAX
 	help
 	  CBD allows you to register a CXL memory device as a CBD transport.
 	  This enables you to expose any block device through this CBD
