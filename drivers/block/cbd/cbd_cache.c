@@ -24,8 +24,11 @@ again:
 	segment = pos->segment;
 	cache_seg = container_of(segment, struct cbd_cache_segment, segment);
 	if (pos->off >= segment->data_size) {
+		pr_err("sanitize next segment, pos off: %u, data_size: %u\n", pos->off, segment->data_size);
 		pos->off -= segment->data_size;
+		pr_err("cacheseg: %p ", cache_seg);
 		cache_seg = cache_seg->next;
+		pr_err("next is %p", cache_seg);
 		pos->segment = &cache_seg->segment;
 		goto again;
 	}
@@ -190,6 +193,7 @@ static void dump_cache(struct cbd_cache *cache)
 	struct cache_key *key;
 	struct rb_node *node;
 
+	return;
 	pr_err("=====start dump");
 	node = rb_first(&cache->cache_tree);
 	while (node) {
@@ -364,6 +368,7 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	struct cbd_cache_segment *cache_seg;
 	struct cbd_segment *segment;
 	u32 seg_remain;
+	u32 allocated = 0, to_alloc;
 
 	cache_pos_copy(&key->cache_pos, &cache->data_head);
 
@@ -372,15 +377,20 @@ again:
 	cache_seg = get_data_head_segment(cache);
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - head_pos->seg_off;
-	if (seg_remain > key->len) {
-		cache_pos_advance(head_pos, key->len);
+	to_alloc = key->len - allocated;
+	if (seg_remain > to_alloc) {
+		cache_pos_advance(head_pos, to_alloc);
+		allocated += to_alloc;
 	} else if (seg_remain) {
 		cache_pos_advance(head_pos, seg_remain);
+		allocated += seg_remain;
 	} else {
 		cache_data_head_init(cache);
 		cache_seg->next = get_data_head_segment(cache);
-		goto again;
 	}
+
+	if (allocated < key->len)
+		goto again;
 
 	return 0;
 }
