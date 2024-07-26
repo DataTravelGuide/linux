@@ -1,5 +1,6 @@
 config BLK_DEV_CBD
 	tristate "CXL Block Device"
+	depends on DEV_DAX && FS_DAX
 	help
 	  CBD allows you to register a CXL memory device as a CBD transport.
 	  This enables you to expose any block device through this CBD
@@ -15,8 +16,9 @@ config BLK_DEV_CBD
 	  If unsure say 'N'.
 
 config CBD_CRC
-	depends on BLK_DEV_CBD
 	bool "Enable CBD checksum"
+	default N
+	depends on BLK_DEV_CBD
 	help
 	  When CBD_CRC is enabled, all data sent by CBD will include
 	  a checksum. This includes a data checksum, a submit entry checksum,
@@ -24,8 +26,9 @@ config CBD_CRC
 	  data transmitted through the CXL memory device.
 
 config CBD_DEBUG
-	depends on BLK_DEV_CBD
 	bool "Enable CBD debug"
+	default N
+	depends on BLK_DEV_CBD
 	help
 	  When CBD_DEBUG is enabled, cbd module will print more messages
 	  for debugging. But that will affact performance, so do not use it
