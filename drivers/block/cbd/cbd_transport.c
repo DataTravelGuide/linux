@@ -332,6 +332,17 @@ void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size)
 	memset(pos, 0, size);
 }
 
+static void segments_format(struct cbd_transport *cbdt)
+{
+	u32 i;
+	struct cbd_segment_info *seg_info;
+
+	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
+		seg_info = cbdt_get_segment_info(cbdt, i);
+		cbdt_zero_range(cbdt, seg_info, sizeof(struct cbd_segment_info));
+	}
+}
+
 static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 {
 	struct cbd_transport_info *info = cbdt->transport_info;
@@ -389,6 +400,8 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 
 	cbdt_zero_range(cbdt, (void *)info + info->host_area_off,
 			     info->segment_area_off - info->host_area_off);
+
+	segments_format(cbdt);
 
 	return 0;
 }

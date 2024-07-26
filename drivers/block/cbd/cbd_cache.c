@@ -180,6 +180,8 @@ static void dump_cache(struct cbd_cache *cache);
 static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
+	pr_err("delete key");
+	dump_cache(key->cache);
 	kmem_cache_free(key->cache->key_cache, key);
 }
 
@@ -192,7 +194,7 @@ static void dump_cache(struct cbd_cache *cache)
 	node = rb_first(&cache->cache_tree);
 	while (node) {
 		key = CACHE_KEY(node);
-		pr_err("key->off: %llu, len: %u\n", key->off, key->len);
+		pr_err("key: %p key->off: %llu, len: %u\n", key, key->off, key->len);
 		node = rb_next(node);
 	}
 	pr_err("=====end dump");
@@ -208,22 +210,29 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 	if (!prev_node)
 		return 0;
 
+	pr_err("start fixup: current: %llu", current->pid);
 	node_tmp = prev_node;
 	while (node_tmp) {
 		key_tmp = CACHE_KEY(node_tmp);
+		pr_err("key_tmp: %llu:%u, key: %llu:%u", cache_key_lstart(key_tmp), key_tmp->len,
+				cache_key_lstart(key), key->len);
 		/*
 		 * |----------|
 		 *		|=====|
 		 * */
-		if (cache_key_lend(key_tmp) <= cache_key_lstart(key))
+		if (cache_key_lend(key_tmp) <= cache_key_lstart(key)) {
+			pr_err("next");
 			goto next;
+		}
 
 		/*
 		 *	  |--------|
 		 * |====|
 		 */
-		if (cache_key_lstart(key_tmp) >= cache_key_lend(key))
+		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
+			pr_err("break 1");
 			break;
+		}
 
 		/* overlap */
 		if (cache_key_lstart(key_tmp) >= cache_key_lstart(key)) {
@@ -237,6 +246,8 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 				if (key_tmp->len == 0) {
 					pr_err("delete key_tmp\n");
 					cache_key_delete(key_tmp);
+					ret = -EAGAIN;
+					goto out;
 				}
 
 				goto next;
@@ -247,7 +258,8 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 			 * |==========|		key
 			 */
 			cache_key_delete(key_tmp);
-			goto next;
+			ret = -EAGAIN;
+			goto out;
 		}
 
 		/*
@@ -270,8 +282,8 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 
 			cache_insert_key(cache, key_fixup, false);
 
-			cache_key_put(key_fixup);
-			break;
+			ret = -EAGAIN;
+			goto out;
 		}
 
 		/*
@@ -317,16 +329,18 @@ again:
 
 	if (fixup) {
 		ret = cache_insert_fixup(cache, key, prev_node);
-		if (ret)
+		pr_err("after fixup\n");
+		dump_cache(cache);
+		if (ret == -EAGAIN)
+			goto again;
+		else if (ret)
 			goto err;
-		fixup = false;
-		goto again;
 	}
 
   	rb_link_node(&key->rb_node, parent, new);
   	rb_insert_color(&key->rb_node, &cache->cache_tree);
 
-	pr_err("after insert off: %llu, len: %u\n", key->off, key->len);
+	pr_err("after insert off: %llu, len: %u current: %llu\n", key->off, key->len, current->pid);
 	dump_cache(cache);
 
 	return 0;
@@ -377,7 +391,7 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 	struct cbd_cache_segment *cache_seg = pos->cache_seg;
 	struct cbd_segment *segment = &cache_seg->segment;
 
-	pr_err("cache off %u, len %u\n", off, len);
+	pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
 	pr_err("copy_from_bio to segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
 	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
 	return 0;
@@ -386,7 +400,7 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 			    u32 off, u32 len)
 {
-	pr_err("backing off %u, len %u\n", off, len);
+	pr_err("backing off %u, len %u\n", cbd_req->off + off, len);
 	return 0;
 }
 
@@ -401,6 +415,9 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	u32 io_done = 0, total_io_done = 0, io_len = 0;
 	int ret;
 
+	pr_err("cache_read: off %llu, len: %u\n", cbd_req->off, cbd_req->data_len);
+
+	mutex_lock(&cache->cache_tree_lock);
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
 
@@ -421,6 +438,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	if (!prev_node) {
 		submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
+		mutex_unlock(&cache->cache_tree_lock);
 		return 0;
 	}
 
@@ -543,6 +561,7 @@ next:
 	}
 	*/
 
+	mutex_unlock(&cache->cache_tree_lock);
 	return 0;
 }
 
