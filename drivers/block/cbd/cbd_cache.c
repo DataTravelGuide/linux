@@ -6,14 +6,45 @@ static struct cache_key {
 
 	struct rb_node rb_node;
 
-	uint64_t		off;
-	uint32_t		len;
+	u64		off;
+	u32		len;
 
 	struct cbd_cache_pos	cache_pos;
 
-	uint64_t		flags;
-	uint64_t		seg_gen;
+	u64		flags;
+	u64		seg_gen;
 };
+
+static struct cache_key_onmedia {
+	u64	off;
+	u32	len;
+
+	u32	cache_seg_id;
+	u32	cache_seg_off;
+
+#ifdef CBD_CRC
+	u32	data_crc;
+#endif
+};
+
+#define CBD_KSET_FLAGS_LAST	1
+
+static struct cache_key_set {
+	u64	crc;
+	u32	magic;
+	u16	version;
+	u16	res;
+	u32	key_epoch;
+	u64	flags;
+	u32	key_num;
+	struct cache_key_onmedia	data[];
+};
+
+static inline void *cache_pos_addr(struct cbd_cache_pos *pos);
+static inline struct cache_key_set *get_cur_kset(struct cbd_cache *cache)
+{
+	return (struct cache_key_set *)cache_pos_addr(&cache->key_head);
+}
 
 static void cbd_cache_seg_sanitize_pos(struct cbd_seg_pos *pos)
 {
@@ -70,7 +101,7 @@ static int cache_data_head_init(struct cbd_cache *cache)
 	return 0;
 }
 
-static inline void *cache_get_addr(struct cbd_cache *cache, struct cbd_cache_pos *pos)
+static inline void *cache_pos_addr(struct cbd_cache_pos *pos)
 {
 	return (pos->cache_seg->segment.data + pos->seg_off);
 }
@@ -114,12 +145,12 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 
 #define CACHE_KEY(node)		(container_of(node, struct cache_key, rb_node))
 
-static inline uint64_t cache_key_lstart(struct cache_key *key)
+static inline u64 cache_key_lstart(struct cache_key *key)
 {
 	return key->off;
 }
 
-static inline uint64_t cache_key_lend(struct cache_key *key)
+static inline u64 cache_key_lend(struct cache_key *key)
 {
 	return key->off + key->len;
 }
@@ -164,7 +195,7 @@ again:
 		goto again;
 }
 
-static inline void cache_key_cutfront(struct cache_key *key, uint32_t cut_len)
+static inline void cache_key_cutfront(struct cache_key *key, u32 cut_len)
 {
 	if (key->cache_pos.cache_seg) {
 		pr_err("cutfront: %p\n", &key->cache_pos);
@@ -174,7 +205,7 @@ static inline void cache_key_cutfront(struct cache_key *key, uint32_t cut_len)
 	key->len -= cut_len;
 }
 
-static inline void cache_key_cutback(struct cache_key *key, uint32_t cut_len)
+static inline void cache_key_cutback(struct cache_key *key, u32 cut_len)
 {
 	key->len -= cut_len;
 }
@@ -185,7 +216,7 @@ static inline void cache_key_delete(struct cache_key *key)
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
 	pr_err("delete key");
 	dump_cache(key->cache);
-	kmem_cache_free(key->cache->key_cache, key);
+	cache_key_put(key);
 }
 
 static void dump_cache(struct cbd_cache *cache)
@@ -193,7 +224,6 @@ static void dump_cache(struct cbd_cache *cache)
 	struct cache_key *key;
 	struct rb_node *node;
 
-	return;
 	pr_err("=====start dump");
 	node = rb_first(&cache->cache_tree);
 	while (node) {
@@ -202,6 +232,68 @@ static void dump_cache(struct cbd_cache *cache)
 		node = rb_next(node);
 	}
 	pr_err("=====end dump");
+}
+
+static void cache_key_encode(struct cache_key_onmedia *key_onmedia,
+			     struct cache_key *key)
+{
+	key_onmedia->off = key->off;
+	key_onmedia->len = key->len;
+
+	key_onmedia->cache_seg_id = key->cache_pos.cache_seg->cache_seg_id;
+	key_onmedia->cache_seg_off = key->cache_pos.seg_off;
+
+#ifdef CBD_CRC
+	/* TODO */
+	key_onmedia->data_crc = 0;
+#endif
+}
+
+static inline u32 cache_kset_crc(struct cache_key_set *kset)
+{
+	return crc32(0, (void *)kset + 4, struct_size(kset, data, kset->key_num) - 4);
+}
+
+#define CBD_KSET_KEYS_MAX	128
+
+static void kset_head_close(struct cbd_cache *cache)
+{
+	struct cache_key_set *kset;
+	struct cbd_cache_pos *pos;
+	struct cbd_cache_segment *cache_seg;
+	struct cbd_segment *segment;
+	u32 seg_remain;
+
+	kset = get_cur_kset(cache);
+	kset->crc = cache_kset_crc(kset);
+
+	pos = &cache->key_head;
+	cache_pos_advance(pos, struct_size(kset, data, kset->key_num));
+
+	cache_seg = pos->cache_seg;
+	segment = &cache_seg->segment;
+	seg_remain = segment->data_size - pos->seg_off;
+	if (seg_remain < struct_size(kset, data, CBD_KSET_KEYS_MAX)) {
+		kset->flags |= CBD_KSET_FLAGS_LAST;
+		cache->key_head.cache_seg = get_cache_segment(cache);
+		cache->key_head.seg_off = 0;
+		cache_seg->next = cache->key_head.cache_seg;
+		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
+	}
+}
+
+static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
+{
+	struct cache_key_set *kset;
+	struct cache_key_onmedia *key_onmedia;
+
+	kset = get_cur_kset(cache);
+	key_onmedia = &kset->data[kset->key_num];
+	cache_key_encode(key_onmedia, key);
+
+	if (++kset->key_num == CBD_KSET_KEYS_MAX) {
+		kset_head_close(cache);
+	}
 }
 
 static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup);
@@ -387,6 +479,7 @@ again:
 	} else {
 		cache_data_head_init(cache);
 		cache_seg->next = get_data_head_segment(cache);
+		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
 	}
 
 	if (allocated < key->len)
@@ -610,6 +703,9 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		if (ret)
 			goto err;
 
+		/* append key into key head pos */
+		cache_key_append(cache, key);
+
 		io_done += key->len;
 	}
 
@@ -643,28 +739,29 @@ static int cache_replay(struct cbd_cache *cache)
 {
 	/*
 	char kset_buf[CACHE_KSET_SIZE] __attribute__ ((__aligned__ (4096)));
-	uint64_t seg = cache_b->cache_sb.key_tail_pos.seg;
-	uint32_t off_in_seg = cache_b->cache_sb.key_tail_pos.off_in_seg;
-	uint64_t addr;
-	struct cache_kset_ondisk *kset_disk;
-	struct cache_key_ondisk *key_disk;
+	u64 seg = cache_b->cache_sb.key_tail_pos.seg;
+	u32 off_in_seg = cache_b->cache_sb.key_tail_pos.off_in_seg;
+	u64 addr;
+	struct cache_kset_onmedia *kset_disk;
+	struct cache_key_onmedia *key_disk;
 	struct cache_key *key = NULL;
 	int i;
 	int ret = 0;
-	uint32_t key_epoch;
+	u32 key_epoch;
 	bool key_epoch_found = false;
 	bool cache_key_written = false;
+	struct cbd_cache_pos *key_tail_pos = &cache->cache_info->key_tail_pos;
 
 	while (true) {
 again:
-		addr = seg * CACHE_SEG_SIZE + off_in_seg; 
+		addr = cache_pos_addr(key_tail_pos);
 		ret = ubbd_backend_read(cache_b->cache_backend, addr, CACHE_KSET_SIZE, kset_buf);
 		if (ret) {
 			ubbd_err("failed to read kset: %d\n", ret);
 			goto err;
 		}
 
-		kset_disk = (struct cache_kset_ondisk *)kset_buf;
+		kset_disk = (struct cache_kset_onmedia *)kset_buf;
 		if (kset_disk->magic != CACHE_KSET_MAGIC) {
 			ubbd_err("magic is unexpected.\n");
 			break;
@@ -723,7 +820,7 @@ again:
 	ubbd_bit_set(cache_b->cache_sb.seg_bitmap, seg);
 
 	if (!cache_key_written) {
-		cache_key_ondisk_write_all(cache_b);
+		cache_key_onmedia_write_all(cache_b);
 		cache_key_written = true;
 		goto again;
 	}
@@ -736,16 +833,18 @@ err:
 	cache->key_head.cache_seg = get_cache_segment(cache);
 	cache->key_head.seg_off = 0;
 
+
 	return 0;
 }
 
-static void cache_seg_init(struct cbd_transport *cbdt, struct cbd_cache_segment *cache_seg,
+static void cache_seg_init(struct cbd_cache *cache,
 			   u32 seg_id, u32 cache_seg_id)
 {
+	struct cbd_transport *cbdt = cache->cbdt;
+	struct cbd_cache_segment *cache_seg = &cache->segments[cache_seg_id];
 	struct cbds_init_options seg_options = { 0 };
 	struct cbd_segment *segment = &cache_seg->segment;
-
-	cache_seg->cache_seg_id = cache_seg_id;
+	u32 next_cache_seg_id;
 
 	seg_options.type = cbds_type_cache;
 	seg_options.data_off = round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE);
@@ -753,6 +852,12 @@ static void cache_seg_init(struct cbd_transport *cbdt, struct cbd_cache_segment 
 	seg_options.seg_id = seg_id;
 
 	cbd_segment_init(cbdt, segment, &seg_options);
+
+	cache_seg->cache_seg_id = cache_seg_id;
+	cache_seg->cache_seg_info = (struct cbd_cache_seg_info *)segment->segment_info;
+	next_cache_seg_id = cache_seg->cache_seg_info->next_cache_seg_id;
+	if (next_cache_seg_id)
+		cache_seg->next = &cache->segments[next_cache_seg_id];
 }
 
 static void cache_seg_exit(struct cbd_cache_segment *cache_seg)
@@ -811,8 +916,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 		}
 
 		pr_err("get seg: %u", seg_id);
-		cache_seg = &cache->segments[i];
-		cache_seg_init(cbdt, cache_seg, seg_id, i);
+		cache_seg_init(cache, seg_id, i);
 
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 	}
