@@ -302,6 +302,7 @@ static void kset_head_close(struct cbd_cache *cache)
 		cache->key_head.seg_off = 0;
 		cache_seg->next = cache->key_head.cache_seg;
 		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
+		cache_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
 	}
 }
 
@@ -504,6 +505,7 @@ again:
 		cache_data_head_init(cache);
 		cache_seg->next = get_data_head_segment(cache);
 		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
+		cache_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
 	}
 
 	if (allocated < key->len)
@@ -854,9 +856,11 @@ static void cache_seg_init(struct cbd_cache *cache,
 
 	cache_seg->cache_seg_id = cache_seg_id;
 	cache_seg->cache_seg_info = (struct cbd_cache_seg_info *)segment->segment_info;
-	next_cache_seg_id = cache_seg->cache_seg_info->next_cache_seg_id;
-	if (next_cache_seg_id)
+
+	if (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT) {
+		next_cache_seg_id = cache_seg->cache_seg_info->next_cache_seg_id;
 		cache_seg->next = &cache->segments[next_cache_seg_id];
+	}
 }
 
 static void cache_seg_exit(struct cbd_cache_segment *cache_seg)

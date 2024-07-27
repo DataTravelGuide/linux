@@ -595,9 +595,12 @@ ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char 
 /* cbd cache */
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
+	u32 flags;
 	u32 next_cache_seg_id;		/* index in cache->segments */
 	u64 gen;
 };
+
+#define CBD_CACHE_SEG_FLAGS_HAS_NEXT	1
 
 enum cbd_cache_blkdev_state {
 	cbd_cache_blkdev_state_none = 0,
