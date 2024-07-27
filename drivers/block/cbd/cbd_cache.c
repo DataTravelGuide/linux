@@ -32,7 +32,7 @@ static struct cache_key_onmedia {
 
 static struct cache_key_set {
 	u64	crc;
-	u32	magic;
+	u64	magic;
 	u16	version;
 	u16	res;
 	u32	key_epoch;
@@ -40,6 +40,8 @@ static struct cache_key_set {
 	u32	key_num;
 	struct cache_key_onmedia	data[];
 };
+
+#define CBD_KSET_MAGIC		0x676894a64e164f1aULL
 
 static inline void *cache_pos_addr(struct cbd_cache_pos *pos);
 static inline struct cache_key_set *get_cur_kset(struct cbd_cache *cache)
@@ -86,9 +88,12 @@ again:
 
 	set_bit(seg_id, cache->seg_map);
 	spin_unlock(&cache->seg_map_lock);
-
+;
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
+
+	pr_err("clear all data for segment: %p", cache_seg);
+	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
 
 	return cache_seg;
 }
@@ -174,7 +179,7 @@ static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
 
 again:
 	cache_seg = pos->cache_seg;
-	pr_err("advance pos: %p", pos);
+	pr_err("advance pos: %p, len: %u", pos, len);
 	BUG_ON(!cache_seg);
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - pos->seg_off;
@@ -270,7 +275,7 @@ static inline u32 cache_kset_crc(struct cache_key_set *kset)
 	return crc32(0, (void *)kset + 4, struct_size(kset, data, kset->key_num) - 4);
 }
 
-#define CBD_KSET_KEYS_MAX	128
+#define CBD_KSET_KEYS_MAX	1
 
 static void kset_head_close(struct cbd_cache *cache)
 {
@@ -281,7 +286,9 @@ static void kset_head_close(struct cbd_cache *cache)
 	u32 seg_remain;
 
 	kset = get_cur_kset(cache);
+	kset->magic = CBD_KSET_MAGIC;
 	kset->crc = cache_kset_crc(kset);
+	pr_err("close kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
 
 	pos = &cache->key_head;
 	cache_pos_advance(pos, struct_size(kset, data, kset->key_num));
@@ -307,7 +314,8 @@ static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
 	key_onmedia = &kset->data[kset->key_num];
 	cache_key_encode(key_onmedia, key);
 
-	if (++kset->key_num == CBD_KSET_KEYS_MAX) {
+	pr_err("key_num: %u", kset->key_num);
+	if (++kset->key_num >= CBD_KSET_KEYS_MAX) {
 		kset_head_close(cache);
 	}
 }
@@ -784,8 +792,11 @@ again:
 		addr = cache_pos_addr(pos);
 
 		kset = (struct cache_key_set *)addr;
-		if (kset->crc != cache_kset_crc(kset)) {
-			pr_err("crc is not expected.\n");
+		pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+		pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
+		if (kset->magic != CBD_KSET_MAGIC ||
+				kset->crc != cache_kset_crc(kset)) {
+			pr_err("crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
 			break;
 		}
 
