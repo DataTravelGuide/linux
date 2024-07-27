@@ -92,7 +92,7 @@ again:
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
 
-	pr_err("clear all data for segment: %p", cache_seg);
+	pr_err("clear all data for segment_data: %p, %u", cache_seg->segment.data, cache_seg->segment.data_size);
 	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
 
 	return cache_seg;
@@ -518,7 +518,7 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
-	pr_err("copy_from_bio to segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
+	pr_err("copy_to_bio from segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
 	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
 	return 0;
 }
@@ -809,6 +809,7 @@ again:
 			}
 
 			cache_key_decode(key_onmedia, key);
+			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
 			if (key->cache_pos.cache_seg->gen < key->seg_gen)
 				key->cache_pos.cache_seg->gen = key->seg_gen;
