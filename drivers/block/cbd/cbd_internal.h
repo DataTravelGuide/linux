@@ -596,6 +596,7 @@ ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char 
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
 	u32 next_cache_seg_id;		/* index in cache->segments */
+	u64 gen;
 };
 
 enum cbd_cache_blkdev_state {
@@ -605,6 +606,7 @@ enum cbd_cache_blkdev_state {
 
 struct cbd_cache_segment {
 	u32			cache_seg_id;	/* index in cache->segments */
+	u64			gen;
 	struct cbd_cache_seg_info *cache_seg_info;
 	struct cbd_cache_segment *next;
 	struct cbd_segment	segment;
@@ -615,6 +617,11 @@ struct cbd_cache_pos {
 	u32		seg_off;
 };
 
+struct cbd_cache_pos_onmedia {
+	u32 cache_seg_id;
+	u32 seg_off;
+};
+
 struct cbd_cache_info {
 	u8	blkdev_state;
 	u32	blkdev_id;
@@ -622,9 +629,8 @@ struct cbd_cache_info {
 	u32	seg_id;
 	u32	n_segs;
 
-	struct cbd_cache_pos key_tail_pos;
-	struct cbd_cache_pos dirty_tail_pos;
-	u32	lats_key_epoch;
+	struct cbd_cache_pos_onmedia key_tail_pos;
+	struct cbd_cache_pos_onmedia dirty_tail_pos;
 };
 
 struct cbd_cache {
@@ -633,6 +639,9 @@ struct cbd_cache {
 
 	struct cbd_cache_pos		data_head;
 	struct cbd_cache_pos		key_head;
+
+	struct cbd_cache_pos		key_tail;
+	struct cbd_cache_pos		dirty_tail;
 
 	struct kmem_cache		*key_cache;
 	struct rb_root			cache_tree;
