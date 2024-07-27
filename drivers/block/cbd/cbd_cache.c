@@ -62,7 +62,7 @@ again:
 		pos->off -= segment->data_size;
 		pr_err("cacheseg: %p ", cache_seg);
 		cache_seg = cache_seg->next;
-		pr_err("next is %p", cache_seg);
+		pr_err("next is %p, %u", cache_seg->segment.data, cache_seg->cache_seg_id);
 		pos->segment = &cache_seg->segment;
 		goto again;
 	}
@@ -221,7 +221,6 @@ static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
 	pr_err("delete key");
-	dump_cache(key->cache);
 	cache_key_put(key);
 }
 
@@ -234,7 +233,7 @@ static void dump_cache(struct cbd_cache *cache)
 	node = rb_first(&cache->cache_tree);
 	while (node) {
 		key = CACHE_KEY(node);
-		pr_err("key: %p key->off: %llu, len: %u\n", key, key->off, key->len);
+		pr_err("key: %p key->off: %llu, len: %u, cache: %p\n", key, key->off, key->len, cache_pos_addr(&key->cache_pos));
 		node = rb_next(node);
 	}
 	pr_err("=====end dump");
@@ -451,7 +450,6 @@ again:
 	if (fixup) {
 		ret = cache_insert_fixup(cache, key, prev_node);
 		pr_err("after fixup\n");
-		dump_cache(cache);
 		if (ret == -EAGAIN)
 			goto again;
 		else if (ret)
@@ -462,7 +460,6 @@ again:
   	rb_insert_color(&key->rb_node, &cache->cache_tree);
 
 	pr_err("after insert off: %llu, len: %u current: %llu\n", key->off, key->len, current->pid);
-	dump_cache(cache);
 
 	return 0;
 err:
@@ -936,6 +933,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 		goto destroy_cache;
 	}
 
+	dump_cache(cache);
 	cache_data_head_init(cache);
 
 	return cache;
@@ -950,6 +948,7 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 {
 	int i;
 
+	dump_cache(cache);
 	while (!RB_EMPTY_ROOT(&cache->cache_tree)) {
 		struct rb_node *node = rb_first(&cache->cache_tree);
 		struct cache_key *key = CACHE_KEY(node);
