@@ -127,6 +127,9 @@ static void handle_work_fn(struct work_struct *work)
 	struct cbd_se *se;
 	u64 req_tid;
 	int ret;
+
+	if (handler->stopping)
+		return;
 again:
 	/* channel ctrl would be updated by blkdev queue */
 	se = get_se_to_handle(handler);
@@ -211,8 +214,11 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 
 void cbd_handler_destroy(struct cbd_handler *handler)
 {
+	handler->stopping = true;
+
 	cbdb_del_handler(handler->cbdb, handler);
 
+	cancel_delayed_work_sync(&handler->handle_work);
 	cancel_delayed_work_sync(&handler->handle_work);
 
 	handler->channel_info->backend_state = cbdc_backend_state_none;

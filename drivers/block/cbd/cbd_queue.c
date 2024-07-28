@@ -36,6 +36,7 @@ static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request 
 
 	cbd_req->bio = rq->bio;
 	cbd_req->off = (u64)blk_rq_pos(rq) << SECTOR_SHIFT;
+	pr_err("queue: off: %lu, len: %u \n", cbd_req->off, cbd_req->data_len);
 }
 
 static bool cbd_req_nodata(struct cbd_request *cbd_req)
@@ -544,6 +545,7 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 		return;
 
 	atomic_set(&cbdq->state, cbd_queue_state_removing);
+	cancel_delayed_work_sync(&cbdq->complete_work);
 	cancel_delayed_work_sync(&cbdq->complete_work);
 
 	spin_lock(&cbdq->inflight_reqs_lock);

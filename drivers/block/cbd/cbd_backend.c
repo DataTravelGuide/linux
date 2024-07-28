@@ -114,6 +114,9 @@ static void state_work_fn(struct work_struct *work)
 	int ret;
 	int i;
 
+	if (cbdb->backend_info->state != cbd_backend_state_running)
+		return;
+
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
 		segment_info = cbdt_get_segment_info(cbdt, i);
 		if (segment_info->type != cbds_type_channel)
@@ -190,6 +193,8 @@ static int cbd_backend_init(struct cbd_backend *cbdb)
 
 	mutex_init(&cbdb->lock);
 
+	b_info->state = cbd_backend_state_running;
+
 	queue_delayed_work(cbd_wq, &cbdb->state_work, 0);
 	queue_delayed_work(cbd_wq, &cbdb->hb_work, 0);
 
@@ -242,8 +247,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 	if (ret)
 		goto cache_destroy;
 
-	backend_info->state = cbd_backend_state_running;
-
 	cbdt_add_backend(cbdt, backend);
 
 	return 0;
@@ -272,9 +275,13 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 		mutex_unlock(&cbdb->lock);
 		return -EBUSY;
 	}
+
+	cbdb->backend_info->state = cbd_backend_state_removing;
 	cbdt_del_backend(cbdt, cbdb);
 
 	cancel_delayed_work_sync(&cbdb->hb_work);
+	cancel_delayed_work_sync(&cbdb->hb_work);
+	cancel_delayed_work_sync(&cbdb->state_work);
 	cancel_delayed_work_sync(&cbdb->state_work);
 
 	mutex_unlock(&cbdb->lock);

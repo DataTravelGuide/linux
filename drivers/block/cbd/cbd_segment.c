@@ -87,11 +87,11 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	pr_err("init segment for data: %p", segment->data);
 	segment->priv_data = options->priv_data;
 
-	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
-	queue_delayed_work(cbd_wq, &segment->hb_work, 0);
-
 	segment_info->ref++;
 	segment_info->state = cbd_segment_state_running;
+
+	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
+	queue_delayed_work(cbd_wq, &segment->hb_work, 0);
 }
 
 void cbd_segment_exit(struct cbd_segment *segment)
@@ -100,6 +100,7 @@ void cbd_segment_exit(struct cbd_segment *segment)
 			segment->segment_info->state != cbd_segment_state_running)
 		return;
 
+	cancel_delayed_work_sync(&segment->hb_work);
 	cancel_delayed_work_sync(&segment->hb_work);
 
 	if (--segment->segment_info->ref > 0)

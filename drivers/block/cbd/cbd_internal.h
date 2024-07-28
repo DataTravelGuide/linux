@@ -429,7 +429,8 @@ CBD_DEVICE(host);
 
 enum cbd_host_state {
 	cbd_host_state_none	= 0,
-	cbd_host_state_running
+	cbd_host_state_running,
+	cbd_host_state_removing
 };
 
 struct cbd_host_info {
@@ -458,6 +459,7 @@ CBD_DEVICE(segment);
 enum cbd_segment_state {
 	cbd_segment_state_none		= 0,
 	cbd_segment_state_running,
+	cbd_segment_state_removing
 };
 
 enum cbd_seg_type {
@@ -604,7 +606,8 @@ struct cbd_cache_seg_info {
 
 enum cbd_cache_blkdev_state {
 	cbd_cache_blkdev_state_none = 0,
-	cbd_cache_blkdev_state_running
+	cbd_cache_blkdev_state_running,
+	cbd_cache_blkdev_state_removing
 };
 
 struct cbd_cache_segment {
@@ -669,6 +672,7 @@ struct cbd_handler {
 	struct cbd_channel_info *channel_info;
 
 	struct cbd_channel	channel;
+	bool stopping;
 
 	u32			se_to_handle;
 	u64			req_tid_expected;
@@ -689,6 +693,7 @@ CBD_DEVICE(backend);
 enum cbd_backend_state {
 	cbd_backend_state_none	= 0,
 	cbd_backend_state_running,
+	cbd_backend_state_removing
 };
 
 #define CBDB_BLKDEV_COUNT_MAX	1
@@ -944,6 +949,8 @@ static void OBJ##_hb_workfn(struct work_struct *work)					\
 											\
 	info->alive_ts = ktime_get_real();						\
 											\
+	if (info->state != 1)								\
+		return;									\
 	queue_delayed_work(cbd_wq, &obj->hb_work, CBD_HB_INTERVAL);			\
 }											\
 											\
