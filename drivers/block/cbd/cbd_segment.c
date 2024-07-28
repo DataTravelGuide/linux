@@ -135,18 +135,18 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
 
-	pr_err("into copy_to_bio segment: %p, data: %p,  off: %u\n", segment, segment->data, data_off);
+	pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
 			bio_off -= bv.bv_len;
 			continue;
 		}
-		bv.bv_offset += bio_off;
+		page_off = bv.bv_offset;
+		page_off += bio_off;
 		bio_off = 0;
 
 		dst = kmap_local_page(bv.bv_page);
-		page_off = bv.bv_offset;
 again:
 		//pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
 		segment->seg_ops->sanitize_pos(&pos);
