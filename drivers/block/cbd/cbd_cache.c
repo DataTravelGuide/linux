@@ -911,6 +911,8 @@ static void cache_bioset_exit(struct cbd_cache *cache)
 	if (!cache->bioset)
 		return;
 
+	cancel_delayed_work_sync(&cache->writeback_work);
+	cancel_delayed_work_sync(&cache->writeback_work);
 	bioset_exit(cache->bioset);
 	kfree(cache->bioset);
 }
@@ -938,6 +940,64 @@ err:
 	return ret;
 }
 
+static int cache_writeback(struct cbd_cache *cache, struct cache_key *key)
+{
+	struct cbd_cache_pos pos_data;
+	struct cbd_cache_pos *pos;
+	void *addr;
+	ssize_t written;
+	struct cbd_cache_segment *cache_seg;
+	struct cbd_segment *segment;
+	u32 seg_remain, to_write;
+	u32 advanced = 0;
+	u64 off;
+
+	cache_pos_copy(&pos_data, &key->cache_pos);
+	pos = &pos_data;
+again:
+	cache_seg = pos->cache_seg;
+	BUG_ON(!cache_seg);
+	segment = &cache_seg->segment;
+	seg_remain = segment->data_size - pos->seg_off;
+	if (!seg_remain) {
+		BUG_ON(!cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT);
+
+		if (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT) {
+			u32 next_cache_seg_id;
+
+			next_cache_seg_id = cache_seg->cache_seg_info->next_cache_seg_id;
+			cache_seg->next = &cache->segments[next_cache_seg_id];
+		}
+
+		pos->cache_seg = cache_seg->next;
+		BUG_ON(!pos->cache_seg);
+		pos->seg_off = 0;
+		goto again;
+	}
+
+	to_write = key->len - advanced;
+	if (seg_remain < to_write)
+		to_write = seg_remain;
+
+	addr = cache_pos_addr(pos);
+	off = key->off + advanced;
+
+	pr_err("writeback: kernel_write %lu:%u\n", off, to_write);
+	/* TODO write back in async way */
+	written = kernel_write(cache->bdev_file, addr, to_write, &off);
+	if (written != to_write) {
+		pr_err("writeback error: kernel_write return err\n");
+		return -EIO;
+	}
+	pos->seg_off += to_write;
+	advanced += to_write;
+
+	if (advanced < key->len)
+		goto again;
+
+	return 0;
+}
+
 static void writeback_fn(struct work_struct *work)
 {
 	struct cbd_cache *cache = container_of(work, struct cbd_cache, writeback_work.work);
@@ -945,7 +1005,6 @@ static void writeback_fn(struct work_struct *work)
 	struct cache_key_set *kset;
 	struct cache_key_onmedia *key_onmedia;
 	struct cache_key *key = NULL;
-	ssize_t written;
 	int ret = 0;
 	void *addr;
 	int i;
@@ -976,18 +1035,13 @@ static void writeback_fn(struct work_struct *work)
 			}
 
 			cache_key_decode(key_onmedia, key);
-
-			addr = cache_pos_addr(&key->cache_pos);
-
 			pr_err("writeback: write %lu:%u\n", key->off, key->len);
-			/* TODO write back in async way */
-			written = kernel_write(cache->bdev_file, addr, key->len, &key->off);
-			if (written != key->len) {
-				cache_key_put(key);
-				pr_err("writeback error: kernel_write return err\n");
+			ret = cache_writeback(cache, key);
+			cache_key_put(key);
+
+			if (ret) {
 				return;
 			}
-			cache_key_put(key);
 		}
 
 		if (kset->flags & CBD_KSET_FLAGS_LAST) {
@@ -1126,12 +1180,12 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		cache_key_delete(key);
 	}
 
+	cache_bioset_exit(cache);
+
 	if (cache->cache_wq) {
 		drain_workqueue(cache->cache_wq);
 		destroy_workqueue(cache->cache_wq);
 	}
-
-	cache_bioset_exit(cache);
 
 	if (cache->key_cache)
 		kmem_cache_destroy(cache->key_cache);
