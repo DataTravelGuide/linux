@@ -230,7 +230,14 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		return -ENOMEM;
 
 	if (cache_info->n_segs) {
-		backend->cbd_cache = cbd_cache_alloc(cbdt, cache_info, true);
+		struct cbd_cache_opts cache_opts = { 0 };
+
+		cache_opts.cache_info = cache_info;
+		cache_opts.alloc_segs = true;
+		cache_opts.start_writeback = true;
+		cache_opts.start_gc = false;
+		cache_opts.init_keys = false;
+		backend->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
 		if (!backend->cbd_cache) {
 			ret = -ENOMEM;
 			goto backend_free;

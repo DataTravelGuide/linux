@@ -309,7 +309,14 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 
 
 	if (cbd_backend_cache_on(backend_info)) {
-		cbd_blkdev->cbd_cache = cbd_cache_alloc(cbdt, &backend_info->cache_info, false);
+		struct cbd_cache_opts cache_opts = { 0 };
+
+		cache_opts.cache_info = &backend_info->cache_info;
+		cache_opts.alloc_segs = false;
+		cache_opts.start_writeback = false;
+		cache_opts.start_gc = true;
+		cache_opts.init_keys = true;
+		cbd_blkdev->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
 		if (!cbd_blkdev->cbd_cache) {
 			ret = -ENOMEM;
 			goto destroy_wq;

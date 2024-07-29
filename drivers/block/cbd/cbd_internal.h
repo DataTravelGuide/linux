@@ -660,9 +660,16 @@ struct cbd_cache {
 };
 
 struct cbd_request;
+struct cbd_cache_opts {
+	struct cbd_cache_info *cache_info;
+	bool alloc_segs;
+	bool start_writeback;
+	bool start_gc;
+	bool init_keys;
+};
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
-				  struct cbd_cache_info *cache_info,
-				  bool alloc_seg);
+				  struct cbd_cache_opts *opts);
 void cbd_cache_destroy(struct cbd_cache *cache);
 int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req);
 

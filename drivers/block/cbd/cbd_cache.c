@@ -865,14 +865,18 @@ static void cache_seg_exit(struct cbd_cache_segment *cache_seg)
 	cbd_segment_exit(&cache_seg->segment);
 }
 
-struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_info *cache_info, bool alloc_seg)
+struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
+				  struct cbd_cache_opts *opts)
 {
+	struct cbd_cache_info *cache_info;
 	struct cbd_segment_info *prev_seg_info = NULL;
 	struct cbd_cache *cache;
 	struct cbd_cache_segment *cache_seg;
 	u32 seg_id;
 	int ret;
 	int i;
+
+	cache_info = opts->cache_info;
 
 	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
 	if (!cache)
@@ -898,7 +902,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 	spin_lock_init(&cache->seg_map_lock);
 
 	for (i = 0; i < cache_info->n_segs; i++) {
-		if (alloc_seg) {
+		if (opts->alloc_segs) {
 			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
 			if (ret)
 				goto destroy_cache;
@@ -922,19 +926,24 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_i
 	}
 
 	/* start writeback */
+	if (opts->start_writeback) {
+		pr_err("start writeback\n");
+	}
 	/* start gc */
 
 	cache_pos_decode(cache, &cache_info->key_tail_pos, &cache->key_tail);
 	cache_pos_decode(cache, &cache_info->dirty_tail_pos, &cache->dirty_tail);
 
-	ret = cache_replay(cache);
-	if (ret) {
-		pr_err("failed to replay\n");
-		goto destroy_cache;
-	}
+	if (opts->init_keys) {
+		ret = cache_replay(cache);
+		if (ret) {
+			pr_err("failed to replay\n");
+			goto destroy_cache;
+		}
 
-	dump_cache(cache);
-	cache_data_head_init(cache);
+		dump_cache(cache);
+		cache_data_head_init(cache);
+	}
 
 	return cache;
 
