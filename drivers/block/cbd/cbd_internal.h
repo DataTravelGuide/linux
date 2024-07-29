@@ -653,6 +653,8 @@ struct cbd_cache {
 	struct rb_root			cache_tree;
 	struct mutex			cache_tree_lock;
 
+	struct workqueue_struct		*cache_wq;
+
 	u32				n_segs;
 	unsigned long			*seg_map;
 	spinlock_t			seg_map_lock;

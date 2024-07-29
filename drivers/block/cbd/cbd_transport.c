@@ -98,7 +98,7 @@ static inline struct cbd_##OBJ##_info						\
 	return start + (info->OBJ_SIZE * id);					\
 }										\
 										\
-struct cbd_##OBJ##_info							\
+struct cbd_##OBJ##_info								\
 *cbdt_get_##OBJ##_info(struct cbd_transport *cbdt, u32 id)			\
 {										\
 	struct cbd_##OBJ##_info *info;						\

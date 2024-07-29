@@ -865,18 +865,34 @@ static void cache_seg_exit(struct cbd_cache_segment *cache_seg)
 	cbd_segment_exit(&cache_seg->segment);
 }
 
+static inline u32 get_backend_id(struct cbd_transport *cbdt,
+				 struct cbd_backend_info *backend_info)
+{
+	u64 backend_off;
+	struct cbd_transport_info *transport_info;
+
+	transport_info = cbdt->transport_info;
+	backend_off = (void *)backend_info - (void *)transport_info;
+
+	return (backend_off - transport_info->backend_area_off) / transport_info->backend_info_size;
+}
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
 	struct cbd_cache_info *cache_info;
+	struct cbd_backend_info *backend_info;
 	struct cbd_segment_info *prev_seg_info = NULL;
 	struct cbd_cache *cache;
 	struct cbd_cache_segment *cache_seg;
 	u32 seg_id;
+	u32 backend_id;
 	int ret;
 	int i;
 
 	cache_info = opts->cache_info;
+	backend_info = container_of(cache_info, struct cbd_backend_info, cache_info);
+	backend_id = get_backend_id(cbdt, backend_info);
 
 	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
 	if (!cache)
@@ -890,6 +906,13 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	cache->key_cache = KMEM_CACHE(cache_key, 0);
 	if (!cache->key_cache) {
+		ret = -ENOMEM;
+		goto destroy_cache;
+	}
+
+	cache->cache_wq = alloc_workqueue("cbdt%d-c%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
+					0, cbdt->id, backend_id);
+	if (!cache->cache_wq) {
 		ret = -ENOMEM;
 		goto destroy_cache;
 	}
@@ -963,6 +986,11 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		struct cache_key *key = CACHE_KEY(node);
 
 		cache_key_delete(key);
+	}
+
+	if (cache->cache_wq) {
+		drain_workqueue(cache->cache_wq);
+		destroy_workqueue(cache->cache_wq);
 	}
 
 	if (cache->key_cache)
