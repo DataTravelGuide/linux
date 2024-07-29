@@ -135,7 +135,7 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
 
-	pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
+	//pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
@@ -155,6 +155,7 @@ again:
 		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
 				segment->data_size - pos.off);
 		flush_dcache_page(bv.bv_page);
+		//pr_err("copy %u from %p to %p\n", to_copy, segment->data + pos.off, dst + page_off);
 		memcpy_flushcache(dst + page_off, segment->data + pos.off, to_copy);
 
 		/* advance */
