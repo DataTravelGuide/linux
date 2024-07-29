@@ -963,6 +963,8 @@ static void writeback_fn(struct work_struct *work)
 			pr_err("writeback: write %lu:%u\n", key->off, key->len);
 			/* TODO write back in async way */
 			written = kernel_write(cache->bdev_file, addr, key->len, &key->off);
+			cache_key_put(key);
+
 			if (written != key->len) {
 				pr_err("writeback error: kernel_write return err\n");
 				return;
