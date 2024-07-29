@@ -655,6 +655,11 @@ struct cbd_cache {
 
 	struct workqueue_struct		*cache_wq;
 
+	struct file			*bdev_file;
+	struct delayed_work		writeback_work;
+	struct bio_set			*bioset;
+
+	u32				state:8;
 	u32				n_segs;
 	unsigned long			*seg_map;
 	spinlock_t			seg_map_lock;
@@ -668,6 +673,7 @@ struct cbd_cache_opts {
 	bool start_writeback;
 	bool start_gc;
 	bool init_keys;
+	struct file *bdev_file;	/* needed for start_writeback is true */
 };
 
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,

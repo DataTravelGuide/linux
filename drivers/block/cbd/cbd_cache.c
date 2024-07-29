@@ -775,13 +775,17 @@ static void cache_pos_decode(struct cbd_cache *cache,
 
 static int cache_replay(struct cbd_cache *cache)
 {
-	struct cbd_cache_pos *pos = &cache->key_tail;
+	struct cbd_cache_pos pos_tail;
+	struct cbd_cache_pos *pos;
 	struct cache_key_set *kset;
 	struct cache_key_onmedia *key_onmedia;
 	struct cache_key *key = NULL;
 	int ret = 0;
 	u64 addr;
 	int i;
+
+	cache_pos_copy(&pos_tail, &cache->key_tail);
+	pos = &pos_tail;
 
 	set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
 
@@ -877,6 +881,108 @@ static inline u32 get_backend_id(struct cbd_transport *cbdt,
 	return (backend_off - transport_info->backend_area_off) / transport_info->backend_info_size;
 }
 
+enum cbd_cache_state {
+	cbd_cache_state_none = 0,
+	cbd_cache_state_running,
+	cbd_cache_state_removing
+};
+
+static void cache_bioset_exit(struct cbd_cache *cache)
+{
+	if (!cache->bioset)
+		return;
+
+	bioset_exit(cache->bioset);
+	kfree(cache->bioset);
+}
+
+static int cache_bioset_init(struct cbd_cache *cache)
+{
+	int ret;
+
+	cache->bioset = kzalloc(sizeof(*cache->bioset), GFP_KERNEL);
+	if (!cache->bioset) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = bioset_init(cache->bioset, 256, 0, BIOSET_NEED_BVECS);
+	if (ret) {
+		kfree(cache->bioset);
+		cache->bioset = NULL;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	return ret;
+}
+
+static void writeback_fn(struct work_struct *work)
+{
+	struct cbd_cache *cache = container_of(work, struct cbd_cache, writeback_work.work);
+	struct cbd_cache_pos *pos;
+	struct cache_key_set *kset;
+	struct cache_key_onmedia *key_onmedia;
+	struct cache_key *key = NULL;
+	ssize_t written;
+	int ret = 0;
+	void *addr;
+	int i;
+
+	if (cache->state == cbd_cache_state_removing)
+		return;
+
+	pos = &cache->dirty_tail;
+	while (true) {
+		addr = cache_pos_addr(pos);
+		kset = (struct cache_key_set *)addr;
+		//pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+		//pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
+		if (kset->magic != CBD_KSET_MAGIC ||
+				kset->crc != cache_kset_crc(kset)) {
+			pr_err("writeback error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+			return;
+		}
+
+		for (i = 0; i < kset->key_num; i++) {
+			key_onmedia = &kset->data[i];
+
+			key = cache_key_alloc(cache);
+			if (!key) {
+				pr_err("writeback error failed to alloc key\n");
+				return;
+			}
+
+			cache_key_decode(key_onmedia, key);
+
+			addr = cache_pos_addr(&key->cache_pos);
+
+			pr_err("writeback: write %lu:%u\n", key->off, key->len);
+			/* TODO write back in async way */
+			written = kernel_write(cache->bdev_file, addr, key->len, &key->off);
+			if (written != key->len) {
+				pr_err("writeback error: kernel_write return err\n");
+				return;
+			}
+		}
+
+		if (kset->flags & CBD_KSET_FLAGS_LAST) {
+			pos->cache_seg = pos->cache_seg->next;
+			pos->seg_off = 0;
+			cache_pos_encode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
+			continue;
+		}
+		cache_pos_advance(pos, struct_size(kset, data, kset->key_num));
+		cache_pos_encode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
+	}
+
+	pr_info("writeback thread exit: %d\n", ret);
+}
+
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
@@ -948,14 +1054,23 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 	}
 
+	cache_pos_decode(cache, &cache_info->key_tail_pos, &cache->key_tail);
+	cache_pos_decode(cache, &cache_info->dirty_tail_pos, &cache->dirty_tail);
+
+	cache->state = cbd_cache_state_running;
 	/* start writeback */
 	if (opts->start_writeback) {
 		pr_err("start writeback\n");
+		cache->bdev_file = opts->bdev_file;
+
+		ret = cache_bioset_init(cache);
+		if (ret)
+			goto destroy_cache;
+
+		INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
+		queue_delayed_work(cache->cache_wq, &cache->writeback_work, 0);
 	}
 	/* start gc */
-
-	cache_pos_decode(cache, &cache_info->key_tail_pos, &cache->key_tail);
-	cache_pos_decode(cache, &cache_info->dirty_tail_pos, &cache->dirty_tail);
 
 	if (opts->init_keys) {
 		ret = cache_replay(cache);
@@ -980,6 +1095,8 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 {
 	int i;
 
+	cache->state = cbd_cache_state_removing;
+
 	dump_cache(cache);
 	while (!RB_EMPTY_ROOT(&cache->cache_tree)) {
 		struct rb_node *node = rb_first(&cache->cache_tree);
@@ -992,6 +1109,8 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		drain_workqueue(cache->cache_wq);
 		destroy_workqueue(cache->cache_wq);
 	}
+
+	cache_bioset_exit(cache);
 
 	if (cache->key_cache)
 		kmem_cache_destroy(cache->key_cache);

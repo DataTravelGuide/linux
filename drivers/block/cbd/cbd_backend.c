@@ -229,6 +229,20 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 	if (!backend)
 		return -ENOMEM;
 
+	strscpy(backend->path, path, CBD_PATH_LEN);
+	memcpy(backend_info->path, backend->path, CBD_PATH_LEN);
+	INIT_LIST_HEAD(&backend->node);
+	backend->backend_id = backend_id;
+	backend->cbdt = cbdt;
+
+	ret = cbd_backend_init(backend);
+	if (ret) {
+		kfree(backend);
+		return ret;
+	}
+
+	cbdt_add_backend(cbdt, backend);
+
 	if (cache_info->n_segs) {
 		struct cbd_cache_opts cache_opts = { 0 };
 
@@ -237,32 +251,18 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		cache_opts.start_writeback = true;
 		cache_opts.start_gc = false;
 		cache_opts.init_keys = false;
+		cache_opts.bdev_file = backend->bdev_file;
 		backend->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
 		if (!backend->cbd_cache) {
 			ret = -ENOMEM;
-			goto backend_free;
+			goto backend_stop;
 		}
 	}
 
-	strscpy(backend->path, path, CBD_PATH_LEN);
-	memcpy(backend_info->path, backend->path, CBD_PATH_LEN);
-	INIT_LIST_HEAD(&backend->node);
-	backend->backend_id = backend_id;
-	backend->cbdt = cbdt;
-
-	ret = cbd_backend_init(backend);
-	if (ret)
-		goto cache_destroy;
-
-	cbdt_add_backend(cbdt, backend);
-
 	return 0;
 
-cache_destroy:
-	if (backend->cbd_cache)
-		cbd_cache_destroy(backend->cbd_cache);
-backend_free:
-	kfree(backend);
+backend_stop:
+	cbd_backend_stop(cbdt, backend_id, true);
 
 	return ret;
 }
@@ -286,6 +286,9 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 	cbdb->backend_info->state = cbd_backend_state_removing;
 	cbdt_del_backend(cbdt, cbdb);
 
+	if (cbdb->cbd_cache)
+		cbd_cache_destroy(cbdb->cbd_cache);
+
 	cancel_delayed_work_sync(&cbdb->hb_work);
 	cancel_delayed_work_sync(&cbdb->hb_work);
 	cancel_delayed_work_sync(&cbdb->state_work);
@@ -305,9 +308,6 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 	destroy_workqueue(cbdb->task_wq);
 
 	kmem_cache_destroy(cbdb->backend_io_cache);
-
-	if (cbdb->cbd_cache)
-		cbd_cache_destroy(cbdb->cbd_cache);
 
 	fput(cbdb->bdev_file);
 	kfree(cbdb);

@@ -61,6 +61,11 @@ static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 				DIV_ROUND_UP(se->len, PAGE_SIZE),
 				opf, GFP_KERNEL, &handler->bioset);
 
+	if (!backend_io->bio) {
+		kmem_cache_free(cbdb->backend_io_cache, backend_io);
+		return NULL;
+	}
+
 	backend_io->bio->bi_iter.bi_sector = se->offset >> SECTOR_SHIFT;
 	backend_io->bio->bi_iter.bi_size = 0;
 	backend_io->bio->bi_private = backend_io;
@@ -186,10 +191,15 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 {
 	struct cbd_transport *cbdt = cbdb->cbdt;
 	struct cbd_handler *handler;
+	int ret;
 
 	handler = kzalloc(sizeof(struct cbd_handler), GFP_KERNEL);
 	if (!handler)
 		return -ENOMEM;
+
+	ret = bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
+	if (ret)
+		goto err;
 
 	handler->cbdb = cbdb;
 	cbd_channel_init(&handler->channel, cbdt, channel_id);
@@ -201,7 +211,6 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 	INIT_DELAYED_WORK(&handler->handle_work, handle_work_fn);
 	INIT_LIST_HEAD(&handler->handlers_node);
 
-	bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
 	cbdwc_init(&handler->handle_worker_cfg);
 
 	cbdb_add_handler(cbdb, handler);
@@ -210,6 +219,9 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 
 	return 0;
+err:
+	kfree(handler);
+	return ret;
 };
 
 void cbd_handler_destroy(struct cbd_handler *handler)
