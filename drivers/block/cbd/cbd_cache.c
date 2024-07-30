@@ -98,6 +98,35 @@ again:
 	return cache_seg;
 }
 
+void seg_used_add(struct cbd_cache *cache, struct cache_key *key)
+{
+	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
+
+	mutex_lock(&cache->cache_tree_lock);
+	cache_seg->used += key->len;
+
+	if (!test_bit(cache_seg->cache_seg_id, cache->seg_map))
+		set_bit(cache_seg->cache_seg_id, cache->seg_map);
+	mutex_unlock(&cache->cache_tree_lock);
+}
+
+void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
+{
+	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
+	bool invalidate = false;
+
+	mutex_lock(&cache->cache_tree_lock);
+	cache_seg->used -= key->len;
+
+	pr_err("seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
+
+	if (cache_seg->used == 0) {
+		cache_seg->gen++;
+		clear_bit(cache_seg->cache_seg_id, cache->seg_map);
+	}
+	mutex_unlock(&cache->cache_tree_lock);
+}
+
 
 static int cache_data_head_init(struct cbd_cache *cache)
 {

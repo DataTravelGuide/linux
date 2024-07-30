@@ -613,6 +613,7 @@ enum cbd_cache_blkdev_state {
 struct cbd_cache_segment {
 	struct cbd_cache	*cache;
 	u32			cache_seg_id;	/* index in cache->segments */
+	u32			used;
 	u64			gen;
 	struct cbd_cache_seg_info *cache_seg_info;
 	struct cbd_cache_segment *next;
