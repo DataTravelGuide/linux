@@ -1118,7 +1118,7 @@ static void writeback_fn(struct work_struct *work)
 			}
 
 			cache_key_decode(key_onmedia, key);
-			pr_err("writeback: write %lu:%u\n", key->off, key->len);
+			//pr_err("writeback: write %lu:%u\n", key->off, key->len);
 			ret = cache_writeback(cache, key);
 			cache_key_put(key);
 
