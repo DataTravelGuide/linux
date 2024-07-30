@@ -36,7 +36,7 @@ static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request 
 
 	cbd_req->bio = rq->bio;
 	cbd_req->off = (u64)blk_rq_pos(rq) << SECTOR_SHIFT;
-	pr_err("queue: off: %lu, len: %u \n", cbd_req->off, cbd_req->data_len);
+	//pr_err("queue: off: %lu, len: %u \n", cbd_req->off, cbd_req->data_len);
 }
 
 static bool cbd_req_nodata(struct cbd_request *cbd_req)
@@ -247,7 +247,7 @@ out:
 
 static bool __advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
-	pr_err("__advance tail: %u:%u, data_tail: %u\n", data_off, data_len, cbdq->channel.data_tail);
+	//pr_err("__advance tail: %u:%u, data_tail: %u\n", data_off, data_len, cbdq->channel.data_tail);
 	if (data_off == cbdq->channel.data_tail) {
 		cbdq->released_extents[data_off / PAGE_SIZE] = 0;
 		cbdq->channel.data_tail += data_len;
@@ -260,7 +260,7 @@ static bool __advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_l
 
 static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
-	pr_err("advance tail: %u:%u\n", data_off, data_len);
+	//pr_err("advance tail: %u:%u\n", data_off, data_len);
 	data_off %= cbdq->channel.data_size;
 	cbdq->released_extents[data_off / PAGE_SIZE] = data_len;
 
@@ -346,7 +346,7 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 	struct bio *bio = cbd_req->bio;
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 
-	pr_err("copy data from cbdreq: %p\n", cbd_req);
+	//pr_err("copy data from cbdreq: %p\n", cbd_req);
 	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
 }
 

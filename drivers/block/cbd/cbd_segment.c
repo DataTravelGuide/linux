@@ -84,7 +84,7 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	segment->data_size = CBDT_SEG_SIZE - options->data_off;
 	//pr_err("datasize: %u", segment->data_size);
 	segment->data = (void *)(segment->segment_info) + options->data_off;
-	pr_err("init segment for data: %p", segment->data);
+	//pr_err("init segment for data: %p", segment->data);
 	segment->priv_data = options->priv_data;
 
 	segment_info->ref++;
@@ -135,7 +135,7 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
 
-	pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
+	//pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
