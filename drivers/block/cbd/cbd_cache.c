@@ -1020,7 +1020,7 @@ static void writeback_fn(struct work_struct *work)
 		//pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
 		if (kset->magic != CBD_KSET_MAGIC ||
 				kset->crc != cache_kset_crc(kset)) {
-			pr_err("writeback error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+			//pr_err("writeback error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
 			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 			return;
 		}
