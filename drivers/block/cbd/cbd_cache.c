@@ -957,7 +957,7 @@ enum cbd_cache_state {
 	cbd_cache_state_removing
 };
 
-static void cache_bioset_exit(struct cbd_cache *cache)
+static void cache_writeback_exit(struct cbd_cache *cache)
 {
 	if (!cache->bioset)
 		return;
@@ -968,10 +968,12 @@ static void cache_bioset_exit(struct cbd_cache *cache)
 	kfree(cache->bioset);
 }
 
-static int cache_bioset_init(struct cbd_cache *cache)
+static void writeback_fn(struct work_struct *work);
+static int cache_writeback_init(struct cbd_cache *cache)
 {
 	int ret;
 
+	pr_err("start writeback\n");
 	cache->bioset = kzalloc(sizeof(*cache->bioset), GFP_KERNEL);
 	if (!cache->bioset) {
 		ret = -ENOMEM;
@@ -984,6 +986,9 @@ static int cache_bioset_init(struct cbd_cache *cache)
 		cache->bioset = NULL;
 		goto err;
 	}
+
+	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
+	queue_delayed_work(cache->cache_wq, &cache->writeback_work, 0);
 
 	return 0;
 
@@ -1155,6 +1160,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->cache_tree = RB_ROOT;
 	mutex_init(&cache->cache_tree_lock);
 	spin_lock_init(&cache->seg_map_lock);
+	cache->bdev_file = opts->bdev_file;
 
 	for (i = 0; i < cache_info->n_segs; i++) {
 		if (opts->alloc_segs) {
@@ -1186,15 +1192,9 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->state = cbd_cache_state_running;
 	/* start writeback */
 	if (opts->start_writeback) {
-		pr_err("start writeback\n");
-		cache->bdev_file = opts->bdev_file;
-
-		ret = cache_bioset_init(cache);
+		ret = cache_writeback_init(cache);
 		if (ret)
 			goto destroy_cache;
-
-		INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
-		queue_delayed_work(cache->cache_wq, &cache->writeback_work, 0);
 	}
 	/* start gc */
 
@@ -1231,7 +1231,7 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		cache_key_delete(key);
 	}
 
-	cache_bioset_exit(cache);
+	cache_writeback_exit(cache);
 
 	if (cache->cache_wq) {
 		drain_workqueue(cache->cache_wq);
