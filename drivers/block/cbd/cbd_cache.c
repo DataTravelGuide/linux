@@ -38,6 +38,7 @@ static struct cache_key_set {
 	u32	key_epoch;
 	u64	flags;
 	u32	key_num;
+	u32	latest_seg_id;
 	struct cache_key_onmedia	data[];
 };
 
@@ -361,6 +362,8 @@ static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
 	kset = get_cur_kset(cache);
 	key_onmedia = &kset->data[kset->key_num];
 	cache_key_encode(key_onmedia, key);
+	if (key_onmedia->cache_seg_id != kset->latest_seg_id)
+		kset->latest_seg_id = key_onmedia->cache_seg_id;
 
 	//pr_err("key_num: %u", kset->key_num);
 	if (++kset->key_num >= CBD_KSET_KEYS_MAX) {
@@ -1112,8 +1115,24 @@ static void writeback_fn(struct work_struct *work)
 
 static bool need_gc(struct cbd_cache *cache)
 {
-	pr_err("key_tail seg: %u, dirty_tail seg: %u\n", cache->key_tail.cache_seg->cache_seg_id, cache->dirty_tail.cache_seg->cache_seg_id);
-	if (cache->key_tail.cache_seg == cache->dirty_tail.cache_seg)
+	void *dirty_addr, *key_addr;
+	struct cache_key_set *kset;
+
+	cache_pos_decode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
+
+	pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
+
+	dirty_addr = cache_pos_addr(&cache->dirty_tail);
+	key_addr = cache_pos_addr(&cache->key_tail);
+
+	if (dirty_addr == key_addr) {
+		pr_err("all gc-ed\n");
+		return false;
+	}
+
+	kset = (struct cache_key_set *)key_addr;
+
+	if (kset->latest_seg_id == cache->data_head.cache_seg->cache_seg_id)
 		return false;
 
 	return true;
