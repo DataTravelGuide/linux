@@ -653,7 +653,7 @@ struct cbd_cache {
 
 	struct kmem_cache		*key_cache;
 	struct rb_root			cache_tree;
-	struct mutex			cache_tree_lock;
+	struct mutex			io_lock;
 
 	struct workqueue_struct		*cache_wq;
 

@@ -132,7 +132,7 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 	bool invalidate = false;
 
-	mutex_lock(&cache->cache_tree_lock);
+	mutex_lock(&cache->io_lock);
 	cache_seg->used -= key->len;
 
 	//pr_err("gc seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
@@ -144,7 +144,7 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 		clear_keys(cache);
 		clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 	}
-	mutex_unlock(&cache->cache_tree_lock);
+	mutex_unlock(&cache->io_lock);
 }
 
 
@@ -621,7 +621,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	//pr_err("cache_read: off %llu, len: %u\n", cbd_req->off, cbd_req->data_len);
 
-	mutex_lock(&cache->cache_tree_lock);
+	mutex_lock(&cache->io_lock);
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
 
@@ -642,7 +642,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	if (!prev_node) {
 		submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
-		mutex_unlock(&cache->cache_tree_lock);
+		mutex_unlock(&cache->io_lock);
 		return 0;
 	}
 
@@ -765,7 +765,7 @@ next:
 	}
 	*/
 
-	mutex_unlock(&cache->cache_tree_lock);
+	mutex_unlock(&cache->io_lock);
 	return 0;
 }
 
@@ -778,7 +778,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	int ret;
 
 	//pr_err("cache_write: %lu: %u", offset, length);
-	mutex_lock(&cache->cache_tree_lock);
+	mutex_lock(&cache->io_lock);
 	while (true) {
 		if (io_done >= length)
 			break;
@@ -814,7 +814,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	ret = 0;
 err:
-	mutex_unlock(&cache->cache_tree_lock);
+	mutex_unlock(&cache->io_lock);
 	return ret;
 }
 
@@ -1279,7 +1279,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
 	cache->cache_tree = RB_ROOT;
-	mutex_init(&cache->cache_tree_lock);
+	mutex_init(&cache->io_lock);
 	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
 
