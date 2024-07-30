@@ -580,13 +580,14 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	struct cbd_request *new_req;
 	int ret;
 
-	//pr_err("backing off %u, len %u\n", cbd_req->off + off, len);
+	pr_err("backing off %u, len %u\n", cbd_req->off + off, len);
 	new_req = kmem_cache_zalloc(cache->req_cache, GFP_NOIO);
 	if (!new_req)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&cbd_req->inflight_reqs_node);
-	kref_init(&cbd_req->ref);
+	pr_err("alloc new req: %p, parent: %p\n", new_req, cbd_req);
+	INIT_LIST_HEAD(&new_req->inflight_reqs_node);
+	kref_init(&new_req->ref);
 
 	new_req->cbdq = cbd_req->cbdq;
 	new_req->bio = cbd_req->bio;
@@ -596,14 +597,15 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	new_req->data_len = len;
 	new_req->req = NULL;
 
+	kref_get(&cbd_req->ref);
 	new_req->parent = cbd_req;
 	new_req->kmem_cache = cache->req_cache;
 
 	ret = cbd_queue_req_to_backend(new_req);
 
-	cbd_req_end(cbd_req, ret);
+	cbd_req_end(new_req, ret);
 
-	return 0;
+	return ret;
 }
 
 int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
@@ -1145,13 +1147,13 @@ static bool need_gc(struct cbd_cache *cache)
 
 	cache_pos_decode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
 
-	pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
+	//pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
 
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
 
 	if (dirty_addr == key_addr) {
-		pr_err("all gc-ed\n");
+		//pr_err("all gc-ed\n");
 		return false;
 	}
 

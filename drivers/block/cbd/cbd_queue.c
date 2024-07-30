@@ -343,6 +343,7 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 	struct bio *bio = cbd_req->bio;
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 
+	pr_err("copy data from cbdreq: %p\n", cbd_req);
 	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
 }
 
