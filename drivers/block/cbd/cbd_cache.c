@@ -98,7 +98,7 @@ again:
 	return cache_seg;
 }
 
-void seg_used_add(struct cbd_cache *cache, struct cache_key *key)
+static void seg_used_add(struct cbd_cache *cache, struct cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 
@@ -110,7 +110,25 @@ void seg_used_add(struct cbd_cache *cache, struct cache_key *key)
 	mutex_unlock(&cache->cache_tree_lock);
 }
 
-void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
+#define CACHE_KEY(node)		(container_of(node, struct cache_key, rb_node))
+
+static inline void cache_key_delete(struct cache_key *key);
+static void clear_keys(struct cbd_cache *cache)
+{
+	struct cache_key *key;
+	struct rb_node *node, *next;
+
+	node = rb_first(&cache->cache_tree);
+	for (node = rb_first(&cache->cache_tree); node; node = next) {
+		key = CACHE_KEY(node);
+		next = rb_next(node);
+
+		if (key->seg_gen < key->cache_pos.cache_seg->gen)
+			cache_key_delete(key);
+	}
+}
+
+static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 	bool invalidate = false;
@@ -122,6 +140,8 @@ void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 
 	if (cache_seg->used == 0) {
 		cache_seg->gen++;
+		/* TODO better way to remove key */
+		clear_keys(cache);
 		clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 	}
 	mutex_unlock(&cache->cache_tree_lock);
@@ -177,8 +197,6 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	pr_err("copy_from_bio key->off: %lu to segment: %p, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
 }
-
-#define CACHE_KEY(node)		(container_of(node, struct cache_key, rb_node))
 
 static inline u64 cache_key_lstart(struct cache_key *key)
 {
@@ -456,6 +474,8 @@ static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool
 	struct rb_node	*prev_node = NULL;
 	int ret;
 
+	if (fixup)
+		seg_used_add(cache, key);
 again:
 	new = &(cache->cache_tree.rb_node);
 	parent = NULL;
@@ -878,6 +898,8 @@ again:
 		}
 		cache_pos_advance(pos, struct_size(kset, data, kset->key_num), false);
 	}
+
+	clear_keys(cache);
 
 	cache_pos_copy(&cache->key_head, pos);
 
