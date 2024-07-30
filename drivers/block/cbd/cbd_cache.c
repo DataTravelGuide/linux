@@ -1147,17 +1147,20 @@ static bool need_gc(struct cbd_cache *cache)
 
 	cache_pos_decode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
 
-	//pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
+	pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
 
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
 
 	if (dirty_addr == key_addr) {
-		//pr_err("all gc-ed\n");
+		pr_err("all gc-ed\n");
 		return false;
 	}
 
 	kset = (struct cache_key_set *)key_addr;
+
+	if (!cache->data_head.cache_seg)
+		return false;
 
 	if (kset->latest_seg_id == cache->data_head.cache_seg->cache_seg_id)
 		return false;
@@ -1183,13 +1186,13 @@ static void gc_fn(struct work_struct *work)
 	if (cache->state == cbd_cache_state_removing)
 		return;
 
-	pos = &cache->key_tail;
 	while (true) {
 		if (!need_gc(cache)) {
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
 			return;
 		}
 
+		pos = &cache->key_tail;
 		addr = cache_pos_addr(pos);
 		kset = (struct cache_key_set *)addr;
 		if (kset->magic != CBD_KSET_MAGIC ||
@@ -1348,6 +1351,12 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 	cache->state = cbd_cache_state_removing;
 
+	cancel_delayed_work_sync(&cache->gc_work);
+	cancel_delayed_work_sync(&cache->gc_work);
+
+	cache_writeback_exit(cache);
+
+
 	dump_cache(cache);
 	while (!RB_EMPTY_ROOT(&cache->cache_tree)) {
 		struct rb_node *node = rb_first(&cache->cache_tree);
@@ -1355,11 +1364,6 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 		cache_key_delete(key);
 	}
-
-	cancel_delayed_work_sync(&cache->gc_work);
-	cancel_delayed_work_sync(&cache->gc_work);
-
-	cache_writeback_exit(cache);
 
 	if (cache->cache_wq) {
 		drain_workqueue(cache->cache_wq);

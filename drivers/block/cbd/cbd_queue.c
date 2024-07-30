@@ -182,7 +182,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 		list_del_init(&cbd_req->inflight_reqs_node);
 		spin_unlock(&cbdq->inflight_reqs_lock);
 
-		cbd_blk_debug(cbdq->cbd_blkdev, "transport space is not enough");
+		cbd_blk_err(cbdq->cbd_blkdev, "transport space is not enough");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -247,11 +247,11 @@ out:
 
 static bool __advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
+	pr_err("__advance tail: %u:%u, data_tail: %u\n", data_off, data_len, cbdq->channel.data_tail);
 	if (data_off == cbdq->channel.data_tail) {
 		cbdq->released_extents[data_off / PAGE_SIZE] = 0;
 		cbdq->channel.data_tail += data_len;
-		if (cbdq->channel.data_tail >= cbdq->channel.data_size)
-			cbdq->channel.data_tail %= cbdq->channel.data_size;
+		cbdq->channel.data_tail %= cbdq->channel.data_size;
 		return true;
 	}
 
@@ -260,10 +260,13 @@ static bool __advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_l
 
 static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
+	pr_err("advance tail: %u:%u\n", data_off, data_len);
+	data_off %= cbdq->channel.data_size;
 	cbdq->released_extents[data_off / PAGE_SIZE] = data_len;
 
 	while (__advance_data_tail(cbdq, data_off, data_len)) {
 		data_off += data_len;
+		data_off %= cbdq->channel.data_size;
 		data_len = cbdq->released_extents[data_off / PAGE_SIZE];
 		if (!data_len)
 			break;
