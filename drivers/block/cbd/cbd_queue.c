@@ -127,7 +127,7 @@ static void queue_req_data_init(struct cbd_request *cbd_req)
 	if (cbd_req->op == CBD_OP_READ)
 		goto advance_data_head;
 
-	cbdc_copy_from_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio);
+	cbdc_copy_from_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
 
 advance_data_head:
 	cbdq->channel.data_head = round_up(cbdq->channel.data_head + cbd_req->data_len, PAGE_SIZE);
@@ -193,6 +193,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 	if (!cbd_req_nodata(cbd_req))
 		queue_req_data_init(cbd_req);
 
+	kref_get(&cbd_req->ref);
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
 #endif
@@ -218,22 +219,12 @@ static void cbd_queue_workfn(struct work_struct *work)
 
 	if (cbdq->cbd_blkdev->cbd_cache) {
 		ret = cbd_cache_handle_req(cbdq->cbd_blkdev->cbd_cache, cbd_req);
-		if (ret)
-			goto err;
-		blk_mq_end_request(cbd_req->req, errno_to_blk_status(0));
-		return;
+		goto end;
 	}
 
 	ret = cbd_queue_req_to_backend(cbd_req);
-	if (ret)
-		goto err;
-	return;
-
-err:
-	if (ret == -ENOMEM || ret == -EBUSY)
-		blk_mq_requeue_request(cbd_req->req, true);
-	else
-		blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
+end:
+	cbd_req_end(cbd_req, ret);
 }
 
 static void advance_subm_ring(struct cbd_queue *cbdq)
@@ -279,11 +270,27 @@ static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len
 	}
 }
 
-static void parent_req_complete(struct kref *ref)
+static void end_req(struct kref *ref)
 {
 	struct cbd_request *cbd_req = container_of(ref, struct cbd_request, ref);
+	int ret = cbd_req->ret;
 
-	blk_mq_end_request(cbd_req->req, errno_to_blk_status(cbd_req->ret));
+	if (cbd_req->req) {
+		if (ret == -ENOMEM || ret == -EBUSY)
+			blk_mq_requeue_request(cbd_req->req, true);
+		else
+			blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
+	}
+
+	if (cbd_req->kmem_cache)
+		kmem_cache_free(cbd_req->kmem_cache, cbd_req);
+}
+
+void cbd_req_end(struct cbd_request *cbd_req, int ret)
+{
+	if (ret && !cbd_req->ret)
+		cbd_req->ret = ret;
+	kref_put(&cbd_req->ref, end_req);
 }
 
 static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret)
@@ -301,13 +308,10 @@ static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_requ
 	data_len = cbd_req->data_len;
 	advance_data = (!cbd_req_nodata(cbd_req));
 
-	if (cbd_req->parent) {
-		if (ret && !cbd_req->parent->ret)
-			cbd_req->parent->ret = ret;
-		kref_put(&cbd_req->parent->ref, parent_req_complete);
-	} else {
-		blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
-	}
+	if (cbd_req->parent)
+		cbd_req_end(cbd_req->parent, ret);
+
+	cbd_req_end(cbd_req, ret);
 
 	spin_lock(&cbdq->channel.submr_lock);
 	advance_subm_ring(cbdq);
@@ -336,10 +340,10 @@ static struct cbd_request *find_inflight_req(struct cbd_queue *cbdq, u64 req_tid
 
 static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 {
-	struct bio *bio = cbd_req->req->bio;
+	struct bio *bio = cbd_req->bio;
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 
-	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio);
+	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
 }
 
 static void complete_work_fn(struct work_struct *work)
@@ -428,6 +432,7 @@ static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	memset(cbd_req, 0, sizeof(struct cbd_request));
 	INIT_LIST_HEAD(&cbd_req->inflight_reqs_node);
+	kref_init(&cbd_req->ref);
 
 	blk_mq_start_request(bd->rq);
 
@@ -557,7 +562,7 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 				struct cbd_request, inflight_reqs_node);
 		list_del_init(&cbd_req->inflight_reqs_node);
 		cancel_work_sync(&cbd_req->work);
-		blk_mq_end_request(cbd_req->req, errno_to_blk_status(-EIO));
+		cbd_req_end(cbd_req, -EIO);
 	}
 
 	kfree(cbdq->released_extents);

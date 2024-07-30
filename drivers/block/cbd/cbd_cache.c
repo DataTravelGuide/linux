@@ -165,7 +165,7 @@ static struct cache_key *cache_key_alloc(struct cbd_cache *cache)
 {
 	struct cache_key *key;
 
-	key = kmem_cache_zalloc(cache->key_cache, GFP_KERNEL);
+	key = kmem_cache_zalloc(cache->key_cache, GFP_NOIO);
 	if (!key)
 		return NULL;
 
@@ -195,7 +195,7 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	
 	segment = &pos->cache_seg->segment;
 	pr_err("copy_from_bio key->off: %lu to segment: %p, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
-	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio);
+	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, 0);
 }
 
 static inline u64 cache_key_lstart(struct cache_key *key)
@@ -577,7 +577,32 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 			    u32 off, u32 len)
 {
+	struct cbd_request *new_req;
+	int ret;
+
 	//pr_err("backing off %u, len %u\n", cbd_req->off + off, len);
+	new_req = kmem_cache_zalloc(cache->req_cache, GFP_NOIO);
+	if (!new_req)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&cbd_req->inflight_reqs_node);
+	kref_init(&cbd_req->ref);
+
+	new_req->cbdq = cbd_req->cbdq;
+	new_req->bio = cbd_req->bio;
+	new_req->off = cbd_req->off + off;
+	new_req->op = cbd_req->op;
+	new_req->bio_off = off;
+	new_req->data_len = len;
+	new_req->req = NULL;
+
+	new_req->parent = cbd_req;
+	new_req->kmem_cache = cache->req_cache;
+
+	ret = cbd_queue_req_to_backend(new_req);
+
+	cbd_req_end(cbd_req, ret);
+
 	return 0;
 }
 
@@ -1232,6 +1257,12 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		goto destroy_cache;
 	}
 
+	cache->req_cache = KMEM_CACHE(cbd_request, 0);
+	if (!cache->req_cache) {
+		ret = -ENOMEM;
+		goto destroy_cache;
+	}
+
 	cache->cache_wq = alloc_workqueue("cbdt%d-c%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
 					0, cbdt->id, backend_id);
 	if (!cache->cache_wq) {
@@ -1332,6 +1363,9 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		drain_workqueue(cache->cache_wq);
 		destroy_workqueue(cache->cache_wq);
 	}
+
+	if (cache->req_cache)
+		kmem_cache_destroy(cache->req_cache);
 
 	if (cache->key_cache)
 		kmem_cache_destroy(cache->key_cache);

@@ -175,7 +175,7 @@ again:
 }
 
 void cbds_copy_from_bio(struct cbd_segment *segment,
-		u32 data_off, u32 data_len, struct bio *bio)
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
@@ -187,8 +187,15 @@ void cbds_copy_from_bio(struct cbd_segment *segment,
 	//pr_err("into copy_from_bio segment: %p, off: %u", segment, data_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
-		src = kmap_local_page(bv.bv_page);
+		if (bio_off > bv.bv_len) {
+			bio_off -= bv.bv_len;
+			continue;
+		}
 		page_off = bv.bv_offset;
+		page_off += bio_off;
+		bio_off = 0;
+
+		src = kmap_local_page(bv.bv_page);
 again:
 		//pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
 		segment->seg_ops->sanitize_pos(&pos);

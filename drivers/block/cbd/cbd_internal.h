@@ -527,7 +527,7 @@ bool cbd_segment_info_is_alive(struct cbd_segment_info *info);
 void cbds_copy_to_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void cbds_copy_from_bio(struct cbd_segment *segment,
-		u32 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
 int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io);
 int cbds_pos_advance(struct cbd_seg_pos *seg_pos);
@@ -586,9 +586,9 @@ struct cbd_channel {
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id);
 void cbd_channel_exit(struct cbd_channel *channel);
 void cbdc_copy_from_bio(struct cbd_channel *channel,
-		u32 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void cbdc_copy_to_bio(struct cbd_channel *channel,
-		u32 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
 int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io);
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
@@ -661,6 +661,8 @@ struct cbd_cache {
 	struct delayed_work		writeback_work;
 	struct delayed_work		gc_work;
 	struct bio_set			*bioset;
+
+	struct kmem_cache		*req_cache;
 
 	u32				state:8;
 	u32				n_segs;
@@ -823,6 +825,7 @@ struct cbd_request {
 
 	u64			off;
 	struct bio		*bio;
+	u32			bio_off;
 
 	enum cbd_op		op;
 	u64			req_tid;
@@ -836,6 +839,7 @@ struct cbd_request {
 	struct kref		ref;
 	int			ret;
 	struct cbd_request	*parent;
+	struct kmem_cache	*kmem_cache;
 };
 
 struct cbd_cache_req {
@@ -886,6 +890,7 @@ int cbd_queue_start(struct cbd_queue *cbdq);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
+void cbd_req_end(struct cbd_request *cbd_req, int ret);
 
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);
