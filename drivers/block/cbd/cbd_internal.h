@@ -659,6 +659,7 @@ struct cbd_cache {
 
 	struct file			*bdev_file;
 	struct delayed_work		writeback_work;
+	struct delayed_work		gc_work;
 	struct bio_set			*bioset;
 
 	u32				state:8;

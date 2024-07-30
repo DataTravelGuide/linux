@@ -102,12 +102,10 @@ static void seg_used_add(struct cbd_cache *cache, struct cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 
-	mutex_lock(&cache->cache_tree_lock);
 	cache_seg->used += key->len;
 
 	if (!test_bit(cache_seg->cache_seg_id, cache->seg_map))
 		set_bit(cache_seg->cache_seg_id, cache->seg_map);
-	mutex_unlock(&cache->cache_tree_lock);
 }
 
 #define CACHE_KEY(node)		(container_of(node, struct cache_key, rb_node))
@@ -136,9 +134,10 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 	mutex_lock(&cache->cache_tree_lock);
 	cache_seg->used -= key->len;
 
-	pr_err("seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
+	pr_err("gc seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
 
 	if (cache_seg->used == 0) {
+		pr_err("gc invalidat seg: %u\n", cache_seg->cache_seg_id);
 		cache_seg->gen++;
 		/* TODO better way to remove key */
 		clear_keys(cache);
@@ -968,7 +967,6 @@ static void cache_writeback_exit(struct cbd_cache *cache)
 	kfree(cache->bioset);
 }
 
-static void writeback_fn(struct work_struct *work);
 static int cache_writeback_init(struct cbd_cache *cache)
 {
 	int ret;
@@ -987,7 +985,6 @@ static int cache_writeback_init(struct cbd_cache *cache)
 		goto err;
 	}
 
-	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
 	queue_delayed_work(cache->cache_wq, &cache->writeback_work, 0);
 
 	return 0;
@@ -1113,6 +1110,75 @@ static void writeback_fn(struct work_struct *work)
 	pr_info("writeback thread exit: %d\n", ret);
 }
 
+static bool need_gc(struct cbd_cache *cache)
+{
+	pr_err("key_tail seg: %u, dirty_tail seg: %u\n", cache->key_tail.cache_seg->cache_seg_id, cache->dirty_tail.cache_seg->cache_seg_id);
+	if (cache->key_tail.cache_seg == cache->dirty_tail.cache_seg)
+		return false;
+
+	return true;
+	if (bitmap_weight(cache->seg_map, cache->n_segs) < (cache->n_segs / 10 * 7))
+		return false;
+
+	return true;
+}
+
+static void gc_fn(struct work_struct *work)
+{
+	struct cbd_cache *cache = container_of(work, struct cbd_cache, gc_work.work);
+	struct cbd_cache_pos *pos;
+	struct cache_key_set *kset;
+	struct cache_key_onmedia *key_onmedia;
+	struct cache_key *key = NULL;
+	int ret = 0;
+	void *addr;
+	int i;
+
+	if (cache->state == cbd_cache_state_removing)
+		return;
+
+	pos = &cache->key_tail;
+	while (true) {
+		if (!need_gc(cache)) {
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
+			return;
+		}
+
+		addr = cache_pos_addr(pos);
+		kset = (struct cache_key_set *)addr;
+		if (kset->magic != CBD_KSET_MAGIC ||
+				kset->crc != cache_kset_crc(kset)) {
+			pr_err("gc error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+			return;
+		}
+
+		for (i = 0; i < kset->key_num; i++) {
+			key_onmedia = &kset->data[i];
+
+			key = cache_key_alloc(cache);
+			if (!key) {
+				pr_err("gc error failed to alloc key\n");
+				return;
+			}
+
+			cache_key_decode(key_onmedia, key);
+			seg_used_remove(cache, key);
+			cache_key_put(key);
+		}
+
+		if (kset->flags & CBD_KSET_FLAGS_LAST) {
+			/* clear key seg directly */
+			clear_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
+
+			pos->cache_seg = pos->cache_seg->next;
+			pos->seg_off = 0;
+			cache_pos_encode(cache, &cache->cache_info->key_tail_pos, &cache->key_tail);
+			continue;
+		}
+		cache_pos_advance(pos, struct_size(kset, data, kset->key_num), false);
+		cache_pos_encode(cache, &cache->cache_info->key_tail_pos, &cache->key_tail);
+	}
+}
 
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
@@ -1162,6 +1228,9 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
 
+	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
+	INIT_DELAYED_WORK(&cache->gc_work, gc_fn);
+
 	for (i = 0; i < cache_info->n_segs; i++) {
 		if (opts->alloc_segs) {
 			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
@@ -1196,7 +1265,11 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		if (ret)
 			goto destroy_cache;
 	}
+
 	/* start gc */
+	if (opts->start_gc) {
+		queue_delayed_work(cache->cache_wq, &cache->gc_work, 0);
+	}
 
 	if (opts->init_keys) {
 		ret = cache_replay(cache);
@@ -1230,6 +1303,9 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 		cache_key_delete(key);
 	}
+
+	cancel_delayed_work_sync(&cache->gc_work);
+	cancel_delayed_work_sync(&cache->gc_work);
 
 	cache_writeback_exit(cache);
 
