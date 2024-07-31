@@ -59,11 +59,11 @@ again:
 	segment = pos->segment;
 	cache_seg = container_of(segment, struct cbd_cache_segment, segment);
 	if (pos->off >= segment->data_size) {
-		//pr_err("sanitize next segment, pos off: %u, data_size: %u\n", pos->off, segment->data_size);
+		pr_err("sanitize next segment, pos off: %u, data_size: %u\n", pos->off, segment->data_size);
 		pos->off -= segment->data_size;
-		//pr_err("cacheseg: %p ", cache_seg);
+		pr_err("cacheseg: %p ", cache_seg);
 		cache_seg = cache_seg->next;
-		//pr_err("next is %p, %u", cache_seg->segment.data, cache_seg->cache_seg_id);
+		pr_err("next is %p, %u", cache_seg->segment.data, cache_seg->cache_seg_id);
 		pos->segment = &cache_seg->segment;
 		goto again;
 	}
@@ -82,7 +82,7 @@ again:
 	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, 0);
 	if (seg_id == cache->n_segs) {
 		spin_unlock(&cache->seg_map_lock);
-		//pr_err("no seg avaialbe.");
+		pr_err("no seg avaialbe.");
 		msleep(100);
 		goto again;
 	}
@@ -93,7 +93,7 @@ again:
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
 
-	//pr_err("clear all data for segid: %u segment_data: %p, %u", seg_id, cache_seg->segment.data, cache_seg->segment.data_size);
+	pr_err("clear all data for segid: %u segment_data: %p, %u", seg_id, cache_seg->segment.data, cache_seg->segment.data_size);
 	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
 
 	return cache_seg;
@@ -135,10 +135,10 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 	mutex_lock(&cache->io_lock);
 	cache_seg->used -= key->len;
 
-	////pr_err("gc seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
+	//pr_err("gc seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
 
 	if (cache_seg->used == 0) {
-		//pr_err("gc invalidat seg: %u\n", cache_seg->cache_seg_id);
+		pr_err("gc invalidat seg: %u\n", cache_seg->cache_seg_id);
 		cache_seg->gen++;
 		/* TODO better way to remove key */
 		clear_keys(cache);
@@ -194,7 +194,7 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	struct cbd_segment *segment;
 	
 	segment = &pos->cache_seg->segment;
-	////pr_err("copy_from_bio key->off: %lu to segment: %p, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
+	pr_err("copy_from_bio key->off: %lu to segment: %p, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, 0);
 }
 
@@ -226,7 +226,7 @@ static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len, bool set)
 
 again:
 	cache_seg = pos->cache_seg;
-	////pr_err("advance pos: %p, len: %u", pos, len);
+	pr_err("advance pos: %p, len: %u", pos, len);
 	BUG_ON(!cache_seg);
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - pos->seg_off;
@@ -253,7 +253,7 @@ again:
 static inline void cache_key_cutfront(struct cache_key *key, u32 cut_len)
 {
 	if (key->cache_pos.cache_seg) {
-		////pr_err("cutfront: %p\n", &key->cache_pos);
+		//pr_err("cutfront: %p\n", &key->cache_pos);
 		cache_pos_advance(&key->cache_pos, cut_len, false);
 	}
 	key->off += cut_len;
@@ -269,7 +269,7 @@ static void dump_cache(struct cbd_cache *cache);
 static inline void cache_key_delete(struct cache_key *key)
 {
 	rb_erase(&key->rb_node, &key->cache->cache_tree);
-	////pr_err("delete key");
+	//pr_err("delete key");
 	cache_key_put(key);
 }
 
@@ -278,14 +278,14 @@ static void dump_cache(struct cbd_cache *cache)
 	struct cache_key *key;
 	struct rb_node *node;
 
-	//pr_err("=====start dump");
+	pr_err("=====start dump");
 	node = rb_first(&cache->cache_tree);
 	while (node) {
 		key = CACHE_KEY(node);
-		//pr_err("key: %p key->off: %llu, len: %u, cache: %p segid: %u\n", key, key->off, key->len, cache_pos_addr(&key->cache_pos), key->cache_pos.cache_seg->cache_seg_id);
+		pr_err("key: %p key->off: %llu, len: %u, cache: %p segid: %u\n", key, key->off, key->len, cache_pos_addr(&key->cache_pos), key->cache_pos.cache_seg->cache_seg_id);
 		node = rb_next(node);
 	}
-	//pr_err("=====end dump");
+	pr_err("=====end dump");
 }
 
 static void cache_key_encode(struct cache_key_onmedia *key_onmedia,
@@ -336,7 +336,7 @@ static void kset_head_close(struct cbd_cache *cache)
 	kset = get_cur_kset(cache);
 	kset->magic = CBD_KSET_MAGIC;
 	kset->crc = cache_kset_crc(kset);
-//	//pr_err("close kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+//	pr_err("close kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
 
 	pos = &cache->key_head;
 	cache_pos_advance(pos, struct_size(kset, data, kset->key_num), false);
@@ -365,7 +365,7 @@ static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
 	if (key_onmedia->cache_seg_id != kset->latest_seg_id)
 		kset->latest_seg_id = key_onmedia->cache_seg_id;
 
-	////pr_err("key_num: %u", kset->key_num);
+	//pr_err("key_num: %u", kset->key_num);
 	if (++kset->key_num >= CBD_KSET_KEYS_MAX) {
 		kset_head_close(cache);
 	}
@@ -381,11 +381,11 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 	if (!prev_node)
 		return 0;
 
-	////pr_err("start fixup: current: %llu", current->pid);
+	//pr_err("start fixup: current: %llu", current->pid);
 	node_tmp = prev_node;
 	while (node_tmp) {
 		key_tmp = CACHE_KEY(node_tmp);
-		////pr_err("key_tmp: %llu:%u, key: %llu:%u", cache_key_lstart(key_tmp), key_tmp->len,
+		//pr_err("key_tmp: %llu:%u, key: %llu:%u", cache_key_lstart(key_tmp), key_tmp->len,
 				//cache_key_lstart(key), key->len);
 		/*
 		 * |----------|
@@ -410,10 +410,10 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cache_key *key, st
 			 * |===========|		key
 			 */
 			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
-				////pr_err("before cutfront");
+				//pr_err("before cutfront");
 				cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
 				if (key_tmp->len == 0) {
-					////pr_err("delete key_tmp\n");
+					//pr_err("delete key_tmp\n");
 					cache_key_delete(key_tmp);
 					ret = -EAGAIN;
 					goto out;
@@ -500,7 +500,7 @@ again:
 
 	if (fixup) {
 		ret = cache_insert_fixup(cache, key, prev_node);
-		////pr_err("after fixup\n");
+		//pr_err("after fixup\n");
 		if (ret == -EAGAIN)
 			goto again;
 		else if (ret)
@@ -510,7 +510,7 @@ again:
   	rb_link_node(&key->rb_node, parent, new);
   	rb_insert_color(&key->rb_node, &cache->cache_tree);
 
-	////pr_err("after insert off: %llu, len: %u\n", key->off, key->len);
+	//pr_err("after insert off: %llu, len: %u\n", key->off, key->len);
 
 	return 0;
 err:
@@ -568,8 +568,8 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 	struct cbd_cache_segment *cache_seg = pos->cache_seg;
 	struct cbd_segment *segment = &cache_seg->segment;
 
-	//pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
-	//pr_err("copy_to_bio from segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
+	pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
+	pr_err("copy_to_bio from segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
 	spin_lock(&cbd_req->lock);
 	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
 	spin_unlock(&cbd_req->lock);
@@ -582,12 +582,12 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	struct cbd_request *new_req;
 	int ret;
 
-	////pr_err("backing off %u, len %u\n", cbd_req->off + off, len);
+	pr_err("backing off %u, len %u\n", cbd_req->off + off, len);
 	new_req = kmem_cache_zalloc(cache->req_cache, GFP_NOIO);
 	if (!new_req)
 		return -ENOMEM;
 
-	////pr_err("alloc new req: %p, parent: %p\n", new_req, cbd_req);
+	pr_err("alloc new req: %p, parent: %p\n", new_req, cbd_req);
 	INIT_LIST_HEAD(&new_req->inflight_reqs_node);
 	kref_init(&new_req->ref);
 	spin_lock_init(&new_req->lock);
@@ -622,7 +622,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	u32 io_done = 0, total_io_done = 0, io_len = 0;
 	int ret;
 
-	////pr_err("cache_read: off %llu, len: %u\n", cbd_req->off, cbd_req->data_len);
+	pr_err("cache_read: off %llu, len: %u\n", cbd_req->off, cbd_req->data_len);
 
 	mutex_lock(&cache->io_lock);
   	while (*new) {
@@ -780,9 +780,9 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cache_key *key;
 	int ret;
 
-	submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
+	//submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
 
-	////pr_err("cache_write: %lu: %u", offset, length);
+	pr_err("cache_write: %lu: %u", offset, length);
 	mutex_lock(&cache->io_lock);
 	while (true) {
 		if (io_done >= length)
@@ -806,7 +806,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio);
 
-		////pr_err("insert key segid: %u\n", key->cache_pos.cache_seg->cache_seg_id);
+		pr_err("insert key segid: %u\n", key->cache_pos.cache_seg->cache_seg_id);
 		ret = cache_insert_key(cache, key, true);
 		if (ret)
 			goto err;
@@ -893,11 +893,11 @@ again:
 		addr = cache_pos_addr(pos);
 
 		kset = (struct cache_key_set *)addr;
-		////pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
-		////pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
+		//pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+		//pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
 		if (kset->magic != CBD_KSET_MAGIC ||
 				kset->crc != cache_kset_crc(kset)) {
-			//pr_err("crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+			pr_err("crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
 			break;
 		}
 
@@ -911,7 +911,7 @@ again:
 			}
 
 			cache_key_decode(key_onmedia, key);
-			////pr_err("onmedia cache_seg_id: %u set bit: %u", key_onmedia->cache_seg_id, key->cache_pos.cache_seg->cache_seg_id);
+			//pr_err("onmedia cache_seg_id: %u set bit: %u", key_onmedia->cache_seg_id, key->cache_pos.cache_seg->cache_seg_id);
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 			cache_set_range(cache, &key->cache_pos, key->len);
 
@@ -1006,7 +1006,7 @@ static int cache_writeback_init(struct cbd_cache *cache)
 {
 	int ret;
 
-	//pr_err("start writeback\n");
+	pr_err("start writeback\n");
 	cache->bioset = kzalloc(sizeof(*cache->bioset), GFP_KERNEL);
 	if (!cache->bioset) {
 		ret = -ENOMEM;
@@ -1070,11 +1070,11 @@ again:
 	addr = cache_pos_addr(pos);
 	off = key->off + advanced;
 
-	////pr_err("writeback: kernel_write %lu:%u\n", off, to_write);
+	//pr_err("writeback: kernel_write %lu:%u\n", off, to_write);
 	/* TODO write back in async way */
 	written = kernel_write(cache->bdev_file, addr, to_write, &off);
 	if (written != to_write) {
-		//pr_err("writeback error: kernel_write return err\n");
+		pr_err("writeback error: kernel_write return err\n");
 		return -EIO;
 	}
 	pos->seg_off += to_write;
@@ -1104,11 +1104,11 @@ static void writeback_fn(struct work_struct *work)
 	while (true) {
 		addr = cache_pos_addr(pos);
 		kset = (struct cache_key_set *)addr;
-		////pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
-		////pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
+		//pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+		//pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
 		if (kset->magic != CBD_KSET_MAGIC ||
 				kset->crc != cache_kset_crc(kset)) {
-			////pr_err("writeback error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+			//pr_err("writeback error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
 			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 			return;
 		}
@@ -1118,12 +1118,12 @@ static void writeback_fn(struct work_struct *work)
 
 			key = cache_key_alloc(cache);
 			if (!key) {
-				//pr_err("writeback error failed to alloc key\n");
+				pr_err("writeback error failed to alloc key\n");
 				return;
 			}
 
 			cache_key_decode(key_onmedia, key);
-			////pr_err("writeback: write %lu:%u\n", key->off, key->len);
+			//pr_err("writeback: write %lu:%u\n", key->off, key->len);
 			ret = cache_writeback(cache, key);
 			cache_key_put(key);
 
@@ -1152,13 +1152,13 @@ static bool need_gc(struct cbd_cache *cache)
 
 	cache_pos_decode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
 
-	////pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
+	//pr_err("gc: dirty seg:%u, off: %u, key: %u:%u\n", cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
 
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
 
 	if (dirty_addr == key_addr) {
-		////pr_err("all gc-ed\n");
+		//pr_err("all gc-ed\n");
 		return false;
 	}
 
@@ -1202,7 +1202,7 @@ static void gc_fn(struct work_struct *work)
 		kset = (struct cache_key_set *)addr;
 		if (kset->magic != CBD_KSET_MAGIC ||
 				kset->crc != cache_kset_crc(kset)) {
-			//pr_err("gc error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+			pr_err("gc error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
 			return;
 		}
 
@@ -1211,7 +1211,7 @@ static void gc_fn(struct work_struct *work)
 
 			key = cache_key_alloc(cache);
 			if (!key) {
-				//pr_err("gc error failed to alloc key\n");
+				pr_err("gc error failed to alloc key\n");
 				return;
 			}
 
@@ -1309,7 +1309,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				seg_id = cache_info->seg_id;
 		}
 
-		////pr_err("get seg: %u", seg_id);
+		//pr_err("get seg: %u", seg_id);
 		cache_seg_init(cache, seg_id, i);
 
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
@@ -1334,7 +1334,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	if (opts->init_keys) {
 		ret = cache_replay(cache);
 		if (ret) {
-			//pr_err("failed to replay\n");
+			pr_err("failed to replay\n");
 			goto destroy_cache;
 		}
 
