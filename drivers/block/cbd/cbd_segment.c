@@ -154,6 +154,8 @@ again:
 
 		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
 				segment->data_size - pos.off);
+		if (to_copy > data_len)
+			to_copy = data_len;
 		flush_dcache_page(bv.bv_page);
 		////pr_err("copy %u from %p to %p\n", to_copy, segment->data + pos.off, dst + page_off);
 		memcpy_flushcache(dst + page_off, segment->data + pos.off, to_copy);
@@ -161,6 +163,11 @@ again:
 		/* advance */
 		pos.off += to_copy;
 		page_off += to_copy;
+		data_len -= to_copy;
+		if (!data_len) {
+			kunmap_local(dst);
+			return;
+		}
 
 		/* more data in this bv page */
 		if (page_off < bv.bv_offset + bv.bv_len)
@@ -203,12 +210,19 @@ again:
 
 		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
 				segment->data_size - pos.off);
+		if (to_copy > data_len)
+			to_copy = data_len;
 		memcpy_flushcache(segment->data + pos.off, src + page_off, to_copy);
 		flush_dcache_page(bv.bv_page);
 
 		/* advance */
 		pos.off += to_copy;
 		page_off += to_copy;
+		data_len -= to_copy;
+		if (!data_len) {
+			kunmap_local(src);
+			return;
+		}
 
 		/* more data in this bv page */
 		if (page_off < bv.bv_offset + bv.bv_len)
