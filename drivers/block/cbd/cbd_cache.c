@@ -82,7 +82,8 @@ again:
 	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, cache->last_cache_seg);
 	if (seg_id == cache->n_segs) {
 		spin_unlock(&cache->seg_map_lock);
-		//pr_err("no seg avaialbe.");
+		cache->last_cache_seg = 0;
+		pr_err("no seg avaialbe.");
 		msleep(100);
 		goto again;
 	}
