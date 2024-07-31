@@ -82,9 +82,9 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	segment_info->type = options->type;
 	segment->seg_ops = options->seg_ops;
 	segment->data_size = CBDT_SEG_SIZE - options->data_off;
-	//pr_err("datasize: %u", segment->data_size);
+	////pr_err("datasize: %u", segment->data_size);
 	segment->data = (void *)(segment->segment_info) + options->data_off;
-	//pr_err("init segment for data: %p", segment->data);
+	////pr_err("init segment for data: %p", segment->data);
 	segment->priv_data = options->priv_data;
 
 	segment_info->ref++;
@@ -135,7 +135,7 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
 
-	//pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
+	////pr_err("into copy_to_bio segment: %p, data: %p,  off: %u, bio_off: %u\n", segment, segment->data, data_off, bio_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
@@ -148,14 +148,14 @@ next:
 
 		dst = kmap_local_page(bv.bv_page);
 again:
-		//pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
+		////pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
 		segment->seg_ops->sanitize_pos(&pos);
 		segment = pos.segment;
 
 		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
 				segment->data_size - pos.off);
 		flush_dcache_page(bv.bv_page);
-		//pr_err("copy %u from %p to %p\n", to_copy, segment->data + pos.off, dst + page_off);
+		////pr_err("copy %u from %p to %p\n", to_copy, segment->data + pos.off, dst + page_off);
 		memcpy_flushcache(dst + page_off, segment->data + pos.off, to_copy);
 
 		/* advance */
@@ -184,7 +184,7 @@ void cbds_copy_from_bio(struct cbd_segment *segment,
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
 
-	//pr_err("into copy_from_bio segment: %p, off: %u", segment, data_off);
+	////pr_err("into copy_from_bio segment: %p, off: %u", segment, data_off);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
@@ -197,7 +197,7 @@ next:
 
 		src = kmap_local_page(bv.bv_page);
 again:
-		//pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
+		////pr_err("segment: %p, ops %p off: %u", segment, segment->seg_ops, pos.off);
 		segment->seg_ops->sanitize_pos(&pos);
 		segment = pos.segment;
 
