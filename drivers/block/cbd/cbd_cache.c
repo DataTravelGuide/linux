@@ -201,14 +201,14 @@ static void cache_key_put(struct cache_key *key)
 	kref_put(&key->ref, cache_key_destroy);
 }
 
-static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, struct bio *bio)
+static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, struct bio *bio, u32 bio_off)
 {
 	struct cbd_cache_pos *pos = &key->cache_pos;
 	struct cbd_segment *segment;
 	
 	segment = &pos->cache_seg->segment;
 	//pr_err("copy_from_bio key->off: %lu to segment: %p, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
-	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, 0);
+	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, bio_off);
 }
 
 static inline u64 cache_key_lstart(struct cache_key *key)
@@ -496,7 +496,6 @@ again:
 	prev_node = NULL;
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
-		BUG_ON(key_tmp->seg_gen < key_tmp->cache_pos.cache_seg->gen);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
@@ -546,10 +545,11 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	struct cbd_segment *segment;
 	u32 seg_remain;
 	u32 allocated = 0, to_alloc;
-
-	cache_pos_copy(&key->cache_pos, &cache->data_head);
+	int ret;
 
 again:
+	cache_pos_copy(&key->cache_pos, &cache->data_head);
+
 	head_pos = &cache->data_head;
 	cache_seg = get_data_head_segment(cache);
 	segment = &cache_seg->segment;
@@ -560,16 +560,14 @@ again:
 		allocated += to_alloc;
 	} else if (seg_remain) {
 		cache_pos_advance(head_pos, seg_remain, false);
-		allocated += seg_remain;
+		key->len = seg_remain;
 	} else {
 		cache_data_head_init(cache);
 		cache_seg->next = get_data_head_segment(cache);
 		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
 		cache_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
-	}
-
-	if (allocated < key->len)
 		goto again;
+	}
 
 	return 0;
 }
@@ -639,7 +637,6 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	mutex_lock(&cache->io_lock);
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
-		BUG_ON(key_tmp->seg_gen < key_tmp->cache_pos.cache_seg->gen);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
@@ -816,9 +813,14 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 			goto err;
 		}
 
+		if (!key->len) {
+			cache_key_put(key);
+			continue;
+		}
+
 		key->seg_gen = key->cache_pos.cache_seg->gen;
 		BUG_ON(!key->cache_pos.cache_seg);
-		cache_copy_from_bio(cache, key, cbd_req->bio);
+		cache_copy_from_bio(cache, key, cbd_req->bio, io_done);
 
 		//pr_err("insert key segid: %u\n", key->cache_pos.cache_seg->cache_seg_id);
 		ret = cache_insert_key(cache, key, true);
@@ -898,6 +900,7 @@ static int cache_replay(struct cbd_cache *cache)
 	u64 addr;
 	int i;
 
+	mutex_lock(&cache->io_lock);
 	cache_pos_copy(&pos_tail, &cache->key_tail);
 	pos = &pos_tail;
 
@@ -950,12 +953,14 @@ again:
 	}
 
 	clear_keys(cache);
+	mutex_unlock(&cache->io_lock);
 
 	pr_err("init keyhead\n");
 	cache_pos_copy(&cache->key_head, pos);
 
 	return 0;
 err:
+	mutex_unlock(&cache->io_lock);
 	return ret;
 }
 
