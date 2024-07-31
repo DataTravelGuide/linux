@@ -780,6 +780,8 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cache_key *key;
 	int ret;
 
+	submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
+
 	//pr_err("cache_write: %lu: %u", offset, length);
 	mutex_lock(&cache->io_lock);
 	while (true) {
