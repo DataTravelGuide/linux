@@ -152,10 +152,10 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 		mutex_lock(&cache->io_lock);
 		pr_err("gc invalidat seg: %u, key: %lu:%u cache_pos: %lu:%u\n", cache_seg->cache_seg_id, key->off, key->len, key->cache_pos.seg_off, key->len);
 		cache_seg->gen++;
-		pr_err("cache_seg: %u, gen: %u\n", cache_seg->cache_seg_id, cache_seg->gen);
+		//pr_err("cache_seg: %u, gen: %u\n", cache_seg->cache_seg_id, cache_seg->gen);
 		/* TODO better way to remove key */
 		clear_keys(cache);
-		dump_cache(cache);
+		//dump_cache(cache);
 		clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 		mutex_unlock(&cache->io_lock);
 	}
@@ -866,7 +866,7 @@ static void cache_pos_encode(struct cbd_cache *cache,
 {
 	pos_onmedia->cache_seg_id = pos->cache_seg->cache_seg_id;
 	pos_onmedia->seg_off = pos->seg_off;
-	pr_err("pos_encode seg: %p seg_id: %u\n", pos->cache_seg, pos_onmedia->cache_seg_id);
+	//pr_err("pos_encode seg: %p seg_id: %u\n", pos->cache_seg, pos_onmedia->cache_seg_id);
 }
 
 static void cache_pos_decode(struct cbd_cache *cache,
@@ -1094,7 +1094,7 @@ again:
 	addr = cache_pos_addr(pos);
 	off = key->off + advanced;
 
-	pr_err("writeback: kernel_write %lu:%u\n", off, to_write);
+	//pr_err("writeback: kernel_write %lu:%u\n", off, to_write);
 	/* TODO write back in async way */
 	written = kernel_write(cache->bdev_file, addr, to_write, &off);
 	if (written != to_write) {
@@ -1149,7 +1149,7 @@ static void writeback_fn(struct work_struct *work)
 			}
 
 			cache_key_decode(key_onmedia, key);
-			pr_err("writeback: write %lu:%u\n", key->off, key->len);
+			//pr_err("writeback: write %lu:%u\n", key->off, key->len);
 			ret = cache_writeback(cache, key);
 			cache_key_put(key);
 
