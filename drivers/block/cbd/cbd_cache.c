@@ -1095,6 +1095,7 @@ again:
 		//pr_err("writeback error: kernel_write return err\n");
 		return -EIO;
 	}
+	vfs_fsync(cache->bdev_file, 0);
 	pos->seg_off += to_write;
 	advanced += to_write;
 
