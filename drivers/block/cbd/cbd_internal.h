@@ -667,6 +667,7 @@ struct cbd_cache {
 	u32				state:8;
 	u32				n_segs;
 	unsigned long			*seg_map;
+	u32				last_cache_seg;
 	spinlock_t			seg_map_lock;
 	struct cbd_cache_segment	segments[];
 };

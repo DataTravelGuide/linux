@@ -79,7 +79,7 @@ static struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache)
 	u32 seg_id;
 again:
 	spin_lock(&cache->seg_map_lock);
-	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, 0);
+	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, cache->last_cache_seg);
 	if (seg_id == cache->n_segs) {
 		spin_unlock(&cache->seg_map_lock);
 		//pr_err("no seg avaialbe.");
@@ -88,6 +88,7 @@ again:
 	}
 
 	set_bit(seg_id, cache->seg_map);
+	cache->last_cache_seg = seg_id;
 	spin_unlock(&cache->seg_map_lock);
 ;
 	cache_seg = &cache->segments[seg_id];
