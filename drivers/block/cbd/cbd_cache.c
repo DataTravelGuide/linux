@@ -127,24 +127,37 @@ static void clear_keys(struct cbd_cache *cache)
 	}
 }
 
+static bool cache_pos_is_seg_end(struct cbd_cache_pos *pos)
+{
+	return pos->seg_off == pos->cache_seg->segment.data_size;
+}
+
+static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src);
+static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len, bool set);
 static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
+	struct cbd_cache_pos pos_data;
+	struct cbd_cache_pos *pos;
 	bool invalidate = false;
 
-	mutex_lock(&cache->io_lock);
-	cache_seg->used -= key->len;
+	cache_pos_copy(&pos_data, &key->cache_pos);
+	pos = &pos_data;
+
+	cache_pos_advance(pos, key->len, false);
+	if (pos->cache_seg != cache_seg || cache_pos_is_seg_end(pos))
+		invalidate = true;
 
 	////pr_err("gc seg: %u, used: %u\n", cache_seg->cache_seg_id, cache_seg->used);
-
-	if (cache_seg->used == 0) {
-		//pr_err("gc invalidat seg: %u\n", cache_seg->cache_seg_id);
+	if (invalidate) {
+		mutex_lock(&cache->io_lock);
+		pr_err("gc invalidat seg: %u\n", cache_seg->cache_seg_id);
 		cache_seg->gen++;
 		/* TODO better way to remove key */
 		clear_keys(cache);
 		clear_bit(cache_seg->cache_seg_id, cache->seg_map);
+		mutex_unlock(&cache->io_lock);
 	}
-	mutex_unlock(&cache->io_lock);
 }
 
 
@@ -208,7 +221,6 @@ static inline u64 cache_key_lend(struct cache_key *key)
 	return key->off + key->len;
 }
 
-static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src);
 static inline void cache_key_copy(struct cache_key *key_dst, struct cache_key *key_src)
 {
 	key_dst->off = key_src->off;
@@ -780,7 +792,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cache_key *key;
 	int ret;
 
-	submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
+	//submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
 
 	//pr_err("cache_write: %lu: %u", offset, length);
 	mutex_lock(&cache->io_lock);
@@ -803,6 +815,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 			goto err;
 		}
 
+		key->seg_gen = key->cache_pos.cache_seg->gen;
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio);
 
