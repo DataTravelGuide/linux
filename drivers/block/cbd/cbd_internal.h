@@ -826,6 +826,7 @@ struct cbd_request {
 	u64			off;
 	struct bio		*bio;
 	u32			bio_off;
+	spinlock_t		lock; /* race between cache and complete_work to access bio */
 
 	enum cbd_op		op;
 	u64			req_tid;

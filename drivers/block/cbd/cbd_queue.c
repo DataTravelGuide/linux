@@ -347,7 +347,9 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 
 	//pr_err("copy data from cbdreq: %p\n", cbd_req);
+	spin_lock(&cbd_req->lock);
 	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
+	spin_unlock(&cbd_req->lock);
 }
 
 static void complete_work_fn(struct work_struct *work)
@@ -437,6 +439,7 @@ static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	memset(cbd_req, 0, sizeof(struct cbd_request));
 	INIT_LIST_HEAD(&cbd_req->inflight_reqs_node);
 	kref_init(&cbd_req->ref);
+	spin_lock_init(&cbd_req->lock);
 
 	blk_mq_start_request(bd->rq);
 

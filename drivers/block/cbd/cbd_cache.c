@@ -568,9 +568,11 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 	struct cbd_cache_segment *cache_seg = pos->cache_seg;
 	struct cbd_segment *segment = &cache_seg->segment;
 
-	//pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
-	//pr_err("copy_to_bio from segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
+	pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
+	pr_err("copy_to_bio from segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
+	spin_lock(&cbd_req->lock);
 	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
+	spin_unlock(&cbd_req->lock);
 	return 0;
 }
 
@@ -588,6 +590,7 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	//pr_err("alloc new req: %p, parent: %p\n", new_req, cbd_req);
 	INIT_LIST_HEAD(&new_req->inflight_reqs_node);
 	kref_init(&new_req->ref);
+	spin_lock_init(&new_req->lock);
 
 	new_req->cbdq = cbd_req->cbdq;
 	new_req->bio = cbd_req->bio;
