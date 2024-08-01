@@ -31,7 +31,7 @@ static struct cache_key_onmedia {
 #define CBD_KSET_FLAGS_LAST	1
 
 static struct cache_key_set {
-	u64	crc;
+	u32	crc;
 	u64	magic;
 	u16	version;
 	u16	res;
@@ -61,9 +61,9 @@ again:
 	if (pos->off >= segment->data_size) {
 		//pr_err("sanitize next segment, pos off: %u, data_size: %u\n", pos->off, segment->data_size);
 		pos->off -= segment->data_size;
-		//pr_err("cacheseg: %p ", cache_seg);
+		//pr_err("cacheseg: %px ", cache_seg);
 		cache_seg = cache_seg->next;
-		//pr_err("next is %p, %u", cache_seg->segment.data, cache_seg->cache_seg_id);
+		//pr_err("next is %px, %u", cache_seg->segment.data, cache_seg->cache_seg_id);
 		pos->segment = &cache_seg->segment;
 		goto again;
 	}
@@ -77,11 +77,22 @@ static void dump_seg_map(struct cbd_cache *cache)
 {
 	int i;
 
-	pr_err("%p start seg map -------", cache);
+	pr_err("%px start seg map -------", cache);
 	for (i = 0; i < cache->n_segs; i++) {
 		pr_err("seg: %u, %u", i, test_bit(i, cache->seg_map));
 	}
 	pr_err("end seg map -------");
+}
+
+static struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache *cache, struct cbd_cache_segment *cache_seg)
+{
+	if (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT) {
+		cache_seg->next = &cache->segments[cache_seg->cache_seg_info->next_cache_seg_id];
+		return cache_seg->next;
+	}
+
+	pr_err("no CBD_CACHE_SEG_FLAGS_HAS_NEXT\n");
+	return NULL;
 }
 
 static struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache)
@@ -97,14 +108,14 @@ again:
 	if (seg_id == cache->n_segs) {
 		spin_unlock(&cache->seg_map_lock);
 		cache->last_cache_seg = 0;
-		pr_err(" %p no seg avaialbe.", cache);
+		pr_err(" %px no seg avaialbe.", cache);
 		dump_seg_map(cache);
 		msleep(100);
 		goto again;
 	}
 
 	set_bit(seg_id, cache->seg_map);
-	pr_err("%p set seg %u \n", cache, seg_id);
+	pr_err("%px set seg %u \n", cache, seg_id);
 	dump_seg_map(cache);
 	cache->last_cache_seg = seg_id;
 	spin_unlock(&cache->seg_map_lock);
@@ -112,7 +123,7 @@ again:
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
 
-	//pr_err("clear all data for segid: %u segment_data: %p, %u", seg_id, cache_seg->segment.data, cache_seg->segment.data_size);
+	//pr_err("clear all data for segid: %u segment_data: %px, %u", seg_id, cache_seg->segment.data, cache_seg->segment.data_size);
 	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
 
 	return cache_seg;
@@ -163,14 +174,14 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 
 	pos = &key->cache_pos;
 
-	//pr_err("%p gc remove: seg: %u key: %u:%u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off, key->len);
+	//pr_err("%px gc remove: seg: %u key: %u:%u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off, key->len);
 
 	if (pos->seg_off + key->len >= pos->cache_seg->segment.data_size)
 		invalidate = true;
 
 	if (invalidate) {
 		mutex_lock(&cache->tree_lock);
-		pr_err("%p gc invalidat seg: %u, key: %lu:%u cache_pos: %lu:%u\n", cache, cache_seg->cache_seg_id, key->off, key->len, key->cache_pos.seg_off, key->len);
+		pr_err("%px gc invalidat seg: %u, key: %lu:%u cache_pos: %lu:%u\n", cache, cache_seg->cache_seg_id, key->off, key->len, key->cache_pos.seg_off, key->len);
 		cache_seg->gen++;
 		//pr_err("cache_seg: %u, gen: %u\n", cache_seg->cache_seg_id, cache_seg->gen);
 		/* TODO better way to remove key */
@@ -232,7 +243,7 @@ static void cache_copy_from_bio(struct cbd_cache *cache, struct cache_key *key, 
 	struct cbd_segment *segment;
 	
 	segment = &pos->cache_seg->segment;
-	//pr_err("copy_from_bio key->off: %lu to segment: %p, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
+	//pr_err("copy_from_bio key->off: %lu to segment: %px, seg_off: %u len: %u\n", key->off, segment, pos->seg_off, key->len);
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, bio_off);
 }
 
@@ -264,7 +275,7 @@ static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len, bool set)
 
 again:
 	cache_seg = pos->cache_seg;
-	//pr_err("advance pos: %p, len: %u", pos, len);
+	//pr_err("advance pos: %px, len: %u", pos, len);
 	BUG_ON(!cache_seg);
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - pos->seg_off;
@@ -283,7 +294,7 @@ again:
 		if (set) {
 			struct cbd_cache *cache = pos->cache_seg->cache;
 
-			pr_err("%p set in advance %u\n", cache, pos->cache_seg->cache_seg_id);
+			pr_err("%px set in advance %u\n", cache, pos->cache_seg->cache_seg_id);
 			set_bit(pos->cache_seg->cache_seg_id, pos->cache_seg->cache->seg_map);
 			dump_seg_map(cache);
 		}
@@ -296,7 +307,7 @@ again:
 static inline void cache_key_cutfront(struct cache_key *key, u32 cut_len)
 {
 	if (key->cache_pos.cache_seg) {
-		////pr_err("cutfront: %p\n", &key->cache_pos);
+		////pr_err("cutfront: %px\n", &key->cache_pos);
 		cache_pos_advance(&key->cache_pos, cut_len, false);
 	}
 	key->off += cut_len;
@@ -324,7 +335,7 @@ static void dump_cache(struct cbd_cache *cache)
 	node = rb_first(&cache->cache_tree);
 	while (node) {
 		key = CACHE_KEY(node);
-		pr_err("key: %p gen: %u key->off: %llu, len: %u, cache: %p segid: %u\n", key, key->seg_gen, key->off, key->len, cache_pos_addr(&key->cache_pos), key->cache_pos.cache_seg->cache_seg_id);
+		pr_err("key: %px gen: %u key->off: %llu, len: %u, cache: %px segid: %u\n", key, key->seg_gen, key->off, key->len, cache_pos_addr(&key->cache_pos), key->cache_pos.cache_seg->cache_seg_id);
 		node = rb_next(node);
 	}
 	pr_err("=====end dump");
@@ -362,6 +373,7 @@ static void cache_key_decode(struct cache_key_onmedia *key_onmedia, struct cache
 
 static inline u32 cache_kset_crc(struct cache_key_set *kset)
 {
+	pr_err("kset: %px kset->key_num: %u\n", kset, kset->key_num);
 	return crc32(0, (void *)kset + 4, struct_size(kset, data, kset->key_num) - 4);
 }
 
@@ -380,14 +392,14 @@ static void kset_head_close(struct cbd_cache *cache)
 	pos = &cache->key_head;
 	cache_pos_advance(pos, struct_size(kset, data, kset->key_num), false);
 
-	//pr_err("%p key_head: %u: %u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off);
+	//pr_err("%px key_head: %u: %u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off);
 
 	cache_seg = pos->cache_seg;
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - pos->seg_off;
-	if (seg_remain < struct_size(kset, data, CBD_KSET_KEYS_MAX)) {
+	if (seg_remain < struct_size(kset, data, CBD_KSET_KEYS_MAX) || seg_remain < 15*1024*1024) {
 		kset->flags |= CBD_KSET_FLAGS_LAST;
-		pr_err("%p last kset %u\n", cache, cache_seg->cache_seg_id);
+		pr_err("%px last kset %px %u\n", cache, kset, cache_seg->cache_seg_id);
 		cache->key_head.cache_seg = get_cache_segment(cache);
 		cache->key_head.seg_off = 0;
 		cache_seg->next = cache->key_head.cache_seg;
@@ -395,9 +407,10 @@ static void kset_head_close(struct cbd_cache *cache)
 		cache_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
 	}
 
+	smp_mb();
 	kset->magic = CBD_KSET_MAGIC;
 	kset->crc = cache_kset_crc(kset);
-	pr_err("%p close kset: %p, magic: %lx, crc: %u, key_num: %u\n", cache, kset, kset->magic, kset->crc, kset->key_num);
+	pr_err("%px close kset: %px, magic: %lx, crc: %u, key_num: %u\n", cache, kset, kset->magic, kset->crc, kset->key_num);
 }
 
 static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
@@ -596,9 +609,9 @@ again:
 	} else if (seg_remain) {
 		cache_pos_advance(head_pos, seg_remain, false);
 		key->len = seg_remain;
-		pr_err("%p segid: %u last key: %lu:%u\n", cache, key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
+		pr_err("%px segid: %u last key: %lu:%u\n", cache, key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
 	} else {
-		pr_err("%p segid: %u empty alloc %u:%u\n", cache, cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
+		pr_err("%px segid: %u empty alloc %u:%u\n", cache, cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
 		cache_data_head_init(cache);
 		cache_seg->next = get_data_head_segment(cache);
 		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
@@ -616,7 +629,7 @@ static int submit_cache_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	//pr_err("cache off %u, len %u\n", cbd_req->off + off, len);
-	//pr_err("copy_to_bio from segment: %p, seg_off: %u len: %u\n", segment, pos->seg_off, len);
+	//pr_err("copy_to_bio from segment: %px, seg_off: %u len: %u\n", segment, pos->seg_off, len);
 	spin_lock(&cbd_req->lock);
 	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
 	spin_unlock(&cbd_req->lock);
@@ -634,7 +647,7 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	if (!new_req)
 		return -ENOMEM;
 
-	//pr_err("alloc new req: %p, parent: %p\n", new_req, cbd_req);
+	//pr_err("alloc new req: %px, parent: %px\n", new_req, cbd_req);
 	INIT_LIST_HEAD(&new_req->inflight_reqs_node);
 	kref_init(&new_req->ref);
 	spin_lock_init(&new_req->lock);
@@ -832,7 +845,7 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	//submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
 
-	//pr_err("%p cache_write: %lu: %u", cache, offset, length);
+	//pr_err("%px cache_write: %lu: %u", cache, offset, length);
 	mutex_lock(&cache->io_lock);
 	while (true) {
 		if (io_done >= length)
@@ -907,7 +920,7 @@ static void cache_pos_encode(struct cbd_cache *cache,
 {
 	pos_onmedia->cache_seg_id = pos->cache_seg->cache_seg_id;
 	pos_onmedia->seg_off = pos->seg_off;
-	//pr_err("pos_encode seg: %p seg_id: %u\n", pos->cache_seg, pos_onmedia->cache_seg_id);
+	//pr_err("pos_encode seg: %px seg_id: %u\n", pos->cache_seg, pos_onmedia->cache_seg_id);
 }
 
 static void cache_pos_decode(struct cbd_cache *cache,
@@ -953,7 +966,7 @@ again:
 		addr = cache_pos_addr(pos);
 
 		kset = (struct cache_key_set *)addr;
-		////pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+		////pr_err("replay kset: %px, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
 		////pr_err("crc is %u, expected: %u\n", cache_kset_crc(kset), kset->crc);
 		if (kset->magic != CBD_KSET_MAGIC ||
 				kset->crc != cache_kset_crc(kset)) {
@@ -989,7 +1002,8 @@ again:
 		}
 
 		if (kset->flags & CBD_KSET_FLAGS_LAST) {
-			pos->cache_seg = pos->cache_seg->next;
+			pr_err("found last kset %px\n", kset);
+			pos->cache_seg = cache_seg_get_next(cache, pos->cache_seg);
 			pos->seg_off = 0;
 			set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
 			continue;
@@ -1034,7 +1048,7 @@ static void cache_seg_init(struct cbd_cache *cache,
 	cbd_segment_init(cbdt, segment, &seg_options);
 
 	cache_seg->cache = cache;
-	//pr_err("init seg %p, id %u\n", cache_seg, cache_seg_id);
+	//pr_err("init seg %px, id %u\n", cache_seg, cache_seg_id);
 	cache_seg->cache_seg_id = cache_seg_id;
 	cache_seg->cache_seg_info = (struct cbd_cache_seg_info *)segment->segment_info;
 
@@ -1180,16 +1194,19 @@ static void writeback_fn(struct work_struct *work)
 
 	pos = &cache->dirty_tail;
 	while (true) {
-		//pr_err("%p dirty tail: seg %u off: %u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off);
+		pr_err("%px dirty tail: seg %u off: %u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off);
 		addr = cache_pos_addr(pos);
 		kset = (struct cache_key_set *)addr;
-		////pr_err("replay kset: %p, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
-		if (kset->magic != CBD_KSET_MAGIC ||
-				kset->crc != cache_kset_crc(kset)) {
-			pr_err("%p kset: %p crc is %u, expected: %u\n", cache, kset, cache_kset_crc(kset), kset->crc);
-			pr_err("writeback error crc is not expected. magic: %lx, expected: %lx\n", kset->magic, CBD_KSET_MAGIC);
+		////pr_err("replay kset: %px, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
+		if (kset->magic != CBD_KSET_MAGIC) {
+			pr_err("writeback error kset %px magic is not expected. magic: %lx, expected: %lx\n", kset, kset->magic, CBD_KSET_MAGIC);
 			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
-			pr_err("writeback reschedule writeback\n");
+			return;
+		}
+
+		if (kset->crc != cache_kset_crc(kset)) {
+			pr_err("%px kset crc error: %px crc is %u, expected: %u\n", cache, kset, cache_kset_crc(kset), kset->crc);
+			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 			return;
 		}
 
@@ -1213,7 +1230,8 @@ static void writeback_fn(struct work_struct *work)
 		}
 
 		if (kset->flags & CBD_KSET_FLAGS_LAST) {
-			pos->cache_seg = pos->cache_seg->next;
+			pr_err("found last kset %px\n", kset);
+			pos->cache_seg = cache_seg_get_next(cache, pos->cache_seg);
 			pos->seg_off = 0;
 			cache_pos_encode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
 			continue;
@@ -1232,7 +1250,7 @@ static bool need_gc(struct cbd_cache *cache)
 
 	cache_pos_decode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
 
-	//pr_err("%p gc: dirty seg:%u, off: %u, key: %u:%u\n", cache, cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
+	//pr_err("%px gc: dirty seg:%u, off: %u, key: %u:%u\n", cache, cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off, cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
 
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
@@ -1280,7 +1298,7 @@ static void gc_fn(struct work_struct *work)
 	while (true) {
 		if (!need_gc(cache)) {
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
-			pr_err("%p gc error dont need gc\n", cache);
+			pr_err("%px gc error dont need gc\n", cache);
 			return;
 		}
 
