@@ -99,7 +99,7 @@ again:
 		cache->last_cache_seg = 0;
 		pr_err(" %p no seg avaialbe.", cache);
 		dump_seg_map(cache);
-		msleep(10000);
+		msleep(100);
 		goto again;
 	}
 
@@ -364,7 +364,7 @@ static inline u32 cache_kset_crc(struct cache_key_set *kset)
 	return crc32(0, (void *)kset + 4, struct_size(kset, data, kset->key_num) - 4);
 }
 
-#define CBD_KSET_KEYS_MAX	1
+#define CBD_KSET_KEYS_MAX	128
 
 static void kset_head_close(struct cbd_cache *cache)
 {
