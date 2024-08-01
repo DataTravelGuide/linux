@@ -96,12 +96,10 @@ again:
 	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, cache->last_cache_seg);
 	if (seg_id == cache->n_segs) {
 		spin_unlock(&cache->seg_map_lock);
-		mutex_unlock(&cache->io_lock);
 		cache->last_cache_seg = 0;
 		pr_err(" %p no seg avaialbe.", cache);
 		dump_seg_map(cache);
 		msleep(10000);
-		mutex_lock(&cache->io_lock);
 		goto again;
 	}
 
@@ -171,13 +169,13 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 		invalidate = true;
 
 	if (invalidate) {
-		mutex_lock(&cache->io_lock);
+		mutex_lock(&cache->tree_lock);
 		pr_err("%p gc invalidat seg: %u, key: %lu:%u cache_pos: %lu:%u\n", cache, cache_seg->cache_seg_id, key->off, key->len, key->cache_pos.seg_off, key->len);
 		cache_seg->gen++;
 		//pr_err("cache_seg: %u, gen: %u\n", cache_seg->cache_seg_id, cache_seg->gen);
 		/* TODO better way to remove key */
 		clear_keys(cache);
-		mutex_unlock(&cache->io_lock);
+		mutex_unlock(&cache->tree_lock);
 		//dump_cache(cache);
 
 		spin_lock(&cache->seg_map_lock);
@@ -673,6 +671,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	//pr_err("cache_read: off %llu, len: %u\n", cbd_req->off, cbd_req->data_len);
 
 	mutex_lock(&cache->io_lock);
+	mutex_lock(&cache->tree_lock);
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
 
@@ -693,6 +692,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	if (!prev_node) {
 		submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
+		mutex_unlock(&cache->tree_lock);
 		mutex_unlock(&cache->io_lock);
 		return 0;
 	}
@@ -816,6 +816,7 @@ next:
 	}
 	*/
 
+	mutex_unlock(&cache->tree_lock);
 	mutex_unlock(&cache->io_lock);
 	return 0;
 }
@@ -860,8 +861,10 @@ int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio, io_done);
 
+		mutex_lock(&cache->tree_lock);
 		//pr_err("insert key segid: %u\n", key->cache_pos.cache_seg->cache_seg_id);
 		ret = cache_insert_key(cache, key, true);
+		mutex_unlock(&cache->tree_lock);
 		if (ret)
 			goto err;
 
@@ -1368,6 +1371,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->n_segs = cache_info->n_segs;
 	cache->cache_tree = RB_ROOT;
 	mutex_init(&cache->io_lock);
+	mutex_init(&cache->tree_lock);
 	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
 
