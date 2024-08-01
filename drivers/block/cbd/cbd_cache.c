@@ -250,6 +250,7 @@ static inline void cache_key_copy(struct cache_key *key_dst, struct cache_key *k
 {
 	key_dst->off = key_src->off;
 	key_dst->len = key_src->len;
+	key_dst->seg_gen = key_src->seg_gen;
 
 	cache_pos_copy(&key_dst->cache_pos, &key_src->cache_pos);
 }
