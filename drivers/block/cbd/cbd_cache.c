@@ -109,14 +109,14 @@ again:
 		spin_unlock(&cache->seg_map_lock);
 		cache->last_cache_seg = 0;
 		pr_err(" %px no seg avaialbe.", cache);
-		dump_seg_map(cache);
+		//dump_seg_map(cache);
 		msleep(100);
 		goto again;
 	}
 
 	set_bit(seg_id, cache->seg_map);
-	pr_err("%px set seg %u \n", cache, seg_id);
-	dump_seg_map(cache);
+	//pr_err("%px set seg %u \n", cache, seg_id);
+	//dump_seg_map(cache);
 	cache->last_cache_seg = seg_id;
 	spin_unlock(&cache->seg_map_lock);
 ;
@@ -181,7 +181,7 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 
 	if (invalidate) {
 		mutex_lock(&cache->tree_lock);
-		pr_err("%px gc invalidat seg: %u, key: %lu:%u cache_pos: %lu:%u\n", cache, cache_seg->cache_seg_id, key->off, key->len, key->cache_pos.seg_off, key->len);
+		//pr_err("%px gc invalidat seg: %u, key: %lu:%u cache_pos: %lu:%u\n", cache, cache_seg->cache_seg_id, key->off, key->len, key->cache_pos.seg_off, key->len);
 		cache_seg->gen++;
 		//pr_err("cache_seg: %u, gen: %u\n", cache_seg->cache_seg_id, cache_seg->gen);
 		/* TODO better way to remove key */
@@ -192,7 +192,7 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 		spin_lock(&cache->seg_map_lock);
 		clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 		spin_unlock(&cache->seg_map_lock);
-		dump_seg_map(cache);
+		//dump_seg_map(cache);
 	}
 }
 
@@ -373,7 +373,7 @@ static void cache_key_decode(struct cache_key_onmedia *key_onmedia, struct cache
 
 static inline u32 cache_kset_crc(struct cache_key_set *kset)
 {
-	pr_err("kset: %px kset->key_num: %u\n", kset, kset->key_num);
+	//pr_err("kset: %px kset->key_num: %u\n", kset, kset->key_num);
 	return crc32(0, (void *)kset + 4, struct_size(kset, data, kset->key_num) - 4);
 }
 
@@ -399,7 +399,7 @@ static void kset_head_close(struct cbd_cache *cache)
 	seg_remain = segment->data_size - pos->seg_off;
 	if (seg_remain < struct_size(kset, data, CBD_KSET_KEYS_MAX) || seg_remain < 15*1024*1024) {
 		kset->flags |= CBD_KSET_FLAGS_LAST;
-		pr_err("%px last kset %px %u\n", cache, kset, cache_seg->cache_seg_id);
+		//pr_err("%px last kset %px %u\n", cache, kset, cache_seg->cache_seg_id);
 		cache->key_head.cache_seg = get_cache_segment(cache);
 		cache->key_head.seg_off = 0;
 		cache_seg->next = cache->key_head.cache_seg;
@@ -410,7 +410,7 @@ static void kset_head_close(struct cbd_cache *cache)
 	smp_mb();
 	kset->magic = CBD_KSET_MAGIC;
 	kset->crc = cache_kset_crc(kset);
-	pr_err("%px close kset: %px, magic: %lx, crc: %u, key_num: %u\n", cache, kset, kset->magic, kset->crc, kset->key_num);
+	//pr_err("%px close kset: %px, magic: %lx, crc: %u, key_num: %u\n", cache, kset, kset->magic, kset->crc, kset->key_num);
 }
 
 static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
@@ -609,9 +609,9 @@ again:
 	} else if (seg_remain) {
 		cache_pos_advance(head_pos, seg_remain, false);
 		key->len = seg_remain;
-		pr_err("%px segid: %u last key: %lu:%u\n", cache, key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
+		//pr_err("%px segid: %u last key: %lu:%u\n", cache, key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
 	} else {
-		pr_err("%px segid: %u empty alloc %u:%u\n", cache, cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
+		//pr_err("%px segid: %u empty alloc %u:%u\n", cache, cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
 		cache_data_head_init(cache);
 		cache_seg->next = get_data_head_segment(cache);
 		cache_seg->cache_seg_info->next_cache_seg_id = cache_seg->next->cache_seg_id;
@@ -1002,7 +1002,7 @@ again:
 		}
 
 		if (kset->flags & CBD_KSET_FLAGS_LAST) {
-			pr_err("found last kset %px\n", kset);
+			//pr_err("found last kset %px\n", kset);
 			pos->cache_seg = cache_seg_get_next(cache, pos->cache_seg);
 			pos->seg_off = 0;
 			set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
@@ -1230,7 +1230,7 @@ static void writeback_fn(struct work_struct *work)
 		}
 
 		if (kset->flags & CBD_KSET_FLAGS_LAST) {
-			pr_err("found last kset %px\n", kset);
+			//pr_err("found last kset %px\n", kset);
 			pos->cache_seg = cache_seg_get_next(cache, pos->cache_seg);
 			pos->seg_off = 0;
 			cache_pos_encode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
