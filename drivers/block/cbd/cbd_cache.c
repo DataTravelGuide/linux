@@ -5,6 +5,7 @@ static struct cache_key {
 	struct kref ref;
 
 	struct rb_node rb_node;
+	struct list_head list_node;
 
 	u64		off;
 	u32		len;
@@ -185,7 +186,7 @@ static void seg_used_remove(struct cbd_cache *cache, struct cache_key *key)
 		cache_seg->gen++;
 		//pr_err("cache_seg: %u, gen: %u\n", cache_seg->cache_seg_id, cache_seg->gen);
 		/* TODO better way to remove key */
-		clear_keys(cache);
+		//clear_keys(cache);
 		mutex_unlock(&cache->tree_lock);
 		//dump_cache(cache);
 
@@ -220,6 +221,7 @@ static struct cache_key *cache_key_alloc(struct cbd_cache *cache)
 
 	kref_init(&key->ref);
 	key->cache = cache;
+	INIT_LIST_HEAD(&key->list_node);
 
 	return key;
 }
@@ -528,11 +530,17 @@ out:
 	return ret;
 }
 
+static inline bool cache_key_invalid(struct cache_key *key)
+{
+	return (key->seg_gen < key->cache_pos.cache_seg->gen);
+}
+
 static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup)
 {
   	struct rb_node **new = &(cache->cache_tree.rb_node), *parent = NULL;
-	struct cache_key *key_tmp = NULL;
+	struct cache_key *key_tmp = NULL, *key_next;
 	struct rb_node	*prev_node = NULL;
+	LIST_HEAD(key_list);
 	int ret;
 
 	if (fixup)
@@ -544,6 +552,8 @@ again:
 	prev_node = NULL;
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
+		if (cache_key_invalid(key_tmp))
+			list_add(&key_tmp->list_node, &key_list);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
@@ -553,6 +563,14 @@ again:
   			new = &((*new)->rb_right);
 		}
   	}
+
+	if (!list_empty(&key_list)) {
+		list_for_each_entry_safe(key_tmp, key_next, &key_list, list_node) {
+			list_del_init(&key_tmp->list_node);
+			cache_key_delete(key_tmp);
+		}
+		goto again;
+	}
 
 	if (!prev_node)
 		prev_node = rb_first(&cache->cache_tree);
@@ -674,20 +692,24 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
   	struct rb_node **new = &(cache->cache_tree.rb_node), *parent = NULL;
-	struct cache_key *key_tmp = NULL;
+	struct cache_key *key_tmp = NULL, *key_next;
 	struct rb_node	*prev_node = NULL, *next_node = NULL;
 	struct cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cache_key *key = &key_data;
 	struct cbd_cache_pos pos;
 	u32 io_done = 0, total_io_done = 0, io_len = 0;
+	LIST_HEAD(key_list);
 	int ret;
 
 	//pr_err("cache_read: off %llu, len: %u\n", cbd_req->off, cbd_req->data_len);
 
 	mutex_lock(&cache->io_lock);
 	mutex_lock(&cache->tree_lock);
+again:
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
+		if (cache_key_invalid(key_tmp))
+			list_add(&key_tmp->list_node, &key_list);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
@@ -698,6 +720,14 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
   			new = &((*new)->rb_right);
 		}
   	}
+
+	if (!list_empty(&key_list)) {
+		list_for_each_entry_safe(key_tmp, key_next, &key_list, list_node) {
+			list_del_init(&key_tmp->list_node);
+			cache_key_delete(key_tmp);
+		}
+		goto again;
+	}
 
 	if (!prev_node)
 		prev_node = rb_first(&cache->cache_tree);
