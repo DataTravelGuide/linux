@@ -693,7 +693,7 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
   	struct rb_node **new = &(cache->cache_tree.rb_node), *parent = NULL;
 	struct cache_key *key_tmp = NULL, *key_next;
-	struct rb_node	*prev_node = NULL, *next_node = NULL;
+	struct rb_node	*prev_node = NULL;
 	struct cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cache_key *key = &key_data;
 	struct cbd_cache_pos pos;
@@ -706,6 +706,10 @@ int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	mutex_lock(&cache->io_lock);
 	mutex_lock(&cache->tree_lock);
 again:
+	new = &(cache->cache_tree.rb_node);
+	parent = NULL;
+	key_tmp = NULL;
+	prev_node = NULL;
   	while (*new) {
   		key_tmp = container_of(*new, struct cache_key, rb_node);
 		if (cache_key_invalid(key_tmp))
@@ -713,7 +717,6 @@ again:
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
-			next_node = *new;
   			new = &((*new)->rb_left);
 		} else {
 			prev_node = *new;
