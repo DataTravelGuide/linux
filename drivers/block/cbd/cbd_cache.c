@@ -1194,12 +1194,12 @@ static void writeback_fn(struct work_struct *work)
 
 	pos = &cache->dirty_tail;
 	while (true) {
-		pr_err("%px dirty tail: seg %u off: %u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off);
+		//pr_err("%px dirty tail: seg %u off: %u\n", cache, pos->cache_seg->cache_seg_id, pos->seg_off);
 		addr = cache_pos_addr(pos);
 		kset = (struct cache_key_set *)addr;
 		////pr_err("replay kset: %px, magic: %lx, crc: %u\n", kset, kset->magic, kset->crc);
 		if (kset->magic != CBD_KSET_MAGIC) {
-			pr_err("writeback error kset %px magic is not expected. magic: %lx, expected: %lx\n", kset, kset->magic, CBD_KSET_MAGIC);
+			//pr_err("writeback error kset %px magic is not expected. magic: %lx, expected: %lx\n", kset, kset->magic, CBD_KSET_MAGIC);
 			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 			return;
 		}
@@ -1298,7 +1298,7 @@ static void gc_fn(struct work_struct *work)
 	while (true) {
 		if (!need_gc(cache)) {
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
-			pr_err("%px gc error dont need gc\n", cache);
+			//pr_err("%px gc error dont need gc\n", cache);
 			return;
 		}
 
