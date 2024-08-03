@@ -268,7 +268,7 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		struct cbd_cache_opts cache_opts = { 0 };
 
 		cache_opts.cache_info = cache_info;
-		cache_opts.alloc_segs = true;
+		cache_opts.alloc_segs = new_backend;
 		cache_opts.start_writeback = true;
 		cache_opts.start_gc = false;
 		cache_opts.init_keys = false;
