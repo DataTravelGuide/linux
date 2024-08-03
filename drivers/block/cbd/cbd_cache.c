@@ -391,6 +391,9 @@ static void kset_head_close(struct cbd_cache *cache)
 
 	kset = get_cur_kset(cache);
 
+	if (!kset->key_num)
+		return;
+
 	pos = &cache->key_head;
 	cache_pos_advance(pos, struct_size(kset, data, kset->key_num), false);
 
@@ -1460,6 +1463,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->state = cbd_cache_state_running;
 
 	if (opts->init_keys) {
+		cache->init_keys = 1;
 		ret = cache_replay(cache);
 		if (ret) {
 			pr_err("failed to replay\n");
@@ -1473,6 +1477,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	/* start writeback */
 	if (opts->start_writeback) {
+		cache->start_writeback = 1;
 		ret = cache_writeback_init(cache);
 		if (ret)
 			goto destroy_cache;
@@ -1480,6 +1485,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	/* start gc */
 	if (opts->start_gc) {
+		cache->start_gc = 1;
 		queue_delayed_work(cache->cache_wq, &cache->gc_work, 0);
 	}
 
@@ -1497,18 +1503,23 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 	cache->state = cbd_cache_state_removing;
 
-	cancel_delayed_work_sync(&cache->gc_work);
-	cancel_delayed_work_sync(&cache->gc_work);
+	if (cache->start_gc) {
+		cancel_delayed_work_sync(&cache->gc_work);
+		cancel_delayed_work_sync(&cache->gc_work);
+	}
 
-	cache_writeback_exit(cache);
-
+	if (cache->start_writeback)
+		cache_writeback_exit(cache);
 
 	//dump_cache(cache);
-	while (!RB_EMPTY_ROOT(&cache->cache_tree)) {
-		struct rb_node *node = rb_first(&cache->cache_tree);
-		struct cache_key *key = CACHE_KEY(node);
+	if (cache->init_keys) {
+		while (!RB_EMPTY_ROOT(&cache->cache_tree)) {
+			struct rb_node *node = rb_first(&cache->cache_tree);
+			struct cache_key *key = CACHE_KEY(node);
 
-		cache_key_delete(key);
+			cache_key_delete(key);
+		}
+		kset_head_close(cache);
 	}
 
 	if (cache->cache_wq) {
