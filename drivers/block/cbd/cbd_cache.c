@@ -873,11 +873,18 @@ err:
 	return ret;
 }
 
+static int cache_flush(struct cbd_cache *cache)
+{
+	kset_head_close(cache);
+
+	return 0;
+}
+
 int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	switch (cbd_req->op) {
 	case CBD_OP_FLUSH:
-		break;
+		return cache_flush(cache);
 	case CBD_OP_WRITE:
 		return cache_write(cache, cbd_req);
 	case CBD_OP_READ:
@@ -1354,7 +1361,7 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 			cache_key_delete(key);
 		}
-		kset_head_close(cache);
+		cache_flush(cache);
 	}
 
 	if (cache->cache_wq) {
