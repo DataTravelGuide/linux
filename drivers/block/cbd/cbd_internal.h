@@ -787,8 +787,6 @@ bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
 enum cbd_op {
 	CBD_OP_WRITE = 0,
 	CBD_OP_READ,
-	CBD_OP_DISCARD,
-	CBD_OP_WRITE_ZEROES,
 	CBD_OP_FLUSH,
 };
 

@@ -44,8 +44,6 @@ static bool cbd_req_nodata(struct cbd_request *cbd_req)
 	case CBD_OP_WRITE:
 	case CBD_OP_READ:
 		return false;
-	case CBD_OP_DISCARD:
-	case CBD_OP_WRITE_ZEROES:
 	case CBD_OP_FLUSH:
 		return true;
 	default:
@@ -439,12 +437,6 @@ static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	switch (req_op(bd->rq)) {
 	case REQ_OP_FLUSH:
 		cbd_req_init(cbdq, CBD_OP_FLUSH, req);
-		break;
-	case REQ_OP_DISCARD:
-		cbd_req_init(cbdq, CBD_OP_DISCARD, req);
-		break;
-	case REQ_OP_WRITE_ZEROES:
-		cbd_req_init(cbdq, CBD_OP_WRITE_ZEROES, req);
 		break;
 	case REQ_OP_WRITE:
 		cbd_req_init(cbdq, CBD_OP_WRITE, req);

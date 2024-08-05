@@ -90,14 +90,6 @@ static int handle_backend_cmd(struct cbd_handler *handler, struct cbd_se *se)
 	case CBD_OP_WRITE:
 		backend_io = backend_prepare_io(handler, se, REQ_OP_WRITE);
 		break;
-	case CBD_OP_DISCARD:
-		ret = blkdev_issue_discard(cbdb->bdev, se->offset >> SECTOR_SHIFT,
-				se->len, GFP_KERNEL);
-		goto complete_cmd;
-	case CBD_OP_WRITE_ZEROES:
-		ret = blkdev_issue_zeroout(cbdb->bdev, se->offset >> SECTOR_SHIFT,
-				se->len, GFP_KERNEL, 0);
-		goto complete_cmd;
 	case CBD_OP_FLUSH:
 		ret = blkdev_issue_flush(cbdb->bdev);
 		goto complete_cmd;
