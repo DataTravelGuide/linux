@@ -135,8 +135,7 @@
 #define CBD_PATH_LEN	512
 #define CBD_NAME_LEN	32
 
-/* TODO support multi queue */
-#define CBD_QUEUES_MAX		1
+#define CBD_QUEUES_MAX		128
 
 #define CBD_PART_SHIFT 4
 #define CBD_DRV_NAME "cbd"
