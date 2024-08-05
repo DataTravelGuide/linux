@@ -654,7 +654,9 @@ struct cbd_cache {
 	struct cbd_cache_info		*cache_info;
 	u32				cache_id;	/* same with related backend->backend_id */
 
+	struct mutex			data_head_lock;
 	struct cbd_cache_pos		data_head;
+	struct mutex			key_head_lock;
 	struct cbd_cache_pos		key_head;
 
 	struct cbd_cache_pos		key_tail;
@@ -662,7 +664,6 @@ struct cbd_cache {
 
 	struct kmem_cache		*key_cache;
 	struct rb_root			cache_tree;
-	struct mutex			io_lock;
 	struct mutex			tree_lock;
 
 	struct workqueue_struct		*cache_wq;

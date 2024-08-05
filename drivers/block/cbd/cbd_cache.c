@@ -123,8 +123,6 @@ static struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache)
 	struct cbd_cache_segment *cache_seg;
 	u32 seg_id;
 
-	mutex_is_locked(&cache->io_lock);
-
 again:
 	spin_lock(&cache->seg_map_lock);
 	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, cache->last_cache_seg);
@@ -383,12 +381,15 @@ static void cache_key_append(struct cbd_cache *cache, struct cache_key *key)
 	struct cache_key_set *kset;
 	struct cache_key_onmedia *key_onmedia;
 
+	mutex_lock(&cache->key_head_lock);
 	kset = get_cur_kset(cache);
 	key_onmedia = &kset->data[kset->key_num];
 	cache_key_encode(key_onmedia, key);
 
 	if (++kset->key_num >= CBD_KSET_KEYS_MAX)
 		kset_head_close(cache);
+
+	mutex_unlock(&cache->key_head_lock);
 }
 
 static int cache_insert_key(struct cbd_cache *cache, struct cache_key *key, bool fixup);
@@ -567,6 +568,7 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cache_key *key)
 	u32 seg_remain;
 	u32 allocated = 0, to_alloc;
 
+	mutex_lock(&cache->data_head_lock);
 again:
 	cache_pos_copy(&key->cache_pos, &cache->data_head);
 
@@ -587,6 +589,7 @@ again:
 		goto again;
 	}
 
+	mutex_unlock(&cache->data_head_lock);
 	return 0;
 }
 
@@ -657,7 +660,6 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	LIST_HEAD(key_list);
 	int ret;
 
-	mutex_lock(&cache->io_lock);
 	mutex_lock(&cache->tree_lock);
 again:
 	new = &(cache->cache_tree.rb_node);
@@ -812,7 +814,6 @@ next:
 
 out:
 	mutex_unlock(&cache->tree_lock);
-	mutex_unlock(&cache->io_lock);
 
 	return ret;
 }
@@ -826,7 +827,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	int ret;
 
 	/* TODO support writethrough and writearound */
-	mutex_lock(&cache->io_lock);
 	while (true) {
 		if (io_done >= length)
 			break;
@@ -869,13 +869,14 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 	ret = 0;
 err:
-	mutex_unlock(&cache->io_lock);
 	return ret;
 }
 
 static int cache_flush(struct cbd_cache *cache)
 {
+	mutex_lock(&cache->key_head_lock);
 	kset_head_close(cache);
+	mutex_unlock(&cache->key_head_lock);
 
 	return 0;
 }
@@ -936,7 +937,6 @@ static int cache_replay(struct cbd_cache *cache)
 	void *addr;
 	int i;
 
-	mutex_lock(&cache->io_lock);
 	cache_pos_copy(&pos_tail, &cache->key_tail);
 	pos = &pos_tail;
 
@@ -985,15 +985,19 @@ static int cache_replay(struct cbd_cache *cache)
 		cache_pos_advance(pos, struct_size(kset, data, kset->key_num), false);
 	}
 
+	mutex_lock(&cache->key_head_lock);
 	cache_pos_copy(&cache->key_head, pos);
+	mutex_unlock(&cache->key_head_lock);
+
 	if (last_key) {
 		cache_pos_copy(&cache->data_head, &last_key->cache_pos);
 		cache_pos_advance(&cache->data_head, key->len, false);
 	} else {
+		mutex_lock(&cache->data_head_lock);
 		cache_data_head_init(cache);
+		mutex_unlock(&cache->data_head_lock);
 	}
 out:
-	mutex_unlock(&cache->io_lock);
 	return ret;
 }
 
@@ -1280,10 +1284,12 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
 	cache->cache_tree = RB_ROOT;
-	mutex_init(&cache->io_lock);
 	mutex_init(&cache->tree_lock);
 	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
+
+	mutex_init(&cache->data_head_lock);
+	mutex_init(&cache->key_head_lock);
 
 	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
 	INIT_DELAYED_WORK(&cache->gc_work, gc_fn);
