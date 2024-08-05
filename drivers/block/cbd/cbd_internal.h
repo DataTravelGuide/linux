@@ -652,26 +652,91 @@ struct cbd_cache_info {
 	struct cbd_cache_pos_onmedia dirty_tail_pos;
 };
 
+struct cbd_cache_tree {
+	struct rb_root			root;
+	spinlock_t			tree_lock;
+};
+
+struct cbd_cache_data_head {
+	spinlock_t			data_head_lock;
+	struct cbd_cache_pos		head_pos;
+};
+
+struct cbd_cache_key {
+	struct cbd_cache *cache;
+	struct cbd_cache_tree *cache_tree;
+	struct kref ref;
+
+	struct rb_node rb_node;
+	struct list_head list_node;
+
+	u64		off;
+	u32		len;
+	u64		flags;
+
+	struct cbd_cache_pos	cache_pos;
+
+	u64		seg_gen;
+};
+
+struct cbd_cache_key_onmedia {
+	u64	off;
+	u32	len;
+
+	u32	flags;
+
+	u32	cache_seg_id;
+	u32	cache_seg_off;
+
+	u64	seg_gen;
+#ifdef CBD_CRC
+	u32	data_crc;
+#endif
+};
+
+#define CBD_CACHE_KEY_FLAGS_LAST	(1 << 0)
+
+struct cbd_cache_kset_onmedia {
+	u32	crc;
+	u64	magic;
+	u64	flags;
+	u32	key_num;
+	struct cbd_cache_key_onmedia	data[];
+};
+
+#define CBD_KSET_FLAGS_LAST	(1 << 0)
+
+#define CBD_KSET_MAGIC		0x676894a64e164f1aULL
+
+struct cbd_cache_kset {
+	spinlock_t			kset_lock;
+	struct cbd_cache_kset_onmedia	*kset_onmedia;
+};
+
 struct cbd_cache {
 	struct cbd_transport		*cbdt;
 	struct cbd_cache_info		*cache_info;
 	u32				cache_id;	/* same with related backend->backend_id */
 
-	struct mutex			data_head_lock;
-	struct cbd_cache_pos		data_head;
-	struct mutex			key_head_lock;
+	u32				n_heads;
+	struct cbd_cache_data_head	*data_heads;
+
+	spinlock_t			key_head_lock;
 	struct cbd_cache_pos		key_head;
+	u32				n_ksets;
+	struct cbd_cache_kset		*ksets;
 
 	struct cbd_cache_pos		key_tail;
 	struct cbd_cache_pos		dirty_tail;
 
 	struct kmem_cache		*key_cache;
-	struct rb_root			cache_tree;
-	struct mutex			tree_lock;
+	u32				n_trees;
+	struct cbd_cache_tree		*cache_trees;
 
 	struct workqueue_struct		*cache_wq;
 
 	struct file			*bdev_file;
+	u64				dev_size;
 	struct delayed_work		writeback_work;
 	struct delayed_work		gc_work;
 	struct bio_set			*bioset;
@@ -697,6 +762,8 @@ struct cbd_cache_opts {
 	bool start_writeback;
 	bool start_gc;
 	bool init_keys;
+	u64 dev_size;
+	u32 n_paral;
 	struct file *bdev_file;	/* needed for start_writeback is true */
 };
 

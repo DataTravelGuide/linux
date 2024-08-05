@@ -209,11 +209,8 @@ err:
 	return ret;
 }
 
-static void cbd_queue_workfn(struct work_struct *work)
+static void cbd_queue_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 {
-	struct cbd_request *cbd_req =
-		container_of(work, struct cbd_request, work);
-	struct cbd_queue *cbdq = cbd_req->cbdq;
 	int ret;
 
 	if (cbdq->cbd_blkdev->cbd_cache) {
@@ -450,8 +447,7 @@ static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_IOERR;
 	}
 
-	INIT_WORK(&cbd_req->work, cbd_queue_workfn);
-	queue_work(cbdq->cbd_blkdev->task_wq, &cbd_req->work);
+	cbd_queue_req(cbdq, cbd_req);
 
 	return BLK_STS_OK;
 }

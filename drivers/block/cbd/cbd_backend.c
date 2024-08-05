@@ -270,6 +270,7 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		cache_opts.start_gc = false;
 		cache_opts.init_keys = false;
 		cache_opts.bdev_file = backend->bdev_file;
+		cache_opts.dev_size = backend_info->dev_size;
 		backend->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
 		if (!backend->cbd_cache) {
 			ret = -ENOMEM;

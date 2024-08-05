@@ -318,6 +318,8 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		cache_opts.start_writeback = false;
 		cache_opts.start_gc = true;
 		cache_opts.init_keys = true;
+		cache_opts.dev_size = dev_size;
+		cache_opts.n_paral = cbd_blkdev->num_queues;
 		cbd_blkdev->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
 		if (!cbd_blkdev->cbd_cache) {
 			ret = -ENOMEM;
