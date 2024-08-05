@@ -98,7 +98,7 @@ static inline struct cbd_##OBJ##_info						\
 	return start + (info->OBJ_SIZE * id);					\
 }										\
 										\
-struct cbd_##OBJ##_info							\
+struct cbd_##OBJ##_info								\
 *cbdt_get_##OBJ##_info(struct cbd_transport *cbdt, u32 id)			\
 {										\
 	struct cbd_##OBJ##_info *info;						\
@@ -174,6 +174,7 @@ enum {
 	CBDT_ADM_OPT_QUEUES,
 	CBDT_ADM_OPT_HID,
 	CBDT_ADM_OPT_SID,
+	CBDT_ADM_OPT_CACHE_SIZE,
 };
 
 enum {
@@ -207,6 +208,7 @@ static const match_table_t adm_opt_tokens = {
 	{ CBDT_ADM_OPT_QUEUES,		"queues=%u" },
 	{ CBDT_ADM_OPT_HID,		"host_id=%u" },
 	{ CBDT_ADM_OPT_SID,		"segment_id=%u" },
+	{ CBDT_ADM_OPT_CACHE_SIZE,	"cache_size=%u" },	/* unit is MiB */
 	{ CBDT_ADM_OPT_ERR,		NULL	}
 };
 
@@ -221,6 +223,7 @@ struct cbd_adm_options {
 		} host;
 		struct backend_options {
 			char path[CBD_PATH_LEN];
+			u64 cache_size_M;
 		} backend;
 		struct segment_options {
 			u32 sid;
@@ -306,6 +309,13 @@ static int parse_adm_options(struct cbd_transport *cbdt,
 			}
 			opts->segment.sid = token;
 			break;
+		case CBDT_ADM_OPT_CACHE_SIZE:
+			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			opts->backend.cache_size_M = token;
+			break;
 		default:
 			cbdt_err(cbdt, "unknown parameter or missing value '%s'\n", p);
 			ret = -EINVAL;
@@ -320,6 +330,17 @@ out:
 void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size)
 {
 	memset(pos, 0, size);
+}
+
+static void segments_format(struct cbd_transport *cbdt)
+{
+	u32 i;
+	struct cbd_segment_info *seg_info;
+
+	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
+		seg_info = cbdt_get_segment_info(cbdt, i);
+		cbdt_zero_range(cbdt, seg_info, sizeof(struct cbd_segment_info));
+	}
 }
 
 static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
@@ -380,11 +401,25 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	cbdt_zero_range(cbdt, (void *)info + info->host_area_off,
 			     info->segment_area_off - info->host_area_off);
 
+	segments_format(cbdt);
+
 	return 0;
 }
 
-
-
+/*
+ * Any transport metadata allocation or reclaim should be in the
+ * control operation rutine
+ *
+ * All transport space allocation and deallocation should occur within the control flow,
+ * specifically within `adm_store()`, so that all transport space allocation
+ * and deallocation are managed within this function. This prevents other processes
+ * from involving transport space allocation and deallocation. By making `adm_store`
+ * exclusive, we can manage space effectively. For a single-host scenario, `adm_lock`
+ * can ensure mutual exclusion of `adm_store`. However, in a multi-host scenario,
+ * we need a distributed lock to guarantee that all `adm_store` calls are mutually exclusive.
+ *
+ * TODO: Is there a way to lock the CXL shared memory device?
+ */
 static ssize_t adm_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *ubuf,
@@ -415,9 +450,16 @@ static ssize_t adm_store(struct device *dev,
 	}
 	kfree(buf);
 
+	mutex_lock(&cbdt->adm_lock);
 	switch (opts.op) {
 	case CBDT_ADM_OP_B_START:
-		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id);
+		u32 cache_segs = 0;
+
+		if (opts.backend.cache_size_M > 0)
+			cache_segs = DIV_ROUND_UP(opts.backend.cache_size_M,
+					cbdt->transport_info->segment_size / CBD_MB);
+
+		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id, cache_segs);
 		break;
 	case CBDT_ADM_OP_B_STOP:
 		ret = cbd_backend_stop(cbdt, opts.backend_id, opts.force);
@@ -427,6 +469,7 @@ static ssize_t adm_store(struct device *dev,
 		break;
 	case CBDT_ADM_OP_DEV_START:
 		if (opts.blkdev.queues > CBD_QUEUES_MAX) {
+			mutex_unlock(&cbdt->adm_lock);
 			cbdt_err(cbdt, "invalid queues = %u, larger than max %u\n",
 					opts.blkdev.queues, CBD_QUEUES_MAX);
 			return -EINVAL;
@@ -446,9 +489,11 @@ static ssize_t adm_store(struct device *dev,
 		ret = cbd_segment_clear(cbdt, opts.segment.sid);
 		break;
 	default:
+		mutex_unlock(&cbdt->adm_lock);
 		cbdt_err(cbdt, "invalid op: %d\n", opts.op);
 		return -EINVAL;
 	}
+	mutex_unlock(&cbdt->adm_lock);
 
 	if (ret < 0)
 		return ret;
@@ -650,6 +695,7 @@ static int cbd_transport_init(struct cbd_transport *cbdt)
 	struct device *dev;
 
 	mutex_init(&cbdt->lock);
+	mutex_init(&cbdt->adm_lock);
 	INIT_LIST_HEAD(&cbdt->backends);
 	INIT_LIST_HEAD(&cbdt->devices);
 

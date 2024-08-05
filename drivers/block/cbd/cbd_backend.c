@@ -151,10 +151,11 @@ static void state_work_fn(struct work_struct *work)
 	queue_delayed_work(cbd_wq, &cbdb->state_work, 1 * HZ);
 }
 
-static int cbd_backend_init(struct cbd_backend *cbdb)
+static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
 {
 	struct cbd_backend_info *b_info;
 	struct cbd_transport *cbdt = cbdb->cbdt;
+	int ret;
 
 	b_info = cbdt_get_backend_info(cbdt, cbdb->backend_id);
 	cbdb->backend_info = b_info;
@@ -162,26 +163,37 @@ static int cbd_backend_init(struct cbd_backend *cbdb)
 	b_info->host_id = cbdb->cbdt->host->host_id;
 
 	cbdb->backend_io_cache = KMEM_CACHE(cbd_backend_io, 0);
-	if (!cbdb->backend_io_cache)
-		return -ENOMEM;
+	if (!cbdb->backend_io_cache) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	cbdb->task_wq = alloc_workqueue("cbdt%d-b%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
 					0, cbdt->id, cbdb->backend_id);
 	if (!cbdb->task_wq) {
-		kmem_cache_destroy(cbdb->backend_io_cache);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto destroy_io_cache;
 	}
 
 	cbdb->bdev_file = bdev_file_open_by_path(cbdb->path,
 			BLK_OPEN_READ | BLK_OPEN_WRITE, cbdb, NULL);
 	if (IS_ERR(cbdb->bdev_file)) {
 		cbdt_err(cbdt, "failed to open bdev: %d", (int)PTR_ERR(cbdb->bdev_file));
-		destroy_workqueue(cbdb->task_wq);
-		kmem_cache_destroy(cbdb->backend_io_cache);
-		return PTR_ERR(cbdb->bdev_file);
+		ret = PTR_ERR(cbdb->bdev_file);
+		goto destroy_wq;
 	}
+
 	cbdb->bdev = file_bdev(cbdb->bdev_file);
-	b_info->dev_size = bdev_nr_sectors(cbdb->bdev);
+	if (new_backend) {
+		b_info->dev_size = bdev_nr_sectors(cbdb->bdev);
+	} else {
+		if (b_info->dev_size != bdev_nr_sectors(cbdb->bdev)) {
+			cbdt_err(cbdt, "Unexpected backend size: %llu, expected: %llu\n",
+				 bdev_nr_sectors(cbdb->bdev), b_info->dev_size);
+			ret = -EINVAL;
+			goto close_file;
+		}
+	}
 
 	INIT_DELAYED_WORK(&cbdb->state_work, state_work_fn);
 	INIT_DELAYED_WORK(&cbdb->hb_work, backend_hb_workfn);
@@ -190,27 +202,48 @@ static int cbd_backend_init(struct cbd_backend *cbdb)
 
 	mutex_init(&cbdb->lock);
 
+	b_info->state = cbd_backend_state_running;
+
 	queue_delayed_work(cbd_wq, &cbdb->state_work, 0);
 	queue_delayed_work(cbd_wq, &cbdb->hb_work, 0);
 
 	return 0;
+
+close_file:
+	fput(cbdb->bdev_file);
+destroy_wq:
+	destroy_workqueue(cbdb->task_wq);
+destroy_io_cache:
+	kmem_cache_destroy(cbdb->backend_io_cache);
+err:
+	return ret;
 }
 
-int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
+int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs)
 {
 	struct cbd_backend *backend;
 	struct cbd_backend_info *backend_info;
+	struct cbd_cache_info *cache_info;
+	bool new_backend = false;
 	int ret;
 
-	if (backend_id == U32_MAX) {
+	if (backend_id == U32_MAX)
+		new_backend = true;
+
+	if (new_backend) {
 		ret = cbdt_get_empty_backend_id(cbdt, &backend_id);
 		if (ret)
 			return ret;
+
+		backend_info = cbdt_get_backend_info(cbdt, backend_id);
+		cache_info = &backend_info->cache_info;
+		cache_info->n_segs = cache_segs;
+	} else {
+		backend_info = cbdt_get_backend_info(cbdt, backend_id);
+		cache_info = &backend_info->cache_info;
 	}
 
-	backend_info = cbdt_get_backend_info(cbdt, backend_id);
-
-	backend = kzalloc(sizeof(struct cbd_backend), GFP_KERNEL);
+	backend = kzalloc(sizeof(*backend), GFP_KERNEL);
 	if (!backend)
 		return -ENOMEM;
 
@@ -220,18 +253,34 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id)
 	backend->backend_id = backend_id;
 	backend->cbdt = cbdt;
 
-	ret = cbd_backend_init(backend);
-	if (ret)
-		goto backend_free;
-
-	backend_info->state = cbd_backend_state_running;
+	ret = cbd_backend_init(backend, new_backend);
+	if (ret) {
+		kfree(backend);
+		return ret;
+	}
 
 	cbdt_add_backend(cbdt, backend);
 
+	if (cache_info->n_segs) {
+		struct cbd_cache_opts cache_opts = { 0 };
+
+		cache_opts.cache_info = cache_info;
+		cache_opts.alloc_segs = new_backend;
+		cache_opts.start_writeback = true;
+		cache_opts.start_gc = false;
+		cache_opts.init_keys = false;
+		cache_opts.bdev_file = backend->bdev_file;
+		backend->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
+		if (!backend->cbd_cache) {
+			ret = -ENOMEM;
+			goto backend_stop;
+		}
+	}
+
 	return 0;
 
-backend_free:
-	kfree(backend);
+backend_stop:
+	cbd_backend_stop(cbdt, backend_id, true);
 
 	return ret;
 }
@@ -251,9 +300,16 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 		mutex_unlock(&cbdb->lock);
 		return -EBUSY;
 	}
+
+	cbdb->backend_info->state = cbd_backend_state_removing;
 	cbdt_del_backend(cbdt, cbdb);
 
+	if (cbdb->cbd_cache)
+		cbd_cache_destroy(cbdb->cbd_cache);
+
 	cancel_delayed_work_sync(&cbdb->hb_work);
+	cancel_delayed_work_sync(&cbdb->hb_work);
+	cancel_delayed_work_sync(&cbdb->state_work);
 	cancel_delayed_work_sync(&cbdb->state_work);
 
 	mutex_unlock(&cbdb->lock);
@@ -293,4 +349,9 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 	backend_info->state = cbd_backend_state_none;
 
 	return 0;
+}
+
+bool cbd_backend_cache_on(struct cbd_backend_info *backend_info)
+{
+	return (backend_info->cache_info.n_segs != 0);
 }

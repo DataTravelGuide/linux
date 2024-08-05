@@ -97,6 +97,8 @@ int cbd_host_unregister(struct cbd_transport *cbdt)
 		return 0;
 	}
 
+	host->host_info->state = cbd_host_state_removing;
+	cancel_delayed_work_sync(&host->hb_work);
 	cancel_delayed_work_sync(&host->hb_work);
 	host_info = host->host_info;
 	memset(host_info->hostname, 0, CBD_NAME_LEN);

@@ -29,7 +29,7 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 #endif
 	CBDC_UPDATE_COMPR_HEAD(handler->channel_info->compr_head,
 			       sizeof(struct cbd_ce),
-			       handler->channel_info->compr_size);
+			       handler->channel.compr_size);
 }
 
 static void backend_bio_end(struct bio *bio)
@@ -43,46 +43,6 @@ static void backend_bio_end(struct bio *bio)
 
 	bio_put(bio);
 	kmem_cache_free(cbdb->backend_io_cache, backend_io);
-}
-
-static int cbd_map_pages(struct cbd_transport *cbdt, struct cbd_handler *handler,
-			 struct cbd_backend_io *io)
-{
-	struct cbd_se *se = io->se;
-	u32 off = se->data_off;
-	u32 size = se->data_len;
-	u32 done = 0;
-	struct page *page;
-	u32 page_off;
-	int ret = 0;
-	int id;
-
-	id = dax_read_lock();
-	while (size) {
-		unsigned int len = min_t(size_t, PAGE_SIZE, size);
-		u32 channel_off = off + done;
-
-		if (channel_off >= CBDC_DATA_SIZE)
-			channel_off %= CBDC_DATA_SIZE;
-		u64 transport_off = (void *)handler->channel.data -
-					(void *)cbdt->transport_info + channel_off;
-
-		page = cbdt_page(cbdt, transport_off, &page_off);
-
-		ret = bio_add_page(io->bio, page, len, 0);
-		if (unlikely(ret != len)) {
-			cbdt_err(cbdt, "failed to add page");
-			goto out;
-		}
-
-		done += len;
-		size -= len;
-	}
-
-	ret = 0;
-out:
-	dax_read_unlock(id);
-	return ret;
 }
 
 static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
@@ -100,6 +60,11 @@ static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 	backend_io->bio = bio_alloc_bioset(cbdb->bdev,
 				DIV_ROUND_UP(se->len, PAGE_SIZE),
 				opf, GFP_KERNEL, &handler->bioset);
+
+	if (!backend_io->bio) {
+		kmem_cache_free(cbdb->backend_io_cache, backend_io);
+		return NULL;
+	}
 
 	backend_io->bio->bi_iter.bi_sector = se->offset >> SECTOR_SHIFT;
 	backend_io->bio->bi_iter.bi_size = 0;
@@ -129,7 +94,7 @@ static int handle_backend_cmd(struct cbd_handler *handler, struct cbd_se *se)
 		ret = blkdev_issue_discard(cbdb->bdev, se->offset >> SECTOR_SHIFT,
 				se->len, GFP_KERNEL);
 		goto complete_cmd;
-	case CBD_OP_WRITE_ZEROS:
+	case CBD_OP_WRITE_ZEROES:
 		ret = blkdev_issue_zeroout(cbdb->bdev, se->offset >> SECTOR_SHIFT,
 				se->len, GFP_KERNEL, 0);
 		goto complete_cmd;
@@ -145,7 +110,7 @@ static int handle_backend_cmd(struct cbd_handler *handler, struct cbd_se *se)
 	if (!backend_io)
 		return -ENOMEM;
 
-	ret = cbd_map_pages(cbdb->cbdt, handler, backend_io);
+	ret = cbdc_map_pages(&handler->channel, backend_io);
 	if (ret) {
 		kmem_cache_free(cbdb->backend_io_cache, backend_io);
 		return ret;
@@ -167,6 +132,7 @@ static void handle_work_fn(struct work_struct *work)
 	struct cbd_se *se;
 	u64 req_tid;
 	int ret;
+
 again:
 	/* channel ctrl would be updated by blkdev queue */
 	se = get_se_to_handle(handler);
@@ -205,7 +171,7 @@ again:
 		/* this se is handled */
 		handler->req_tid_expected = req_tid + 1;
 		handler->se_to_handle = (handler->se_to_handle + sizeof(struct cbd_se)) %
-							handler->channel_info->submr_size;
+							handler->channel.submr_size;
 	}
 
 	goto again;
@@ -223,10 +189,15 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 {
 	struct cbd_transport *cbdt = cbdb->cbdt;
 	struct cbd_handler *handler;
+	int ret;
 
 	handler = kzalloc(sizeof(struct cbd_handler), GFP_KERNEL);
 	if (!handler)
 		return -ENOMEM;
+
+	ret = bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
+	if (ret)
+		goto err;
 
 	handler->cbdb = cbdb;
 	cbd_channel_init(&handler->channel, cbdt, channel_id);
@@ -238,7 +209,6 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 	INIT_DELAYED_WORK(&handler->handle_work, handle_work_fn);
 	INIT_LIST_HEAD(&handler->handlers_node);
 
-	bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
 	cbdwc_init(&handler->handle_worker_cfg);
 
 	cbdb_add_handler(cbdb, handler);
@@ -247,6 +217,9 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 
 	return 0;
+err:
+	kfree(handler);
+	return ret;
 };
 
 void cbd_handler_destroy(struct cbd_handler *handler)
@@ -255,8 +228,8 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 
 	cancel_delayed_work_sync(&handler->handle_work);
 
-	cbd_channel_exit(&handler->channel);
 	handler->channel_info->backend_state = cbdc_backend_state_none;
+	cbd_channel_exit(&handler->channel);
 
 	bioset_exit(&handler->bioset);
 	kfree(handler);

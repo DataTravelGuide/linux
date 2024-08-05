@@ -118,6 +118,19 @@
 	cbdt_debug(channel->cbdt, "channel%d: " fmt,				\
 		 channel->seg_id, ##__VA_ARGS__)
 
+#define cbd_cache_err(cache, fmt, ...)						\
+	cbdt_err(cache->cbdt, "cache%d: " fmt,					\
+		 cache->cache_id, ##__VA_ARGS__)
+#define cbd_cache_info(cache, fmt, ...)						\
+	cbdt_info(cache->cbdt, "cache%d: " fmt,					\
+		 cache->cache_id, ##__VA_ARGS__)
+#define cbd_cache_debug(cache, fmt, ...)					\
+	cbdt_debug(cache->cbdt, "cache%d: " fmt,				\
+		 cache->cache_id, ##__VA_ARGS__)
+
+#define CBD_KB	(1024)
+#define CBD_MB	(CBD_KB * CBD_KB)
+
 #define CBD_TRANSPORT_MAX	1024
 #define CBD_PATH_LEN	512
 #define CBD_NAME_LEN	32
@@ -364,6 +377,7 @@ struct cbd_transport {
 	u16	id;
 	struct device device;
 	struct mutex lock;
+	struct mutex adm_lock;
 
 	struct cbd_transport_info *transport_info;
 
@@ -390,6 +404,8 @@ struct cbdt_register_options {
 
 struct cbd_blkdev;
 struct cbd_backend;
+struct cbd_backend_io;
+struct cbd_cache;
 
 int cbdt_register(struct cbdt_register_options *opts);
 int cbdt_unregister(u32 transport_id);
@@ -423,7 +439,8 @@ CBD_DEVICE(host);
 
 enum cbd_host_state {
 	cbd_host_state_none	= 0,
-	cbd_host_state_running
+	cbd_host_state_running,
+	cbd_host_state_removing
 };
 
 struct cbd_host_info {
@@ -452,16 +469,21 @@ CBD_DEVICE(segment);
 enum cbd_segment_state {
 	cbd_segment_state_none		= 0,
 	cbd_segment_state_running,
+	cbd_segment_state_removing
 };
 
 enum cbd_seg_type {
-	cbds_type_channel = 0
+	cbds_type_none = 0,
+	cbds_type_channel,
+	cbds_type_cache
 };
 
 static inline const char *cbds_type_str(enum cbd_seg_type type)
 {
 	if (type == cbds_type_channel)
 		return "channel";
+	else if (type == cbds_type_cache)
+		return "cache";
 
 	return "Unknown";
 }
@@ -469,26 +491,56 @@ static inline const char *cbds_type_str(enum cbd_seg_type type)
 struct cbd_segment_info {
 	u8 state;
 	u8 type;
+	u8 ref;
 	u32 next_seg;
 	u64 alive_ts;
 };
 
+struct cbd_seg_pos {
+	struct cbd_segment *segment;
+	u32 off;
+};
+
+struct cbd_seg_ops {
+	void (*sanitize_pos)(struct cbd_seg_pos *pos);
+};
+
+struct cbds_init_options {
+	u32 seg_id;
+	enum cbd_seg_type type;
+	u32 data_off;
+	struct cbd_seg_ops *seg_ops;
+	void *priv_data;
+};
+
 struct cbd_segment {
 	struct cbd_transport		*cbdt;
+	struct cbd_segment		*next;
 
 	u32				seg_id;
 	struct cbd_segment_info		*segment_info;
+	struct cbd_seg_ops		*seg_ops;
 
-	struct cbd_segment		*next;
+	void				*data;
+	u32				data_size;
 
-	struct delayed_work	hb_work; /* heartbeat work */
+	void				*priv_data;
+
+	struct delayed_work		hb_work; /* heartbeat work */
 };
 
 int cbd_segment_clear(struct cbd_transport *cbdt, u32 segment_id);
-void cbd_segment_init(struct cbd_segment *segment,
-		      struct cbd_transport *cbdt, u32 segment_id);
+void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
+		      struct cbds_init_options *options);
 void cbd_segment_exit(struct cbd_segment *segment);
 bool cbd_segment_info_is_alive(struct cbd_segment_info *info);
+void cbds_copy_to_bio(struct cbd_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
+void cbds_copy_from_bio(struct cbd_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
+u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
+int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io);
+int cbds_pos_advance(struct cbd_seg_pos *seg_pos);
 
 /* cbd_channel */
 
@@ -512,15 +564,11 @@ struct cbd_channel_info {
 	u8	backend_state;
 	u32	backend_id;
 
-	u32	submr_off;
-	u32	submr_size;
 	u32	submr_head;
 	u32	submr_tail;
 
 	u32	compr_head;
 	u32	compr_tail;
-	u32	compr_off;
-	u32	compr_size;
 };
 
 struct cbd_channel {
@@ -533,7 +581,9 @@ struct cbd_channel {
 
 	void				*submr;
 	void				*compr;
-	void				*data;
+
+	u32				submr_size;
+	u32				compr_size;
 
 	u32				data_size;
 	u32				data_head;
@@ -546,12 +596,111 @@ struct cbd_channel {
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id);
 void cbd_channel_exit(struct cbd_channel *channel);
 void cbdc_copy_from_bio(struct cbd_channel *channel,
-		u32 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void cbdc_copy_to_bio(struct cbd_channel *channel,
-		u32 data_off, u32 data_len, struct bio *bio);
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
+int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io);
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf);
+
+/* cbd cache */
+struct cbd_cache_seg_info {
+	struct cbd_segment_info segment_info;	/* first member */
+	u32 flags;
+	u32 next_cache_seg_id;		/* index in cache->segments */
+	u64 gen;
+};
+
+#define CBD_CACHE_SEG_FLAGS_HAS_NEXT	1
+
+enum cbd_cache_blkdev_state {
+	cbd_cache_blkdev_state_none = 0,
+	cbd_cache_blkdev_state_running,
+	cbd_cache_blkdev_state_removing
+};
+
+struct cbd_cache_segment {
+	struct cbd_cache	*cache;
+	u32			cache_seg_id;	/* index in cache->segments */
+	u32			used;
+	u64			gen;
+	struct cbd_cache_seg_info *cache_seg_info;
+	struct cbd_segment	segment;
+};
+
+struct cbd_cache_pos {
+	struct cbd_cache_segment *cache_seg;
+	u32		seg_off;
+};
+
+struct cbd_cache_pos_onmedia {
+	u32 cache_seg_id;
+	u32 seg_off;
+};
+
+struct cbd_cache_info {
+	u8	blkdev_state;
+	u32	blkdev_id;
+
+	u32	seg_id;
+	u32	n_segs;
+
+	struct cbd_cache_pos_onmedia key_tail_pos;
+	struct cbd_cache_pos_onmedia dirty_tail_pos;
+};
+
+struct cbd_cache {
+	struct cbd_transport		*cbdt;
+	struct cbd_cache_info		*cache_info;
+	u32				cache_id;	/* same with related backend->backend_id */
+
+	struct cbd_cache_pos		data_head;
+	struct cbd_cache_pos		key_head;
+
+	struct cbd_cache_pos		key_tail;
+	struct cbd_cache_pos		dirty_tail;
+
+	struct kmem_cache		*key_cache;
+	struct rb_root			cache_tree;
+	struct mutex			io_lock;
+	struct mutex			tree_lock;
+
+	struct workqueue_struct		*cache_wq;
+
+	struct file			*bdev_file;
+	struct delayed_work		writeback_work;
+	struct delayed_work		gc_work;
+	struct bio_set			*bioset;
+
+	struct kmem_cache		*req_cache;
+
+	u32				state:8;
+	u32				init_keys:1;
+	u32				start_writeback:1;
+	u32				start_gc:1;
+
+	u32				n_segs;
+	unsigned long			*seg_map;
+	u32				last_cache_seg;
+	spinlock_t			seg_map_lock;
+	struct cbd_cache_segment	segments[];
+};
+
+struct cbd_request;
+struct cbd_cache_opts {
+	struct cbd_cache_info *cache_info;
+	bool alloc_segs;
+	bool start_writeback;
+	bool start_gc;
+	bool init_keys;
+	struct file *bdev_file;	/* needed for start_writeback is true */
+};
+
+struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
+				  struct cbd_cache_opts *opts);
+void cbd_cache_destroy(struct cbd_cache *cache);
+int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req);
 
 /* cbd_handler */
 struct cbd_handler {
@@ -579,17 +728,20 @@ CBD_DEVICE(backend);
 enum cbd_backend_state {
 	cbd_backend_state_none	= 0,
 	cbd_backend_state_running,
+	cbd_backend_state_removing
 };
 
 #define CBDB_BLKDEV_COUNT_MAX	1
 
 struct cbd_backend_info {
-	u8	state;
-	u32	host_id;
-	u32	blkdev_count;
-	u64	alive_ts;
-	u64	dev_size; /* nr_sectors */
-	char	path[CBD_PATH_LEN];
+	u8			state;
+	u32			host_id;
+	u32			blkdev_count;
+	u64			alive_ts;
+	u64			dev_size; /* nr_sectors */
+	struct cbd_cache_info	cache_info;
+
+	char			path[CBD_PATH_LEN];
 };
 
 struct cbd_backend_io {
@@ -620,21 +772,24 @@ struct cbd_backend {
 	struct cbd_backend_device *backend_device;
 
 	struct kmem_cache	*backend_io_cache;
+
+	struct cbd_cache	*cbd_cache;
 };
 
-int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id);
+int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs);
 int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force);
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id);
 void cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 bool cbd_backend_info_is_alive(struct cbd_backend_info *info);
+bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
 
 /* cbd_queue */
 enum cbd_op {
 	CBD_OP_WRITE = 0,
 	CBD_OP_READ,
 	CBD_OP_DISCARD,
-	CBD_OP_WRITE_ZEROS,
+	CBD_OP_WRITE_ZEROES,
 	CBD_OP_FLUSH,
 };
 
@@ -683,6 +838,11 @@ struct cbd_request {
 	struct cbd_ce		*ce;
 	struct request		*req;
 
+	u64			off;
+	struct bio		*bio;
+	u32			bio_off;
+	spinlock_t		lock; /* race between cache and complete_work to access bio */
+
 	enum cbd_op		op;
 	u64			req_tid;
 	struct list_head	inflight_reqs_node;
@@ -690,6 +850,17 @@ struct cbd_request {
 	u32			data_off;
 	u32			data_len;
 
+	struct work_struct	work;
+
+	struct kref		ref;
+	int			ret;
+	struct cbd_request	*parent;
+	struct kmem_cache	*kmem_cache;
+};
+
+struct cbd_cache_req {
+	struct cbd_cache	*cache;
+	enum cbd_op		op;
 	struct work_struct	work;
 };
 
@@ -734,6 +905,8 @@ struct cbd_queue {
 int cbd_queue_start(struct cbd_queue *cbdq);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
+int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
+void cbd_req_end(struct cbd_request *cbd_req, int ret);
 
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);
@@ -775,14 +948,14 @@ struct cbd_blkdev {
 
 	u64			dev_size;
 
-	atomic_t		state;
-
 	struct workqueue_struct	*task_wq;
 
 	struct cbd_blkdev_device *blkdev_dev;
 	struct cbd_blkdev_info *blkdev_info;
 
 	struct cbd_transport *cbdt;
+
+	struct cbd_cache	*cbd_cache;
 };
 
 int cbd_blkdev_init(void);
