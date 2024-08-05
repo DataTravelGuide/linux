@@ -21,103 +21,26 @@ int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)
 }
 
 void cbdc_copy_to_bio(struct cbd_channel *channel,
-		u32 data_off, u32 data_len, struct bio *bio)
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
-	struct bio_vec bv;
-	struct bvec_iter iter;
-	void *src, *dst;
-	u32 data_head = data_off;
-	u32 to_copy, page_off = 0;
-
-next:
-	bio_for_each_segment(bv, bio, iter) {
-		dst = kmap_local_page(bv.bv_page);
-		page_off = bv.bv_offset;
-again:
-		if (data_head >= CBDC_DATA_SIZE)
-			data_head %= CBDC_DATA_SIZE;
-
-		flush_dcache_page(bv.bv_page);
-		src = channel->data + data_head;
-		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
-			      CBDC_DATA_SIZE - data_head);
-		memcpy_flushcache(dst + page_off, src, to_copy);
-
-		/* advance */
-		data_head += to_copy;
-		page_off += to_copy;
-
-		/* more data in this bv page */
-		if (page_off < bv.bv_offset + bv.bv_len)
-			goto again;
-		kunmap_local(dst);
-	}
-
-	if (bio->bi_next) {
-		bio = bio->bi_next;
-		goto next;
-	}
+	cbds_copy_to_bio(&channel->segment, data_off, data_len, bio, bio_off);
 }
 
 void cbdc_copy_from_bio(struct cbd_channel *channel,
-		u32 data_off, u32 data_len, struct bio *bio)
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
-	struct bio_vec bv;
-	struct bvec_iter iter;
-	void *src, *dst;
-	u32 data_head = data_off;
-	u32 to_copy, page_off = 0;
-
-next:
-	bio_for_each_segment(bv, bio, iter) {
-		src = kmap_local_page(bv.bv_page);
-		page_off = bv.bv_offset;
-again:
-		if (data_head >= CBDC_DATA_SIZE)
-			data_head %= CBDC_DATA_SIZE;
-
-		dst = channel->data + data_head;
-		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
-			      CBDC_DATA_SIZE - data_head);
-
-		memcpy_flushcache(dst, src + page_off, to_copy);
-		flush_dcache_page(bv.bv_page);
-
-		/* advance */
-		data_head += to_copy;
-		page_off += to_copy;
-
-		/* more data in this bv page */
-		if (page_off < bv.bv_offset + bv.bv_len)
-			goto again;
-		kunmap_local(src);
-	}
-
-	if (bio->bi_next) {
-		bio = bio->bi_next;
-		goto next;
-	}
+	cbds_copy_from_bio(&channel->segment, data_off, data_len, bio, bio_off);
 }
 
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len)
 {
-	u32 crc = 0;
-	u32 crc_size;
-	u32 data_head = data_off;
+	return cbd_seg_crc(&channel->segment, data_off, data_len);
+}
 
-	while (data_len) {
-		if (data_head >= CBDC_DATA_SIZE)
-			data_head %= CBDC_DATA_SIZE;
 
-		crc_size = min(CBDC_DATA_SIZE - data_head, data_len);
-
-		crc = crc32(crc, channel->data + data_head, crc_size);
-
-		data_len -= crc_size;
-		data_head += crc_size;
-	}
-
-	return crc;
+int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io)
+{
+	return cbds_map_pages(&channel->segment, io);
 }
 
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf)
@@ -128,19 +51,39 @@ ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char 
 			channel_info->blkdev_id);
 }
 
+static void cbd_channel_seg_sanitize_pos(struct cbd_seg_pos *pos)
+{
+	struct cbd_segment *segment = pos->segment;
+
+	/* channel only use one segment as a ring */
+	while (pos->off >= segment->data_size)
+		pos->off -= segment->data_size;
+}
+
+static struct cbd_seg_ops cbd_channel_seg_ops = {
+	.sanitize_pos = cbd_channel_seg_sanitize_pos
+};
 
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id)
 {
 	struct cbd_channel_info *channel_info = cbdt_get_channel_info(cbdt, seg_id);
+	struct cbd_segment *segment = &channel->segment;
+	struct cbds_init_options seg_options;
 
-	cbd_segment_init(&channel->segment, cbdt, seg_id);
+	seg_options.seg_id = seg_id;
+	seg_options.type = cbds_type_channel;
+	seg_options.data_off = CBDC_DATA_OFF;
+	seg_options.seg_ops = &cbd_channel_seg_ops;
+
+	cbd_segment_init(cbdt, segment, &seg_options);
 
 	channel->cbdt = cbdt;
 	channel->channel_info = channel_info;
 	channel->seg_id = seg_id;
 	channel->submr = (void *)channel_info + CBDC_SUBMR_OFF;
 	channel->compr = (void *)channel_info + CBDC_COMPR_OFF;
-	channel->data = (void *)channel_info + CBDC_DATA_OFF;
+	channel->submr_size = rounddown(CBDC_SUBMR_SIZE, sizeof(struct cbd_se));
+	channel->compr_size = rounddown(CBDC_COMPR_SIZE, sizeof(struct cbd_ce));
 	channel->data_size = CBDC_DATA_SIZE;
 
 	spin_lock_init(&channel->submr_lock);
