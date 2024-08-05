@@ -15,9 +15,18 @@ config BLK_DEV_CBD
 	  If unsure say 'N'.
 
 config CBD_CRC
+	depends on BLK_DEV_CBD
 	bool "Enable CBD checksum"
 	help
 	  When CBD_CRC is enabled, all data sent by CBD will include
 	  a checksum. This includes a data checksum, a submit entry checksum,
 	  and a completion entry checksum. This ensures the integrity of the
 	  data transmitted through the CXL memory device.
+
+config CBD_DEBUG
+	depends on BLK_DEV_CBD
+	bool "Enable CBD debug"
+	help
+	  When CBD_DEBUG is enabled, cbd module will print more messages
+	  for debugging. But that will affact performance, so do not use it
+	  in production case.
