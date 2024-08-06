@@ -95,7 +95,7 @@ static inline struct cbd_##OBJ##_info						\
 										\
 	start += info->OBJ##_area_off;						\
 										\
-	return start + (info->OBJ_SIZE * id);					\
+	return start + ((u64)info->OBJ_SIZE * id);				\
 }										\
 										\
 struct cbd_##OBJ##_info								\
