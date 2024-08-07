@@ -121,6 +121,7 @@ int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id)		\
 	for (i = 0; i < info->OBJ##_num; i++) {					\
 		_info = __get_##OBJ##_info(cbdt, i);				\
 		if (_info->state == cbd_##OBJ##_state_none) {			\
+			cbdt_zero_range(cbdt, _info, info->OBJ_SIZE);			\
 			*id = i;						\
 			goto out;						\
 		}								\
