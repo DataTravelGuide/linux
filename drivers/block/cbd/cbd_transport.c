@@ -611,6 +611,11 @@ static struct cbd_transport *cbdt_alloc(void)
 	if (!cbdt)
 		return NULL;
 
+	mutex_init(&cbdt->lock);
+	mutex_init(&cbdt->adm_lock);
+	INIT_LIST_HEAD(&cbdt->backends);
+	INIT_LIST_HEAD(&cbdt->devices);
+
 	ret = ida_simple_get(&cbd_transport_id_ida, 0, CBD_TRANSPORT_MAX,
 				GFP_KERNEL);
 	if (ret < 0)
@@ -694,11 +699,6 @@ static void cbdt_dax_release(struct cbd_transport *cbdt)
 static int cbd_transport_init(struct cbd_transport *cbdt)
 {
 	struct device *dev;
-
-	mutex_init(&cbdt->lock);
-	mutex_init(&cbdt->adm_lock);
-	INIT_LIST_HEAD(&cbdt->backends);
-	INIT_LIST_HEAD(&cbdt->devices);
 
 	dev = &cbdt->device;
 	device_initialize(dev);
