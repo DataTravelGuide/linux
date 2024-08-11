@@ -117,6 +117,11 @@ complete_cmd:
 	return 0;
 }
 
+void cbd_handler_notify(struct cbd_handler *handler)
+{
+	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
+}
+
 static void handle_work_fn(struct work_struct *work)
 {
 	struct cbd_handler *handler = container_of(work, struct cbd_handler,
@@ -174,7 +179,8 @@ miss:
 
 	cbdwc_miss(&handler->handle_worker_cfg);
 
-	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
+	if (handler->polling)
+		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 }
 
 int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
@@ -195,11 +201,13 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 	cbd_channel_init(&handler->channel, cbdt, channel_id);
 	handler->channel_info = handler->channel.channel_info;
 
+	if (handler->channel_info->polling)
+		handler->polling = true;
+
 	handler->se_to_handle = handler->channel_info->submr_tail;
 	handler->req_tid_expected = U64_MAX;
 
 	INIT_DELAYED_WORK(&handler->handle_work, handle_work_fn);
-	INIT_LIST_HEAD(&handler->handlers_node);
 
 	cbdwc_init(&handler->handle_worker_cfg);
 
