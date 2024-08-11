@@ -194,12 +194,14 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
 #endif
-	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
-
 	CBDC_UPDATE_SUBMR_HEAD(cbdq->channel_info->submr_head,
 			sizeof(struct cbd_se),
 			cbdq->channel.submr_size);
 	spin_unlock(&cbdq->channel.submr_lock);
+
+	if (cbdq->cbd_blkdev->backend)
+		cbd_backend_notify(cbdq->cbd_blkdev->backend, cbdq->channel.seg_id);
+	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 
 	return 0;
 
@@ -478,6 +480,9 @@ static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 
 	cbd_channel_init(&cbdq->channel, cbdt, channel_id);
 	cbdq->channel_info = cbdq->channel.channel_info;
+
+	if (!cbd_blkdev->backend)
+		cbdq->channel_info->polling = true;
 
 	cbdq->channel.data_head = cbdq->channel.data_tail = 0;
 	cbdq->channel_info->submr_tail = cbdq->channel_info->submr_head = 0;

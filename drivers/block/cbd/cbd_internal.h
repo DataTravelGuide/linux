@@ -20,6 +20,7 @@
 #include <linux/uuid.h>
 #include <linux/bitfield.h>
 #include <linux/crc32.h>
+#include <linux/hashtable.h>
 
 /*
  * As shared memory is supported in CXL3.0 spec, we can transfer data via CXL shared memory.
@@ -563,6 +564,8 @@ struct cbd_channel_info {
 	u8	backend_state;
 	u32	backend_id;
 
+	u32	polling:1;
+
 	u32	submr_head;
 	u32	submr_tail;
 
@@ -712,15 +715,18 @@ struct cbd_handler {
 	u32			se_to_handle;
 	u64			req_tid_expected;
 
+	u32			polling:1;
+
 	struct delayed_work	handle_work;
 	struct cbd_worker_cfg	handle_worker_cfg;
 
-	struct list_head	handlers_node;
+	struct hlist_node	hash_node;
 	struct bio_set		bioset;
 };
 
 void cbd_handler_destroy(struct cbd_handler *handler);
 int cbd_handler_create(struct cbd_backend *cbdb, u32 seg_id);
+void cbd_handler_notify(struct cbd_handler *handler);
 
 /* cbd_backend */
 CBD_DEVICE(backend);
@@ -752,6 +758,8 @@ struct cbd_backend_io {
 	struct cbd_handler	*handler;
 };
 
+#define CBD_BACKENDS_HANDLER_BITS	7
+
 struct cbd_backend {
 	u32			backend_id;
 	char			path[CBD_PATH_LEN];
@@ -767,7 +775,7 @@ struct cbd_backend {
 	struct delayed_work	hb_work; /* heartbeat work */
 
 	struct list_head	node; /* cbd_transport->backends */
-	struct list_head	handlers;
+	DECLARE_HASHTABLE(handlers_hash, CBD_BACKENDS_HANDLER_BITS);
 
 	struct cbd_backend_device *backend_device;
 
@@ -783,6 +791,7 @@ void cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 bool cbd_backend_info_is_alive(struct cbd_backend_info *info);
 bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
+void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id);
 
 /* cbd_queue */
 enum cbd_op {
@@ -927,6 +936,8 @@ struct cbd_blkdev {
 	u32			blkdev_id; /* index in transport blkdev area */
 	u32			backend_id;
 	int			mapped_id; /* id in block device such as: /dev/cbd0 */
+
+	struct cbd_backend	*backend; /* reference to backend if blkdev and backend on the same host */
 
 	int			major;		/* blkdev assigned major */
 	int			minor;
