@@ -544,7 +544,6 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 
 	atomic_set(&cbdq->state, cbd_queue_state_removing);
 	cancel_delayed_work_sync(&cbdq->complete_work);
-	cancel_delayed_work_sync(&cbdq->complete_work);
 
 	spin_lock(&cbdq->inflight_reqs_lock);
 	list_splice_init(&cbdq->inflight_reqs, &tmp_list);
