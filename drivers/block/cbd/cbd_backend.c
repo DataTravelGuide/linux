@@ -84,19 +84,11 @@ out:
 	return ret;
 }
 
-int cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
+void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
 {
-	int ret = 0;
-
 	spin_lock(&cbdb->lock);
-	if (cbdb->backend_info->state == cbd_backend_state_removing) {
-		ret = -EFAULT;
-		goto out;
-	}
 	hash_del(&handler->hash_node);
-out:
 	spin_unlock(&cbdb->lock);
-	return ret;
 }
 
 static struct cbd_handler *cbdb_get_handler(struct cbd_backend *cbdb, u32 seg_id)
@@ -306,9 +298,6 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend *cbdb;
 	struct cbd_backend_info *backend_info;
-	struct cbd_handler *handler;
-	struct hlist_node *tmp;
-	int bkt;
 
 	cbdb = cbdt_get_backend(cbdt, backend_id);
 	if (!cbdb)
@@ -324,6 +313,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 		spin_unlock(&cbdb->lock);
 		return -EBUSY;
 	}
+
 	cbdb->backend_info->state = cbd_backend_state_removing;
 	spin_unlock(&cbdb->lock);
 
@@ -334,9 +324,6 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 
 	cancel_delayed_work_sync(&cbdb->hb_work);
 	cancel_delayed_work_sync(&cbdb->state_work);
-
-	hash_for_each_safe(cbdb->handlers_hash, bkt, tmp, handler, hash_node)
-		hash_del(&handler->hash_node);
 
 	backend_info = cbdt_get_backend_info(cbdt, cbdb->backend_id);
 	backend_info->state = cbd_backend_state_none;
