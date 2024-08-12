@@ -69,18 +69,34 @@ const struct device_type cbd_backends_type = {
 	.release	= cbd_backend_release,
 };
 
-void cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
+int cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
 {
-	mutex_lock(&cbdb->lock);
+	int ret = 0;
+
+	spin_lock(&cbdb->lock);
+	if (cbdb->backend_info->state == cbd_backend_state_removing) {
+		ret = -EFAULT;
+		goto out;
+	}
 	hash_add(cbdb->handlers_hash, &handler->hash_node, handler->channel.seg_id);
-	mutex_unlock(&cbdb->lock);
+out:
+	spin_unlock(&cbdb->lock);
+	return ret;
 }
 
-void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
+int cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
 {
-	mutex_lock(&cbdb->lock);
+	int ret = 0;
+
+	spin_lock(&cbdb->lock);
+	if (cbdb->backend_info->state == cbd_backend_state_removing) {
+		ret = -EFAULT;
+		goto out;
+	}
 	hash_del(&handler->hash_node);
-	mutex_unlock(&cbdb->lock);
+out:
+	spin_unlock(&cbdb->lock);
+	return ret;
 }
 
 static struct cbd_handler *cbdb_get_handler(struct cbd_backend *cbdb, u32 seg_id)
@@ -88,7 +104,7 @@ static struct cbd_handler *cbdb_get_handler(struct cbd_backend *cbdb, u32 seg_id
 	struct cbd_handler *handler;
 	bool found = false;
 
-	mutex_lock(&cbdb->lock);
+	spin_lock(&cbdb->lock);
 	hash_for_each_possible(cbdb->handlers_hash, handler,
 			       hash_node, seg_id) {
 		if (handler->channel.seg_id == seg_id) {
@@ -96,7 +112,7 @@ static struct cbd_handler *cbdb_get_handler(struct cbd_backend *cbdb, u32 seg_id
 			break;
 		}
 	}
-	mutex_unlock(&cbdb->lock);
+	spin_unlock(&cbdb->lock);
 
 	if (found)
 		return handler;
@@ -200,7 +216,7 @@ static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
 	hash_init(cbdb->handlers_hash);
 	cbdb->backend_device = &cbdt->cbd_backends_dev->backend_devs[cbdb->backend_id];
 
-	mutex_init(&cbdb->lock);
+	spin_lock_init(&cbdb->lock);
 
 	b_info->state = cbd_backend_state_running;
 
@@ -298,31 +314,32 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 	if (!cbdb)
 		return -ENOENT;
 
-	mutex_lock(&cbdb->lock);
+	spin_lock(&cbdb->lock);
 	if (!hash_empty(cbdb->handlers_hash) && !force) {
-		mutex_unlock(&cbdb->lock);
+		spin_unlock(&cbdb->lock);
 		return -EBUSY;
 	}
 
+	if (cbdb->backend_info->state == cbd_backend_state_removing) {
+		spin_unlock(&cbdb->lock);
+		return -EBUSY;
+	}
 	cbdb->backend_info->state = cbd_backend_state_removing;
+	spin_unlock(&cbdb->lock);
+
 	cbdt_del_backend(cbdt, cbdb);
 
 	if (cbdb->cbd_cache)
 		cbd_cache_destroy(cbdb->cbd_cache);
 
 	cancel_delayed_work_sync(&cbdb->hb_work);
-	cancel_delayed_work_sync(&cbdb->hb_work);
-	cancel_delayed_work_sync(&cbdb->state_work);
 	cancel_delayed_work_sync(&cbdb->state_work);
 
-	mutex_unlock(&cbdb->lock);
 	hash_for_each_safe(cbdb->handlers_hash, bkt, tmp, handler, hash_node)
 		hash_del(&handler->hash_node);
-	mutex_lock(&cbdb->lock);
 
 	backend_info = cbdt_get_backend_info(cbdt, cbdb->backend_id);
 	backend_info->state = cbd_backend_state_none;
-	mutex_unlock(&cbdb->lock);
 
 	drain_workqueue(cbdb->task_wq);
 	destroy_workqueue(cbdb->task_wq);
