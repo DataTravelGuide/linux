@@ -463,7 +463,7 @@ static ssize_t adm_store(struct device *dev,
 		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id, cache_segs);
 		break;
 	case CBDT_ADM_OP_B_STOP:
-		ret = cbd_backend_stop(cbdt, opts.backend_id, opts.force);
+		ret = cbd_backend_stop(cbdt, opts.backend_id);
 		break;
 	case CBDT_ADM_OP_B_CLEAR:
 		ret = cbd_backend_clear(cbdt, opts.backend_id);

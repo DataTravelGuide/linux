@@ -852,7 +852,7 @@ struct cbd_backend {
 };
 
 int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs);
-int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force);
+int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id);
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id);
 int cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 int cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);

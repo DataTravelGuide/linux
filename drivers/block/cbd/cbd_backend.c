@@ -297,12 +297,12 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 	return 0;
 
 backend_stop:
-	cbd_backend_stop(cbdt, backend_id, true);
+	cbd_backend_stop(cbdt, backend_id);
 
 	return ret;
 }
 
-int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
+int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend *cbdb;
 	struct cbd_backend_info *backend_info;
@@ -315,7 +315,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id, bool force)
 		return -ENOENT;
 
 	spin_lock(&cbdb->lock);
-	if (!hash_empty(cbdb->handlers_hash) && !force) {
+	if (!hash_empty(cbdb->handlers_hash)) {
 		spin_unlock(&cbdb->lock);
 		return -EBUSY;
 	}
