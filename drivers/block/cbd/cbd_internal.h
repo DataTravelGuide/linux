@@ -627,8 +627,10 @@ struct cbd_cache_segment {
 	u32			cache_seg_id;	/* index in cache->segments */
 	u32			used;
 	u64			gen;
+	spinlock_t		gen_lock;
 	struct cbd_cache_seg_info *cache_seg_info;
 	struct cbd_segment	segment;
+	atomic_t		keys;
 };
 
 struct cbd_cache_pos {
