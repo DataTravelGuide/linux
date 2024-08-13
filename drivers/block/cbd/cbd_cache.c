@@ -1278,6 +1278,9 @@ static void gc_fn(struct work_struct *work)
 	int i;
 
 	while (true) {
+		if (cache->state == cbd_cache_state_stopping)
+			return;
+
 		if (!need_gc(cache)) {
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
 			return;
@@ -1450,6 +1453,8 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache_pos_decode(cache, &cache_info->key_tail_pos, &cache->key_tail);
 	cache_pos_decode(cache, &cache_info->dirty_tail_pos, &cache->dirty_tail);
 
+	cache->state = cbd_cache_state_running;
+
 	/* start writeback */
 	if (opts->start_writeback) {
 		cache->start_writeback = 1;
@@ -1530,6 +1535,8 @@ destroy_cache:
 void cbd_cache_destroy(struct cbd_cache *cache)
 {
 	int i;
+
+	cache->state = cbd_cache_state_stopping;
 
 	if (cache->start_gc)
 		cancel_delayed_work_sync(&cache->gc_work);

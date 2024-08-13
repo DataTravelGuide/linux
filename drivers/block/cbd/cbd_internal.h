@@ -715,6 +715,12 @@ struct cbd_cache_kset {
 	struct cbd_cache_kset_onmedia	*kset_onmedia;
 };
 
+enum cbd_cache_state {
+	cbd_cache_state_none = 0,
+	cbd_cache_state_running,
+	cbd_cache_state_stopping
+};
+
 struct cbd_cache {
 	struct cbd_transport		*cbdt;
 	struct cbd_cache_info		*cache_info;
