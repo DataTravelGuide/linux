@@ -614,7 +614,9 @@ struct cbd_cache_seg_info {
 	u64 gen;
 };
 
-#define CBD_CACHE_SEG_FLAGS_HAS_NEXT	1
+#define CBD_CACHE_SEG_FLAGS_HAS_NEXT	(1 << 0)
+#define CBD_CACHE_SEG_FLAGS_WB_DONE	(1 << 1)
+#define CBD_CACHE_SEG_FLAGS_GC_DONE	(1 << 2)
 
 enum cbd_cache_blkdev_state {
 	cbd_cache_blkdev_state_none = 0,
