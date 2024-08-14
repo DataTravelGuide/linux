@@ -1126,10 +1126,32 @@ static inline u32 get_backend_id(struct cbd_transport *cbdt,
 	return (backend_off - transport_info->backend_area_off) / transport_info->backend_info_size;
 }
 
+static bool no_more_dirty(struct cbd_cache *cache)
+{
+	struct cbd_cache_kset_onmedia *kset_onmedia;
+	struct cbd_cache_pos *pos;
+	void *addr;
+
+	pos = &cache->dirty_tail;
+
+	addr = cache_pos_addr(pos);
+	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
+	if (kset_onmedia->magic != CBD_KSET_MAGIC)
+		return true;
+
+	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia))
+		return true;
+
+	return false;
+}
+
 static void cache_writeback_exit(struct cbd_cache *cache)
 {
 	if (!cache->bioset)
 		return;
+
+	while (!no_more_dirty(cache))
+		msleep(100);
 
 	cancel_delayed_work_sync(&cache->writeback_work);
 	bioset_exit(cache->bioset);
@@ -1204,20 +1226,16 @@ static void writeback_fn(struct work_struct *work)
 	void *addr;
 	int i;
 
-	pos = &cache->dirty_tail;
 	while (true) {
+		if (no_more_dirty(cache)) {
+			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+			return;
+		}
+
+		pos = &cache->dirty_tail;
+
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
-		if (kset_onmedia->magic != CBD_KSET_MAGIC) {
-			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
-			return;
-		}
-
-		if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
-			return;
-		}
-
 		for (i = 0; i < kset_onmedia->key_num; i++) {
 			key_onmedia = &kset_onmedia->data[i];
 
