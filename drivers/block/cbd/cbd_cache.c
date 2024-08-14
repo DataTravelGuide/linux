@@ -508,7 +508,6 @@ static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, 
 {
 	struct rb_node **new, *parent = NULL;
 	struct cbd_cache_tree *cache_tree;
-	struct cbd_cache_segment *cache_seg;
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
 	struct rb_node	*prev_node = NULL;
 	LIST_HEAD(key_list);
@@ -516,15 +515,8 @@ static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, 
 
 	cache_tree = get_cache_tree(cache, key->off);
 
-	if (new_key) {
+	if (new_key)
 		key->cache_tree = cache_tree;
-
-		cache_seg = key->cache_pos.cache_seg;
-		if (!test_bit(cache_seg->cache_seg_id, cache->seg_map)) {
-			cbd_cache_debug(cache, "set seg in inset key: %u\n", cache_seg->cache_seg_id);
-			set_bit(cache_seg->cache_seg_id, cache->seg_map);
-		}
-	}
 
 again:
 	new = &(cache_tree->root.rb_node);
@@ -595,6 +587,7 @@ again:
 		seg_remain = 0;
 	} else {
 		cache_pos_copy(&key->cache_pos, &data_head->head_pos);
+		key->seg_gen = key->cache_pos.cache_seg->gen;
 
 		head_pos = &data_head->head_pos;
 		cache_seg = head_pos->cache_seg;
@@ -926,7 +919,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 			continue;
 		}
 
-		key->seg_gen = key->cache_pos.cache_seg->gen;
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio, io_done);
 
@@ -1007,19 +999,6 @@ static void cache_pos_decode(struct cbd_cache *cache,
 	pos->seg_off = pos_onmedia->seg_off;
 }
 
-static void cache_set_range(struct cbd_cache *cache,
-			    struct cbd_cache_pos *range_pos,
-			    u32 len)
-{
-	struct cbd_cache_pos pos_data = { 0 };
-	struct cbd_cache_pos *pos;
-
-	cache_pos_copy(&pos_data, range_pos);
-	pos = &pos_data;
-
-	cache_pos_advance(pos, len, true);
-}
-
 static int cache_replay(struct cbd_cache *cache)
 {
 	struct cbd_cache_pos pos_tail;
@@ -1056,7 +1035,6 @@ static int cache_replay(struct cbd_cache *cache)
 
 			cache_key_decode(key_onmedia, key);
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
-			cache_set_range(cache, &key->cache_pos, key->len);
 
 			if (key->seg_gen < key->cache_pos.cache_seg->gen) {
 				cache_key_put(key);
