@@ -1364,8 +1364,11 @@ next_seg:
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
 			cache_pos_encode(cache, &cache->cache_info->key_tail_pos, &cache->key_tail);
+			cbd_cache_debug(cache, "gc kset seg: %u\n", cur_seg->cache_seg_id);
 
+			spin_lock(&cache->seg_map_lock);
 			clear_bit(cur_seg->cache_seg_id, cache->seg_map);
+			spin_unlock(&cache->seg_map_lock);
 		}
 	}
 }
