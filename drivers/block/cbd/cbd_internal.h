@@ -990,7 +990,8 @@ int cbd_queue_start(struct cbd_queue *cbdq);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
-void cbd_req_end(struct cbd_request *cbd_req, int ret);
+void cbd_req_get(struct cbd_request *cbd_req);
+void cbd_req_put(struct cbd_request *cbd_req, int ret);
 
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);

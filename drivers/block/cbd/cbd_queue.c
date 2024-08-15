@@ -146,6 +146,34 @@ static void cbd_req_crc_init(struct cbd_request *cbd_req)
 }
 #endif
 
+static void end_req(struct kref *ref)
+{
+	struct cbd_request *cbd_req = container_of(ref, struct cbd_request, ref);
+	int ret = cbd_req->ret;
+
+	if (cbd_req->req) {
+		if (ret == -ENOMEM || ret == -EBUSY)
+			blk_mq_requeue_request(cbd_req->req, true);
+		else
+			blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
+	}
+
+	if (cbd_req->kmem_cache)
+		kmem_cache_free(cbd_req->kmem_cache, cbd_req);
+}
+
+void cbd_req_get(struct cbd_request *cbd_req)
+{
+	kref_get(&cbd_req->ref);
+}
+
+void cbd_req_put(struct cbd_request *cbd_req, int ret)
+{
+	if (ret && !cbd_req->ret)
+		cbd_req->ret = ret;
+	kref_put(&cbd_req->ref, end_req);
+}
+
 static void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret);
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 {
@@ -190,7 +218,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 	if (!cbd_req_nodata(cbd_req))
 		queue_req_data_init(cbd_req);
 
-	kref_get(&cbd_req->ref);
+	cbd_req_get(cbd_req);
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
 #endif
@@ -220,7 +248,7 @@ static void cbd_queue_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 
 	ret = cbd_queue_req_to_backend(cbd_req);
 end:
-	cbd_req_end(cbd_req, ret);
+	cbd_req_put(cbd_req, ret);
 }
 
 static void advance_subm_ring(struct cbd_queue *cbdq)
@@ -267,29 +295,6 @@ static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len
 	}
 }
 
-static void end_req(struct kref *ref)
-{
-	struct cbd_request *cbd_req = container_of(ref, struct cbd_request, ref);
-	int ret = cbd_req->ret;
-
-	if (cbd_req->req) {
-		if (ret == -ENOMEM || ret == -EBUSY)
-			blk_mq_requeue_request(cbd_req->req, true);
-		else
-			blk_mq_end_request(cbd_req->req, errno_to_blk_status(ret));
-	}
-
-	if (cbd_req->kmem_cache)
-		kmem_cache_free(cbd_req->kmem_cache, cbd_req);
-}
-
-void cbd_req_end(struct cbd_request *cbd_req, int ret)
-{
-	if (ret && !cbd_req->ret)
-		cbd_req->ret = ret;
-	kref_put(&cbd_req->ref, end_req);
-}
-
 static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret)
 {
 	u32 data_off;
@@ -306,9 +311,9 @@ static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_requ
 	advance_data = (!cbd_req_nodata(cbd_req));
 
 	if (cbd_req->parent)
-		cbd_req_end(cbd_req->parent, ret);
+		cbd_req_put(cbd_req->parent, ret);
 
-	cbd_req_end(cbd_req, ret);
+	cbd_req_put(cbd_req, ret);
 
 	spin_lock(&cbdq->channel.submr_lock);
 	advance_subm_ring(cbdq);
@@ -554,7 +559,7 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 				struct cbd_request, inflight_reqs_node);
 		list_del_init(&cbd_req->inflight_reqs_node);
 		cancel_work_sync(&cbd_req->work);
-		cbd_req_end(cbd_req, -EIO);
+		cbd_req_put(cbd_req, -EIO);
 	}
 
 	kfree(cbdq->released_extents);

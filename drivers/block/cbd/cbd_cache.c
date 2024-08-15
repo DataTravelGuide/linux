@@ -677,13 +677,13 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	new_req->data_len = len;
 	new_req->req = NULL;
 
-	kref_get(&cbd_req->ref);
+	cbd_req_get(cbd_req);
 	new_req->parent = cbd_req;
 	new_req->kmem_cache = cache->req_cache;
 
 	ret = cbd_queue_req_to_backend(new_req);
 
-	cbd_req_end(new_req, ret);
+	cbd_req_put(new_req, ret);
 
 	return ret;
 }
