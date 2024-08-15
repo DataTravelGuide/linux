@@ -1210,11 +1210,14 @@ static int cache_writeback(struct cbd_cache *cache, struct cbd_cache_key *key)
 	addr = cache_pos_addr(pos);
 	off = key->off;
 
-	/* TODO write back in async way */
+	/* TODO write back in async way, but it should consider
+	 * the sequence of overwrites. E.g, K1 writes A at 0-4K,
+	 * K2 after K1 writes B to 0-4K, we have to ensure K1
+	 * to be written back before K2.
+	 */
 	written = kernel_write(cache->bdev_file, addr, key->len, &off);
 	if (written != key->len)
 		return -EIO;
-	vfs_fsync(cache->bdev_file, 0);
 
 	return 0;
 }
@@ -1260,6 +1263,8 @@ static void writeback_fn(struct work_struct *work)
 				return;
 			}
 		}
+
+		vfs_fsync(cache->bdev_file, 1);
 
 		cache_pos_advance(pos, CBD_KSET_SIZE, false);
 		cache_pos_encode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
