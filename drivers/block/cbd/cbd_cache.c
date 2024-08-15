@@ -1,5 +1,7 @@
 #include "cbd_internal.h"
 
+#define CBD_CACHE_PARAL_MAX		(128)
+
 #define CBD_CACHE_TREE_SIZE		(4 * 1024 * 1024)
 #define CBD_CACHE_TREE_SIZE_MASK	0x3FFFFF
 #define CBD_CACHE_TREE_SIZE_SHIFT	22
@@ -872,9 +874,8 @@ next:
 	total_io_done += io_done;
 	io_done = 0;
 
-	if (!ret && total_io_done < cbd_req->data_len) {
+	if (!ret && total_io_done < cbd_req->data_len)
 		goto next_tree;
-	}
 
 	return 0;
 out:
@@ -1434,6 +1435,13 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	int ret;
 	int i;
 
+	/* options sanitize */
+	if (opts->n_paral > CBD_CACHE_PARAL_MAX) {
+		cbd_cache_info(cache, "n_paral too large, change to max %u.\n",
+				CBD_CACHE_PARAL_MAX);
+		opts->n_paral = CBD_CACHE_PARAL_MAX;
+	}
+
 	cache_info = opts->cache_info;
 	backend_info = container_of(cache_info, struct cbd_backend_info, cache_info);
 	backend_id = get_backend_id(cbdt, backend_info);
@@ -1548,7 +1556,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		}
 
 		cache->n_ksets = opts->n_paral;
-		cache->ksets = kzalloc(sizeof(struct cbd_cache_kset) * cache->n_ksets, GFP_KERNEL);
+		cache->ksets = kcalloc(cache->n_ksets, sizeof(struct cbd_cache_kset), GFP_KERNEL);
 		if (!cache->ksets) {
 			ret = -ENOMEM;
 			goto destroy_cache;
@@ -1564,7 +1572,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 		/* Init caceh->data_heads */
 		cache->n_heads = opts->n_paral;
-		cache->data_heads = kzalloc(sizeof(struct cbd_cache_data_head) * cache->n_heads, GFP_KERNEL);
+		cache->data_heads = kcalloc(cache->n_heads, sizeof(struct cbd_cache_data_head), GFP_KERNEL);
 		if (!cache->data_heads) {
 			ret = -ENOMEM;
 			goto destroy_cache;
@@ -1633,11 +1641,8 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 	for (i = 0; i < cache->n_segs; i++)
 		cache_seg_exit(&cache->segments[i]);
 
-	if (cache->data_heads)
-		kfree(cache->data_heads);
-
-	if (cache->ksets)
-		kfree(cache->ksets);
+	kfree(cache->data_heads);
+	kfree(cache->ksets);
 
 	if (cache->cache_trees)
 		vfree(cache->cache_trees);
