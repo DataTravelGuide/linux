@@ -681,7 +681,7 @@ struct cbd_cache_key {
 	struct cbd_cache_pos	cache_pos;
 
 	u64		seg_gen;
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 	u32	data_crc;
 #endif
 };
@@ -696,7 +696,7 @@ struct cbd_cache_key_onmedia {
 	u32	cache_seg_off;
 
 	u64	seg_gen;
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 	u32	data_crc;
 #endif
 };

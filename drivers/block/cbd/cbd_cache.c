@@ -159,7 +159,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 	cbd_cache_debug(cache, "gc invalidat seg: %u\n", cache_seg->cache_seg_id);
 
-#ifdef CBD_DEBUG
+#ifdef CONFIG_CBD_DEBUG
 	dump_seg_map(cache);
 #endif
 }
@@ -339,7 +339,7 @@ static void cache_key_encode(struct cbd_cache_key_onmedia *key_onmedia,
 	key_onmedia->seg_gen = key->seg_gen;
 	key_onmedia->flags = key->flags;
 
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 	key_onmedia->data_crc = key->data_crc;
 #endif
 }
@@ -357,7 +357,7 @@ static void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct c
 	key->seg_gen = key_onmedia->seg_gen;
 	key->flags = key_onmedia->flags;
 
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 	key->data_crc = key_onmedia->data_crc;
 #endif
 }
@@ -406,7 +406,7 @@ static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 	kset_onmedia = kset->kset_onmedia;
 
 	key_onmedia = &kset_onmedia->data[kset_onmedia->key_num];
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 	key->data_crc = cache_key_data_crc(key);
 #endif
 	cache_key_encode(key_onmedia, key);
@@ -1044,7 +1044,7 @@ static int cache_replay(struct cbd_cache *cache)
 			}
 
 			cache_key_decode(key_onmedia, key);
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 			if (key->data_crc != cache_key_data_crc(key)) {
 				ret = -EIO;
 				cache_key_put(key);
@@ -1081,7 +1081,7 @@ static int cache_replay(struct cbd_cache *cache)
 		}
 	}
 
-#ifdef CBD_DEBUG
+#ifdef CONFIG_CBD_DEBUG
 	dump_cache(cache);
 #endif
 
@@ -1265,12 +1265,17 @@ static void writeback_fn(struct work_struct *work)
 
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
-#ifdef CBD_CRC
+#ifdef CONFIG_CBD_CRC
 		/* check the data crc */
 		for (i = 0; i < kset_onmedia->key_num; i++) {
-			struct cache_key key_tmp;
+			struct cbd_cache_key key_tmp = { 0 };
 
 			key = &key_tmp;
+
+			kref_init(&key->ref);
+			key->cache = cache;
+			INIT_LIST_HEAD(&key->list_node);
+
 			key_onmedia = &kset_onmedia->data[i];
 
 			cache_key_decode(key_onmedia, key);
@@ -1642,7 +1647,7 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		cache_writeback_exit(cache);
 
 	if (cache->init_keys) {
-#ifdef CBD_DEBUG
+#ifdef CONFIG_CBD_DEBUG
 		dump_cache(cache);
 #endif
 		for (i = 0; i < cache->n_trees; i++) {
