@@ -70,7 +70,7 @@ static void dump_seg_map(struct cbd_cache *cache)
 
 	cbd_cache_info(cache, "------ start seg map dump -------");
 	for (i = 0; i < cache->n_segs; i++)
-		cbd_cache_debug(cache, "seg: %u, %u", i, test_bit(i, cache->seg_map));
+		cbd_cache_info(cache, "seg: %u, %u", i, test_bit(i, cache->seg_map));
 	cbd_cache_info(cache, "------ end seg map dump -------");
 }
 
@@ -89,7 +89,7 @@ static void dump_cache(struct cbd_cache *cache)
 		node = rb_first(&cache_tree->root);
 		while (node) {
 			key = CACHE_KEY(node);
-			cbd_cache_debug(cache, "key: %p gen: %llu key->off: %llu, len: %u, cache: %p segid: %u\n",
+			cbd_cache_info(cache, "key: %p gen: %llu key->off: %llu, len: %u, cache: %p segid: %u\n",
 					key, key->seg_gen, key->off, key->len, cache_pos_addr(&key->cache_pos),
 					key->cache_pos.cache_seg->cache_seg_id);
 			node = rb_next(node);
