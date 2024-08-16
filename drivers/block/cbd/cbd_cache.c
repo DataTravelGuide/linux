@@ -318,6 +318,15 @@ static inline void cache_key_delete(struct cbd_cache_key *key)
 	cache_key_put(key);
 }
 
+static inline u32 cache_key_data_crc(struct cbd_cache_key *key)
+{
+	void *data;
+
+	data = cache_pos_addr(&key->cache_pos);
+
+	return crc32(0, data, key->len);
+}
+
 static void cache_key_encode(struct cbd_cache_key_onmedia *key_onmedia,
 			     struct cbd_cache_key *key)
 {
@@ -331,8 +340,7 @@ static void cache_key_encode(struct cbd_cache_key_onmedia *key_onmedia,
 	key_onmedia->flags = key->flags;
 
 #ifdef CBD_CRC
-	/* TODO */
-	key_onmedia->data_crc = 0;
+	key_onmedia->data_crc = key->data_crc;
 #endif
 }
 
@@ -348,6 +356,10 @@ static void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct c
 
 	key->seg_gen = key_onmedia->seg_gen;
 	key->flags = key_onmedia->flags;
+
+#ifdef CBD_CRC
+	key->data_crc = key_onmedia->data_crc;
+#endif
 }
 
 static inline u32 cache_kset_crc(struct cbd_cache_kset_onmedia *kset_onmedia)
@@ -394,6 +406,9 @@ static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 	kset_onmedia = kset->kset_onmedia;
 
 	key_onmedia = &kset_onmedia->data[kset_onmedia->key_num];
+#ifdef CBD_CRC
+	key->data_crc = cache_key_data_crc(key);
+#endif
 	cache_key_encode(key_onmedia, key);
 
 	if (++kset_onmedia->key_num == CBD_KSET_KEYS_MAX)
@@ -1029,6 +1044,13 @@ static int cache_replay(struct cbd_cache *cache)
 			}
 
 			cache_key_decode(key_onmedia, key);
+#ifdef CBD_CRC
+			if (key->data_crc != cache_key_data_crc(key)) {
+				ret = -EIO;
+				cache_key_put(key);
+				goto out;
+			}
+#endif
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
 			if (key->seg_gen < key->cache_pos.cache_seg->gen) {
@@ -1243,6 +1265,22 @@ static void writeback_fn(struct work_struct *work)
 
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
+#ifdef CBD_CRC
+		/* check the data crc */
+		for (i = 0; i < kset_onmedia->key_num; i++) {
+			struct cache_key key_tmp;
+
+			key = &key_tmp;
+			key_onmedia = &kset_onmedia->data[i];
+
+			cache_key_decode(key_onmedia, key);
+			if (key->data_crc != cache_key_data_crc(key)) {
+				cbd_cache_debug(cache, "data crc is not expected, wait for data ready.\n");
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+				return;
+			}
+		}
+#endif
 		for (i = 0; i < kset_onmedia->key_num; i++) {
 			key_onmedia = &kset_onmedia->data[i];
 
