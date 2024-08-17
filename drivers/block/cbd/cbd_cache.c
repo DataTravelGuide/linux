@@ -1168,6 +1168,8 @@ static void cache_writeback_exit(struct cbd_cache *cache)
 	if (!cache->bioset)
 		return;
 
+	cache_flush(cache);
+
 	while (!no_more_dirty(cache))
 		msleep(100);
 
@@ -1661,7 +1663,6 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 			}
 			spin_unlock(&cache_tree->tree_lock);
 		}
-		cache_flush(cache);
 	}
 
 	if (cache->cache_wq) {
