@@ -1040,6 +1040,8 @@ static int cache_replay(struct cbd_cache *cache)
 			cache_key_decode(key_onmedia, key);
 #ifdef CONFIG_CBD_CRC
 			if (key->data_crc != cache_key_data_crc(key)) {
+				cbd_cache_err(cache, "data_crc error: %x, expected: %x\n",
+						cache_key_data_crc(key), key->data_crc);
 				ret = -EIO;
 				cache_key_put(key);
 				goto out;
