@@ -150,7 +150,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 	cache = cache_seg->cache;
 
 	spin_lock(&cache_seg->gen_lock);
-	cache_seg->gen++;
+	cache_seg->cache_seg_info->gen++;
 	spin_unlock(&cache_seg->gen_lock);
 
 	spin_lock(&cache->seg_map_lock);
@@ -512,7 +512,7 @@ out:
 
 static inline bool cache_key_invalid(struct cbd_cache_key *key)
 {
-	return (key->seg_gen < key->cache_pos.cache_seg->gen);
+	return (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen);
 }
 
 static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
@@ -598,7 +598,7 @@ again:
 		seg_remain = 0;
 	} else {
 		cache_pos_copy(&key->cache_pos, &data_head->head_pos);
-		key->seg_gen = key->cache_pos.cache_seg->gen;
+		key->seg_gen = key->cache_pos.cache_seg->cache_seg_info->gen;
 
 		head_pos = &data_head->head_pos;
 		cache_seg = head_pos->cache_seg;
@@ -650,7 +650,7 @@ static int cache_copy_to_bio(struct cbd_cache *cache, struct cbd_request *cbd_re
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	spin_lock(&cache_seg->gen_lock);
-	if (key_gen < cache_seg->gen) {
+	if (key_gen < cache_seg->cache_seg_info->gen) {
 		spin_unlock(&cache_seg->gen_lock);
 		return -EINVAL;
 	}
@@ -1049,7 +1049,7 @@ static int cache_replay(struct cbd_cache *cache)
 #endif
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
-			if (key->seg_gen < key->cache_pos.cache_seg->gen) {
+			if (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen) {
 				cache_key_put(key);
 			} else {
 				ret = cache_insert_key(cache, key, true);
