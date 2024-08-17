@@ -701,7 +701,8 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct rb_node **new, *parent = NULL;
 	struct cbd_cache_tree *cache_tree;
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
-	struct rb_node	*prev_node = NULL;
+	struct rb_node *node_tmp;
+	struct rb_node*prev_node = NULL;
 	struct cbd_cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cbd_cache_key *key = &key_data;
 	struct cbd_cache_pos pos;
@@ -747,13 +748,6 @@ cleanup_tree:
 
 	if (!prev_node)
 		prev_node = rb_first(&cache_tree->root);
-
-	struct rb_node *node_tmp;
-
-	if (!prev_node) {
-		ret = submit_backing_io(cache, cbd_req, 0, cbd_req->data_len);
-		goto out;
-	}
 
 	node_tmp = prev_node;
 	while (node_tmp) {
