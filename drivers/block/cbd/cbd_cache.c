@@ -1553,20 +1553,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	cache->state = cbd_cache_state_running;
 
-	/* start writeback */
-	if (opts->start_writeback) {
-		cache->start_writeback = 1;
-		ret = cache_writeback_init(cache);
-		if (ret)
-			goto destroy_cache;
-	}
-
-	/* start gc */
-	if (opts->start_gc) {
-		cache->start_gc = 1;
-		queue_delayed_work(cache->cache_wq, &cache->gc_work, 0);
-	}
-
 	if (opts->init_keys) {
 		cache->init_keys = 1;
 
@@ -1620,6 +1606,20 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 			data_head = &cache->data_heads[i];
 			spin_lock_init(&data_head->data_head_lock);
 		}
+	}
+
+	/* start writeback */
+	if (opts->start_writeback) {
+		cache->start_writeback = 1;
+		ret = cache_writeback_init(cache);
+		if (ret)
+			goto destroy_cache;
+	}
+
+	/* start gc */
+	if (opts->start_gc) {
+		cache->start_gc = 1;
+		queue_delayed_work(cache->cache_wq, &cache->gc_work, 0);
 	}
 
 	return cache;
