@@ -387,7 +387,6 @@ static int cache_kset_close(struct cbd_cache *cache, u32 kset_id)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
 	struct cbd_cache_segment *cache_seg;
-	struct cbd_cache_pos *pos;
 	struct cbd_segment *segment;
 	struct cbd_cache_kset *kset;
 	u32 kset_size;
@@ -420,7 +419,7 @@ again:
 		goto again;
 	}
 
-	cache_pos_advance(pos, kset_size, false);
+	cache_pos_advance(&cache->key_head, kset_size, false);
 
 	if (get_seg_remain(&cache->key_head) < CBD_KSET_SIZE)
 		kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
