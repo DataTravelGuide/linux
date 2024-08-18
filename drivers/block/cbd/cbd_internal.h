@@ -716,7 +716,7 @@ struct cbd_cache_kset_onmedia {
 
 struct cbd_cache_kset {
 	spinlock_t			kset_lock;
-	struct cbd_cache_kset_onmedia	*kset_onmedia;
+	struct cbd_cache_kset_onmedia	kset_onmedia;
 };
 
 enum cbd_cache_state {
