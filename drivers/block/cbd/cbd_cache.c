@@ -564,15 +564,13 @@ again:
 		if (ret == -EAGAIN)
 			goto again;
 		else if (ret)
-			goto err;
+			BUG_ON(true);
 	}
 
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_tree->root);
 
 	return 0;
-err:
-	return ret;
 }
 
 static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
@@ -926,18 +924,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio, io_done);
 
-		cache_key_get(key); /* put after io_done += key->len */
-
-		cache_tree = get_cache_tree(cache, key->off);
-		spin_lock(&cache_tree->tree_lock);
-		ret = cache_insert_key(cache, key, true);
-		spin_unlock(&cache_tree->tree_lock);
-		if (ret) {
-			cache_seg_put(key->cache_pos.cache_seg);
-			cache_key_put(key);
-			goto err;
-		}
-
 		/* append key into key head pos */
 		ret = cache_key_append(cache, key);
 		if (ret) {
@@ -947,7 +933,14 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		}
 
 		io_done += key->len;
-		cache_key_put(key);
+
+		/* add key into cache_tree, after this, key could be changed
+		 * by other overlap key insert, so we need key_append before insert_key
+		 */
+		cache_tree = get_cache_tree(cache, key->off);
+		spin_lock(&cache_tree->tree_lock);
+		cache_insert_key(cache, key, true);
+		spin_unlock(&cache_tree->tree_lock);
 	}
 
 	ret = 0;
