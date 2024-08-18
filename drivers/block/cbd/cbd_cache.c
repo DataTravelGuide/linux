@@ -387,7 +387,6 @@ static inline u32 get_seg_remain(struct cbd_cache_pos *pos)
 static int cache_kset_close(struct cbd_cache *cache, u32 kset_id)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
-	struct cbd_cache_segment *cache_seg;
 	struct cbd_cache_kset *kset;
 	u32 kset_onmedia_size;
 	int ret;
@@ -403,7 +402,7 @@ static int cache_kset_close(struct cbd_cache *cache, u32 kset_id)
 	spin_lock(&cache->key_head_lock);
 again:
 	if (get_seg_remain(&cache->key_head) < CBD_KSET_ONMEDIA_SIZE_MAX) {
-		struct cbd_cache_segment *next_seg;
+		struct cbd_cache_segment *cur_seg, *next_seg;
 
 		next_seg = get_cache_segment(cache);
 		if (!next_seg) {
@@ -411,11 +410,13 @@ again:
 			goto out;
 		}
 
+		cur_seg = cache->key_head.cache_seg;
+
+		cur_seg->cache_seg_info->next_cache_seg_id = next_seg->cache_seg_id;
+		cur_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
+
 		cache->key_head.cache_seg = next_seg;
 		cache->key_head.seg_off = 0;
-
-		cache_seg->cache_seg_info->next_cache_seg_id = next_seg->cache_seg_id;
-		cache_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
 		goto again;
 	}
 
