@@ -427,7 +427,7 @@ again:
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
 
 	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
-	kset_onmedia->key_num = 0;
+	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));
 
 	cache_pos_advance(&cache->key_head, kset_onmedia_size, false);
 
@@ -1199,16 +1199,26 @@ static bool no_more_dirty(struct cbd_cache *cache)
 
 	pos = &cache->dirty_tail;
 
-	if (cache_seg_wb_done(pos->cache_seg))
+	if (cache_seg_wb_done(pos->cache_seg)) {
+		cbd_cache_debug(cache, "seg %u wb done\n", pos->cache_seg->cache_seg_id);
 		return !cache_seg_has_next(pos->cache_seg);
+	}
 
 	addr = cache_pos_addr(pos);
 	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
-	if (kset_onmedia->magic != CBD_KSET_MAGIC)
+	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
+		cbd_cache_debug(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
+				pos->cache_seg->cache_seg_id, pos->seg_off,
+				kset_onmedia->magic, CBD_KSET_MAGIC);
 		return true;
+	}
 
-	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia))
+	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
+		cbd_cache_debug(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
+				pos->cache_seg->cache_seg_id, pos->seg_off,
+				cache_kset_crc(kset_onmedia), kset_onmedia->crc);
 		return true;
+	}
 
 	return false;
 }
