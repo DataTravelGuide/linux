@@ -911,6 +911,8 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		ret = cache_data_alloc(cache, key, cbd_req->cbdq->index);
 		if (ret) {
+			cbd_cache_debug(cache, "no cache data available for key %llu:%u\n",
+					key->off, key->len);
 			cache_key_put(key);
 			goto err;
 		}
@@ -1033,8 +1035,9 @@ static int cache_replay(struct cbd_cache *cache)
 			cache_key_decode(key_onmedia, key);
 #ifdef CONFIG_CBD_CRC
 			if (key->data_crc != cache_key_data_crc(key)) {
-				cbd_cache_err(cache, "data_crc error: %x, expected: %x\n",
-						cache_key_data_crc(key), key->data_crc);
+				cbd_cache_debug(cache, "key: %llu:%u seg %u:%u data_crc error: %x, expected: %x\n",
+						key->off, key->len,key->cache_pos.cache_seg->cache_seg_id,
+						key->cache_pos.seg_off, cache_key_data_crc(key), key->data_crc);
 				ret = -EIO;
 				cache_key_put(key);
 				goto out;
@@ -1271,7 +1274,8 @@ static void writeback_fn(struct work_struct *work)
 
 			cache_key_decode(key_onmedia, key);
 			if (key->data_crc != cache_key_data_crc(key)) {
-				cbd_cache_debug(cache, "data crc is not expected, wait for data ready.\n");
+				cbd_cache_debug(cache, "key: %llu:%u data crc(%x) is not expected(%x), wait for data ready.\n",
+						key->off, key->len, cache_key_data_crc(key), key->data_crc);
 				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 				return;
 			}
