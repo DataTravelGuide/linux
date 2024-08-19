@@ -342,12 +342,12 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	return 0;
 
 destroy_queues:
+	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
 	cbd_blkdev_destroy_queues(cbd_blkdev);
 destroy_cache:
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 destroy_wq:
-	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 	destroy_workqueue(cbd_blkdev->task_wq);
 ida_remove:
