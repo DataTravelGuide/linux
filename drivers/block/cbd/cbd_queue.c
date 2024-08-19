@@ -89,8 +89,6 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 	space_needed = round_up(cbd_req->data_len, CBDC_DATA_ALIGH);
 
 	if (space_available - CBDC_DATA_RESERVED < space_needed) {
-		cbd_queue_err(cbdq, "data space is not enough: availaible: %u needed: %u",
-			      space_available, space_needed);
 		return false;
 	}
 
@@ -207,7 +205,6 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 		list_del_init(&cbd_req->inflight_reqs_node);
 		spin_unlock(&cbdq->inflight_reqs_lock);
 
-		cbd_blk_err(cbdq->cbd_blkdev, "transport space is not enough");
 		ret = -ENOMEM;
 		goto err;
 	}

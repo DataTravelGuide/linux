@@ -961,8 +961,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		ret = cache_data_alloc(cache, key, cbd_req->cbdq->index);
 		if (ret) {
-			cbd_cache_debug(cache, "no cache data available for key %llu:%u\n",
-					key->off, key->len);
 			cache_key_put(key);
 			goto err;
 		}
