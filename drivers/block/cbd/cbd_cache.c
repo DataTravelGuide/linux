@@ -739,6 +739,8 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	new_req->kmem_cache = cache->req_cache;
 
 	ret = cbd_queue_req_to_backend(new_req);
+	if (ret)
+		cbd_req_put(cbd_req, ret);
 
 	cbd_req_put(new_req, ret);
 
