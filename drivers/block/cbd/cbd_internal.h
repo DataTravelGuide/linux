@@ -790,6 +790,7 @@ struct cbd_handler {
 	struct cbd_channel_info *channel_info;
 
 	struct cbd_channel	channel;
+	spinlock_t		compr_lock;
 
 	u32			se_to_handle;
 	u64			req_tid_expected;
