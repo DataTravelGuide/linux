@@ -100,14 +100,14 @@
 		 dev->mapped_id, ##__VA_ARGS__)
 
 #define cbd_queue_err(queue, fmt, ...)						\
-	cbd_blk_err(queue->cbd_blkdev, "queue-%d: " fmt,			\
-		     queue->index, ##__VA_ARGS__)
+	cbd_blk_err(queue->cbd_blkdev, "queue%d: " fmt,			\
+		     queue->channel.seg_id, ##__VA_ARGS__)
 #define cbd_queue_info(queue, fmt, ...)						\
-	cbd_blk_info(queue->cbd_blkdev, "queue-%d: " fmt,			\
-		     queue->index, ##__VA_ARGS__)
+	cbd_blk_info(queue->cbd_blkdev, "queue%d: " fmt,			\
+		     queue->channel.seg_id, ##__VA_ARGS__)
 #define cbd_queue_debug(queue, fmt, ...)					\
-	cbd_blk_debug(queue->cbd_blkdev, "queue-%d: " fmt,			\
-		     queue->index, ##__VA_ARGS__)
+	cbd_blk_debug(queue->cbd_blkdev, "queue%d: " fmt,			\
+		     queue->channel.seg_id, ##__VA_ARGS__)
 
 #define cbd_channel_err(channel, fmt, ...)					\
 	cbdt_err(channel->cbdt, "channel%d: " fmt,				\
@@ -970,9 +970,7 @@ enum cbd_queue_state {
 
 struct cbd_queue {
 	struct cbd_blkdev	*cbd_blkdev;
-
-	int			index;
-
+	u32			index;
 	struct list_head	inflight_reqs;
 	spinlock_t		inflight_reqs_lock;
 	u64			req_tid;

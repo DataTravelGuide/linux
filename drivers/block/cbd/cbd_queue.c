@@ -507,7 +507,7 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 
 	ret = cbd_queue_channel_init(cbdq, channel_id);
 	if (ret) {
-		cbd_queue_err(cbdq, "failed to init dev channel_info: %d.", ret);
+		cbdt_err(cbdt, "failed to init dev channel_info: %d.", ret);
 		goto err;
 	}
 
