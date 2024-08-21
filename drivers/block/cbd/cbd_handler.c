@@ -18,8 +18,9 @@ static inline struct cbd_ce *get_compr_head(struct cbd_handler *handler)
 static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, int ret)
 {
 	struct cbd_ce *ce;
+	unsigned long flags;
 
-	spin_lock(&handler->compr_lock);
+	spin_lock_irqsave(&handler->compr_lock, flags);
 	ce = get_compr_head(handler);
 
 	memset(ce, 0, sizeof(*ce));
@@ -33,7 +34,7 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 	CBDC_UPDATE_COMPR_HEAD(handler->channel_info->compr_head,
 			       sizeof(struct cbd_ce),
 			       handler->channel.compr_size);
-	spin_unlock(&handler->compr_lock);
+	spin_unlock_irqrestore(&handler->compr_lock, flags);
 }
 
 static void backend_bio_end(struct bio *bio)
