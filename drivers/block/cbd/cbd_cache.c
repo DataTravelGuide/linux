@@ -10,6 +10,10 @@
 #define CBD_KSET_ONMEDIA_SIZE_MAX	struct_size_t(struct cbd_cache_kset_onmedia, data, CBD_KSET_KEYS_MAX)
 #define CBD_KSET_SIZE			(sizeof(struct cbd_cache_kset) + sizeof(struct cbd_cache_key_onmedia) * CBD_KSET_KEYS_MAX)
 
+#define CBD_CACHE_GC_PERCENT_MIN	0
+#define CBD_CACHE_GC_PERCENT_MAX	90
+#define CBD_CACHE_GC_PERCENT_DEFAULT	70
+
 static inline struct cbd_cache_tree *get_cache_tree(struct cbd_cache *cache, u64 off)
 {
 	return &cache->cache_trees[off >> CBD_CACHE_TREE_SIZE_SHIFT];
@@ -81,8 +85,48 @@ static ssize_t cache_segs_show(struct device *dev,
 
 static DEVICE_ATTR(cache_segs, 0400, cache_segs_show, NULL);
 
+static ssize_t gc_percent_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct cbd_backend *backend;
+
+	backend = container_of(dev, struct cbd_backend, cache_dev);
+
+	return sprintf(buf, "%u\n", backend->cbd_cache->cache_info->gc_percent);
+}
+
+static ssize_t gc_percent_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t size)
+{
+	struct cbd_backend *backend;
+	unsigned long val;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	backend = container_of(dev, struct cbd_backend, cache_dev);
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val < CBD_CACHE_GC_PERCENT_MIN ||
+			val > CBD_CACHE_GC_PERCENT_MAX)
+		return -EINVAL;
+
+	backend->cbd_cache->cache_info->gc_percent = val;
+
+	return size;
+}
+
+static DEVICE_ATTR(gc_percent, 0600, gc_percent_show, gc_percent_store);
+
 static struct attribute *cbd_cache_attrs[] = {
 	&dev_attr_cache_segs.attr,
+	&dev_attr_gc_percent.attr,
 	NULL
 };
 
@@ -1434,8 +1478,7 @@ static bool need_gc(struct cbd_cache *cache)
 	if (dirty_addr == key_addr)
 		return false;
 
-	/* TODO make the shreshold configurable */
-	if (bitmap_weight(cache->seg_map, cache->n_segs) < (cache->n_segs / 10 * 7))
+	if (bitmap_weight(cache->seg_map, cache->n_segs) < (cache->n_segs / 100 * cache->cache_info->gc_percent))
 		return false;
 
 	return true;
@@ -1639,6 +1682,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->n_segs = cache_info->n_segs;
 	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
+	cache->cache_info->gc_percent = CBD_CACHE_GC_PERCENT_DEFAULT;
 
 	spin_lock_init(&cache->key_head_lock);
 

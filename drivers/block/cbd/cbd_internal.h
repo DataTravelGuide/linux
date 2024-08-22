@@ -650,6 +650,7 @@ struct cbd_cache_info {
 
 	u32	seg_id;
 	u32	n_segs;
+	u16	gc_percent;
 
 	struct cbd_cache_pos_onmedia key_tail_pos;
 	struct cbd_cache_pos_onmedia dirty_tail_pos;
