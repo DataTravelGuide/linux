@@ -68,6 +68,43 @@ static struct cbd_seg_ops cbd_cache_seg_ops = {
 
 #define CACHE_KEY(node)		(container_of(node, struct cbd_cache_key, rb_node))
 
+static ssize_t cache_segs_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct cbd_backend *backend;
+
+	backend = container_of(dev, struct cbd_backend, cache_dev);
+
+	return sprintf(buf, "%u\n", backend->cbd_cache->n_segs);
+}
+
+static DEVICE_ATTR(cache_segs, 0400, cache_segs_show, NULL);
+
+static struct attribute *cbd_cache_attrs[] = {
+	&dev_attr_cache_segs.attr,
+	NULL
+};
+
+static struct attribute_group cbd_cache_attr_group = {
+	.attrs = cbd_cache_attrs,
+};
+
+static const struct attribute_group *cbd_cache_attr_groups[] = {
+	&cbd_cache_attr_group,
+	NULL
+};
+
+static void cbd_cache_release(struct device *dev)
+{
+}
+
+const struct device_type cbd_cache_type = {
+	.name		= "cbd_cache",
+	.groups		= cbd_cache_attr_groups,
+	.release	= cbd_cache_release,
+};
+
 #ifdef CONFIG_CBD_DEBUG
 static void dump_seg_map(struct cbd_cache *cache)
 {

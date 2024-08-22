@@ -227,6 +227,8 @@ err:
 	return ret;
 }
 
+extern struct device_type cbd_cache_type;
+
 int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs)
 {
 	struct cbd_backend *backend;
@@ -286,6 +288,16 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 			ret = -ENOMEM;
 			goto backend_stop;
 		}
+
+		device_initialize(&backend->cache_dev);
+		device_set_pm_not_required(&backend->cache_dev);
+		dev_set_name(&backend->cache_dev, "cache");
+		backend->cache_dev.parent = &backend->backend_device->dev;
+		backend->cache_dev.type = &cbd_cache_type;
+		ret = device_add(&backend->cache_dev);
+		if (ret)
+			goto backend_stop;
+		backend->cache_dev_registered = true;
 	}
 
 	return 0;
@@ -321,8 +333,11 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 
 	cbdt_del_backend(cbdt, cbdb);
 
-	if (cbdb->cbd_cache)
+	if (cbdb->cbd_cache) {
+		if (cbdb->cache_dev_registered)
+			device_unregister(&cbdb->cache_dev);
 		cbd_cache_destroy(cbdb->cbd_cache);
+	}
 
 	cancel_delayed_work_sync(&cbdb->hb_work);
 	cancel_delayed_work_sync(&cbdb->state_work);

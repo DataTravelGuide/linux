@@ -865,6 +865,8 @@ struct cbd_backend {
 	struct kmem_cache	*backend_io_cache;
 
 	struct cbd_cache	*cbd_cache;
+	struct device		cache_dev;
+	bool			cache_dev_registered;
 };
 
 int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs);
