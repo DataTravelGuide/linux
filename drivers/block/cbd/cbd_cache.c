@@ -208,7 +208,7 @@ static struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 {
 	struct cbd_cache_key *key;
 
-	key = kmem_cache_zalloc(cache->key_cache, GFP_ATOMIC);
+	key = kmem_cache_zalloc(cache->key_cache, GFP_NOWAIT);
 	if (!key)
 		return NULL;
 
@@ -718,7 +718,7 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 	struct cbd_request *new_req;
 	int ret;
 
-	new_req = kmem_cache_zalloc(cache->req_cache, GFP_ATOMIC);
+	new_req = kmem_cache_zalloc(cache->req_cache, GFP_NOWAIT);
 	if (!new_req)
 		return -ENOMEM;
 
