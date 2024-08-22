@@ -162,6 +162,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 	clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 	spin_unlock(&cache->seg_map_lock);
 
+	queue_work(cache->cache_wq, &cache->clean_work);
 	cbd_cache_debug(cache, "gc invalidat seg: %u\n", cache_seg->cache_seg_id);
 
 #ifdef CONFIG_CBD_DEBUG
@@ -1495,6 +1496,46 @@ static void kset_flush_fn(struct work_struct *work)
 
 #define CBD_CACHE_SEGS_EACH_PARAL	4
 
+#define CBD_CLEAN_KEYS_MAX		10
+
+static void clean_fn(struct work_struct *work)
+{
+	struct cbd_cache *cache = container_of(work, struct cbd_cache, clean_work);
+	struct cbd_cache_tree *cache_tree;
+	struct rb_node *node;
+	struct cbd_cache_key *key;
+	int i, count;
+
+	for (i = 0; i < cache->n_trees; i++) {
+		cache_tree = &cache->cache_trees[i];
+
+again:
+		if (cache->state == cbd_cache_state_stopping)
+			return;
+
+		/* delete at most CBD_CLEAN_KEYS_MAX a round */
+		count = 0;
+		spin_lock(&cache_tree->tree_lock);
+		node = rb_first(&cache_tree->root);
+		while (node) {
+			key = CACHE_KEY(node);
+			node = rb_next(node);
+			if (cache_key_invalid(key)) {
+				count++;
+				cache_key_delete(key);
+			}
+
+			if (count >= CBD_CLEAN_KEYS_MAX) {
+				spin_unlock(&cache_tree->tree_lock);
+				msleep(1);
+				goto again;
+			}
+		}
+		spin_unlock(&cache_tree->tree_lock);
+
+	}
+}
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
@@ -1566,6 +1607,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
 	INIT_DELAYED_WORK(&cache->gc_work, gc_fn);
+	INIT_WORK(&cache->clean_work, clean_fn);
 
 	cache->dev_size = opts->dev_size;
 
@@ -1681,8 +1723,10 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 	cache->state = cbd_cache_state_stopping;
 
-	if (cache->start_gc)
+	if (cache->start_gc) {
 		cancel_delayed_work_sync(&cache->gc_work);
+		flush_work(&cache->clean_work);
+	}
 
 	if (cache->start_writeback)
 		cache_writeback_exit(cache);

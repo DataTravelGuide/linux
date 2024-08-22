@@ -746,6 +746,7 @@ struct cbd_cache {
 	struct kmem_cache		*key_cache;
 	u32				n_trees;
 	struct cbd_cache_tree		*cache_trees;
+	struct work_struct		clean_work;
 
 	struct workqueue_struct		*cache_wq;
 
