@@ -715,7 +715,9 @@ struct cbd_cache_kset_onmedia {
 #define CBD_KSET_MAGIC		0x676894a64e164f1aULL
 
 struct cbd_cache_kset {
+	struct cbd_cache		*cache;
 	spinlock_t			kset_lock;
+	struct delayed_work		flush_work;
 	struct cbd_cache_kset_onmedia	kset_onmedia;
 };
 

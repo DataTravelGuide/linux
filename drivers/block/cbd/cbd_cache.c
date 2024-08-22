@@ -385,14 +385,12 @@ static inline u32 get_seg_remain(struct cbd_cache_pos *pos)
 	return seg_remain;
 }
 
-static int cache_kset_close(struct cbd_cache *cache, u32 kset_id)
+static int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
-	struct cbd_cache_kset *kset;
 	u32 kset_onmedia_size;
 	int ret;
 
-	kset = get_kset(cache, kset_id);
 	kset_onmedia = &kset->kset_onmedia;
 
 	if (!kset_onmedia->key_num)
@@ -456,17 +454,19 @@ static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 	key->data_crc = cache_key_data_crc(key);
 #endif
 	cache_key_encode(key_onmedia, key);
-
 	if (++kset_onmedia->key_num == CBD_KSET_KEYS_MAX) {
-		ret = cache_kset_close(cache, kset_id);
+		ret = cache_kset_close(cache, kset);
 		if (ret) {
 			/* return ocuppied key back */
 			kset_onmedia->key_num--;
 			goto out;
 		}
+	} else {
+		queue_delayed_work(cache->cache_wq, &kset->flush_work, 1 * HZ);
 	}
 out:
 	spin_unlock(&kset->kset_lock);
+
 	return ret;
 }
 
@@ -1010,7 +1010,7 @@ static int cache_flush(struct cbd_cache *cache)
 		kset = get_kset(cache, i);
 
 		spin_lock(&kset->kset_lock);
-		ret = cache_kset_close(cache, i);
+		ret = cache_kset_close(cache, kset);
 		spin_unlock(&kset->kset_lock);
 		if (ret)
 			return ret;
@@ -1477,6 +1477,22 @@ next_seg:
 	}
 }
 
+static void kset_flush_fn(struct work_struct *work)
+{
+	struct cbd_cache_kset *kset = container_of(work, struct cbd_cache_kset, flush_work.work);
+	struct cbd_cache *cache = kset->cache;
+	int ret;
+
+	spin_lock(&kset->kset_lock);
+	ret = cache_kset_close(cache, kset);
+	spin_unlock(&kset->kset_lock);
+
+	if (ret) {
+		/* Failed to flush kset, retry it. */
+		queue_delayed_work(cache->cache_wq, &kset->flush_work, 0);
+	}
+}
+
 #define CBD_CACHE_SEGS_EACH_PARAL	4
 
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
@@ -1616,7 +1632,9 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 			kset = get_kset(cache, i);
 
+			kset->cache = cache;
 			spin_lock_init(&kset->kset_lock);
+			INIT_DELAYED_WORK(&kset->flush_work, kset_flush_fn);
 		}
 
 		/* Init caceh->data_heads */
@@ -1690,6 +1708,15 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 			}
 			spin_unlock(&cache_tree->tree_lock);
 		}
+
+		for (i = 0; i < cache->n_ksets; i++) {
+			struct cbd_cache_kset *kset;
+
+			kset = get_kset(cache, i);
+			cancel_delayed_work_sync(&kset->flush_work);
+		}
+
+		cache_flush(cache);
 	}
 
 	if (cache->cache_wq) {
