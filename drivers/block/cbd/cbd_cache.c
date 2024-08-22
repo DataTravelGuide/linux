@@ -154,10 +154,10 @@ static void dump_seg_map(struct cbd_cache *cache)
 {
 	int i;
 
-	cbd_cache_debug(cache, "------ start seg map dump -------");
+	cbd_cache_debug(cache, "start seg map dump");
 	for (i = 0; i < cache->n_segs; i++)
 		cbd_cache_debug(cache, "seg: %u, %u", i, test_bit(i, cache->seg_map));
-	cbd_cache_debug(cache, "------ end seg map dump -------");
+	cbd_cache_debug(cache, "end seg map dump");
 }
 
 static void dump_cache(struct cbd_cache *cache)
@@ -166,7 +166,7 @@ static void dump_cache(struct cbd_cache *cache)
 	struct rb_node *node;
 	int i;
 
-	cbd_cache_debug(cache, "------ start cache tree dump -------");
+	cbd_cache_debug(cache, "start cache tree dump");
 
 	for (i = 0; i < cache->n_trees; i++) {
 		struct cbd_cache_tree *cache_tree;
@@ -181,7 +181,7 @@ static void dump_cache(struct cbd_cache *cache)
 			node = rb_next(node);
 		}
 	}
-	cbd_cache_debug(cache, "------ end cache tree dump -------");
+	cbd_cache_debug(cache, "end cache tree dump");
 }
 
 #endif /* CONFIG_CBD_DEBUG */
