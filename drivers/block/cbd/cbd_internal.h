@@ -703,8 +703,6 @@ struct cbd_cache_key_onmedia {
 #endif
 };
 
-#define CBD_CACHE_KEY_FLAGS_LAST	(1 << 0)
-
 struct cbd_cache_kset_onmedia {
 	u32	crc;
 	u64	magic;
@@ -770,7 +768,7 @@ struct cbd_cache {
 	unsigned long			*seg_map;
 	u32				last_cache_seg;
 	spinlock_t			seg_map_lock;
-	struct cbd_cache_segment	segments[];
+	struct cbd_cache_segment	segments[]; /* should be the last member */
 };
 
 struct cbd_request;
