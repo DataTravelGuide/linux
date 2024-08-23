@@ -85,6 +85,21 @@ static ssize_t cache_segs_show(struct device *dev,
 
 static DEVICE_ATTR(cache_segs, 0400, cache_segs_show, NULL);
 
+static ssize_t used_segs_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct cbd_backend *backend;
+	struct cbd_cache *cache;
+
+	backend = container_of(dev, struct cbd_backend, cache_dev);
+	cache = backend->cbd_cache;
+
+	return sprintf(buf, "%u\n", cache->cache_info->used_segs);
+}
+
+static DEVICE_ATTR(used_segs, 0400, used_segs_show, NULL);
+
 static ssize_t gc_percent_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -126,6 +141,7 @@ static DEVICE_ATTR(gc_percent, 0600, gc_percent_show, gc_percent_store);
 
 static struct attribute *cbd_cache_attrs[] = {
 	&dev_attr_cache_segs.attr,
+	&dev_attr_used_segs.attr,
 	&dev_attr_gc_percent.attr,
 	NULL
 };
@@ -212,6 +228,7 @@ again:
 	}
 
 	set_bit(seg_id, cache->seg_map);
+	cache->cache_info->used_segs++;
 	cache->last_cache_seg = seg_id;
 	spin_unlock(&cache->seg_map_lock);
 
@@ -241,6 +258,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 	spin_lock(&cache->seg_map_lock);
 	clear_bit(cache_seg->cache_seg_id, cache->seg_map);
+	cache->cache_info->used_segs--;
 	spin_unlock(&cache->seg_map_lock);
 
 	queue_work(cache->cache_wq, &cache->clean_work);
@@ -1214,6 +1232,7 @@ static int cache_replay(struct cbd_cache *cache)
 
 	spin_lock(&cache->key_head_lock);
 	cache_pos_copy(&cache->key_head, pos);
+	cache->cache_info->used_segs++;
 	spin_unlock(&cache->key_head_lock);
 
 out:
@@ -1553,6 +1572,7 @@ next_seg:
 
 			spin_lock(&cache->seg_map_lock);
 			clear_bit(cur_seg->cache_seg_id, cache->seg_map);
+			cache->cache_info->used_segs--;
 			spin_unlock(&cache->seg_map_lock);
 		}
 	}
