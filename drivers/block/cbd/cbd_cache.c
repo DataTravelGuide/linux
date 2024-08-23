@@ -853,7 +853,7 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cbd_cache_tree *cache_tree;
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
 	struct rb_node *node_tmp;
-	struct rb_node*prev_node = NULL;
+	struct rb_node *prev_node = NULL;
 	struct cbd_cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cbd_cache_key *key = &key_data;
 	struct cbd_cache_pos pos;
@@ -1189,7 +1189,7 @@ static int cache_replay(struct cbd_cache *cache)
 #ifdef CONFIG_CBD_CRC
 			if (key->data_crc != cache_key_data_crc(key)) {
 				cbd_cache_debug(cache, "key: %llu:%u seg %u:%u data_crc error: %x, expected: %x\n",
-						key->off, key->len,key->cache_pos.cache_seg->cache_seg_id,
+						key->off, key->len, key->cache_pos.cache_seg->cache_seg_id,
 						key->cache_pos.seg_off, cache_key_data_crc(key), key->data_crc);
 				ret = -EIO;
 				cache_key_put(key);
@@ -1627,7 +1627,7 @@ again:
 
 			if (count >= CBD_CLEAN_KEYS_MAX) {
 				spin_unlock(&cache_tree->tree_lock);
-				msleep(1);
+				usleep_range(1000, 2000);
 				goto again;
 			}
 		}
