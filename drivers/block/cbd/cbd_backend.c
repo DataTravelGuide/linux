@@ -250,7 +250,7 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		cache_info->n_segs = cache_segs;
 	} else {
 		backend_info = cbdt_get_backend_info(cbdt, backend_id);
-		if (backend_info->state != cbd_backend_state_none)
+		if (cbd_backend_info_is_alive(backend_info))
 			return -EBUSY;
 		cache_info = &backend_info->cache_info;
 	}
@@ -344,6 +344,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 
 	backend_info = cbdt_get_backend_info(cbdt, cbdb->backend_id);
 	backend_info->state = cbd_backend_state_none;
+	backend_info->alive_ts = 0;
 
 	drain_workqueue(cbdb->task_wq);
 	destroy_workqueue(cbdb->task_wq);
