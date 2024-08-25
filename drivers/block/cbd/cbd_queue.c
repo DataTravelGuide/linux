@@ -415,9 +415,9 @@ miss:
 		return;
 	}
 	spin_unlock(&cbdq->inflight_reqs_lock);
-
 	cbdwc_miss(&cbdq->complete_worker_cfg);
 
+	cpu_relax();
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 }
 
