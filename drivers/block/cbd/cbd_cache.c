@@ -80,7 +80,7 @@ static ssize_t cache_segs_show(struct device *dev,
 
 	backend = container_of(dev, struct cbd_backend, cache_dev);
 
-	return sprintf(buf, "%u\n", backend->cbd_cache->n_segs);
+	return sprintf(buf, "%u\n", backend->cbd_cache->cache_info->n_segs);
 }
 
 static DEVICE_ATTR(cache_segs, 0400, cache_segs_show, NULL);
@@ -319,6 +319,11 @@ static struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 	return key;
 }
 
+static void cache_key_get(struct cbd_cache_key *key)
+{
+	kref_get(&key->ref);
+}
+
 static void cache_key_destroy(struct kref *ref)
 {
 	struct cbd_cache_key *key = container_of(ref, struct cbd_cache_key, ref);
@@ -415,6 +420,7 @@ static inline void cache_key_delete(struct cbd_cache_key *key)
 		return;
 
 	rb_erase(&key->rb_node, &cache_tree->root);
+	key->flags = 0;
 	cache_key_put(key);
 }
 
@@ -570,7 +576,7 @@ out:
 	return ret;
 }
 
-static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new);
+static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new);
 static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key, struct rb_node *prev_node)
 {
 	struct rb_node *node_tmp;
@@ -661,12 +667,25 @@ out:
 	return ret;
 }
 
+static inline bool cache_key_empty(struct cbd_cache_key *key)
+{
+	return key->flags & CBD_CACHE_KEY_FLAGS_EMPTY;
+}
+
+static inline bool cache_key_clean(struct cbd_cache_key *key)
+{
+	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
+}
+
 static inline bool cache_key_invalid(struct cbd_cache_key *key)
 {
+	if (cache_key_empty(key))
+		return false;
+
 	return (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen);
 }
 
-static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
+static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
 {
 	struct rb_node **new, *parent = NULL;
 	struct cbd_cache_tree *cache_tree;
@@ -714,14 +733,11 @@ again:
 		ret = cache_insert_fixup(cache, key, prev_node);
 		if (ret == -EAGAIN)
 			goto again;
-		else if (ret)
-			BUG_ON(true);
+		BUG_ON(ret);
 	}
 
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_tree->root);
-
-	return 0;
 }
 
 static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
@@ -812,15 +828,124 @@ static int cache_copy_to_bio(struct cbd_cache *cache, struct cbd_request *cbd_re
 	return 0;
 }
 
-static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
-			    u32 off, u32 len)
+static void cache_copy_from_req(struct cbd_cache *cache, struct cbd_request *cbd_req,
+				struct cbd_cache_pos *pos, u32 off, u32 len)
 {
-	struct cbd_request *new_req;
+	struct cbd_seg_pos dst_pos, src_pos;
+
+	src_pos.segment = &cbd_req->cbdq->channel.segment;
+	src_pos.off = cbd_req->data_off;
+
+	dst_pos.segment = &pos->cache_seg->segment;
+	dst_pos.off = pos->seg_off;
+
+	if (off) {
+		cbds_pos_advance(&dst_pos, off);
+		cbds_pos_advance(&src_pos, off);
+	}
+
+	cbds_copy_data(&dst_pos, &src_pos, len);
+}
+
+static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
+{
+	void *priv_data = cbd_req->priv_data;
 	int ret;
 
+	if (priv_data) {
+		struct cbd_cache_key *key;
+		struct cbd_cache_tree *cache_tree;
+
+		key = (struct cbd_cache_key *)priv_data;
+		cache_tree = key->cache_tree;
+
+		spin_lock(&cache_tree->tree_lock);
+		if (key->flags & CBD_CACHE_KEY_FLAGS_EMPTY) {
+			if (cbd_req->ret) {
+				cache_key_delete(key);
+				goto unlock;
+			}
+
+			/* TODO use seperate head for read cache */
+			ret = cache_data_alloc(cache, key, cbd_req->cbdq->index);
+			if (ret) {
+				cache_key_delete(key);
+				goto unlock;
+			}
+			cache_copy_from_req(cache, cbd_req, &key->cache_pos, key->off - cbd_req->off, key->len);
+			key->flags &= ~CBD_CACHE_KEY_FLAGS_EMPTY;
+			key->flags |= CBD_CACHE_KEY_FLAGS_CLEAN;
+
+			ret = cache_key_append(cache, key);
+			if (ret) {
+				cache_seg_put(key->cache_pos.cache_seg);
+				cache_key_delete(key);
+				goto unlock;
+			}
+		}
+unlock:
+		spin_unlock(&cache_tree->tree_lock);
+		cache_key_put(key);
+	}
+
+	cbd_queue_advance(cbd_req->cbdq, cbd_req);
+	kmem_cache_free(cache->req_cache, cbd_req);
+}
+
+static void miss_read_end_work_fn(struct work_struct *work)
+{
+	struct cbd_cache *cache = container_of(work, struct cbd_cache, miss_read_end_work);
+	struct cbd_request *cbd_req;
+	LIST_HEAD(tmp_list);
+
+	spin_lock(&cache->miss_read_reqs_lock);
+	list_splice_init(&cache->miss_read_reqs, &tmp_list);
+	spin_unlock(&cache->miss_read_reqs_lock);
+
+	while (!list_empty(&tmp_list)) {
+		cbd_req = list_first_entry(&tmp_list,
+				struct cbd_request, inflight_reqs_node);
+		list_del_init(&cbd_req->inflight_reqs_node);
+		miss_read_end_req(cache, cbd_req);
+	}
+}
+
+static void cache_backing_req_end_req(struct cbd_request *cbd_req, void *priv_data)
+{
+	struct cbd_cache *cache = cbd_req->cbdq->cbd_blkdev->cbd_cache;
+
+	spin_lock(&cache->miss_read_reqs_lock);
+	list_add_tail(&cbd_req->inflight_reqs_node, &cache->miss_read_reqs);
+	spin_unlock(&cache->miss_read_reqs_lock);
+
+	queue_work(cache->cache_wq, &cache->miss_read_end_work);
+}
+
+static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_req,
+			    u32 off, u32 len, bool insert_key)
+{
+	struct cbd_request *new_req;
+	struct cbd_cache_key *key = NULL;
+	int ret;
+
+	if (insert_key) {
+		key = cache_key_alloc(cache);
+		if (!key) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		key->off = cbd_req->off + off;
+		key->len = len;
+		key->flags |= CBD_CACHE_KEY_FLAGS_EMPTY;
+		cache_insert_key(cache, key, true);
+	}
+
 	new_req = kmem_cache_zalloc(cache->req_cache, GFP_NOWAIT);
-	if (!new_req)
-		return -ENOMEM;
+	if (!new_req) {
+		ret = -ENOMEM;
+		goto delete_key;
+	}
 
 	INIT_LIST_HEAD(&new_req->inflight_reqs_node);
 	kref_init(&new_req->ref);
@@ -836,14 +961,22 @@ static int submit_backing_io(struct cbd_cache *cache, struct cbd_request *cbd_re
 
 	cbd_req_get(cbd_req);
 	new_req->parent = cbd_req;
-	new_req->kmem_cache = cache->req_cache;
 
+	if (key) {
+		cache_key_get(key);
+		new_req->priv_data = key;
+	}
+
+	new_req->end_req = cache_backing_req_end_req;
 	ret = cbd_queue_req_to_backend(new_req);
-	if (ret)
-		cbd_req_put(cbd_req, ret);
-
 	cbd_req_put(new_req, ret);
 
+	return 0;
+
+delete_key:
+	if (key)
+		cache_key_delete(key);
+out:
 	return ret;
 }
 
@@ -919,7 +1052,7 @@ cleanup_tree:
 		 * |====|
 		 */
 		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
-			ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len);
+			ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len, true);
 			if (ret)
 				goto out;
 			io_done += key->len;
@@ -937,17 +1070,25 @@ cleanup_tree:
 			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
 				io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
 				if (io_len) {
-					submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len);
+					ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, true);
+					if (ret)
+						goto out;
 					io_done += io_len;
 					cache_key_cutfront(key, io_len);
 				}
 
 				io_len = cache_key_lend(key) - cache_key_lstart(key_tmp);
-				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-							io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
-				if (ret) {
-					list_add(&key_tmp->list_node, &key_list);
-					goto cleanup_tree;
+				if (cache_key_empty(key_tmp)) {
+					ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
+					if (ret)
+						goto out;
+				} else {
+					ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
+								io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
+					if (ret) {
+						list_add(&key_tmp->list_node, &key_list);
+						goto cleanup_tree;
+					}
 				}
 				io_done += io_len;
 				cache_key_cutfront(key, io_len);
@@ -960,17 +1101,25 @@ cleanup_tree:
 			 */
 			io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
 			if (io_len) {
-				submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len);
+				ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, true);
+				if (ret)
+					goto out;
 				io_done += io_len;
 				cache_key_cutfront(key, io_len);
 			}
 
 			io_len = key_tmp->len;
-			ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-						io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
-			if (ret) {
-				list_add(&key_tmp->list_node, &key_list);
-				goto cleanup_tree;
+			if (cache_key_empty(key_tmp)) {
+				ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
+				if (ret)
+					goto out;
+			} else {
+				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
+							io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
+				if (ret) {
+					list_add(&key_tmp->list_node, &key_list);
+					goto cleanup_tree;
+				}
 			}
 			io_done += io_len;
 			cache_key_cutfront(key, io_len);
@@ -985,11 +1134,17 @@ cleanup_tree:
 			cache_pos_copy(&pos, &key_tmp->cache_pos);
 			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
 
-			ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-						key->len, &pos, key_tmp->seg_gen);
-			if (ret) {
-				list_add(&key_tmp->list_node, &key_list);
-				goto cleanup_tree;
+			if (cache_key_empty(key_tmp)) {
+				ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
+				if (ret)
+					goto out;
+			} else {
+				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
+							key->len, &pos, key_tmp->seg_gen);
+				if (ret) {
+					list_add(&key_tmp->list_node, &key_list);
+					goto cleanup_tree;
+				}
 			}
 			io_done += key->len;
 
@@ -1006,11 +1161,17 @@ cleanup_tree:
 		cache_pos_copy(&pos, &key_tmp->cache_pos);
 		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
 
-		ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-					io_len, &pos, key_tmp->seg_gen);
-		if (ret) {
-			list_add(&key_tmp->list_node, &key_list);
-			goto cleanup_tree;
+		if (cache_key_empty(key_tmp)) {
+			ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
+			if (ret)
+				goto out;
+		} else {
+			ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
+						io_len, &pos, key_tmp->seg_gen);
+			if (ret) {
+				list_add(&key_tmp->list_node, &key_list);
+				goto cleanup_tree;
+			}
 		}
 		io_done += io_len;
 		cache_key_cutfront(key, io_len);
@@ -1019,7 +1180,9 @@ next:
 	}
 
 	if (key->len) {
-		submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len);
+		ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len, true);
+		if (ret)
+			goto out;
 		io_done += key->len;
 	}
 	spin_unlock(&cache_tree->tree_lock);
@@ -1077,9 +1240,12 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_bio(cache, key, cbd_req->bio, io_done);
 
+		cache_tree = get_cache_tree(cache, key->off);
+		spin_lock(&cache_tree->tree_lock);
 		/* append key into key head pos */
 		ret = cache_key_append(cache, key);
 		if (ret) {
+			spin_unlock(&cache_tree->tree_lock);
 			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_put(key);
 			goto err;
@@ -1090,8 +1256,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		/* add key into cache_tree, after this, key could be changed
 		 * by other overlap key insert, so we need key_append before insert_key
 		 */
-		cache_tree = get_cache_tree(cache, key->off);
-		spin_lock(&cache_tree->tree_lock);
 		cache_insert_key(cache, key, true);
 		spin_unlock(&cache_tree->tree_lock);
 	}
@@ -1198,15 +1362,11 @@ static int cache_replay(struct cbd_cache *cache)
 #endif
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
-			if (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen) {
+			if (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen)
 				cache_key_put(key);
-			} else {
-				ret = cache_insert_key(cache, key, true);
-				if (ret) {
-					cache_key_put(key);
-					goto out;
-				}
-			}
+			else
+				cache_insert_key(cache, key, true);
+
 			cache_seg_get(key->cache_pos.cache_seg);
 		}
 
@@ -1365,7 +1525,7 @@ err:
 	return ret;
 }
 
-static int cache_writeback(struct cbd_cache *cache, struct cbd_cache_key *key)
+static int cache_key_writeback(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	struct cbd_cache_pos *pos;
 	void *addr;
@@ -1374,6 +1534,9 @@ static int cache_writeback(struct cbd_cache *cache, struct cbd_cache_key *key)
 	struct cbd_segment *segment;
 	u32 seg_remain;
 	u64 off;
+
+	if (cache_key_clean(key))
+		return 0;
 
 	pos = &key->cache_pos;
 
@@ -1455,7 +1618,7 @@ static void writeback_fn(struct work_struct *work)
 			}
 
 			cache_key_decode(key_onmedia, key);
-			ret = cache_writeback(cache, key);
+			ret = cache_key_writeback(cache, key);
 			cache_key_put(key);
 
 			if (ret) {
@@ -1705,10 +1868,13 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->cache_info->gc_percent = CBD_CACHE_GC_PERCENT_DEFAULT;
 
 	spin_lock_init(&cache->key_head_lock);
+	spin_lock_init(&cache->miss_read_reqs_lock);
+	INIT_LIST_HEAD(&cache->miss_read_reqs);
 
 	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
 	INIT_DELAYED_WORK(&cache->gc_work, gc_fn);
 	INIT_WORK(&cache->clean_work, clean_fn);
+	INIT_WORK(&cache->miss_read_end_work, miss_read_end_work_fn);
 
 	cache->dev_size = opts->dev_size;
 

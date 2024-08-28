@@ -122,6 +122,33 @@ int cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)
 	return 0;
 }
 
+void cbds_copy_data(struct cbd_seg_pos *dst_pos,
+		struct cbd_seg_pos *src_pos, u32 len)
+{
+	u32 copied = 0;
+	u32 to_copy;
+
+	while (copied < len) {
+		if (dst_pos->off >= dst_pos->segment->data_size)
+			dst_pos->segment->seg_ops->sanitize_pos(dst_pos);
+
+		if (src_pos->off >= src_pos->segment->data_size)
+			src_pos->segment->seg_ops->sanitize_pos(src_pos);
+
+		to_copy = len - copied;
+
+		if (to_copy > dst_pos->segment->data_size - dst_pos->off)
+			to_copy = dst_pos->segment->data_size - dst_pos->off;
+
+		if (to_copy > src_pos->segment->data_size - src_pos->off)
+			to_copy = src_pos->segment->data_size - src_pos->off;
+
+		memcpy(dst_pos->segment->data + dst_pos->off, src_pos->segment->data + src_pos->off, to_copy);
+
+		copied += to_copy;
+	}
+}
+
 void cbds_copy_to_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
@@ -297,7 +324,23 @@ out:
 	return ret;
 }
 
-int cbds_pos_advance(struct cbd_seg_pos *seg_pos)
+int cbds_pos_advance(struct cbd_seg_pos *seg_pos, u32 len)
 {
+	u32 to_advance;
+
+	while (len) {
+		to_advance = len;
+
+		if (seg_pos->off >= seg_pos->segment->data_size)
+			seg_pos->segment->seg_ops->sanitize_pos(seg_pos);
+
+		if (to_advance > seg_pos->segment->data_size - seg_pos->off)
+			to_advance = seg_pos->segment->data_size - seg_pos->off;
+
+		seg_pos->off += to_advance;
+
+		len -= to_advance;
+	}
+
 	return 0;
 }

@@ -540,7 +540,9 @@ void cbds_copy_from_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
 int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io);
-int cbds_pos_advance(struct cbd_seg_pos *seg_pos);
+int cbds_pos_advance(struct cbd_seg_pos *seg_pos, u32 len);
+void cbds_copy_data(struct cbd_seg_pos *dst_pos,
+		struct cbd_seg_pos *src_pos, u32 len);
 
 /* cbd_channel */
 
@@ -688,6 +690,9 @@ struct cbd_cache_key {
 #endif
 };
 
+#define CBD_CACHE_KEY_FLAGS_EMPTY	(1 << 0)
+#define CBD_CACHE_KEY_FLAGS_CLEAN	(1 << 1)
+
 struct cbd_cache_key_onmedia {
 	u64	off;
 	u32	len;
@@ -748,6 +753,10 @@ struct cbd_cache {
 	u32				n_trees;
 	struct cbd_cache_tree		*cache_trees;
 	struct work_struct		clean_work;
+
+	spinlock_t			miss_read_reqs_lock;
+	struct list_head		miss_read_reqs;
+	struct work_struct		miss_read_end_work;
 
 	struct workqueue_struct		*cache_wq;
 
@@ -948,7 +957,9 @@ struct cbd_request {
 	struct kref		ref;
 	int			ret;
 	struct cbd_request	*parent;
-	struct kmem_cache	*kmem_cache;
+
+	void			*priv_data;
+	void (*end_req)(struct cbd_request *cbd_req, void *priv_data);
 };
 
 struct cbd_cache_req {
@@ -999,6 +1010,7 @@ extern const struct blk_mq_ops cbd_mq_ops;
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
 void cbd_req_get(struct cbd_request *cbd_req);
 void cbd_req_put(struct cbd_request *cbd_req, int ret);
+void cbd_queue_advance(struct cbd_queue *cbdq, struct cbd_request *cbd_req);
 
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);
