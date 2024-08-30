@@ -1137,7 +1137,7 @@ cleanup_tree:
 		 */
 		if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
 			if (cache_key_empty(key_tmp)) {
-				ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
+				ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, key->len, false);
 				if (ret)
 					goto out;
 			} else {
