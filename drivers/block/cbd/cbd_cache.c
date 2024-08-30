@@ -1131,14 +1131,14 @@ cleanup_tree:
 		 *   |====|		key
 		 */
 		if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
-			cache_pos_copy(&pos, &key_tmp->cache_pos);
-			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
-
 			if (cache_key_empty(key_tmp)) {
 				ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
 				if (ret)
 					goto out;
 			} else {
+				cache_pos_copy(&pos, &key_tmp->cache_pos);
+				cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
+
 				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 							key->len, &pos, key_tmp->seg_gen);
 				if (ret) {
@@ -1158,14 +1158,14 @@ cleanup_tree:
 		 */
 		io_len = cache_key_lend(key_tmp) - cache_key_lstart(key);
 
-		cache_pos_copy(&pos, &key_tmp->cache_pos);
-		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
-
 		if (cache_key_empty(key_tmp)) {
 			ret = submit_backing_io(cache, cbd_req, total_io_done + io_done, io_len, false);
 			if (ret)
 				goto out;
 		} else {
+			cache_pos_copy(&pos, &key_tmp->cache_pos);
+			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
+
 			ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 						io_len, &pos, key_tmp->seg_gen);
 			if (ret) {
