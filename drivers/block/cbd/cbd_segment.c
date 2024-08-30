@@ -146,6 +146,9 @@ void cbds_copy_data(struct cbd_seg_pos *dst_pos,
 		memcpy(dst_pos->segment->data + dst_pos->off, src_pos->segment->data + src_pos->off, to_copy);
 
 		copied += to_copy;
+
+		cbds_pos_advance(dst_pos, to_copy);
+		cbds_pos_advance(src_pos, to_copy);
 	}
 }
 
