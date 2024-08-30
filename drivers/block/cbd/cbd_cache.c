@@ -191,9 +191,9 @@ static void dump_cache(struct cbd_cache *cache)
 		node = rb_first(&cache_tree->root);
 		while (node) {
 			key = CACHE_KEY(node);
-			cbd_cache_debug(cache, "key: %p gen: %llu key->off: %llu, len: %u, cache: %p segid: %u\n",
+			cbd_cache_debug(cache, "key: %p gen: %llu key->off: %llu, len: %u, cache: %p segid: %u, seg_off: %u\n",
 					key, key->seg_gen, key->off, key->len, cache_pos_addr(&key->cache_pos),
-					key->cache_pos.cache_seg->cache_seg_id);
+					key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off);
 			node = rb_next(node);
 		}
 	}
