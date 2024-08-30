@@ -696,7 +696,7 @@ static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key,
 	struct cbd_cache_tree *cache_tree;
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
 	struct rb_node	*prev_node = NULL;
-	LIST_HEAD(key_list);
+	LIST_HEAD(delete_key_list);
 	int ret;
 
 	cache_tree = get_cache_tree(cache, key->off);
@@ -712,7 +712,7 @@ again:
 	while (*new) {
 		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
 		if (cache_key_invalid(key_tmp))
-			list_add(&key_tmp->list_node, &key_list);
+			list_add(&key_tmp->list_node, &delete_key_list);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
@@ -723,8 +723,8 @@ again:
 		}
 	}
 
-	if (!list_empty(&key_list)) {
-		list_for_each_entry_safe(key_tmp, key_next, &key_list, list_node) {
+	if (!list_empty(&delete_key_list)) {
+		list_for_each_entry_safe(key_tmp, key_next, &delete_key_list, list_node) {
 			list_del_init(&key_tmp->list_node);
 			cache_key_delete(key_tmp);
 		}
@@ -1021,8 +1021,10 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cbd_cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cbd_cache_key *key = &key_data;
 	struct cbd_cache_pos pos;
+	struct cbd_request *backing_req, *next_req;
 	u32 io_done = 0, total_io_done = 0, io_len = 0;
-	LIST_HEAD(key_list);
+	LIST_HEAD(delete_key_list);
+	LIST_HEAD(submit_req_list);
 	int ret;
 
 next_tree:
@@ -1041,7 +1043,7 @@ again:
 	while (*new) {
 		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
 		if (cache_key_invalid(key_tmp))
-			list_add(&key_tmp->list_node, &key_list);
+			list_add(&key_tmp->list_node, &delete_key_list);
 
 		parent = *new;
 		if (key_tmp->off >= key->off) {
@@ -1053,8 +1055,8 @@ again:
 	}
 
 cleanup_tree:
-	if (!list_empty(&key_list)) {
-		list_for_each_entry_safe(key_tmp, key_next, &key_list, list_node) {
+	if (!list_empty(&delete_key_list)) {
+		list_for_each_entry_safe(key_tmp, key_next, &delete_key_list, list_node) {
 			list_del_init(&key_tmp->list_node);
 			cache_key_delete(key_tmp);
 		}
@@ -1110,14 +1112,17 @@ cleanup_tree:
 
 				io_len = cache_key_lend(key) - cache_key_lstart(key_tmp);
 				if (cache_key_empty(key_tmp)) {
-					ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-					if (ret)
+					backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
+					if (!backing_req) {
+						ret = -ENOMEM;
 						goto out;
+					}
+					list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 				} else {
 					ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 								io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
 					if (ret) {
-						list_add(&key_tmp->list_node, &key_list);
+						list_add(&key_tmp->list_node, &delete_key_list);
 						goto cleanup_tree;
 					}
 				}
@@ -1141,14 +1146,17 @@ cleanup_tree:
 
 			io_len = key_tmp->len;
 			if (cache_key_empty(key_tmp)) {
-				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-				if (ret)
+				backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
+				if (!backing_req) {
+					ret = -ENOMEM;
 					goto out;
+				}
+				list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 			} else {
 				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 							io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
 				if (ret) {
-					list_add(&key_tmp->list_node, &key_list);
+					list_add(&key_tmp->list_node, &delete_key_list);
 					goto cleanup_tree;
 				}
 			}
@@ -1163,9 +1171,12 @@ cleanup_tree:
 		 */
 		if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
 			if (cache_key_empty(key_tmp)) {
-				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, key->len, false);
-				if (ret)
+				backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, key->len, false);
+				if (!backing_req) {
+					ret = -ENOMEM;
 					goto out;
+				}
+				list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 			} else {
 				cache_pos_copy(&pos, &key_tmp->cache_pos);
 				cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
@@ -1173,7 +1184,7 @@ cleanup_tree:
 				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 							key->len, &pos, key_tmp->seg_gen);
 				if (ret) {
-					list_add(&key_tmp->list_node, &key_list);
+					list_add(&key_tmp->list_node, &delete_key_list);
 					goto cleanup_tree;
 				}
 			}
@@ -1190,9 +1201,12 @@ cleanup_tree:
 		io_len = cache_key_lend(key_tmp) - cache_key_lstart(key);
 
 		if (cache_key_empty(key_tmp)) {
-			ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-			if (ret)
+			backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
+			if (!backing_req) {
+				ret = -ENOMEM;
 				goto out;
+			}
+			list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 		} else {
 			cache_pos_copy(&pos, &key_tmp->cache_pos);
 			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
@@ -1200,7 +1214,7 @@ cleanup_tree:
 			ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 						io_len, &pos, key_tmp->seg_gen);
 			if (ret) {
-				list_add(&key_tmp->list_node, &key_list);
+				list_add(&key_tmp->list_node, &delete_key_list);
 				goto cleanup_tree;
 			}
 		}
@@ -1215,6 +1229,11 @@ next:
 		if (ret)
 			goto out;
 		io_done += key->len;
+	}
+
+	list_for_each_entry_safe(backing_req, next_req, &submit_req_list, inflight_reqs_node) {
+		list_del_init(&backing_req->inflight_reqs_node);
+		submit_backing_req(cache, backing_req);
 	}
 	spin_unlock(&cache_tree->tree_lock);
 
