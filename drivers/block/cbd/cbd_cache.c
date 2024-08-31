@@ -165,6 +165,16 @@ const struct device_type cbd_cache_type = {
 	.release	= cbd_cache_release,
 };
 
+static inline bool cache_key_empty(struct cbd_cache_key *key)
+{
+	return key->flags & CBD_CACHE_KEY_FLAGS_EMPTY;
+}
+
+static inline bool cache_key_clean(struct cbd_cache_key *key)
+{
+	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
+}
+
 #ifdef CONFIG_CBD_DEBUG
 static void dump_seg_map(struct cbd_cache *cache)
 {
@@ -176,7 +186,6 @@ static void dump_seg_map(struct cbd_cache *cache)
 	cbd_cache_debug(cache, "end seg map dump");
 }
 
-static inline bool cache_key_empty(struct cbd_cache_key *key);
 static void dump_cache(struct cbd_cache *cache)
 {
 	struct cbd_cache_key *key;
@@ -640,23 +649,28 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 		 *   |====|		key
 		 */
 		if (cache_key_lend(key_tmp) > cache_key_lend(key)) {
-			struct cbd_cache_key *key_fixup;
+			if (cache_key_empty(key_tmp)) {
+				/* if key_tmp is empty, dont split key_tmp */
+				cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+			} else {
+				struct cbd_cache_key *key_fixup;
 
-			key_fixup = cache_key_alloc(cache);
-			if (!key_fixup) {
-				ret = -ENOMEM;
+				key_fixup = cache_key_alloc(cache);
+				if (!key_fixup) {
+					ret = -ENOMEM;
+					goto out;
+				}
+
+				cache_key_copy(key_fixup, key_tmp);
+
+				cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+				cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
+
+				cache_insert_key(cache, key_fixup, false);
+
+				ret = -EAGAIN;
 				goto out;
 			}
-
-			cache_key_copy(key_fixup, key_tmp);
-
-			cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
-			cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
-
-			cache_insert_key(cache, key_fixup, false);
-
-			ret = -EAGAIN;
-			goto out;
 		}
 
 		/*
@@ -671,16 +685,6 @@ next:
 	ret = 0;
 out:
 	return ret;
-}
-
-static inline bool cache_key_empty(struct cbd_cache_key *key)
-{
-	return key->flags & CBD_CACHE_KEY_FLAGS_EMPTY;
-}
-
-static inline bool cache_key_clean(struct cbd_cache_key *key)
-{
-	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
 }
 
 static inline bool cache_key_invalid(struct cbd_cache_key *key)
