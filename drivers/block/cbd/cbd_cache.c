@@ -329,6 +329,7 @@ static struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 	kref_init(&key->ref);
 	key->cache = cache;
 	INIT_LIST_HEAD(&key->list_node);
+	RB_CLEAR_NODE(&key->rb_node);
 
 	return key;
 }
