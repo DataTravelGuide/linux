@@ -1090,9 +1090,13 @@ cleanup_tree:
 		 * |====|
 		 */
 		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
-			ret = send_backing_req(cache, cbd_req, total_io_done + io_done, key->len, true);
-			if (ret)
+			backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, key->len, true);
+			if (!backing_req) {
+				ret = -ENOMEM;
 				goto out;
+			}
+			list_add(&backing_req->inflight_reqs_node, &submit_req_list);
+
 			io_done += key->len;
 			cache_key_cutfront(key, key->len);
 
@@ -1108,21 +1112,22 @@ cleanup_tree:
 			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
 				io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
 				if (io_len) {
-					ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, true);
-					if (ret)
+					backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, true);
+					if (!backing_req) {
+						ret = -ENOMEM;
 						goto out;
+					}
+					list_add(&backing_req->inflight_reqs_node, &submit_req_list);
+
 					io_done += io_len;
 					cache_key_cutfront(key, io_len);
 				}
 
 				io_len = cache_key_lend(key) - cache_key_lstart(key_tmp);
 				if (cache_key_empty(key_tmp)) {
-					backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-					if (!backing_req) {
-						ret = -ENOMEM;
+					ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
+					if (ret)
 						goto out;
-					}
-					list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 				} else {
 					ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 								io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
@@ -1142,21 +1147,22 @@ cleanup_tree:
 			 */
 			io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
 			if (io_len) {
-				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, true);
-				if (ret)
+				backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, true);
+				if (!backing_req) {
+					ret = -ENOMEM;
 					goto out;
+				}
+				list_add(&backing_req->inflight_reqs_node, &submit_req_list);
+
 				io_done += io_len;
 				cache_key_cutfront(key, io_len);
 			}
 
 			io_len = key_tmp->len;
 			if (cache_key_empty(key_tmp)) {
-				backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-				if (!backing_req) {
-					ret = -ENOMEM;
+				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
+				if (ret)
 					goto out;
-				}
-				list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 			} else {
 				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
 							io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
@@ -1176,12 +1182,9 @@ cleanup_tree:
 		 */
 		if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
 			if (cache_key_empty(key_tmp)) {
-				backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, key->len, false);
-				if (!backing_req) {
-					ret = -ENOMEM;
+				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, key->len, false);
+				if (ret)
 					goto out;
-				}
-				list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 			} else {
 				cache_pos_copy(&pos, &key_tmp->cache_pos);
 				cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
@@ -1206,12 +1209,9 @@ cleanup_tree:
 		io_len = cache_key_lend(key_tmp) - cache_key_lstart(key);
 
 		if (cache_key_empty(key_tmp)) {
-			backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-			if (!backing_req) {
-				ret = -ENOMEM;
+			ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
+			if (ret)
 				goto out;
-			}
-			list_add(&backing_req->inflight_reqs_node, &submit_req_list);
 		} else {
 			cache_pos_copy(&pos, &key_tmp->cache_pos);
 			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
