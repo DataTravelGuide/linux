@@ -359,6 +359,7 @@ static inline void cache_key_copy(struct cbd_cache_key *key_dst, struct cbd_cach
 	key_dst->len = key_src->len;
 	key_dst->seg_gen = key_src->seg_gen;
 	key_dst->cache_tree = key_src->cache_tree;
+	key_dst->flags = key_src->flags;
 
 	cache_pos_copy(&key_dst->cache_pos, &key_src->cache_pos);
 }
