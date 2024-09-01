@@ -395,9 +395,8 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
 	backend_info = cbdt_get_backend_info(cbdt, cbd_blkdev->backend_id);
 
-	if (cbd_blkdev->cbd_cache) {
+	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
-	}
 
 	kfree(cbd_blkdev);
 

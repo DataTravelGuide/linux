@@ -200,11 +200,11 @@
 #define CBDC_DATA_OFF		CBDC_META_SIZE
 #define CBDC_DATA_SIZE		(CBDT_SEG_SIZE - CBDC_META_SIZE)
 
-#define CBDC_UPDATE_SUBMR_HEAD(head, used, size) smp_store_release(&head, ((head % size) + used) % size)
-#define CBDC_UPDATE_SUBMR_TAIL(tail, used, size) smp_store_release(&tail, ((tail % size) + used) % size)
+#define CBDC_UPDATE_SUBMR_HEAD(head, used, size) (head = ((head % size) + used) % size)
+#define CBDC_UPDATE_SUBMR_TAIL(tail, used, size) (tail = ((tail % size) + used) % size)
 
-#define CBDC_UPDATE_COMPR_HEAD(head, used, size) smp_store_release(&head, ((head % size) + used) % size)
-#define CBDC_UPDATE_COMPR_TAIL(tail, used, size) smp_store_release(&tail, ((tail % size) + used) % size)
+#define CBDC_UPDATE_COMPR_HEAD(head, used, size) (head = ((head % size) + used) % size)
+#define CBDC_UPDATE_COMPR_TAIL(tail, used, size) (tail = ((tail % size) + used) % size)
 
 /* cbd transport */
 #define CBD_TRANSPORT_MAGIC		0x65B05EFA96C596EFULL
