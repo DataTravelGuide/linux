@@ -696,6 +696,41 @@ static inline bool cache_key_invalid(struct cbd_cache_key *key)
 	return (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen);
 }
 
+static struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, struct cbd_cache_key *key,
+					 struct rb_node **parentp, struct rb_node ***newp,
+					 struct list_head *delete_key_list)
+{
+	struct rb_node **new, *parent = NULL;
+	struct cbd_cache_key *key_tmp;
+	struct rb_node *prev_node = NULL;
+
+	new = &(cache_tree->root.rb_node);
+	while (*new) {
+		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
+		if (cache_key_invalid(key_tmp))
+			list_add(&key_tmp->list_node, delete_key_list);
+
+		parent = *new;
+		if (key_tmp->off >= key->off) {
+			new = &((*new)->rb_left);
+		} else {
+			prev_node = *new;
+			new = &((*new)->rb_right);
+		}
+	}
+
+	if (!prev_node)
+		prev_node = rb_first(&cache_tree->root);
+
+	if (parentp)
+		*parentp = parent;
+
+	if (newp)
+		*newp = new;
+
+	return prev_node;
+}
+
 static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
 {
 	struct rb_node **new, *parent = NULL;
@@ -710,40 +745,21 @@ static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key,
 	if (new_key)
 		key->cache_tree = cache_tree;
 
-again:
-	new = &(cache_tree->root.rb_node);
-	parent = NULL;
-	key_tmp = NULL;
-	prev_node = NULL;
-	while (*new) {
-		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
-		if (cache_key_invalid(key_tmp))
-			list_add(&key_tmp->list_node, &delete_key_list);
-
-		parent = *new;
-		if (key_tmp->off >= key->off) {
-			new = &((*new)->rb_left);
-		} else {
-			prev_node = *new;
-			new = &((*new)->rb_right);
-		}
-	}
+search:
+	prev_node = cache_tree_search(cache_tree, key, &parent, &new, &delete_key_list);
 
 	if (!list_empty(&delete_key_list)) {
 		list_for_each_entry_safe(key_tmp, key_next, &delete_key_list, list_node) {
 			list_del_init(&key_tmp->list_node);
 			cache_key_delete(key_tmp);
 		}
-		goto again;
+		goto search;
 	}
-
-	if (!prev_node)
-		prev_node = rb_first(&cache_tree->root);
 
 	if (new_key) {
 		ret = cache_insert_fixup(cache, key, prev_node);
 		if (ret == -EAGAIN)
-			goto again;
+			goto search;
 		BUG_ON(ret);
 	}
 
@@ -1019,7 +1035,6 @@ static int send_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_req
 
 static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
-	struct rb_node **new, *parent = NULL;
 	struct cbd_cache_tree *cache_tree;
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
 	struct rb_node *node_tmp;
@@ -1041,24 +1056,8 @@ next_tree:
 		key->len = CBD_CACHE_TREE_SIZE - (key->off & CBD_CACHE_TREE_SIZE_MASK);
 	cache_tree = get_cache_tree(cache, key->off);
 	spin_lock(&cache_tree->tree_lock);
-again:
-	new = &(cache_tree->root.rb_node);
-	parent = NULL;
-	key_tmp = NULL;
-	prev_node = NULL;
-	while (*new) {
-		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
-		if (cache_key_invalid(key_tmp))
-			list_add(&key_tmp->list_node, &delete_key_list);
-
-		parent = *new;
-		if (key_tmp->off >= key->off) {
-			new = &((*new)->rb_left);
-		} else {
-			prev_node = *new;
-			new = &((*new)->rb_right);
-		}
-	}
+search:
+	prev_node = cache_tree_search(cache_tree, key, NULL, NULL, &delete_key_list);
 
 cleanup_tree:
 	if (!list_empty(&delete_key_list)) {
@@ -1066,11 +1065,8 @@ cleanup_tree:
 			list_del_init(&key_tmp->list_node);
 			cache_key_delete(key_tmp);
 		}
-		goto again;
+		goto search;
 	}
-
-	if (!prev_node)
-		prev_node = rb_first(&cache_tree->root);
 
 	node_tmp = prev_node;
 	while (node_tmp) {
