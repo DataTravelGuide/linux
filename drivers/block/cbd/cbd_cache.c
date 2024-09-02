@@ -599,6 +599,9 @@ struct cbd_cache_tree_walk_ctx {
 	u32	req_done;
 	struct cbd_cache_key *key;
 
+	struct list_head *delete_key_list;
+	struct list_head *submit_req_list;
+
 	/*
 	 *	  |--------|		key_tmp
 	 * |====|			key
@@ -619,6 +622,7 @@ struct cbd_cache_tree_walk_ctx {
 			struct cbd_cache_tree_walk_ctx *ctx);
 	int (*overlap_contained)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+	int (*walk_finally)(struct cbd_cache_tree_walk_ctx *ctx);
 };
 
 static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx)
@@ -670,7 +674,7 @@ static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_c
 					if (ret)
 						goto out;
 				}
-				goto next;
+				break;
 			}
 
 			/*
@@ -710,6 +714,12 @@ static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_c
 		}
 next:
 		node_tmp = rb_next(node_tmp);
+	}
+
+	if (ctx->walk_finally) {
+		ret = ctx->walk_finally(ctx);
+		if (ret)
+			goto out;
 	}
 
 	ret = 0;
@@ -802,6 +812,7 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 	walk_ctx.overlap_head = fixup_overlap_head;
 	walk_ctx.overlap_contain = fixup_overlap_contain;
 	walk_ctx.overlap_contained = fixup_overlap_contained;
+	walk_ctx.walk_finally = NULL;
 
 	return cache_tree_walk(cache, &walk_ctx);
 }
@@ -1162,6 +1173,200 @@ static int send_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_req
 	return 0;
 }
 
+static int read_before(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_request *backing_req;
+	int ret;
+
+	backing_req = create_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, key->len, true);
+	if (!backing_req) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	list_add(&backing_req->inflight_reqs_node, ctx->submit_req_list);
+
+	ctx->req_done += key->len;
+	cache_key_cutfront(key, key->len);
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static int read_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_request *backing_req;
+	u32 io_len;
+	int ret;
+
+	io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
+	if (io_len) {
+		backing_req = create_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, io_len, true);
+		if (!backing_req) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		list_add(&backing_req->inflight_reqs_node, ctx->submit_req_list);
+
+		ctx->req_done += io_len;
+		cache_key_cutfront(key, io_len);
+	}
+
+	io_len = cache_key_lend(key) - cache_key_lstart(key_tmp);
+	if (cache_key_empty(key_tmp)) {
+		ret = send_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, io_len, false);
+		if (ret)
+			goto out;
+	} else {
+		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+					io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
+		if (ret) {
+			list_add(&key_tmp->list_node, ctx->delete_key_list);
+			goto out;
+		}
+	}
+	ctx->req_done += io_len;
+	cache_key_cutfront(key, io_len);
+
+	ret = 0;
+
+out:
+	return ret;
+}
+
+static int read_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_request *backing_req;
+	u32 io_len;
+	int ret;
+	/*
+	 *    |----|		key_tmp
+	 * |==========|		key
+	 */
+	io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
+	if (io_len) {
+		backing_req = create_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, io_len, true);
+		if (!backing_req) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		list_add(&backing_req->inflight_reqs_node, ctx->submit_req_list);
+
+		ctx->req_done += io_len;
+		cache_key_cutfront(key, io_len);
+	}
+
+	io_len = key_tmp->len;
+	if (cache_key_empty(key_tmp)) {
+		ret = send_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, io_len, false);
+		if (ret)
+			goto out;
+	} else {
+		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+					io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
+		if (ret) {
+			list_add(&key_tmp->list_node, ctx->delete_key_list);
+			goto out;
+		}
+	}
+	ctx->req_done += io_len;
+	cache_key_cutfront(key, io_len);
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static int read_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_cache_pos pos;
+	int ret;
+
+	if (cache_key_empty(key_tmp)) {
+		ret = send_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, key->len, false);
+		if (ret)
+			goto out;
+	} else {
+		cache_pos_copy(&pos, &key_tmp->cache_pos);
+		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
+
+		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+					key->len, &pos, key_tmp->seg_gen);
+		if (ret) {
+			list_add(&key_tmp->list_node, ctx->delete_key_list);
+			goto out;
+		}
+	}
+	ctx->req_done += key->len;
+	cache_key_cutfront(key, key->len);
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static int read_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_cache_pos pos;
+	u32 io_len;
+	int ret;
+	/*
+	 * |--------|		key_tmp
+	 *   |==========|	key
+	 */
+	io_len = cache_key_lend(key_tmp) - cache_key_lstart(key);
+
+	if (cache_key_empty(key_tmp)) {
+		ret = send_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, io_len, false);
+		if (ret)
+			goto out;
+	} else {
+		cache_pos_copy(&pos, &key_tmp->cache_pos);
+		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
+
+		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+					io_len, &pos, key_tmp->seg_gen);
+		if (ret) {
+			list_add(&key_tmp->list_node, ctx->delete_key_list);
+			goto out;
+		}
+	}
+
+	ctx->req_done += io_len;
+	cache_key_cutfront(key, io_len);
+	ret = 0;
+out:
+	return ret;
+}
+
+static int read_finally(struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_request *backing_req, *next_req;
+	struct cbd_cache_key *key = ctx->key;
+	int ret;
+
+	if (key->len) {
+		ret = send_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, key->len, true);
+		if (ret)
+			goto out;
+		ctx->req_done += key->len;
+	}
+
+	list_for_each_entry_safe(backing_req, next_req, ctx->submit_req_list, inflight_reqs_node) {
+		list_del_init(&backing_req->inflight_reqs_node);
+		submit_backing_req(ctx->cache, backing_req);
+	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
 static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	struct cbd_cache_tree *cache_tree;
@@ -1172,15 +1377,28 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cbd_cache_key *key = &key_data;
 	struct cbd_cache_pos pos;
 	struct cbd_request *backing_req, *next_req;
+	struct cbd_cache_tree_walk_ctx walk_ctx;
 	u32 io_done = 0, total_io_done = 0, io_len = 0;
 	LIST_HEAD(delete_key_list);
 	LIST_HEAD(submit_req_list);
 	int ret;
 
+	walk_ctx.cache = cache;
+	walk_ctx.req_done = 0;
+	walk_ctx.cbd_req = cbd_req;
+	walk_ctx.before = read_before;
+	walk_ctx.after = NULL;
+	walk_ctx.overlap_tail = read_overlap_tail;
+	walk_ctx.overlap_head = read_overlap_head;
+	walk_ctx.overlap_contain = read_overlap_contain;
+	walk_ctx.overlap_contained = read_overlap_contained;
+	walk_ctx.walk_finally = read_finally;
+	walk_ctx.delete_key_list = &delete_key_list;
+	walk_ctx.submit_req_list = &submit_req_list;
+
 next_tree:
-	io_done = 0;
-	key->off = cbd_req->off + total_io_done;
-	key->len = cbd_req->data_len - total_io_done;
+	key->off = cbd_req->off + walk_ctx.req_done;
+	key->len = cbd_req->data_len - walk_ctx.req_done;
 	if (key->len > CBD_CACHE_TREE_SIZE - (key->off & CBD_CACHE_TREE_SIZE_MASK))
 		key->len = CBD_CACHE_TREE_SIZE - (key->off & CBD_CACHE_TREE_SIZE_MASK);
 	cache_tree = get_cache_tree(cache, key->off);
@@ -1197,181 +1415,18 @@ cleanup_tree:
 		goto search;
 	}
 
-	node_tmp = prev_node;
-	while (node_tmp) {
-		if (io_done >= cbd_req->data_len)
-			break;
+	walk_ctx.start_node = prev_node;
+	walk_ctx.key = key;
 
-		key_tmp = CACHE_KEY(node_tmp);
+	ret = cache_tree_walk(cache, &walk_ctx);
+	if (ret == -EINVAL)
+		goto cleanup_tree;
+	else
+		goto out;
 
-		/*
-		 * |----------|
-		 *		|=====|
-		 */
-		if (cache_key_lend(key_tmp) <= cache_key_lstart(key))
-			goto next;
-
-		/*
-		 *	  |--------|
-		 * |====|
-		 */
-		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
-			backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, key->len, true);
-			if (!backing_req) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			list_add(&backing_req->inflight_reqs_node, &submit_req_list);
-
-			io_done += key->len;
-			cache_key_cutfront(key, key->len);
-
-			break;
-		}
-
-		/* overlap */
-		if (cache_key_lstart(key_tmp) >= cache_key_lstart(key)) {
-			/*
-			 *     |----------------|	key_tmp
-			 * |===========|		key
-			 */
-			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
-				io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
-				if (io_len) {
-					backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, true);
-					if (!backing_req) {
-						ret = -ENOMEM;
-						goto out;
-					}
-					list_add(&backing_req->inflight_reqs_node, &submit_req_list);
-
-					io_done += io_len;
-					cache_key_cutfront(key, io_len);
-				}
-
-				io_len = cache_key_lend(key) - cache_key_lstart(key_tmp);
-				if (cache_key_empty(key_tmp)) {
-					ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-					if (ret)
-						goto out;
-				} else {
-					ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-								io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
-					if (ret) {
-						list_add(&key_tmp->list_node, &delete_key_list);
-						goto cleanup_tree;
-					}
-				}
-				io_done += io_len;
-				cache_key_cutfront(key, io_len);
-				break;
-			}
-
-			/*
-			 *    |----|		key_tmp
-			 * |==========|		key
-			 */
-			io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
-			if (io_len) {
-				backing_req = create_backing_req(cache, cbd_req, total_io_done + io_done, io_len, true);
-				if (!backing_req) {
-					ret = -ENOMEM;
-					goto out;
-				}
-				list_add(&backing_req->inflight_reqs_node, &submit_req_list);
-
-				io_done += io_len;
-				cache_key_cutfront(key, io_len);
-			}
-
-			io_len = key_tmp->len;
-			if (cache_key_empty(key_tmp)) {
-				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-				if (ret)
-					goto out;
-			} else {
-				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-							io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
-				if (ret) {
-					list_add(&key_tmp->list_node, &delete_key_list);
-					goto cleanup_tree;
-				}
-			}
-			io_done += io_len;
-			cache_key_cutfront(key, io_len);
-			goto next;
-		}
-
-		/*
-		 * |-----------|	key_tmp
-		 *   |====|		key
-		 */
-		if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
-			if (cache_key_empty(key_tmp)) {
-				ret = send_backing_req(cache, cbd_req, total_io_done + io_done, key->len, false);
-				if (ret)
-					goto out;
-			} else {
-				cache_pos_copy(&pos, &key_tmp->cache_pos);
-				cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
-
-				ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-							key->len, &pos, key_tmp->seg_gen);
-				if (ret) {
-					list_add(&key_tmp->list_node, &delete_key_list);
-					goto cleanup_tree;
-				}
-			}
-			io_done += key->len;
-
-			cache_key_cutfront(key, key->len);
-			break;
-		}
-
-		/*
-		 * |--------|		key_tmp
-		 *   |==========|	key
-		 */
-		io_len = cache_key_lend(key_tmp) - cache_key_lstart(key);
-
-		if (cache_key_empty(key_tmp)) {
-			ret = send_backing_req(cache, cbd_req, total_io_done + io_done, io_len, false);
-			if (ret)
-				goto out;
-		} else {
-			cache_pos_copy(&pos, &key_tmp->cache_pos);
-			cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
-
-			ret = cache_copy_to_bio(cache, cbd_req, total_io_done + io_done,
-						io_len, &pos, key_tmp->seg_gen);
-			if (ret) {
-				list_add(&key_tmp->list_node, &delete_key_list);
-				goto cleanup_tree;
-			}
-		}
-		io_done += io_len;
-		cache_key_cutfront(key, io_len);
-next:
-		node_tmp = rb_next(node_tmp);
-	}
-
-	if (key->len) {
-		ret = send_backing_req(cache, cbd_req, total_io_done + io_done, key->len, true);
-		if (ret)
-			goto out;
-		io_done += key->len;
-	}
-
-	list_for_each_entry_safe(backing_req, next_req, &submit_req_list, inflight_reqs_node) {
-		list_del_init(&backing_req->inflight_reqs_node);
-		submit_backing_req(cache, backing_req);
-	}
 	spin_unlock(&cache_tree->tree_lock);
 
-	total_io_done += io_done;
-	io_done = 0;
-
-	if (!ret && total_io_done < cbd_req->data_len)
+	if (!ret && walk_ctx.req_done < cbd_req->data_len)
 		goto next_tree;
 
 	return 0;
