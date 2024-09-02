@@ -1294,7 +1294,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		cache_tree = get_cache_tree(cache, key->off);
 		spin_lock(&cache_tree->tree_lock);
-		/* append key into key head pos */
 		ret = cache_key_append(cache, key);
 		if (ret) {
 			spin_unlock(&cache_tree->tree_lock);
@@ -1305,9 +1304,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		io_done += key->len;
 
-		/* add key into cache_tree, after this, key could be changed
-		 * by other overlap key insert, so we need key_append before insert_key
-		 */
 		cache_insert_key(cache, key, true);
 		spin_unlock(&cache_tree->tree_lock);
 	}
