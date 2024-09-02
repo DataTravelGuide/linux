@@ -633,7 +633,7 @@ struct cbd_cache_segment {
 	spinlock_t		gen_lock;
 	struct cbd_cache_seg_info *cache_seg_info;
 	struct cbd_segment	segment;
-	atomic_t		keys;
+	atomic_t		refs;
 };
 
 struct cbd_cache_pos {

@@ -38,6 +38,21 @@ static inline struct cbd_cache_kset *get_kset(struct cbd_cache *cache, u32 kset_
 	return (void *)cache->ksets + CBD_KSET_SIZE * kset_id;
 }
 
+static inline struct cbd_cache_data_head *get_data_head(struct cbd_cache *cache, u32 i)
+{
+	return &cache->data_heads[i % cache->n_heads];
+}
+
+static inline bool cache_key_empty(struct cbd_cache_key *key)
+{
+	return key->flags & CBD_CACHE_KEY_FLAGS_EMPTY;
+}
+
+static inline bool cache_key_clean(struct cbd_cache_key *key)
+{
+	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
+}
+
 static struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache *cache = cache_seg->cache;
@@ -165,16 +180,6 @@ const struct device_type cbd_cache_type = {
 	.release	= cbd_cache_release,
 };
 
-static inline bool cache_key_empty(struct cbd_cache_key *key)
-{
-	return key->flags & CBD_CACHE_KEY_FLAGS_EMPTY;
-}
-
-static inline bool cache_key_clean(struct cbd_cache_key *key)
-{
-	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
-}
-
 #ifdef CONFIG_CBD_DEBUG
 static void dump_seg_map(struct cbd_cache *cache)
 {
@@ -257,7 +262,7 @@ again:
 
 static void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
-	atomic_inc(&cache_seg->keys);
+	atomic_inc(&cache_seg->refs);
 }
 
 static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
@@ -285,7 +290,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 static void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
-	if (atomic_dec_and_test(&cache_seg->keys))
+	if (atomic_dec_and_test(&cache_seg->refs))
 		cache_seg_invalidate(cache_seg);
 }
 
@@ -294,11 +299,6 @@ static void cache_key_gc(struct cbd_cache *cache, struct cbd_cache_key *key)
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 
 	cache_seg_put(cache_seg);
-}
-
-static struct cbd_cache_data_head *get_data_head(struct cbd_cache *cache, u32 i)
-{
-	return &cache->data_heads[i % cache->n_heads];
 }
 
 static int cache_data_head_init(struct cbd_cache *cache, u32 i)
@@ -401,8 +401,8 @@ again:
 		if (set) {
 			struct cbd_cache *cache = pos->cache_seg->cache;
 
-			cbd_cache_debug(cache, "set seg in advance %u\n", pos->cache_seg->cache_seg_id);
 			set_bit(pos->cache_seg->cache_seg_id, pos->cache_seg->cache->seg_map);
+			cbd_cache_debug(cache, "set seg in advance %u\n", pos->cache_seg->cache_seg_id);
 #ifdef CONFIG_CBD_DEBUG
 			dump_seg_map(cache);
 #endif
@@ -1470,7 +1470,7 @@ static void cache_seg_init(struct cbd_cache *cache,
 
 	cbd_segment_init(cbdt, segment, &seg_options);
 
-	atomic_set(&cache_seg->keys, 0);
+	atomic_set(&cache_seg->refs, 0);
 	spin_lock_init(&cache_seg->gen_lock);
 	cache_seg->cache = cache;
 	cache_seg->cache_seg_id = cache_seg_id;
