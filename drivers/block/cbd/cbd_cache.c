@@ -1421,12 +1421,12 @@ cleanup_tree:
 	ret = cache_tree_walk(cache, &walk_ctx);
 	if (ret == -EINVAL)
 		goto cleanup_tree;
-	else
+	else if (ret)
 		goto out;
 
 	spin_unlock(&cache_tree->tree_lock);
 
-	if (!ret && walk_ctx.req_done < cbd_req->data_len)
+	if (walk_ctx.req_done < cbd_req->data_len)
 		goto next_tree;
 
 	return 0;
