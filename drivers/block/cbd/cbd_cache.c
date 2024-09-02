@@ -592,32 +592,71 @@ out:
 	return ret;
 }
 
-static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new);
-static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key, struct rb_node *prev_node)
+struct cbd_cache_tree_walk_ctx {
+	struct cbd_cache *cache;
+	struct rb_node *start_node;
+	struct cbd_request *cbd_req;
+	u32	req_done;
+	struct cbd_cache_key *key;
+
+	/*
+	 *	  |--------|		key_tmp
+	 * |====|			key
+	 */
+	int (*before)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+			struct cbd_cache_tree_walk_ctx *ctx);
+	/*
+	 * |----------|
+	 *		|=====|
+	 */
+	int (*after)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+			struct cbd_cache_tree_walk_ctx *ctx);
+	int (*overlap_tail)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+			struct cbd_cache_tree_walk_ctx *ctx);
+	int (*overlap_head)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+			struct cbd_cache_tree_walk_ctx *ctx);
+	int (*overlap_contain)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+			struct cbd_cache_tree_walk_ctx *ctx);
+	int (*overlap_contained)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+			struct cbd_cache_tree_walk_ctx *ctx);
+};
+
+static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx)
 {
+	struct cbd_cache_key *key_tmp, *key;
 	struct rb_node *node_tmp;
-	struct cbd_cache_key *key_tmp;
 	int ret;
 
-	if (!prev_node)
-		return 0;
+	key = ctx->key;
+	node_tmp = ctx->start_node;
 
-	node_tmp = prev_node;
 	while (node_tmp) {
 		key_tmp = CACHE_KEY(node_tmp);
 		/*
 		 * |----------|
 		 *		|=====|
 		 */
-		if (cache_key_lend(key_tmp) <= cache_key_lstart(key))
+		if (cache_key_lend(key_tmp) <= cache_key_lstart(key)) {
+			if (ctx->after) {
+				ret = ctx->after(key, key_tmp, ctx);
+				if (ret)
+					goto out;
+			}
 			goto next;
+		}
 
 		/*
 		 *	  |--------|
 		 * |====|
 		 */
-		if (cache_key_lstart(key_tmp) >= cache_key_lend(key))
+		if (cache_key_lstart(key_tmp) >= cache_key_lend(key)) {
+			if (ctx->before) {
+				ret = ctx->before(key, key_tmp, ctx);
+				if (ret)
+					goto out;
+			}
 			break;
+		}
 
 		/* overlap */
 		if (cache_key_lstart(key_tmp) >= cache_key_lstart(key)) {
@@ -626,13 +665,11 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 			 * |===========|		key
 			 */
 			if (cache_key_lend(key_tmp) >= cache_key_lend(key)) {
-				cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
-				if (key_tmp->len == 0) {
-					cache_key_delete(key_tmp);
-					ret = -EAGAIN;
-					goto out;
+				if (ctx->overlap_tail) {
+					ret = ctx->overlap_tail(key, key_tmp, ctx);
+					if (ret)
+						goto out;
 				}
-
 				goto next;
 			}
 
@@ -640,9 +677,13 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 			 *    |----|		key_tmp
 			 * |==========|		key
 			 */
-			cache_key_delete(key_tmp);
-			ret = -EAGAIN;
-			goto out;
+			if (ctx->overlap_contain) {
+				ret = ctx->overlap_contain(key, key_tmp, ctx);
+				if (ret)
+					goto out;
+			}
+
+			goto next;
 		}
 
 		/*
@@ -650,35 +691,23 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 		 *   |====|		key
 		 */
 		if (cache_key_lend(key_tmp) > cache_key_lend(key)) {
-			if (cache_key_empty(key_tmp)) {
-				/* if key_tmp is empty, dont split key_tmp */
-				cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
-			} else {
-				struct cbd_cache_key *key_fixup;
-
-				key_fixup = cache_key_alloc(cache);
-				if (!key_fixup) {
-					ret = -ENOMEM;
+			if (ctx->overlap_contained) {
+				ret = ctx->overlap_contained(key, key_tmp, ctx);
+				if (ret)
 					goto out;
-				}
-
-				cache_key_copy(key_fixup, key_tmp);
-
-				cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
-				cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
-
-				cache_insert_key(cache, key_fixup, false);
-
-				ret = -EAGAIN;
-				goto out;
 			}
+			break;
 		}
 
 		/*
 		 * |--------|		key_tmp
 		 *   |==========|	key
 		 */
-		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+		if (ctx->overlap_head) {
+			ret = ctx->overlap_head(key, key_tmp, ctx);
+			if (ret)
+				goto out;
+		}
 next:
 		node_tmp = rb_next(node_tmp);
 	}
@@ -686,6 +715,93 @@ next:
 	ret = 0;
 out:
 	return ret;
+}
+
+static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	int ret;
+
+	cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
+	if (key_tmp->len == 0) {
+		cache_key_delete(key_tmp);
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static int fixup_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	cache_key_delete(key_tmp);
+	return -EAGAIN;
+}
+
+static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new);
+static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	struct cbd_cache *cache = ctx->cache;
+	int ret;
+
+	if (cache_key_empty(key_tmp)) {
+		/* if key_tmp is empty, dont split key_tmp */
+		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+	} else {
+		struct cbd_cache_key *key_fixup;
+
+		key_fixup = cache_key_alloc(cache);
+		if (!key_fixup) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		cache_key_copy(key_fixup, key_tmp);
+
+		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+		cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
+
+		cache_insert_key(cache, key_fixup, false);
+
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	return ret;
+}
+
+static int fixup_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
+		struct cbd_cache_tree_walk_ctx *ctx)
+{
+	cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
+
+	return 0;
+}
+
+static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key, struct rb_node *prev_node)
+{
+	struct cbd_cache_tree_walk_ctx walk_ctx;
+
+	walk_ctx.cache = cache;
+	walk_ctx.start_node = prev_node;
+	walk_ctx.cbd_req = NULL;
+	walk_ctx.req_done = 0;
+	walk_ctx.key = key;
+
+	walk_ctx.before = NULL;
+	walk_ctx.after = NULL;
+	walk_ctx.overlap_tail = fixup_overlap_tail;
+	walk_ctx.overlap_head = fixup_overlap_head;
+	walk_ctx.overlap_contain = fixup_overlap_contain;
+	walk_ctx.overlap_contained = fixup_overlap_contained;
+
+	return cache_tree_walk(cache, &walk_ctx);
 }
 
 static inline bool cache_key_invalid(struct cbd_cache_key *key)
