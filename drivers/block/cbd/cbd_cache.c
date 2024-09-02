@@ -741,7 +741,7 @@ static int fixup_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key
 	return -EAGAIN;
 }
 
-static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new);
+static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new);
 static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 		struct cbd_cache_tree_walk_ctx *ctx)
 {
@@ -765,7 +765,9 @@ static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_k
 		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
 		cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
 
-		cache_insert_key(cache, key_fixup, false);
+		ret = cache_insert_key(cache, key_fixup, false);
+		if (ret)
+			goto out;
 
 		ret = -EAGAIN;
 		goto out;
@@ -847,7 +849,7 @@ static struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, stru
 	return prev_node;
 }
 
-static void cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
+static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
 {
 	struct rb_node **new, *parent = NULL;
 	struct cbd_cache_tree *cache_tree;
@@ -876,11 +878,16 @@ search:
 		ret = cache_insert_fixup(cache, key, prev_node);
 		if (ret == -EAGAIN)
 			goto search;
-		BUG_ON(ret);
+		if (ret)
+			goto out;;
 	}
 
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_tree->root);
+
+	ret = 0;
+out:
+	return ret;
 }
 
 static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
@@ -1072,10 +1079,16 @@ static void submit_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_
 		struct cbd_cache_key *key;
 
 		key = (struct cbd_cache_key *)cbd_req->priv_data;
-		cache_insert_key(cache, key, true);
+		ret = cache_insert_key(cache, key, true);
+		if (ret) {
+			cache_key_put(key);
+			cbd_req->priv_data = NULL;
+			goto out;
+		}
 	}
 
 	ret = cbd_queue_req_to_backend(cbd_req);
+out:
 	cbd_req_put(cbd_req, ret);
 }
 
@@ -1410,6 +1423,14 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		cache_tree = get_cache_tree(cache, key->off);
 		spin_lock(&cache_tree->tree_lock);
+		ret = cache_insert_key(cache, key, true);
+		if (ret) {
+			spin_unlock(&cache_tree->tree_lock);
+			cache_seg_put(key->cache_pos.cache_seg);
+			cache_key_put(key);
+			goto err;
+		}
+
 		ret = cache_key_append(cache, key);
 		if (ret) {
 			spin_unlock(&cache_tree->tree_lock);
@@ -1419,8 +1440,6 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		}
 
 		io_done += key->len;
-
-		cache_insert_key(cache, key, true);
 		spin_unlock(&cache_tree->tree_lock);
 	}
 
@@ -1526,10 +1545,15 @@ static int cache_replay(struct cbd_cache *cache)
 #endif
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
-			if (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen)
+			if (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen) {
 				cache_key_put(key);
-			else
-				cache_insert_key(cache, key, true);
+			} else {
+				ret = cache_insert_key(cache, key, true);
+				if (ret) {
+					cache_key_put(key);
+					goto out;
+				}
+			}
 
 			cache_seg_get(key->cache_pos.cache_seg);
 		}
