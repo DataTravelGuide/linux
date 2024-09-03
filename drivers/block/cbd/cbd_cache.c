@@ -635,6 +635,9 @@ static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_c
 	node_tmp = ctx->start_node;
 
 	while (node_tmp) {
+		if (ctx->cbd_req && ctx->req_done >= ctx->cbd_req->data_len)
+			break;
+
 		key_tmp = CACHE_KEY(node_tmp);
 		/*
 		 * |----------|
