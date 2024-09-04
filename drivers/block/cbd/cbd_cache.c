@@ -1514,7 +1514,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		if (ret) {
 			spin_unlock(&cache_tree->tree_lock);
 			cache_seg_put(key->cache_pos.cache_seg);
-			cache_key_put(key);
+			cache_key_delete(key);
 			goto err;
 		}
 
