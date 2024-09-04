@@ -783,21 +783,44 @@ struct cbd_cache_tree_walk_ctx {
 	 */
 	int (*before)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+
 	/*
-	 * |----------|
-	 *		|=====|
+	 * |----------|			key_tmp
+	 *		|=====|		key
 	 */
 	int (*after)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+
+	/*
+	 *     |----------------|	key_tmp
+	 * |===========|		key
+	 */
 	int (*overlap_tail)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+
+	/*
+	 * |--------|			key_tmp
+	 *   |==========|		key
+	 */
 	int (*overlap_head)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+
+	/*
+	 *    |----|			key_tmp
+	 * |==========|			key
+	 */
 	int (*overlap_contain)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+
+	/*
+	 * |-----------|		key_tmp
+	 *   |====|			key
+	 */
 	int (*overlap_contained)(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 			struct cbd_cache_tree_walk_ctx *ctx);
+
 	int (*walk_finally)(struct cbd_cache_tree_walk_ctx *ctx);
+	bool (*walk_done)(struct cbd_cache_tree_walk_ctx *ctx);
 };
 
 static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx)
@@ -810,7 +833,7 @@ static int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_c
 	node_tmp = ctx->start_node;
 
 	while (node_tmp) {
-		if (ctx->cbd_req && ctx->req_done >= ctx->cbd_req->data_len)
+		if (ctx->walk_done && ctx->walk_done(ctx))
 			break;
 
 		key_tmp = CACHE_KEY(node_tmp);
@@ -900,7 +923,7 @@ next:
 			goto out;
 	}
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -956,6 +979,10 @@ static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *k
 {
 	int ret;
 
+	/*
+	 *     |----------------|	key_tmp
+	 * |===========|		key
+	 */
 	cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
 	if (key_tmp->len == 0) {
 		cache_key_delete(key_tmp);
@@ -963,7 +990,7 @@ static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *k
 		goto out;
 	}
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -971,7 +998,12 @@ out:
 static int fixup_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 		struct cbd_cache_tree_walk_ctx *ctx)
 {
+	/*
+	 *    |----|			key_tmp
+	 * |==========|			key
+	 */
 	cache_key_delete(key_tmp);
+
 	return -EAGAIN;
 }
 
@@ -982,6 +1014,10 @@ static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_k
 	struct cbd_cache *cache = ctx->cache;
 	int ret;
 
+	/*
+	 * |-----------|		key_tmp
+	 *   |====|			key
+	 */
 	if (cache_key_empty(key_tmp)) {
 		/* if key_tmp is empty, dont split key_tmp */
 		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
@@ -1024,7 +1060,7 @@ static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_k
 		}
 	}
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -1032,6 +1068,10 @@ out:
 static int fixup_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 		struct cbd_cache_tree_walk_ctx *ctx)
 {
+	/*
+	 * |--------|		key_tmp
+	 *   |==========|	key
+	 */
 	cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
 	if (key_tmp->len == 0) {
 		cache_key_delete(key_tmp);
@@ -1097,7 +1137,7 @@ search:
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_tree->root);
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -1289,7 +1329,7 @@ static int read_before(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 	ctx->req_done += key->len;
 	cache_key_cutfront(key, key->len);
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -1301,6 +1341,10 @@ static int read_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *ke
 	u32 io_len;
 	int ret;
 
+	/*
+	 *     |----------------|	key_tmp
+	 * |===========|		key
+	 */
 	io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
 	if (io_len) {
 		backing_req = create_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, io_len, true);
@@ -1330,7 +1374,7 @@ static int read_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *ke
 	ctx->req_done += io_len;
 	cache_key_cutfront(key, io_len);
 
-	ret = 0;
+	return 0;
 
 out:
 	return ret;
@@ -1343,8 +1387,8 @@ static int read_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key 
 	u32 io_len;
 	int ret;
 	/*
-	 *    |----|		key_tmp
-	 * |==========|		key
+	 *    |----|			key_tmp
+	 * |==========|			key
 	 */
 	io_len = cache_key_lstart(key_tmp) - cache_key_lstart(key);
 	if (io_len) {
@@ -1375,7 +1419,7 @@ static int read_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key 
 	ctx->req_done += io_len;
 	cache_key_cutfront(key, io_len);
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -1386,6 +1430,10 @@ static int read_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_ke
 	struct cbd_cache_pos pos;
 	int ret;
 
+	/*
+	 * |-----------|		key_tmp
+	 *   |====|			key
+	 */
 	if (cache_key_empty(key_tmp)) {
 		ret = send_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, key->len, false);
 		if (ret)
@@ -1404,7 +1452,7 @@ static int read_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_ke
 	ctx->req_done += key->len;
 	cache_key_cutfront(key, key->len);
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -1439,12 +1487,13 @@ static int read_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *ke
 
 	ctx->req_done += io_len;
 	cache_key_cutfront(key, io_len);
-	ret = 0;
+
+	return 0;
 out:
 	return ret;
 }
 
-static int read_finally(struct cbd_cache_tree_walk_ctx *ctx)
+static int read_walk_finally(struct cbd_cache_tree_walk_ctx *ctx)
 {
 	struct cbd_request *backing_req, *next_req;
 	struct cbd_cache_key *key = ctx->key;
@@ -1462,9 +1511,13 @@ static int read_finally(struct cbd_cache_tree_walk_ctx *ctx)
 		submit_backing_req(ctx->cache, backing_req);
 	}
 
-	ret = 0;
+	return 0;
 out:
 	return ret;
+}
+static bool read_walk_done(struct cbd_cache_tree_walk_ctx *ctx)
+{
+	return (ctx->req_done >= ctx->cbd_req->data_len);
 }
 
 static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
@@ -1488,7 +1541,8 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	walk_ctx.overlap_head = read_overlap_head;
 	walk_ctx.overlap_contain = read_overlap_contain;
 	walk_ctx.overlap_contained = read_overlap_contained;
-	walk_ctx.walk_finally = read_finally;
+	walk_ctx.walk_finally = read_walk_finally;
+	walk_ctx.walk_done = read_walk_done;
 	walk_ctx.delete_key_list = &delete_key_list;
 	walk_ctx.submit_req_list = &submit_req_list;
 
