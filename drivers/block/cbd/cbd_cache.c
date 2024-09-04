@@ -1083,21 +1083,16 @@ static int fixup_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *k
 
 static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key, struct rb_node *prev_node)
 {
-	struct cbd_cache_tree_walk_ctx walk_ctx;
+	struct cbd_cache_tree_walk_ctx walk_ctx = { 0 };
 
 	walk_ctx.cache = cache;
 	walk_ctx.start_node = prev_node;
-	walk_ctx.cbd_req = NULL;
-	walk_ctx.req_done = 0;
 	walk_ctx.key = key;
 
-	walk_ctx.before = NULL;
-	walk_ctx.after = NULL;
 	walk_ctx.overlap_tail = fixup_overlap_tail;
 	walk_ctx.overlap_head = fixup_overlap_head;
 	walk_ctx.overlap_contain = fixup_overlap_contain;
 	walk_ctx.overlap_contained = fixup_overlap_contained;
-	walk_ctx.walk_finally = NULL;
 
 	return cache_tree_walk(cache, &walk_ctx);
 }
@@ -1528,7 +1523,7 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
 	struct rb_node *prev_node = NULL;
 	struct cbd_cache_key *key = &key_data;
-	struct cbd_cache_tree_walk_ctx walk_ctx;
+	struct cbd_cache_tree_walk_ctx walk_ctx = { 0 };
 	LIST_HEAD(delete_key_list);
 	LIST_HEAD(submit_req_list);
 	int ret;
@@ -1537,7 +1532,6 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	walk_ctx.req_done = 0;
 	walk_ctx.cbd_req = cbd_req;
 	walk_ctx.before = read_before;
-	walk_ctx.after = NULL;
 	walk_ctx.overlap_tail = read_overlap_tail;
 	walk_ctx.overlap_head = read_overlap_head;
 	walk_ctx.overlap_contain = read_overlap_contain;
