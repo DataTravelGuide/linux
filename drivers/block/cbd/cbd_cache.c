@@ -438,18 +438,18 @@ out:
 	return ret;
 }
 
-static void cache_copy_from_bio(struct cbd_cache *cache, struct cbd_cache_key *key,
-				struct bio *bio, u32 bio_off)
+static void cache_copy_from_req_bio(struct cbd_cache *cache, struct cbd_cache_key *key,
+				struct cbd_request *cbd_req, u32 bio_off)
 {
 	struct cbd_cache_pos *pos = &key->cache_pos;
 	struct cbd_segment *segment;
 
 	segment = &pos->cache_seg->segment;
 
-	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, bio_off);
+	cbds_copy_from_bio(segment, pos->seg_off, key->len, cbd_req->bio, bio_off);
 }
 
-static int cache_copy_to_bio(struct cbd_cache *cache, struct cbd_request *cbd_req,
+static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cbd_req,
 			    u32 off, u32 len, struct cbd_cache_pos *pos, u64 key_gen)
 {
 	struct cbd_cache_segment *cache_seg = pos->cache_seg;
@@ -469,7 +469,7 @@ static int cache_copy_to_bio(struct cbd_cache *cache, struct cbd_request *cbd_re
 	return 0;
 }
 
-static void cache_copy_from_req(struct cbd_cache *cache, struct cbd_request *cbd_req,
+static void cache_copy_from_req_channel(struct cbd_cache *cache, struct cbd_request *cbd_req,
 				struct cbd_cache_pos *pos, u32 off, u32 len)
 {
 	struct cbd_seg_pos dst_pos, src_pos;
@@ -1172,7 +1172,8 @@ static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_r
 				cache_key_delete(key);
 				goto unlock;
 			}
-			cache_copy_from_req(cache, cbd_req, &key->cache_pos, key->off - cbd_req->off, key->len);
+			cache_copy_from_req_channel(cache, cbd_req, &key->cache_pos,
+						    key->off - cbd_req->off, key->len);
 			key->flags &= ~CBD_CACHE_KEY_FLAGS_EMPTY;
 			key->flags |= CBD_CACHE_KEY_FLAGS_CLEAN;
 
@@ -1364,7 +1365,7 @@ static int read_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *ke
 		if (ret)
 			goto out;
 	} else {
-		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+		ret = cache_copy_to_req_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
 					io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
 		if (ret) {
 			list_add(&key_tmp->list_node, ctx->delete_key_list);
@@ -1409,7 +1410,7 @@ static int read_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key 
 		if (ret)
 			goto out;
 	} else {
-		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+		ret = cache_copy_to_req_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
 					io_len, &key_tmp->cache_pos, key_tmp->seg_gen);
 		if (ret) {
 			list_add(&key_tmp->list_node, ctx->delete_key_list);
@@ -1442,7 +1443,7 @@ static int read_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_ke
 		cache_pos_copy(&pos, &key_tmp->cache_pos);
 		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
 
-		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+		ret = cache_copy_to_req_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
 					key->len, &pos, key_tmp->seg_gen);
 		if (ret) {
 			list_add(&key_tmp->list_node, ctx->delete_key_list);
@@ -1477,7 +1478,7 @@ static int read_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *ke
 		cache_pos_copy(&pos, &key_tmp->cache_pos);
 		cache_pos_advance(&pos, cache_key_lstart(key) - cache_key_lstart(key_tmp), false);
 
-		ret = cache_copy_to_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
+		ret = cache_copy_to_req_bio(ctx->cache, ctx->cbd_req, ctx->req_done,
 					io_len, &pos, key_tmp->seg_gen);
 		if (ret) {
 			list_add(&key_tmp->list_node, ctx->delete_key_list);
@@ -1625,7 +1626,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		}
 
 		BUG_ON(!key->cache_pos.cache_seg);
-		cache_copy_from_bio(cache, key, cbd_req->bio, io_done);
+		cache_copy_from_req_bio(cache, key, cbd_req, io_done);
 
 		cache_tree = get_cache_tree(cache, key->off);
 		spin_lock(&cache_tree->tree_lock);
