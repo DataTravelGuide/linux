@@ -2255,7 +2255,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		cache->init_keys = 1;
 
 		cache->n_trees = DIV_ROUND_UP(cache->dev_size << SECTOR_SHIFT, CBD_CACHE_TREE_SIZE);
-		cache->cache_trees = vzalloc(sizeof(struct cbd_cache_tree) * cache->n_trees);
+		cache->cache_trees = kvzalloc(sizeof(struct cbd_cache_tree) * cache->n_trees, GFP_KERNEL);
 		if (!cache->cache_trees) {
 			ret = -ENOMEM;
 			goto destroy_cache;
@@ -2394,7 +2394,7 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 	kfree(cache->ksets);
 
 	if (cache->cache_trees)
-		vfree(cache->cache_trees);
+		kvfree(cache->cache_trees);
 
 	kfree(cache);
 }

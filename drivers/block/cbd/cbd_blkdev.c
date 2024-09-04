@@ -165,8 +165,19 @@ err:
 
 static int disk_start(struct cbd_blkdev *cbd_blkdev)
 {
-	int ret;
 	struct gendisk *disk;
+	struct queue_limits lim = {
+		.max_hw_sectors			= 128,
+		.max_user_sectors		= 128,
+		.io_min				= 4096,
+		.io_opt				= 4096,
+		.max_segments			= USHRT_MAX,
+		.max_segment_size		= UINT_MAX,
+		.discard_granularity		= 0,
+		.max_hw_discard_sectors		= 0,
+		.max_write_zeroes_sectors	= 0
+	};
+	int ret;
 
 	memset(&cbd_blkdev->tag_set, 0, sizeof(cbd_blkdev->tag_set));
 	cbd_blkdev->tag_set.ops = &cbd_mq_ops;
@@ -184,7 +195,7 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 		goto err;
 	}
 
-	disk = blk_mq_alloc_disk(&cbd_blkdev->tag_set, NULL, cbd_blkdev);
+	disk = blk_mq_alloc_disk(&cbd_blkdev->tag_set, &lim, cbd_blkdev);
 	if (IS_ERR(disk)) {
 		ret = PTR_ERR(disk);
 		cbd_blk_err(cbd_blkdev, "failed to alloc disk");
@@ -203,21 +214,6 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 
 	/* Tell the block layer that this is not a rotational device */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, disk->queue);
-
-	blk_queue_physical_block_size(disk->queue, PAGE_SIZE);
-	blk_queue_max_hw_sectors(disk->queue, 128);
-	blk_queue_max_segments(disk->queue, USHRT_MAX);
-	blk_queue_max_segment_size(disk->queue, UINT_MAX);
-	blk_queue_io_min(disk->queue, 4096);
-	blk_queue_io_opt(disk->queue, 4096);
-
-	disk->queue->limits.max_sectors = queue_max_hw_sectors(disk->queue);
-	/* TODO support discard */
-	disk->queue->limits.discard_granularity = 0;
-	blk_queue_max_discard_sectors(disk->queue, 0);
-	blk_queue_max_write_zeroes_sectors(disk->queue, 0);
 
 	cbd_blkdev->disk = disk;
 
