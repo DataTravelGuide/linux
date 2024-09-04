@@ -14,6 +14,12 @@
 #define CBD_CACHE_GC_PERCENT_MAX	90
 #define CBD_CACHE_GC_PERCENT_DEFAULT	70
 
+#define CBD_CACHE_SEGS_EACH_PARAL	4
+
+#define CBD_CLEAN_KEYS_MAX		10
+
+#define CACHE_KEY(node)		(container_of(node, struct cbd_cache_key, rb_node))
+
 static inline struct cbd_cache_tree *get_cache_tree(struct cbd_cache *cache, u64 off)
 {
 	return &cache->cache_trees[off >> CBD_CACHE_TREE_SIZE_SHIFT];
@@ -53,6 +59,39 @@ static inline bool cache_key_clean(struct cbd_cache_key *key)
 	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
 }
 
+static inline u32 get_backend_id(struct cbd_transport *cbdt,
+				 struct cbd_backend_info *backend_info)
+{
+	u64 backend_off;
+	struct cbd_transport_info *transport_info;
+
+	transport_info = cbdt->transport_info;
+	backend_off = (void *)backend_info - (void *)transport_info;
+
+	return (backend_off - transport_info->backend_area_off) / transport_info->backend_info_size;
+}
+
+static inline bool cache_seg_has_next(struct cbd_cache_segment *cache_seg)
+{
+	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT);
+}
+
+static inline bool cache_seg_wb_done(struct cbd_cache_segment *cache_seg)
+{
+	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_WB_DONE);
+}
+
+static inline bool cache_seg_gc_done(struct cbd_cache_segment *cache_seg)
+{
+	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_GC_DONE);
+}
+
+static inline void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
+{
+	memcpy(dst, src, sizeof(struct cbd_cache_pos));
+}
+
+/* cbd_cache_seg_ops */
 static struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache *cache = cache_seg->cache;
@@ -85,8 +124,7 @@ static struct cbd_seg_ops cbd_cache_seg_ops = {
 	.sanitize_pos = cbd_cache_seg_sanitize_pos
 };
 
-#define CACHE_KEY(node)		(container_of(node, struct cbd_cache_key, rb_node))
-
+/* sysfs for cache */
 static ssize_t cache_segs_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -180,6 +218,7 @@ const struct device_type cbd_cache_type = {
 	.release	= cbd_cache_release,
 };
 
+/* debug functions */
 #ifdef CONFIG_CBD_DEBUG
 static void dump_seg_map(struct cbd_cache *cache)
 {
@@ -220,6 +259,34 @@ static void dump_cache(struct cbd_cache *cache)
 }
 
 #endif /* CONFIG_CBD_DEBUG */
+
+/* cache_segment allocation and reclaim */
+static void cache_seg_init(struct cbd_cache *cache,
+			   u32 seg_id, u32 cache_seg_id)
+{
+	struct cbd_transport *cbdt = cache->cbdt;
+	struct cbd_cache_segment *cache_seg = &cache->segments[cache_seg_id];
+	struct cbds_init_options seg_options = { 0 };
+	struct cbd_segment *segment = &cache_seg->segment;
+
+	seg_options.type = cbds_type_cache;
+	seg_options.data_off = round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE);
+	seg_options.seg_ops = &cbd_cache_seg_ops;
+	seg_options.seg_id = seg_id;
+
+	cbd_segment_init(cbdt, segment, &seg_options);
+
+	atomic_set(&cache_seg->refs, 0);
+	spin_lock_init(&cache_seg->gen_lock);
+	cache_seg->cache = cache;
+	cache_seg->cache_seg_id = cache_seg_id;
+	cache_seg->cache_seg_info = (struct cbd_cache_seg_info *)segment->segment_info;
+}
+
+static void cache_seg_exit(struct cbd_cache_segment *cache_seg)
+{
+	cbd_segment_exit(&cache_seg->segment);
+}
 
 #define CBD_WAIT_NEW_CACHE_INTERVAL	100 /* usecs */
 #define CBD_WAIT_NEW_CACHE_COUNT	100
@@ -318,6 +385,111 @@ static int cache_data_head_init(struct cbd_cache *cache, u32 i)
 	return 0;
 }
 
+static void cache_pos_advance(struct cbd_cache_pos *pos, u32 len, bool set);
+static int cache_data_alloc(struct cbd_cache *cache, struct cbd_cache_key *key, u32 head_index)
+{
+	struct cbd_cache_data_head *data_head;
+	struct cbd_cache_pos *head_pos;
+	struct cbd_cache_segment *cache_seg;
+	struct cbd_segment *segment;
+	u32 seg_remain;
+	u32 allocated = 0, to_alloc;
+	int ret = 0;
+
+	data_head = get_data_head(cache, head_index);
+
+	spin_lock(&data_head->data_head_lock);
+again:
+	if (!data_head->head_pos.cache_seg) {
+		seg_remain = 0;
+	} else {
+		cache_pos_copy(&key->cache_pos, &data_head->head_pos);
+		key->seg_gen = key->cache_pos.cache_seg->cache_seg_info->gen;
+
+		head_pos = &data_head->head_pos;
+		cache_seg = head_pos->cache_seg;
+		segment = &cache_seg->segment;
+		seg_remain = segment->data_size - head_pos->seg_off;
+		to_alloc = key->len - allocated;
+	}
+
+	if (seg_remain > to_alloc) {
+		cache_pos_advance(head_pos, to_alloc, false);
+		allocated += to_alloc;
+		cache_seg_get(cache_seg);
+	} else if (seg_remain) {
+		cache_pos_advance(head_pos, seg_remain, false);
+		key->len = seg_remain;
+		cache_seg_get(cache_seg); /* get for key */
+
+		cache_seg_put(head_pos->cache_seg); /* put for head_pos->cache_seg */
+		head_pos->cache_seg = NULL;
+	} else {
+		ret = cache_data_head_init(cache, head_index);
+		if (ret)
+			goto out;
+
+		goto again;
+	}
+
+out:
+	spin_unlock(&data_head->data_head_lock);
+
+	return ret;
+}
+
+static void cache_copy_from_bio(struct cbd_cache *cache, struct cbd_cache_key *key,
+				struct bio *bio, u32 bio_off)
+{
+	struct cbd_cache_pos *pos = &key->cache_pos;
+	struct cbd_segment *segment;
+
+	segment = &pos->cache_seg->segment;
+
+	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, bio_off);
+}
+
+static int cache_copy_to_bio(struct cbd_cache *cache, struct cbd_request *cbd_req,
+			    u32 off, u32 len, struct cbd_cache_pos *pos, u64 key_gen)
+{
+	struct cbd_cache_segment *cache_seg = pos->cache_seg;
+	struct cbd_segment *segment = &cache_seg->segment;
+
+	spin_lock(&cache_seg->gen_lock);
+	if (key_gen < cache_seg->cache_seg_info->gen) {
+		spin_unlock(&cache_seg->gen_lock);
+		return -EINVAL;
+	}
+
+	spin_lock(&cbd_req->lock);
+	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
+	spin_unlock(&cbd_req->lock);
+	spin_unlock(&cache_seg->gen_lock);
+
+	return 0;
+}
+
+static void cache_copy_from_req(struct cbd_cache *cache, struct cbd_request *cbd_req,
+				struct cbd_cache_pos *pos, u32 off, u32 len)
+{
+	struct cbd_seg_pos dst_pos, src_pos;
+
+	src_pos.segment = &cbd_req->cbdq->channel.segment;
+	src_pos.off = cbd_req->data_off;
+
+	dst_pos.segment = &pos->cache_seg->segment;
+	dst_pos.off = pos->seg_off;
+
+	if (off) {
+		cbds_pos_advance(&dst_pos, off);
+		cbds_pos_advance(&src_pos, off);
+	}
+
+	cbds_copy_data(&dst_pos, &src_pos, len);
+}
+
+
+/* cache_key management, allocation, destroy, cutfront, cutback...*/
 static struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 {
 	struct cbd_cache_key *key;
@@ -362,7 +534,6 @@ static inline u64 cache_key_lend(struct cbd_cache_key *key)
 	return key->off + key->len;
 }
 
-static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src);
 static inline void cache_key_copy(struct cbd_cache_key *key_dst, struct cbd_cache_key *key_src)
 {
 	key_dst->off = key_src->off;
@@ -484,6 +655,7 @@ static void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct c
 #endif
 }
 
+/* cache_kset */
 static inline u32 cache_kset_crc(struct cbd_cache_kset_onmedia *kset_onmedia)
 {
 	return crc32(0, (void *)kset_onmedia + 4, struct_size(kset_onmedia, data, kset_onmedia->key_num) - 4);
@@ -559,6 +731,8 @@ out:
 	return ret;
 }
 
+/* append a cache_key into related kset, if this kset full, close this kset,
+ * else queue a flush_work to do kset writting. */
 static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	struct cbd_cache_kset *kset;
@@ -592,6 +766,7 @@ out:
 	return ret;
 }
 
+/* cache_tree walk */
 struct cbd_cache_tree_walk_ctx {
 	struct cbd_cache *cache;
 	struct rb_node *start_node;
@@ -730,6 +905,52 @@ out:
 	return ret;
 }
 
+/* cache_tree_search, search in a cache_tree */
+static inline bool cache_key_invalid(struct cbd_cache_key *key)
+{
+	if (cache_key_empty(key))
+		return false;
+
+	return (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen);
+}
+
+static struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, struct cbd_cache_key *key,
+					 struct rb_node **parentp, struct rb_node ***newp,
+					 struct list_head *delete_key_list)
+{
+	struct rb_node **new, *parent = NULL;
+	struct cbd_cache_key *key_tmp;
+	struct rb_node *prev_node = NULL;
+
+	new = &(cache_tree->root.rb_node);
+	while (*new) {
+		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
+		if (cache_key_invalid(key_tmp))
+			list_add(&key_tmp->list_node, delete_key_list);
+
+		parent = *new;
+		if (key_tmp->off >= key->off) {
+			new = &((*new)->rb_left);
+		} else {
+			prev_node = *new;
+			new = &((*new)->rb_right);
+		}
+	}
+
+	if (!prev_node)
+		prev_node = rb_first(&cache_tree->root);
+
+	if (parentp)
+		*parentp = parent;
+
+	if (newp)
+		*newp = new;
+
+	return prev_node;
+}
+
+/* cache insert fixup, which will walk the cache_tree and do some fixup for key insert
+ * if the new key has overlap with existing keys in cache_tree */
 static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 		struct cbd_cache_tree_walk_ctx *ctx)
 {
@@ -840,50 +1061,6 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 
 	return cache_tree_walk(cache, &walk_ctx);
 }
-
-static inline bool cache_key_invalid(struct cbd_cache_key *key)
-{
-	if (cache_key_empty(key))
-		return false;
-
-	return (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info->gen);
-}
-
-static struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, struct cbd_cache_key *key,
-					 struct rb_node **parentp, struct rb_node ***newp,
-					 struct list_head *delete_key_list)
-{
-	struct rb_node **new, *parent = NULL;
-	struct cbd_cache_key *key_tmp;
-	struct rb_node *prev_node = NULL;
-
-	new = &(cache_tree->root.rb_node);
-	while (*new) {
-		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
-		if (cache_key_invalid(key_tmp))
-			list_add(&key_tmp->list_node, delete_key_list);
-
-		parent = *new;
-		if (key_tmp->off >= key->off) {
-			new = &((*new)->rb_left);
-		} else {
-			prev_node = *new;
-			new = &((*new)->rb_right);
-		}
-	}
-
-	if (!prev_node)
-		prev_node = rb_first(&cache_tree->root);
-
-	if (parentp)
-		*parentp = parent;
-
-	if (newp)
-		*newp = new;
-
-	return prev_node;
-}
-
 static int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
 {
 	struct rb_node **new, *parent = NULL;
@@ -925,113 +1102,11 @@ out:
 	return ret;
 }
 
-static void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
-{
-	memcpy(dst, src, sizeof(struct cbd_cache_pos));
-}
-
-static int cache_data_alloc(struct cbd_cache *cache, struct cbd_cache_key *key, u32 head_index)
-{
-	struct cbd_cache_data_head *data_head;
-	struct cbd_cache_pos *head_pos;
-	struct cbd_cache_segment *cache_seg;
-	struct cbd_segment *segment;
-	u32 seg_remain;
-	u32 allocated = 0, to_alloc;
-	int ret = 0;
-
-	data_head = get_data_head(cache, head_index);
-
-	spin_lock(&data_head->data_head_lock);
-again:
-	if (!data_head->head_pos.cache_seg) {
-		seg_remain = 0;
-	} else {
-		cache_pos_copy(&key->cache_pos, &data_head->head_pos);
-		key->seg_gen = key->cache_pos.cache_seg->cache_seg_info->gen;
-
-		head_pos = &data_head->head_pos;
-		cache_seg = head_pos->cache_seg;
-		segment = &cache_seg->segment;
-		seg_remain = segment->data_size - head_pos->seg_off;
-		to_alloc = key->len - allocated;
-	}
-
-	if (seg_remain > to_alloc) {
-		cache_pos_advance(head_pos, to_alloc, false);
-		allocated += to_alloc;
-		cache_seg_get(cache_seg);
-	} else if (seg_remain) {
-		cache_pos_advance(head_pos, seg_remain, false);
-		key->len = seg_remain;
-		cache_seg_get(cache_seg); /* get for key */
-
-		cache_seg_put(head_pos->cache_seg); /* put for head_pos->cache_seg */
-		head_pos->cache_seg = NULL;
-	} else {
-		ret = cache_data_head_init(cache, head_index);
-		if (ret)
-			goto out;
-
-		goto again;
-	}
-
-out:
-	spin_unlock(&data_head->data_head_lock);
-
-	return ret;
-}
-
-static void cache_copy_from_bio(struct cbd_cache *cache, struct cbd_cache_key *key,
-				struct bio *bio, u32 bio_off)
-{
-	struct cbd_cache_pos *pos = &key->cache_pos;
-	struct cbd_segment *segment;
-
-	segment = &pos->cache_seg->segment;
-
-	cbds_copy_from_bio(segment, pos->seg_off, key->len, bio, bio_off);
-}
-
-static int cache_copy_to_bio(struct cbd_cache *cache, struct cbd_request *cbd_req,
-			    u32 off, u32 len, struct cbd_cache_pos *pos, u64 key_gen)
-{
-	struct cbd_cache_segment *cache_seg = pos->cache_seg;
-	struct cbd_segment *segment = &cache_seg->segment;
-
-	spin_lock(&cache_seg->gen_lock);
-	if (key_gen < cache_seg->cache_seg_info->gen) {
-		spin_unlock(&cache_seg->gen_lock);
-		return -EINVAL;
-	}
-
-	spin_lock(&cbd_req->lock);
-	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
-	spin_unlock(&cbd_req->lock);
-	spin_unlock(&cache_seg->gen_lock);
-
-	return 0;
-}
-
-static void cache_copy_from_req(struct cbd_cache *cache, struct cbd_request *cbd_req,
-				struct cbd_cache_pos *pos, u32 off, u32 len)
-{
-	struct cbd_seg_pos dst_pos, src_pos;
-
-	src_pos.segment = &cbd_req->cbdq->channel.segment;
-	src_pos.off = cbd_req->data_off;
-
-	dst_pos.segment = &pos->cache_seg->segment;
-	dst_pos.off = pos->seg_off;
-
-	if (off) {
-		cbds_pos_advance(&dst_pos, off);
-		cbds_pos_advance(&src_pos, off);
-	}
-
-	cbds_copy_data(&dst_pos, &src_pos, len);
-}
-
+/* cache miss: when a read miss happen on cbd_cache, it will submit a backing request
+ * to read from backend, and when this backing request done, it will copy the data
+ * read from backend into cache, then next user can read the same data immediately from
+ * cache
+ */
 static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	void *priv_data = cbd_req->priv_data;
@@ -1197,6 +1272,7 @@ static int send_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_req
 	return 0;
 }
 
+/* cache tree walk for cache_read */
 static int read_before(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 		struct cbd_cache_tree_walk_ctx *ctx)
 {
@@ -1393,16 +1469,12 @@ out:
 
 static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
+	struct cbd_cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cbd_cache_tree *cache_tree;
 	struct cbd_cache_key *key_tmp = NULL, *key_next;
-	struct rb_node *node_tmp;
 	struct rb_node *prev_node = NULL;
-	struct cbd_cache_key key_data = { .off = cbd_req->off, .len = cbd_req->data_len };
 	struct cbd_cache_key *key = &key_data;
-	struct cbd_cache_pos pos;
-	struct cbd_request *backing_req, *next_req;
 	struct cbd_cache_tree_walk_ctx walk_ctx;
-	u32 io_done = 0, total_io_done = 0, io_len = 0;
 	LIST_HEAD(delete_key_list);
 	LIST_HEAD(submit_req_list);
 	int ret;
@@ -1460,6 +1532,7 @@ out:
 	return ret;
 }
 
+/* cache write */
 static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	struct cbd_cache_tree *cache_tree;
@@ -1526,6 +1599,7 @@ err:
 	return ret;
 }
 
+/* cache flush */
 static int cache_flush(struct cbd_cache *cache)
 {
 	struct cbd_cache_kset *kset;
@@ -1544,6 +1618,7 @@ static int cache_flush(struct cbd_cache *cache)
 	return 0;
 }
 
+/* This function is the cache request entry */
 int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	switch (cbd_req->op) {
@@ -1560,6 +1635,7 @@ int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	return 0;
 }
 
+/* cache replay */
 static void cache_pos_encode(struct cbd_cache *cache,
 			     struct cbd_cache_pos_onmedia *pos_onmedia,
 			     struct cbd_cache_pos *pos)
@@ -1665,60 +1741,7 @@ out:
 	return ret;
 }
 
-static void cache_seg_init(struct cbd_cache *cache,
-			   u32 seg_id, u32 cache_seg_id)
-{
-	struct cbd_transport *cbdt = cache->cbdt;
-	struct cbd_cache_segment *cache_seg = &cache->segments[cache_seg_id];
-	struct cbds_init_options seg_options = { 0 };
-	struct cbd_segment *segment = &cache_seg->segment;
-
-	seg_options.type = cbds_type_cache;
-	seg_options.data_off = round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE);
-	seg_options.seg_ops = &cbd_cache_seg_ops;
-	seg_options.seg_id = seg_id;
-
-	cbd_segment_init(cbdt, segment, &seg_options);
-
-	atomic_set(&cache_seg->refs, 0);
-	spin_lock_init(&cache_seg->gen_lock);
-	cache_seg->cache = cache;
-	cache_seg->cache_seg_id = cache_seg_id;
-	cache_seg->cache_seg_info = (struct cbd_cache_seg_info *)segment->segment_info;
-}
-
-static void cache_seg_exit(struct cbd_cache_segment *cache_seg)
-{
-	cbd_segment_exit(&cache_seg->segment);
-}
-
-static inline u32 get_backend_id(struct cbd_transport *cbdt,
-				 struct cbd_backend_info *backend_info)
-{
-	u64 backend_off;
-	struct cbd_transport_info *transport_info;
-
-	transport_info = cbdt->transport_info;
-	backend_off = (void *)backend_info - (void *)transport_info;
-
-	return (backend_off - transport_info->backend_area_off) / transport_info->backend_info_size;
-}
-
-static bool cache_seg_has_next(struct cbd_cache_segment *cache_seg)
-{
-	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT);
-}
-
-static bool cache_seg_wb_done(struct cbd_cache_segment *cache_seg)
-{
-	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_WB_DONE);
-}
-
-static bool cache_seg_gc_done(struct cbd_cache_segment *cache_seg)
-{
-	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_GC_DONE);
-}
-
+/* Writeback */
 static bool no_more_dirty(struct cbd_cache *cache)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
@@ -1914,6 +1937,7 @@ next_seg:
 	}
 }
 
+/* gc */
 static bool need_gc(struct cbd_cache *cache)
 {
 	void *dirty_addr, *key_addr;
@@ -2007,6 +2031,11 @@ next_seg:
 	}
 }
 
+/*
+ * function for flush_work, flush_work is queued in cache_key_append(). When key append
+ * to kset, if this kset is full, then the kset will be closed immediately, if this kset
+ * is not full, cache_key_append() will queue a kset->flush_work to close this kset later.
+ */
 static void kset_flush_fn(struct work_struct *work)
 {
 	struct cbd_cache_kset *kset = container_of(work, struct cbd_cache_kset, flush_work.work);
@@ -2023,10 +2052,12 @@ static void kset_flush_fn(struct work_struct *work)
 	}
 }
 
-#define CBD_CACHE_SEGS_EACH_PARAL	4
-
-#define CBD_CLEAN_KEYS_MAX		10
-
+/* function to clean_work, clean work would be queued after a cache_segment to be invalidated
+ * in cache gc, then it will clean up the invalid keys from cache_tree in backgroud.
+ *
+ * As this clean need to spin_lock(&cache_tree->tree_lock), we unlock after
+ * CBD_CLEAN_KEYS_MAX keys deleted and start another round for clean.
+ * */
 static void clean_fn(struct work_struct *work)
 {
 	struct cbd_cache *cache = container_of(work, struct cbd_cache, clean_work);
