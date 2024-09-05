@@ -732,7 +732,8 @@ out:
 }
 
 /* append a cache_key into related kset, if this kset full, close this kset,
- * else queue a flush_work to do kset writting. */
+ * else queue a flush_work to do kset writting.
+ */
 static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	struct cbd_cache_kset *kset;
@@ -973,7 +974,8 @@ static struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, stru
 }
 
 /* cache insert fixup, which will walk the cache_tree and do some fixup for key insert
- * if the new key has overlap with existing keys in cache_tree */
+ * if the new key has overlap with existing keys in cache_tree
+ */
 static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 		struct cbd_cache_tree_walk_ctx *ctx)
 {
@@ -1126,7 +1128,7 @@ search:
 		if (ret == -EAGAIN)
 			goto search;
 		if (ret)
-			goto out;;
+			goto out;
 	}
 
 	rb_link_node(&key->rb_node, parent, new);
@@ -2106,7 +2108,7 @@ static void kset_flush_fn(struct work_struct *work)
  *
  * As this clean need to spin_lock(&cache_tree->tree_lock), we unlock after
  * CBD_CLEAN_KEYS_MAX keys deleted and start another round for clean.
- * */
+ */
 static void clean_fn(struct work_struct *work)
 {
 	struct cbd_cache *cache = container_of(work, struct cbd_cache, clean_work);
@@ -2255,7 +2257,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		cache->init_keys = 1;
 
 		cache->n_trees = DIV_ROUND_UP(cache->dev_size << SECTOR_SHIFT, CBD_CACHE_TREE_SIZE);
-		cache->cache_trees = kvzalloc(sizeof(struct cbd_cache_tree) * cache->n_trees, GFP_KERNEL);
+		cache->cache_trees = kvcalloc(cache->n_trees, sizeof(struct cbd_cache_tree), GFP_KERNEL);
 		if (!cache->cache_trees) {
 			ret = -ENOMEM;
 			goto destroy_cache;

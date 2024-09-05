@@ -55,8 +55,7 @@
  * different hosts.
  *
  * As shared memory is supported in CXL3.0 spec, we can transfer data via CXL shared memory.
- * CBD means CXL block device, it use CXL shared memory to transport command and data to
- * access block device in different host, as shown below:
+ * CBD use CXL shared memory to transfer data between node-1 and node-2.
  *
  *	+--------------------------------------------------------------------------------------------------------+
  *	|                                           multi-hosts                                                  |
@@ -88,8 +87,6 @@
  *	|                 +--------------------------------------------------------------------+                 |
  *	|                                                                                                        |
  *	+--------------------------------------------------------------------------------------------------------+
- * any read/write to cbd0 on node-1 will be transferred to node-2 /dev/sda. It works similar with
- * nbd (network block device), but it transfer data via CXL shared memory rather than network.
  */
 
 #define cbd_err(fmt, ...)							\
