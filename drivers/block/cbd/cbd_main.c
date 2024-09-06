@@ -178,7 +178,7 @@ static int __init cbd_init(void)
 {
 	int ret;
 
-	cbd_wq = alloc_workqueue(CBD_DRV_NAME, WQ_MEM_RECLAIM, 0);
+	cbd_wq = alloc_workqueue(CBD_DRV_NAME, WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
 	if (!cbd_wq)
 		return -ENOMEM;
 
