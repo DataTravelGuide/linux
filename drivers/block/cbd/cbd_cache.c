@@ -1954,6 +1954,7 @@ static void writeback_fn(struct work_struct *work)
 			key = cache_key_alloc(cache);
 			if (!key) {
 				cbd_cache_err(cache, "writeback error failed to alloc key\n");
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 				return;
 			}
 
@@ -1963,6 +1964,7 @@ static void writeback_fn(struct work_struct *work)
 
 			if (ret) {
 				cbd_cache_err(cache, "writeback error: %d\n", ret);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
 				return;
 			}
 		}
@@ -2032,10 +2034,17 @@ static void gc_fn(struct work_struct *work)
 
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
-		if (kset_onmedia->magic != CBD_KSET_MAGIC ||
-				kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-			cbd_cache_err(cache, "gc error crc is not expected. magic: %llx, expected: %llx\n",
+		if (kset_onmedia->magic != CBD_KSET_MAGIC) {
+			cbd_cache_err(cache, "gc error magic is not expected. magic: %llx, expected: %llx\n",
 									kset_onmedia->magic, CBD_KSET_MAGIC);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
+			return;
+		}
+
+		if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
+			cbd_cache_err(cache, "gc error crc is not expected. crc: %x, expected: %x\n",
+						cache_kset_crc(kset_onmedia), kset_onmedia->crc);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
 			return;
 		}
 
@@ -2045,6 +2054,7 @@ static void gc_fn(struct work_struct *work)
 			key = cache_key_alloc(cache);
 			if (!key) {
 				cbd_cache_err(cache, "gc error failed to alloc key\n");
+				queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
 				return;
 			}
 
