@@ -1,5 +1,5 @@
 config BLK_DEV_CBD
-	tristate "CXL Block Device"
+	tristate "CXL Block Device (Experimental)"
 	depends on DEV_DAX && FS_DAX
 	help
 	  CBD allows you to register a CXL memory device as a CBD transport.
@@ -33,3 +33,13 @@ config CBD_DEBUG
 	  When CBD_DEBUG is enabled, cbd module will print more messages
 	  for debugging. But that will affact performance, so do not use it
 	  in production case.
+
+config CBD_MULTIHOST
+	bool "multi-hosts CXL Dlock Device"
+	default N
+	depends on BLK_DEV_CBD
+	help
+	  When CBD_MULTIHOST is enabled, cbd allows the use of a shared memory device
+	  as a cbd transport. In this mode, the blkdev and backends on different
+	  hosts can be connected through the shared memory device, enabling cross-node
+	  disk access.

@@ -375,6 +375,8 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	flags |= CBDT_INFO_F_CRC;
 #endif
 	info->flags = cpu_to_le16(flags);
+
+	info->hosts_registered = 0;
 	/*
 	 * Try to fully utilize all available space,
 	 * assuming host:blkdev:backend:segment = 1:1:1:1
@@ -516,6 +518,7 @@ static ssize_t cbd_transport_info(struct cbd_transport *cbdt, char *buf)
 	ret = sprintf(buf, "magic: 0x%llx\n"
 			"version: %u\n"
 			"flags: %x\n\n"
+			"hosts_registered: %u\n"
 			"host_area_off: %llu\n"
 			"bytes_per_host_info: %u\n"
 			"host_num: %u\n\n"
@@ -531,6 +534,7 @@ static ssize_t cbd_transport_info(struct cbd_transport *cbdt, char *buf)
 			le64_to_cpu(info->magic),
 			le16_to_cpu(info->version),
 			le16_to_cpu(info->flags),
+			info->hosts_registered,
 			info->host_area_off,
 			info->host_info_size,
 			info->host_num,
@@ -769,6 +773,8 @@ int cbdt_unregister(u32 tid)
 	cbd_hosts_exit(cbdt);
 
 	cbd_host_unregister(cbdt);
+	cbdt->transport_info->hosts_registered--;
+
 	device_unregister(&cbdt->device);
 	cbdt_dax_release(cbdt);
 	cbdt_destroy(cbdt);
@@ -777,6 +783,21 @@ int cbdt_unregister(u32 tid)
 	return 0;
 }
 
+static bool cbdt_register_allowed(struct cbd_transport *cbdt)
+{
+	struct cbd_transport_info *transport_info;
+
+	transport_info = cbdt->transport_info;
+
+	if (transport_info->hosts_registered >= CBDT_HOSTS_MAX) {
+		cbdt_err(cbdt, "too many hosts registered: %u (max %u).",
+				transport_info->hosts_registered,
+				CBDT_HOSTS_MAX);
+		return false;
+	}
+
+	return true;
+}
 
 int cbdt_register(struct cbdt_register_options *opts)
 {
@@ -804,6 +825,11 @@ int cbdt_register(struct cbdt_register_options *opts)
 	if (ret)
 		goto cbdt_destroy;
 
+	if (!cbdt_register_allowed(cbdt)) {
+		ret = -EINVAL;
+		goto dax_release;
+	}
+
 	if (opts->format) {
 		ret = cbd_transport_format(cbdt, opts->force);
 		if (ret < 0)
@@ -827,6 +853,8 @@ int cbdt_register(struct cbdt_register_options *opts)
 		ret = -ENOMEM;
 		goto devs_exit;
 	}
+
+	cbdt->transport_info->hosts_registered++;
 
 	return 0;
 

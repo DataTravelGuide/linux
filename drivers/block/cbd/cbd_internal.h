@@ -409,10 +409,18 @@ static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 #define CBDT_INFO_F_BIGENDIAN		(1 << 0)
 #define CBDT_INFO_F_CRC			(1 << 1)
 
+#ifdef CONFIG_CBD_MULTIHOST
+#define CBDT_HOSTS_MAX			16
+#else
+#define CBDT_HOSTS_MAX			1
+#endif /*CONFIG_CBD_MULTIHOST*/
+
 struct cbd_transport_info {
 	__le64 magic;
 	__le16 version;
 	__le16 flags;
+
+	u32 hosts_registered;
 
 	u64 host_area_off;
 	u32 host_info_size;
