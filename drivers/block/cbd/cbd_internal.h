@@ -421,8 +421,6 @@ struct cbd_transport_info {
 	__le16 version;
 	__le16 flags;
 
-	u32 hosts_registered;
-
 	u64 host_area_off;
 	u32 host_info_size;
 	u32 host_num;
@@ -464,6 +462,7 @@ struct cbd_transport {
 struct cbdt_register_options {
 	char hostname[CBD_NAME_LEN];
 	char path[CBD_PATH_LEN];
+	u32 host_id;
 	u16 format:1;
 	u16 force:1;
 	u16 unused:15;
@@ -525,7 +524,7 @@ struct cbd_host {
 	struct delayed_work	hb_work; /* heartbeat work */
 };
 
-int cbd_host_register(struct cbd_transport *cbdt, char *hostname);
+int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id);
 int cbd_host_unregister(struct cbd_transport *cbdt);
 int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id);
 bool cbd_host_info_is_alive(struct cbd_host_info *info);
@@ -678,6 +677,7 @@ ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char 
 /* cbd cache */
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
+	u32 backend_id;
 	u32 flags;
 	u32 next_cache_seg_id;		/* index in cache->segments */
 	u64 gen;
@@ -902,11 +902,11 @@ enum cbd_backend_state {
 struct cbd_backend_info {
 	u8			state;
 	u32			host_id;
-	u32			blkdev_count;
 	u64			alive_ts;
 	u64			dev_size; /* nr_sectors */
 	struct cbd_cache_info	cache_info;
 
+	u32			blkdevs[CBDB_BLKDEV_COUNT_MAX];
 	char			path[CBD_PATH_LEN];
 };
 
@@ -1094,6 +1094,7 @@ struct cbd_blkdev_info {
 	u32	backend_id;
 	u32	host_id;
 	u32	mapped_id;
+	u32	devid_in_backend;
 };
 
 struct cbd_blkdev {

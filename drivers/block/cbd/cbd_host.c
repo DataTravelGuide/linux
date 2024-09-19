@@ -50,11 +50,10 @@ const struct device_type cbd_hosts_type = {
 	.release	= cbd_host_release,
 };
 
-int cbd_host_register(struct cbd_transport *cbdt, char *hostname)
+int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 {
 	struct cbd_host *host;
 	struct cbd_host_info *host_info;
-	u32 host_id;
 	int ret;
 
 	if (cbdt->host)
@@ -63,9 +62,18 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname)
 	if (strlen(hostname) == 0)
 		return -EINVAL;
 
-	ret = cbdt_get_empty_host_id(cbdt, &host_id);
-	if (ret < 0)
-		return ret;
+	if (host_id == UINT_MAX) {
+		ret = cbdt_get_empty_host_id(cbdt, &host_id);
+		if (ret) {
+			cbdt_err(cbdt, "no available host id found.\n");
+			return -EBUSY;
+		}
+	}
+
+	if (cbd_host_info_is_alive(cbdt_get_host_info(cbdt, host_id))) {
+		pr_err("host id %u is still alive\n", host_id);
+		return -EBUSY;
+	}
 
 	host = kzalloc(sizeof(struct cbd_host), GFP_KERNEL);
 	if (!host)
@@ -113,6 +121,7 @@ int cbd_host_unregister(struct cbd_transport *cbdt)
 int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 {
 	struct cbd_host_info *host_info;
+	u32 i;
 
 	host_info = cbdt_get_host_info(cbdt, host_id);
 	if (cbd_host_info_is_alive(host_info)) {
@@ -122,6 +131,36 @@ int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 
 	if (host_info->state == cbd_host_state_none)
 		return 0;
+
+	for (i = 0; i < cbdt->transport_info->backend_num; i++) {
+		struct cbd_backend_info *backend_info;
+
+		backend_info = cbdt_get_backend_info(cbdt, i);
+
+		if (backend_info->state == cbd_backend_state_none)
+			continue;
+
+		if (backend_info->host_id != host_id)
+			continue;
+
+		cbdt_err(cbdt, "backend %u is still on host %u\n", i, host_id);
+		return -EBUSY;
+	}
+
+	for (i = 0; i < cbdt->transport_info->blkdev_num; i++) {
+		struct cbd_blkdev_info *blkdev_info;
+
+		blkdev_info = cbdt_get_blkdev_info(cbdt, i);
+
+		if (blkdev_info->state == cbd_blkdev_state_none)
+			continue;
+
+		if (blkdev_info->host_id != host_id)
+			continue;
+
+		cbdt_err(cbdt, "blkdev %u is still on host %u\n", i, host_id);
+		return -EBUSY;
+	}
 
 	host_info->state = cbd_host_state_none;
 

@@ -245,17 +245,27 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 {
 	struct cbd_blkdev *cbd_blkdev;
 	struct cbd_backend_info *backend_info;
+	u32 devid_in_backend = UINT_MAX;
 	u64 dev_size;
 	int ret;
+	int i;
 
 	backend_info = cbdt_get_backend_info(cbdt, backend_id);
-	if (backend_info->blkdev_count == CBDB_BLKDEV_COUNT_MAX)
-		return -EBUSY;
-
 	if (!cbd_backend_info_is_alive(backend_info)) {
 		cbdt_err(cbdt, "backend %u is not alive\n", backend_id);
 		return -EINVAL;
 	}
+
+	/* find an available index in backend_info->blkdevs */
+	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
+		if (backend_info->blkdevs[i] == UINT_MAX) {
+			devid_in_backend = i;
+			break;
+		}
+	}
+
+	if (devid_in_backend == UINT_MAX)
+		return -EBUSY;
 
 	dev_size = backend_info->dev_size;
 
@@ -298,7 +308,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	cbd_blkdev->blkdev_info->backend_id = backend_id;
 	cbd_blkdev->blkdev_info->host_id = cbdt->host->host_id;
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_running;
-
+	backend_info->blkdevs[devid_in_backend] = cbd_blkdev->blkdev_id;
 
 	if (cbd_backend_cache_on(backend_info)) {
 		struct cbd_cache_opts cache_opts = { 0 };
@@ -320,8 +330,6 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	ret = cbd_blkdev_create_queues(cbd_blkdev);
 	if (ret < 0)
 		goto destroy_cache;
-
-	backend_info->blkdev_count++;
 
 	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
 	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0);
@@ -359,6 +367,7 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 {
 	struct cbd_blkdev *cbd_blkdev;
 	struct cbd_backend_info *backend_info;
+	int i;
 
 	cbd_blkdev = cbdt_get_blkdev(cbdt, devid);
 	if (!cbd_blkdev)
@@ -378,19 +387,21 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	kfree(cbd_blkdev->queues);
 
 	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
+	backend_info = cbdt_get_backend_info(cbdt, cbd_blkdev->backend_id);
+	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
+		if (backend_info->blkdevs[i] == devid)
+			backend_info->blkdevs[i] = UINT_MAX;
+	}
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 
 	drain_workqueue(cbd_blkdev->task_wq);
 	destroy_workqueue(cbd_blkdev->task_wq);
 	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
-	backend_info = cbdt_get_backend_info(cbdt, cbd_blkdev->backend_id);
 
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 
 	kfree(cbd_blkdev);
-
-	backend_info->blkdev_count--;
 
 	return 0;
 }
@@ -398,6 +409,8 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 {
 	struct cbd_blkdev_info *blkdev_info;
+	struct cbd_backend_info *backend_info;
+	int i;
 
 	blkdev_info = cbdt_get_blkdev_info(cbdt, devid);
 	if (cbd_blkdev_info_is_alive(blkdev_info)) {
@@ -407,6 +420,34 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;
+
+	backend_info = cbdt_get_backend_info(cbdt, blkdev_info->backend_id);
+	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
+		if (backend_info->blkdevs[i] == devid)
+			backend_info->blkdevs[i] = UINT_MAX;
+	}
+
+	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
+		struct cbd_segment_info *seg_info;
+		struct cbd_channel_info *channel_info;
+
+		seg_info = cbdt_get_segment_info(cbdt, i);
+		if (seg_info->type != cbds_type_channel)
+			continue;
+
+		channel_info = (struct cbd_channel_info *)seg_info;
+		if (channel_info->blkdev_state != cbdc_blkdev_state_running)
+			continue;
+
+		/* release the channels blkdev is using */
+		if (channel_info->blkdev_id != devid)
+			continue;
+
+		channel_info->blkdev_state = cbdc_blkdev_state_none;
+
+		if (channel_info->backend_state == cbdc_backend_state_none)
+			cbd_segment_clear(cbdt, i);
+	}
 
 	blkdev_info->state = cbd_blkdev_state_none;
 

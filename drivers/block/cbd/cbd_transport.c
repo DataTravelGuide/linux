@@ -186,7 +186,6 @@ enum {
 	CBDT_ADM_OP_DEV_STOP,
 	CBDT_ADM_OP_DEV_CLEAR,
 	CBDT_ADM_OP_H_CLEAR,
-	CBDT_ADM_OP_S_CLEAR,
 };
 
 static const char *const adm_op_names[] = {
@@ -197,7 +196,6 @@ static const char *const adm_op_names[] = {
 	[CBDT_ADM_OP_DEV_STOP] = "dev-stop",
 	[CBDT_ADM_OP_DEV_CLEAR] = "dev-clear",
 	[CBDT_ADM_OP_H_CLEAR] = "host-clear",
-	[CBDT_ADM_OP_S_CLEAR] = "segment-clear",
 };
 
 static const match_table_t adm_opt_tokens = {
@@ -352,10 +350,20 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	u32 nr_segs;
 	u64 magic;
 	u16 flags = 0;
+	u32 i;
 
 	magic = le64_to_cpu(info->magic);
 	if (magic && !force)
 		return -EEXIST;
+
+	if (magic == CBD_TRANSPORT_MAGIC) {
+		for (i = 0; i < info->host_num; i++) {
+			if (cbd_host_info_is_alive(cbdt_get_host_info(cbdt, i))) {
+				cbdt_err(cbdt, "host %u is still alive\n", i);
+				return -EBUSY;
+			}
+		}
+	}
 
 	transport_dev_size = bdev_nr_bytes(file_bdev(cbdt->bdev_file));
 	if (transport_dev_size < CBD_TRASNPORT_SIZE_MIN) {
@@ -380,8 +388,6 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	flags |= CBDT_INFO_F_MULTIHOST;
 #endif
 	info->flags = cpu_to_le16(flags);
-
-	info->hosts_registered = 0;
 	/*
 	 * Try to fully utilize all available space,
 	 * assuming host:blkdev:backend:segment = 1:1:1:1
@@ -392,7 +398,7 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 
 	info->host_area_off = CBDT_INFO_OFF + CBDT_INFO_SIZE;
 	info->host_info_size = CBDT_HOST_INFO_SIZE;
-	info->host_num = nr_segs;
+	info->host_num = min(nr_segs, CBDT_HOSTS_MAX);
 
 	info->backend_area_off = info->host_area_off + (info->host_info_size * info->host_num);
 	info->backend_info_size = CBDT_BACKEND_INFO_SIZE;
@@ -493,9 +499,6 @@ static ssize_t adm_store(struct device *dev,
 	case CBDT_ADM_OP_H_CLEAR:
 		ret = cbd_host_clear(cbdt, opts.host.hid);
 		break;
-	case CBDT_ADM_OP_S_CLEAR:
-		ret = cbd_segment_clear(cbdt, opts.segment.sid);
-		break;
 	default:
 		mutex_unlock(&cbdt->adm_lock);
 		cbdt_err(cbdt, "invalid op: %d\n", opts.op);
@@ -523,7 +526,6 @@ static ssize_t cbd_transport_info(struct cbd_transport *cbdt, char *buf)
 	ret = sprintf(buf, "magic: 0x%llx\n"
 			"version: %u\n"
 			"flags: %x\n\n"
-			"hosts_registered: %u\n"
 			"host_area_off: %llu\n"
 			"bytes_per_host_info: %u\n"
 			"host_num: %u\n\n"
@@ -539,7 +541,6 @@ static ssize_t cbd_transport_info(struct cbd_transport *cbdt, char *buf)
 			le64_to_cpu(info->magic),
 			le16_to_cpu(info->version),
 			le16_to_cpu(info->flags),
-			info->hosts_registered,
 			info->host_area_off,
 			info->host_info_size,
 			info->host_num,
@@ -785,7 +786,6 @@ int cbdt_unregister(u32 tid)
 	cbd_hosts_exit(cbdt);
 
 	cbd_host_unregister(cbdt);
-	cbdt->transport_info->hosts_registered--;
 
 	device_unregister(&cbdt->device);
 	cbdt_dax_release(cbdt);
@@ -793,22 +793,6 @@ int cbdt_unregister(u32 tid)
 	module_put(THIS_MODULE);
 
 	return 0;
-}
-
-static bool cbdt_register_allowed(struct cbd_transport *cbdt)
-{
-	struct cbd_transport_info *transport_info;
-
-	transport_info = cbdt->transport_info;
-
-	if (transport_info->hosts_registered >= CBDT_HOSTS_MAX) {
-		cbdt_err(cbdt, "too many hosts registered: %u (max %u).",
-				transport_info->hosts_registered,
-				CBDT_HOSTS_MAX);
-		return false;
-	}
-
-	return true;
 }
 
 int cbdt_register(struct cbdt_register_options *opts)
@@ -836,11 +820,6 @@ int cbdt_register(struct cbdt_register_options *opts)
 	if (ret)
 		goto cbdt_destroy;
 
-	if (!cbdt_register_allowed(cbdt)) {
-		ret = -EINVAL;
-		goto dax_release;
-	}
-
 	if (opts->format) {
 		ret = cbd_transport_format(cbdt, opts->force);
 		if (ret < 0)
@@ -855,7 +834,7 @@ int cbdt_register(struct cbdt_register_options *opts)
 	if (ret)
 		goto dax_release;
 
-	ret = cbd_host_register(cbdt, opts->hostname);
+	ret = cbd_host_register(cbdt, opts->hostname, opts->host_id);
 	if (ret)
 		goto dev_unregister;
 
@@ -864,8 +843,6 @@ int cbdt_register(struct cbdt_register_options *opts)
 		ret = -ENOMEM;
 		goto devs_exit;
 	}
-
-	cbdt->transport_info->hosts_registered++;
 
 	return 0;
 

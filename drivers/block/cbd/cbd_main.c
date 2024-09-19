@@ -31,6 +31,7 @@ enum {
 	CBDT_REG_OPT_FORMAT,
 	CBDT_REG_OPT_PATH,
 	CBDT_REG_OPT_HOSTNAME,
+	CBDT_REG_OPT_HOSTID,
 };
 
 static const match_table_t register_opt_tokens = {
@@ -38,6 +39,7 @@ static const match_table_t register_opt_tokens = {
 	{ CBDT_REG_OPT_FORMAT,		"format=%u" },
 	{ CBDT_REG_OPT_PATH,		"path=%s" },
 	{ CBDT_REG_OPT_HOSTNAME,	"hostname=%s" },
+	{ CBDT_REG_OPT_HOSTID,		"hostid=%u" },
 	{ CBDT_REG_OPT_ERR,		NULL	}
 };
 
@@ -84,6 +86,13 @@ static int parse_register_options(
 				ret = -EINVAL;
 				break;
 			}
+			break;
+		case CBDT_REG_OPT_HOSTID:
+			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			opts->host_id = token;
 			break;
 		default:
 			pr_err("unknown parameter or missing value '%s'\n", p);
@@ -132,12 +141,17 @@ static ssize_t transport_register_store(const struct bus_type *bus, const char *
 	}
 	buf[size] = '\0';
 
+	opts.host_id = UINT_MAX;
 	ret = parse_register_options(buf, &opts);
 	if (ret < 0) {
 		kfree(buf);
 		return ret;
 	}
 	kfree(buf);
+
+	/* In single-host case, set the host_id to 0 */
+	if (opts.host_id == UINT_MAX && CBDT_HOSTS_MAX == 1)
+		opts.host_id = 0;
 
 	ret = cbdt_register(&opts);
 	if (ret < 0)

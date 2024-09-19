@@ -236,6 +236,7 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 	struct cbd_cache_info *cache_info;
 	bool new_backend = false;
 	int ret;
+	int i;
 
 	if (backend_id == U32_MAX)
 		new_backend = true;
@@ -246,6 +247,9 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 			return ret;
 
 		backend_info = cbdt_get_backend_info(cbdt, backend_id);
+		for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++)
+			backend_info->blkdevs[i] = UINT_MAX;
+
 		cache_info = &backend_info->cache_info;
 		cache_info->n_segs = cache_segs;
 	} else {
@@ -360,6 +364,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
+	int i;
 
 	backend_info = cbdt_get_backend_info(cbdt, backend_id);
 	if (cbd_backend_info_is_alive(backend_info)) {
@@ -369,6 +374,43 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 
 	if (backend_info->state == cbd_backend_state_none)
 		return 0;
+
+	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
+		if (backend_info->blkdevs[i] != UINT_MAX) {
+			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
+			return -EBUSY;
+		}
+	}
+
+	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
+		struct cbd_segment_info *seg_info;
+		struct cbd_channel_info *channel_info;
+		struct cbd_cache_seg_info *cache_seg_info;
+
+		seg_info = cbdt_get_segment_info(cbdt, i);
+		if (seg_info->type == cbds_type_channel) {
+			channel_info = (struct cbd_channel_info *)seg_info;
+			if (channel_info->blkdev_state != cbdc_backend_state_running)
+				continue;
+
+			/* release the channels backend is using */
+			if (channel_info->backend_id != backend_id)
+				continue;
+
+			channel_info->backend_state = cbdc_backend_state_none;
+
+			if (channel_info->blkdev_state == cbdc_blkdev_state_none)
+				cbd_segment_clear(cbdt, i);
+		}
+
+		if (seg_info->type == cbds_type_cache) {
+			cache_seg_info = (struct cbd_cache_seg_info *)seg_info;
+
+			/* clear cache segments */
+			if (cache_seg_info->backend_id == backend_id)
+				cbd_segment_clear(cbdt, i);
+		}
+	}
 
 	backend_info->state = cbd_backend_state_none;
 

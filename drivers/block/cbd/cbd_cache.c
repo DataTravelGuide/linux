@@ -281,6 +281,7 @@ static void cache_seg_init(struct cbd_cache *cache,
 	cache_seg->cache = cache;
 	cache_seg->cache_seg_id = cache_seg_id;
 	cache_seg->cache_seg_info = (struct cbd_cache_seg_info *)segment->segment_info;
+	cache_seg->cache_seg_info->backend_id = cache->cache_id;
 }
 
 static void cache_seg_exit(struct cbd_cache_segment *cache_seg)
