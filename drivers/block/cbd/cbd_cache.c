@@ -1626,14 +1626,16 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		spin_lock(&cache_tree->tree_lock);
 		ret = cache_insert_key(cache, key, true);
 		if (ret) {
+			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_put(key);
-			goto put_seg;
+			goto unlock;
 		}
 
 		ret = cache_key_append(cache, key);
 		if (ret) {
+			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_delete(key);
-			goto put_seg;
+			goto unlock;
 		}
 
 		io_done += key->len;
@@ -1641,8 +1643,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	}
 
 	return 0;
-put_seg:
-	cache_seg_put(key->cache_pos.cache_seg);
+unlock:
 	spin_unlock(&cache_tree->tree_lock);
 err:
 	return ret;
