@@ -371,8 +371,13 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
 	flags |= CBDT_INFO_F_BIGENDIAN;
 #endif
+
 #ifdef CONFIG_CBD_CRC
 	flags |= CBDT_INFO_F_CRC;
+#endif
+
+#ifdef CONFIG_CBD_MULTIHOST
+	flags |= CBDT_INFO_F_MULTIHOST;
 #endif
 	info->flags = cpu_to_le16(flags);
 
@@ -743,6 +748,13 @@ static int cbdt_validate(struct cbd_transport *cbdt)
 #ifndef CONFIG_CBD_CRC
 	if (flags & CBDT_INFO_F_CRC) {
 		cbdt_err(cbdt, "transport expects CBD_CRC enabled.\n");
+		return -ENOTSUPP;
+	}
+#endif
+
+#ifndef CONFIG_CBD_MULTIHOST
+	if (flags & CBDT_INFO_F_MULTIHOST) {
+		cbdt_err(cbdt, "transport expects CBD_MULTIHOST enabled.\n");
 		return -ENOTSUPP;
 	}
 #endif

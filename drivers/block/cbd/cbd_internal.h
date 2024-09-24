@@ -408,6 +408,7 @@ static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 /* cbd_transport */
 #define CBDT_INFO_F_BIGENDIAN		(1 << 0)
 #define CBDT_INFO_F_CRC			(1 << 1)
+#define CBDT_INFO_F_MULTIHOST		(1 << 2)
 
 #ifdef CONFIG_CBD_MULTIHOST
 #define CBDT_HOSTS_MAX			16
