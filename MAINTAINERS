@@ -5043,6 +5043,13 @@ S:	Odd Fixes
 F:	Documentation/devicetree/bindings/arm/cavium-thunder2.txt
 F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
 
+CBD (CXL Block Device)
+M:	Dongsheng Yang <dongsheng.yang@linux.dev>
+R:	Gu Zheng <cengku@gmail.com>
+L:	linux-block@vger.kernel.org
+S:	Maintained
+F:	drivers/block/cbd/
+
 CBS/ETF/TAPRIO QDISCS
 M:	Vinicius Costa Gomes <vinicius.gomes@intel.com>
 L:	netdev@vger.kernel.org
