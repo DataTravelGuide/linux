@@ -535,7 +535,6 @@ CBD_DEVICE(segment);
 enum cbd_segment_state {
 	cbd_segment_state_none		= 0,
 	cbd_segment_state_running,
-	cbd_segment_state_removing
 };
 
 enum cbd_seg_type {
@@ -615,13 +614,11 @@ void cbds_copy_data(struct cbd_seg_pos *dst_pos,
 enum cbdc_blkdev_state {
 	cbdc_blkdev_state_none		= 0,
 	cbdc_blkdev_state_running,
-	cbdc_blkdev_state_stopped,
 };
 
 enum cbdc_backend_state {
 	cbdc_backend_state_none		= 0,
 	cbdc_backend_state_running,
-	cbdc_backend_state_stopped,
 };
 
 struct cbd_channel_info {
@@ -686,12 +683,6 @@ struct cbd_cache_seg_info {
 #define CBD_CACHE_SEG_FLAGS_HAS_NEXT	(1 << 0)
 #define CBD_CACHE_SEG_FLAGS_WB_DONE	(1 << 1)
 #define CBD_CACHE_SEG_FLAGS_GC_DONE	(1 << 2)
-
-enum cbd_cache_blkdev_state {
-	cbd_cache_blkdev_state_none = 0,
-	cbd_cache_blkdev_state_running,
-	cbd_cache_blkdev_state_removing
-};
 
 struct cbd_cache_segment {
 	struct cbd_cache	*cache;
@@ -1085,7 +1076,6 @@ CBD_DEVICE(blkdev);
 enum cbd_blkdev_state {
 	cbd_blkdev_state_none	= 0,
 	cbd_blkdev_state_running,
-	cbd_blkdev_state_removing
 };
 
 struct cbd_blkdev_info {
