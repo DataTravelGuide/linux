@@ -749,14 +749,14 @@ static int cbdt_validate(struct cbd_transport *cbdt)
 #ifndef CONFIG_CBD_CRC
 	if (flags & CBDT_INFO_F_CRC) {
 		cbdt_err(cbdt, "transport expects CBD_CRC enabled.\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 #endif
 
 #ifndef CONFIG_CBD_MULTIHOST
 	if (flags & CBDT_INFO_F_MULTIHOST) {
 		cbdt_err(cbdt, "transport expects CBD_MULTIHOST enabled.\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 #endif
 
