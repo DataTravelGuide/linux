@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "cbd_internal.h"
 
 static void channel_format(struct cbd_transport *cbdt, u32 id)

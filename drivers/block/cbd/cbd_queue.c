@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "cbd_internal.h"
 
 static inline struct cbd_se *get_submit_entry(struct cbd_queue *cbdq)

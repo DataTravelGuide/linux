@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "cbd_internal.h"
 
 #define CBD_CACHE_PARAL_MAX		(128)

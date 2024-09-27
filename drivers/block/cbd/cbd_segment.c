@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "cbd_internal.h"
 
 static ssize_t cbd_seg_detail_show(struct device *dev,

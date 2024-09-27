@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include <linux/pfn_t.h>
 #include "cbd_internal.h"
 
