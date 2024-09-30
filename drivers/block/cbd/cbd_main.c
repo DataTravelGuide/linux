@@ -150,10 +150,6 @@ static ssize_t transport_register_store(const struct bus_type *bus, const char *
 	}
 	kfree(buf);
 
-	/* In single-host case, set the host_id to 0 */
-	if (opts.host_id == UINT_MAX && CBDT_HOSTS_MAX == 1)
-		opts.host_id = 0;
-
 	ret = cbdt_register(&opts);
 	if (ret < 0)
 		return ret;
