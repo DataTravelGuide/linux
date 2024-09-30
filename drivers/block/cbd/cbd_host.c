@@ -66,7 +66,7 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 
 	if (host_id == UINT_MAX) {
 		/* In single-host case, set the host_id to 0 */
-		if (cbdt->host_num == 1) {
+		if (cbdt->transport_info->host_num == 1) {
 			host_id = 0;
 		} else {
 			ret = cbdt_get_empty_host_id(cbdt, &host_id);

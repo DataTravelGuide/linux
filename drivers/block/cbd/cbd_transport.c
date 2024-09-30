@@ -176,7 +176,6 @@ enum {
 	CBDT_ADM_OPT_DID,
 	CBDT_ADM_OPT_QUEUES,
 	CBDT_ADM_OPT_HID,
-	CBDT_ADM_OPT_SID,
 	CBDT_ADM_OPT_CACHE_SIZE,
 };
 
@@ -208,7 +207,6 @@ static const match_table_t adm_opt_tokens = {
 	{ CBDT_ADM_OPT_DID,		"dev_id=%u" },
 	{ CBDT_ADM_OPT_QUEUES,		"queues=%u" },
 	{ CBDT_ADM_OPT_HID,		"host_id=%u" },
-	{ CBDT_ADM_OPT_SID,		"segment_id=%u" },
 	{ CBDT_ADM_OPT_CACHE_SIZE,	"cache_size=%u" },	/* unit is MiB */
 	{ CBDT_ADM_OPT_ERR,		NULL	}
 };
@@ -280,10 +278,24 @@ static int parse_adm_options(struct cbd_transport *cbdt,
 				ret = -EINVAL;
 				goto out;
 			}
+
+			if (token >= cbdt->transport_info->backend_num) {
+				cbdt_err(cbdt, "invalid backend_id: %u, larger than backend_num %u\n",
+						token, cbdt->transport_info->backend_num);
+				ret = -EINVAL;
+				goto out;
+			}
 			opts->backend_id = token;
 			break;
 		case CBDT_ADM_OPT_DID:
 			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if (token >= cbdt->transport_info->blkdev_num) {
+				cbdt_err(cbdt, "invalid dev_id: %u, larger than blkdev_num %u\n",
+						token, cbdt->transport_info->blkdev_num);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -294,6 +306,11 @@ static int parse_adm_options(struct cbd_transport *cbdt,
 				ret = -EINVAL;
 				goto out;
 			}
+
+			if (token > CBD_QUEUES_MAX) {
+				cbdt_err(cbdt, "invalid queues: %u, larger than max %u\n",
+						token, CBD_QUEUES_MAX);
+			}
 			opts->blkdev.queues = token;
 			break;
 		case CBDT_ADM_OPT_HID:
@@ -301,14 +318,12 @@ static int parse_adm_options(struct cbd_transport *cbdt,
 				ret = -EINVAL;
 				goto out;
 			}
-			opts->host.hid = token;
-			break;
-		case CBDT_ADM_OPT_SID:
-			if (match_uint(args, &token)) {
-				ret = -EINVAL;
-				goto out;
+
+			if (token >= cbdt->transport_info->host_num) {
+				cbdt_err(cbdt, "invalid host_id: %u, larger than max %u\n",
+						token, cbdt->transport_info->host_num);
 			}
-			opts->segment.sid = token;
+			opts->host.hid = token;
 			break;
 		case CBDT_ADM_OPT_CACHE_SIZE:
 			if (match_uint(args, &token)) {
