@@ -445,10 +445,12 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 		if (channel_info->blkdev_id != devid)
 			continue;
 
-		channel_info->blkdev_state = cbdc_blkdev_state_none;
-
-		if (channel_info->backend_state == cbdc_backend_state_none)
+		if (channel_info->backend_state == cbdc_backend_state_none) {
 			cbd_segment_clear(cbdt, i);
+			continue;
+		}
+
+		channel_info->blkdev_state = cbdc_blkdev_state_none;
 	}
 
 	blkdev_info->state = cbd_blkdev_state_none;

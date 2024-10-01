@@ -399,10 +399,12 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 			if (channel_info->backend_id != backend_id)
 				continue;
 
-			channel_info->backend_state = cbdc_backend_state_none;
-
-			if (channel_info->blkdev_state == cbdc_blkdev_state_none)
+			if (channel_info->blkdev_state == cbdc_blkdev_state_none) {
 				cbd_segment_clear(cbdt, i);
+				continue;
+			}
+
+			channel_info->backend_state = cbdc_backend_state_none;
 		}
 
 		if (seg_info->type == cbds_type_cache) {
