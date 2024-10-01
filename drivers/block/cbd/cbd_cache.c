@@ -332,6 +332,7 @@ again:
 
 static void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
+	pr_err("%s %d: before inc: %u, seg_id: %u\n", __func__, __LINE__, atomic_read(&cache_seg->refs), cache_seg->cache_seg_id);
 	atomic_inc(&cache_seg->refs);
 }
 
@@ -360,6 +361,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 static void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
+	pr_err("%s %d: before dec: %u, seg_id: %u\n", __func__, __LINE__, atomic_read(&cache_seg->refs), cache_seg->cache_seg_id);
 	if (atomic_dec_and_test(&cache_seg->refs))
 		cache_seg_invalidate(cache_seg);
 }
@@ -368,6 +370,7 @@ static void cache_key_gc(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 
+	pr_err("%s %d \n", __func__, __LINE__);
 	cache_seg_put(cache_seg);
 }
 
@@ -381,6 +384,7 @@ static int cache_data_head_init(struct cbd_cache *cache, u32 i)
 	if (!next_seg)
 		return -EBUSY;
 
+	pr_err("%s %d seg: %u\n", __func__, __LINE__, next_seg->cache_seg_id);
 	cache_seg_get(next_seg);
 	data_head->head_pos.cache_seg = next_seg;
 	data_head->head_pos.seg_off = 0;
@@ -419,12 +423,15 @@ again:
 	if (seg_remain > to_alloc) {
 		cache_pos_advance(head_pos, to_alloc, false);
 		allocated += to_alloc;
+		pr_err("%s %d get seg_remain > to_alloc key: %p\n", __func__, __LINE__, key);
 		cache_seg_get(cache_seg);
 	} else if (seg_remain) {
 		cache_pos_advance(head_pos, seg_remain, false);
 		key->len = seg_remain;
+		pr_err("%s %d get seg_remain: %p \n", __func__, __LINE__, key);
 		cache_seg_get(cache_seg); /* get for key */
 
+		pr_err("%s %d put for head_pos->cache_seg\n", __func__, __LINE__);
 		cache_seg_put(head_pos->cache_seg); /* put for head_pos->cache_seg */
 		head_pos->cache_seg = NULL;
 	} else {
@@ -1178,6 +1185,7 @@ static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_r
 
 			ret = cache_key_append(cache, key);
 			if (ret) {
+				pr_err("%s %d  cache_key_append failed in miss read\n", __func__, __LINE__);
 				cache_seg_put(key->cache_pos.cache_seg);
 				cache_key_delete(key);
 				goto unlock;
@@ -1617,6 +1625,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		}
 
 		if (!key->len) {
+			pr_err("%s %d !key->len \n", __func__, __LINE__);
 			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_put(key);
 			continue;
@@ -1629,6 +1638,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 		spin_lock(&cache_tree->tree_lock);
 		ret = cache_insert_key(cache, key, true);
 		if (ret) {
+			pr_err("%s %d cache_insert_key failed \n", __func__, __LINE__);
 			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_put(key);
 			goto unlock;
@@ -1636,6 +1646,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		ret = cache_key_append(cache, key);
 		if (ret) {
+			pr_err("%s %d cache_key_append failed\n", __func__, __LINE__);
 			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_delete(key);
 			goto unlock;
@@ -1762,6 +1773,7 @@ static int cache_replay(struct cbd_cache *cache)
 				}
 			}
 
+			pr_err("%s %d \n", __func__, __LINE__);
 			cache_seg_get(key->cache_pos.cache_seg);
 		}
 
