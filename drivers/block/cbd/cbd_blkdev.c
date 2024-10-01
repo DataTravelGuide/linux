@@ -211,9 +211,6 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 	disk->fops = &cbd_bd_ops;
 	disk->private_data = cbd_blkdev;
 
-	/* Tell the block layer that this is not a rotational device */
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-
 	cbd_blkdev->disk = disk;
 
 	cbdt_add_blkdev(cbd_blkdev->cbdt, cbd_blkdev);
@@ -221,9 +218,7 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_running;
 
 	set_capacity(cbd_blkdev->disk, cbd_blkdev->dev_size);
-
 	set_disk_ro(cbd_blkdev->disk, false);
-	blk_queue_write_cache(cbd_blkdev->disk->queue, false, false);
 
 	ret = add_disk(cbd_blkdev->disk);
 	if (ret)
