@@ -332,7 +332,7 @@ again:
 
 static void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
-	pr_err("%s %d: before inc: %u, seg_id: %u\n", __func__, __LINE__, atomic_read(&cache_seg->refs), cache_seg->cache_seg_id);
+	pr_err("cache%u %s %d: before inc: %u, seg_id: %u\n", cache_seg->cache->cache_id, __func__, __LINE__, atomic_read(&cache_seg->refs), cache_seg->cache_seg_id);
 	atomic_inc(&cache_seg->refs);
 }
 
@@ -361,7 +361,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 static void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
-	pr_err("%s %d: before dec: %u, seg_id: %u\n", __func__, __LINE__, atomic_read(&cache_seg->refs), cache_seg->cache_seg_id);
+	pr_err("cache%u %s %d: before dec: %u, seg_id: %u\n", cache_seg->cache->cache_id, __func__, __LINE__, atomic_read(&cache_seg->refs), cache_seg->cache_seg_id);
 	if (atomic_dec_and_test(&cache_seg->refs))
 		cache_seg_invalidate(cache_seg);
 }
@@ -704,7 +704,7 @@ static int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset
 
 	spin_lock(&cache->key_head_lock);
 again:
-	if (get_seg_remain(&cache->key_head) < CBD_KSET_ONMEDIA_SIZE_MAX) {
+	if (get_seg_remain(&cache->key_head) < (10*1024*1024)) {
 		struct cbd_cache_segment *cur_seg, *next_seg;
 
 		next_seg = get_cache_segment(cache);
@@ -717,14 +717,17 @@ again:
 
 		cur_seg->cache_seg_info->next_cache_seg_id = next_seg->cache_seg_id;
 		cur_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
+		pr_err("cache%u %s %d set cur key_head: %u key_head->next: %u\n", cache->cache_id, __func__, __LINE__, cur_seg->cache_seg_id, next_seg->cache_seg_id);
 
 		cache->key_head.cache_seg = next_seg;
 		cache->key_head.seg_off = 0;
 		goto again;
 	}
 
-	if (get_seg_remain(&cache->key_head) - kset_onmedia_size < CBD_KSET_ONMEDIA_SIZE_MAX)
+	if (get_seg_remain(&cache->key_head) - kset_onmedia_size < (10*1024*1024)) {
 		kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
+		pr_err("cache%u %s %d, set last kset seg: %u\n", cache->cache_id, __func__, __LINE__, cache->key_head.cache_seg->cache_seg_id);
+	}
 
 	kset_onmedia->magic = CBD_KSET_MAGIC;
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
@@ -1185,7 +1188,7 @@ static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_r
 
 			ret = cache_key_append(cache, key);
 			if (ret) {
-				pr_err("%s %d  cache_key_append failed in miss read\n", __func__, __LINE__);
+				pr_err("cache%u %s %d  cache_key_append failed in miss read\n", cache->cache_id, __func__, __LINE__);
 				cache_seg_put(key->cache_pos.cache_seg);
 				cache_key_delete(key);
 				goto unlock;
