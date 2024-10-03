@@ -759,6 +759,11 @@ static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 	kset_onmedia = &kset->kset_onmedia;
 
 	spin_lock(&kset->kset_lock);
+	pr_err("cache%u %s %d key_num: %u\n", cache->cache_id, __func__, __LINE__, kset_onmedia->key_num);
+	if (kset_onmedia->key_num >= CBD_KSET_KEYS_MAX) {
+		pr_err("kset_onmedia->key_num: %u\n", kset_onmedia->key_num);
+		BUG_ON(1);
+	}
 	key_onmedia = &kset_onmedia->data[kset_onmedia->key_num];
 #ifdef CONFIG_CBD_CRC
 	key->data_crc = cache_key_data_crc(key);
