@@ -701,7 +701,7 @@ static int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset
 
 	spin_lock(&cache->key_head_lock);
 again:
-	if (get_seg_remain(&cache->key_head) < CBD_KSET_ONMEDIA_SIZE_MAX) {
+	if (cache->key_head.seg_off > 1024) {
 		struct cbd_cache_segment *cur_seg, *next_seg;
 
 		next_seg = get_cache_segment(cache);
@@ -720,7 +720,7 @@ again:
 		goto again;
 	}
 
-	if (get_seg_remain(&cache->key_head) - kset_onmedia_size < CBD_KSET_ONMEDIA_SIZE_MAX)
+	if (cache->key_head.seg_off + kset_onmedia_size > 1024)
 		kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
 
 	kset_onmedia->magic = CBD_KSET_MAGIC;
@@ -1697,7 +1697,11 @@ static void cache_pos_encode(struct cbd_cache *cache,
 			     struct cbd_cache_pos_onmedia *pos_onmedia,
 			     struct cbd_cache_pos *pos)
 {
+	cbd_cache_err(cache, "set seg_id: %u\n", pos->cache_seg->cache_seg_id);
 	pos_onmedia->cache_seg_id = pos->cache_seg->cache_seg_id;
+	fsleep(1000000);
+
+	cbd_cache_err(cache, "finish set seg_off: %u\n", pos->seg_off);
 	pos_onmedia->seg_off = pos->seg_off;
 }
 
@@ -1722,6 +1726,7 @@ static int cache_replay(struct cbd_cache *cache)
 
 	cache_pos_copy(&pos_tail, &cache->key_tail);
 	pos = &pos_tail;
+	pr_err("into replay : %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 
 	set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
 
@@ -1731,9 +1736,11 @@ static int cache_replay(struct cbd_cache *cache)
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 		if (kset_onmedia->magic != CBD_KSET_MAGIC ||
 				kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
+			pr_err("magic not expected, break;\n");
 			break;
 		}
 
+		pr_err("replay kset: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 		for (i = 0; i < kset_onmedia->key_num; i++) {
 			key_onmedia = &kset_onmedia->data[i];
 
@@ -1808,21 +1815,21 @@ static bool no_more_dirty(struct cbd_cache *cache)
 	pos = &cache->dirty_tail;
 
 	if (cache_seg_wb_done(pos->cache_seg)) {
-		cbd_cache_debug(cache, "seg %u wb done\n", pos->cache_seg->cache_seg_id);
+		cbd_cache_err(cache, "seg %u wb done\n", pos->cache_seg->cache_seg_id);
 		return !cache_seg_has_next(pos->cache_seg);
 	}
 
 	addr = cache_pos_addr(pos);
 	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
-		cbd_cache_debug(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
+		cbd_cache_err(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
 				pos->cache_seg->cache_seg_id, pos->seg_off,
 				kset_onmedia->magic, CBD_KSET_MAGIC);
 		return true;
 	}
 
 	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-		cbd_cache_debug(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
+		cbd_cache_err(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
 				pos->cache_seg->cache_seg_id, pos->seg_off,
 				cache_kset_crc(kset_onmedia), kset_onmedia->crc);
 		return true;
@@ -1991,6 +1998,7 @@ next_seg:
 				continue;
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
+			cbd_cache_err(cache, "update dirty tail pos\n");
 			cache_pos_encode(cache, &cache->cache_info->dirty_tail_pos, &cache->dirty_tail);
 		}
 	}
@@ -2087,6 +2095,7 @@ next_seg:
 				continue;
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
+			cbd_cache_err(cache, "update key tail pos\n");
 			cache_pos_encode(cache, &cache->cache_info->key_tail_pos, &cache->key_tail);
 			cbd_cache_debug(cache, "gc kset seg: %u\n", cur_seg->cache_seg_id);
 
@@ -2260,6 +2269,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				seg_id = cache_info->seg_id;
 		}
 
+		pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
 		cache_seg_init(cache, seg_id, i);
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 	}
