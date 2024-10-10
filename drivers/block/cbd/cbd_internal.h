@@ -700,9 +700,15 @@ struct cbd_cache_pos {
 };
 
 struct cbd_cache_pos_onmedia {
+	u32 crc;
+	u32 res;
+	u64 seq;
 	u32 cache_seg_id;
 	u32 seg_off;
 };
+
+/* max of index for cbd_cache_pos_onmedia */
+#define CBD_CPOM_INDEX_MAX	2
 
 struct cbd_cache_info {
 	u8	blkdev_state;
@@ -714,8 +720,8 @@ struct cbd_cache_info {
 	u32	used_segs;
 	u16	gc_percent;
 
-	struct cbd_cache_pos_onmedia key_tail_pos;
-	struct cbd_cache_pos_onmedia dirty_tail_pos;
+	struct cbd_cache_pos_onmedia key_tail_pos[CBD_CPOM_INDEX_MAX];
+	struct cbd_cache_pos_onmedia dirty_tail_pos[CBD_CPOM_INDEX_MAX];
 };
 
 struct cbd_cache_tree {
@@ -804,7 +810,10 @@ struct cbd_cache {
 	u32				n_ksets;
 	struct cbd_cache_kset		*ksets;
 
+	struct mutex			key_tail_lock;
 	struct cbd_cache_pos		key_tail;
+
+	struct mutex			dirty_tail_lock;
 	struct cbd_cache_pos		dirty_tail;
 
 	struct kmem_cache		*key_cache;
