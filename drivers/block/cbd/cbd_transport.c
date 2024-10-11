@@ -173,6 +173,7 @@ enum {
 	CBDT_ADM_OPT_FORCE,
 	CBDT_ADM_OPT_PATH,
 	CBDT_ADM_OPT_BID,
+	CBDT_ADM_OPT_HANDLERS,
 	CBDT_ADM_OPT_DID,
 	CBDT_ADM_OPT_QUEUES,
 	CBDT_ADM_OPT_HID,
@@ -204,6 +205,7 @@ static const match_table_t adm_opt_tokens = {
 	{ CBDT_ADM_OPT_FORCE,		"force=%u" },
 	{ CBDT_ADM_OPT_PATH,		"path=%s" },
 	{ CBDT_ADM_OPT_BID,		"backend_id=%u" },
+	{ CBDT_ADM_OPT_HANDLERS,	"handlers=%u" },
 	{ CBDT_ADM_OPT_DID,		"dev_id=%u" },
 	{ CBDT_ADM_OPT_QUEUES,		"queues=%u" },
 	{ CBDT_ADM_OPT_HID,		"host_id=%u" },
@@ -222,6 +224,7 @@ struct cbd_adm_options {
 		} host;
 		struct backend_options {
 			char path[CBD_PATH_LEN];
+			u32 handlers;
 			u64 cache_size_M;
 		} backend;
 		struct segment_options {
@@ -286,6 +289,18 @@ static int parse_adm_options(struct cbd_transport *cbdt,
 				goto out;
 			}
 			opts->backend_id = token;
+			break;
+		case CBDT_ADM_OPT_HANDLERS:
+			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if (token > CBD_HANDLERS_MAX) {
+				cbdt_err(cbdt, "invalid handlers: %u, larger than max %u\n",
+						token, CBD_HANDLERS_MAX);
+			}
+			opts->backend.handlers = token;
 			break;
 		case CBDT_ADM_OPT_DID:
 			if (match_uint(args, &token)) {
@@ -463,6 +478,7 @@ static ssize_t adm_store(struct device *dev,
 	struct cbd_transport *cbdt;
 
 	opts.backend_id = U32_MAX;
+	opts.backend.handlers = 1;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -491,7 +507,7 @@ static ssize_t adm_store(struct device *dev,
 			cache_segs = DIV_ROUND_UP(opts.backend.cache_size_M,
 					cbdt->transport_info->segment_size / CBD_MB);
 
-		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id, cache_segs);
+		ret = cbd_backend_start(cbdt, opts.backend.path, opts.backend_id, opts.backend.handlers, cache_segs);
 		break;
 	case CBDT_ADM_OP_B_STOP:
 		ret = cbd_backend_stop(cbdt, opts.backend_id);

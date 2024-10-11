@@ -718,7 +718,7 @@ again:
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
 
 	memcpy_flushcache(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
-	dax_flush(cache->cbdt->dax_dev, get_key_head_addr(cache), kset_onmedia_size);
+	//dax_flush(cache->cbdt->dax_dev, get_key_head_addr(cache), kset_onmedia_size);
 	cbd_cache_err(cache, "flush kset: flags: %llu %u/%u size: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, kset_onmedia_size);
 	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));
 
@@ -1736,7 +1736,7 @@ static void cache_pos_encode(struct cbd_cache *cache,
 
 	oldest_pos->crc = cache_pos_onmedia_crc(oldest_pos);
 
-	dax_flush(cache->cbdt->dax_dev, oldest_pos, sizeof(*oldest_pos));
+	//dax_flush(cache->cbdt->dax_dev, oldest_pos, sizeof(*oldest_pos));
 	cbd_cache_err(cache, "%s dax_flush oldest_pos seq: %llu , crc: %u\n", debug, oldest_pos->seq, oldest_pos->crc);
 }
 

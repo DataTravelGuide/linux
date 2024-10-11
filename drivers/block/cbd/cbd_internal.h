@@ -174,6 +174,7 @@
 #define CBD_NAME_LEN	32
 
 #define CBD_QUEUES_MAX		128
+#define CBD_HANDLERS_MAX		128
 
 #define CBD_PART_SHIFT 4
 #define CBD_DRV_NAME "cbd"
@@ -875,8 +876,6 @@ struct cbd_handler {
 	u32			se_to_handle;
 	u64			req_tid_expected;
 
-	u32			polling:1;
-
 	struct delayed_work	handle_work;
 	struct cbd_worker_cfg	handle_worker_cfg;
 
@@ -885,7 +884,7 @@ struct cbd_handler {
 };
 
 void cbd_handler_destroy(struct cbd_handler *handler);
-int cbd_handler_create(struct cbd_backend *cbdb, u32 seg_id);
+int cbd_handler_create(struct cbd_backend *cbdb, u32 seg_id, bool init_channel);
 void cbd_handler_notify(struct cbd_handler *handler);
 
 /* cbd_backend */
@@ -904,10 +903,14 @@ struct cbd_backend_info {
 	u32			host_id;
 	u64			alive_ts;
 	u64			dev_size; /* nr_sectors */
-	struct cbd_cache_info	cache_info;
 
 	u32			blkdevs[CBDB_BLKDEV_COUNT_MAX];
 	char			path[CBD_PATH_LEN];
+
+	u32			n_handlers;
+	u32			handler_channels[CBD_HANDLERS_MAX];
+
+	struct cbd_cache_info	cache_info;
 };
 
 struct cbd_backend_io {
@@ -946,7 +949,8 @@ struct cbd_backend {
 	bool			cache_dev_registered;
 };
 
-int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs);
+int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
+		      u32 handlers, u32 cache_segs);
 int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id);
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id);
 int cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);

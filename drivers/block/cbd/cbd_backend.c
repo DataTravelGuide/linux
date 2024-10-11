@@ -88,6 +88,9 @@ out:
 
 void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
 {
+	if (hlist_unhashed(&handler->hash_node))
+		return;
+
 	spin_lock(&cbdb->lock);
 	hash_del(&handler->hash_node);
 	spin_unlock(&cbdb->lock);
@@ -139,7 +142,8 @@ static void state_work_fn(struct work_struct *work)
 				backend_state == cbdc_backend_state_none &&
 				backend_id == cbdb->backend_id) {
 
-			ret = cbd_handler_create(cbdb, i);
+			pr_err("========================= create handler ======\n");
+			ret = cbd_handler_create(cbdb, i, false);
 			if (ret) {
 				cbdb_err(cbdb, "create handler for %u error", i);
 				continue;
@@ -159,6 +163,46 @@ static void state_work_fn(struct work_struct *work)
 	}
 
 	queue_delayed_work(cbd_wq, &cbdb->state_work, 1 * HZ);
+}
+
+static void destroy_handlers(struct cbd_backend *cbdb)
+{
+	struct cbd_handler *handler;
+	struct hlist_node *tmp;
+	int i;
+
+	spin_lock(&cbdb->lock);
+	hash_for_each_safe(cbdb->handlers_hash, i, tmp, handler, hash_node) {
+		hash_del(&handler->hash_node);
+		cbd_handler_destroy(handler);
+	}
+	spin_unlock(&cbdb->lock);
+}
+
+static int create_handlers(struct cbd_backend *cbdb, bool init_channel)
+{
+	struct cbd_backend_info *backend_info;
+	u32 channel_id;
+	int ret;
+	int i;
+
+	backend_info = cbdb->backend_info;
+
+	for (i = 0; i < backend_info->n_handlers; i++) {
+		channel_id = backend_info->handler_channels[i];
+
+		ret = cbd_handler_create(cbdb, i, init_channel);
+		if (ret) {
+			goto destroy_handlers;
+		}
+	}
+
+	return 0;
+
+destroy_handlers:
+	destroy_handlers(cbdb);
+
+	return ret;
 }
 
 static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
@@ -212,9 +256,13 @@ static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
 
 	spin_lock_init(&cbdb->lock);
 
+	ret = create_handlers(cbdb, new_backend);
+	if (ret)
+		goto close_file;
+
 	b_info->state = cbd_backend_state_running;
 
-	queue_delayed_work(cbd_wq, &cbdb->state_work, 0);
+	//queue_delayed_work(cbd_wq, &cbdb->state_work, 0);
 	queue_delayed_work(cbd_wq, &cbdb->hb_work, 0);
 
 	return 0;
@@ -231,11 +279,13 @@ err:
 
 extern struct device_type cbd_cache_type;
 
-int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u32 cache_segs)
+int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
+		      u32 handlers, u32 cache_segs)
 {
 	struct cbd_backend *backend;
 	struct cbd_backend_info *backend_info;
 	struct cbd_cache_info *cache_info;
+	u32 channel_id;
 	bool new_backend = false;
 	int ret;
 	int i;
@@ -251,6 +301,16 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id, u3
 		backend_info = cbdt_get_backend_info(cbdt, backend_id);
 		for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++)
 			backend_info->blkdevs[i] = UINT_MAX;
+
+		backend_info->n_handlers = handlers;
+		for (i = 0; i < backend_info->n_handlers; i++) {
+			ret = cbd_get_empty_channel_id(cbdt, &channel_id);
+			if (ret < 0) {
+				cbdt_err(cbdt, "failed find available channel_id.\n");
+				return ret;
+			}
+			backend_info->handler_channels[i] = channel_id;
+		}
 
 		cache_info = &backend_info->cache_info;
 		cache_info->n_segs = cache_segs;
@@ -347,6 +407,8 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 
 	cancel_delayed_work_sync(&cbdb->hb_work);
 	cancel_delayed_work_sync(&cbdb->state_work);
+
+	destroy_handlers(cbdb);
 
 	backend_info = cbdt_get_backend_info(cbdt, cbdb->backend_id);
 	backend_info->state = cbd_backend_state_none;

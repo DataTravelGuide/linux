@@ -482,7 +482,7 @@ const struct blk_mq_ops cbd_mq_ops = {
 	.init_hctx	= cbd_init_hctx,
 };
 
-static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
+static void cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 {
 	struct cbd_blkdev *cbd_blkdev = cbdq->cbd_blkdev;
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
@@ -493,15 +493,8 @@ static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	if (!cbd_blkdev->backend)
 		cbdq->channel_info->polling = true;
 
-	cbdq->channel.data_head = cbdq->channel.data_tail = 0;
-	cbdq->channel_info->submr_tail = cbdq->channel_info->submr_head = 0;
-	cbdq->channel_info->compr_tail = cbdq->channel_info->compr_head = 0;
-
-	cbdq->channel_info->backend_id = cbd_blkdev->backend_id;
 	cbdq->channel_info->blkdev_id = cbd_blkdev->blkdev_id;
 	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_running;
-
-	return 0;
 }
 
 int cbd_queue_start(struct cbd_queue *cbdq)
@@ -516,11 +509,7 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 		goto err;
 	}
 
-	ret = cbd_queue_channel_init(cbdq, channel_id);
-	if (ret) {
-		cbdt_err(cbdt, "failed to init dev channel_info: %d.", ret);
-		goto err;
-	}
+	cbd_queue_channel_init(cbdq, channel_id);
 
 	INIT_LIST_HEAD(&cbdq->inflight_reqs);
 	spin_lock_init(&cbdq->inflight_reqs_lock);

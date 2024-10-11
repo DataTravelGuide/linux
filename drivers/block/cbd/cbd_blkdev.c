@@ -259,6 +259,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 
 	/* find an available index in backend_info->blkdevs */
 	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
+		pr_err("blkdev %u : %u\n", i, backend_info->blkdevs[i]);
 		if (backend_info->blkdevs[i] == UINT_MAX) {
 			devid_in_backend = i;
 			break;
@@ -423,6 +424,7 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;
 
+	pr_err("into clear\n");
 	backend_info = cbdt_get_backend_info(cbdt, blkdev_info->backend_id);
 	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
 		if (backend_info->blkdevs[i] == devid)
@@ -441,6 +443,7 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 		if (channel_info->blkdev_state != cbdc_blkdev_state_running)
 			continue;
 
+		pr_err("channel->blkdev_id: %u\n", channel_info->blkdev_id);
 		/* release the channels blkdev is using */
 		if (channel_info->blkdev_id != devid)
 			continue;

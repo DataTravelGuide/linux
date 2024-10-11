@@ -186,11 +186,27 @@ miss:
 
 	cbdwc_miss(&handler->handle_worker_cfg);
 
-	if (handler->polling)
+	if (handler->channel_info->polling)
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
+	else
+		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 1);
 }
 
-int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id)
+{
+	struct cbd_transport *cbdt = handler->cbdb->cbdt;
+
+	cbd_channel_init(&handler->channel, cbdt, channel_id);
+	handler->channel_info = handler->channel.channel_info;
+
+	handler->channel.data_head = handler->channel.data_tail = 0;
+	handler->channel_info->submr_tail = handler->channel_info->submr_head = 0;
+	handler->channel_info->compr_tail = handler->channel_info->compr_head = 0;
+
+	handler->channel_info->backend_id = handler->cbdb->backend_id;
+}
+
+int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_channel)
 {
 	struct cbd_transport *cbdt = cbdb->cbdt;
 	struct cbd_handler *handler;
@@ -205,11 +221,13 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id)
 		goto err;
 
 	handler->cbdb = cbdb;
-	cbd_channel_init(&handler->channel, cbdt, channel_id);
-	handler->channel_info = handler->channel.channel_info;
+	if (init_channel) {
+		handler_channel_init(handler, channel_id);
+	} else {
+		cbd_channel_init(&handler->channel, cbdt, channel_id);
+	}
 
-	if (handler->channel_info->polling)
-		handler->polling = true;
+	handler->channel_info = handler->channel.channel_info;
 
 	handler->se_to_handle = handler->channel_info->submr_tail;
 	handler->req_tid_expected = U64_MAX;
