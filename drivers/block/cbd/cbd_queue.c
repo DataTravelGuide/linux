@@ -497,17 +497,9 @@ static void cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_running;
 }
 
-int cbd_queue_start(struct cbd_queue *cbdq)
+int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 {
-	struct cbd_transport *cbdt = cbdq->cbd_blkdev->cbdt;
-	u32 channel_id;
 	int ret;
-
-	ret = cbd_get_empty_channel_id(cbdt, &channel_id);
-	if (ret < 0) {
-		cbdt_err(cbdt, "failed find available channel_id.\n");
-		goto err;
-	}
 
 	cbd_queue_channel_init(cbdq, channel_id);
 
@@ -532,7 +524,6 @@ int cbd_queue_start(struct cbd_queue *cbdq)
 channel_exit:
 	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_none;
 	cbd_channel_exit(&cbdq->channel);
-err:
 	return ret;
 }
 

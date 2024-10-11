@@ -140,7 +140,7 @@ static void cbd_blkdev_destroy_queues(struct cbd_blkdev *cbd_blkdev)
 	kfree(cbd_blkdev->queues);
 }
 
-static int cbd_blkdev_create_queues(struct cbd_blkdev *cbd_blkdev)
+static int cbd_blkdev_create_queues(struct cbd_blkdev *cbd_blkdev, u32 *channels)
 {
 	int i;
 	int ret;
@@ -154,7 +154,7 @@ static int cbd_blkdev_create_queues(struct cbd_blkdev *cbd_blkdev)
 		cbdq = &cbd_blkdev->queues[i];
 		cbdq->cbd_blkdev = cbd_blkdev;
 		cbdq->index = i;
-		ret = cbd_queue_start(cbdq);
+		ret = cbd_queue_start(cbdq, channels[i]);
 		if (ret)
 			goto err;
 	}
@@ -269,6 +269,12 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	if (devid_in_backend == UINT_MAX)
 		return -EBUSY;
 
+	if (queues > backend_info->n_handlers) {
+		cbdt_err(cbdt, "invalid queues: %u, larger than backend handlers: %u\n",
+				queues, backend_info->n_handlers);
+		return -EINVAL;
+	}
+
 	dev_size = backend_info->dev_size;
 
 	cbd_blkdev = kzalloc(sizeof(struct cbd_blkdev), GFP_KERNEL);
@@ -329,14 +335,17 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		}
 	}
 
-	ret = cbd_blkdev_create_queues(cbd_blkdev);
+	pr_err("before create queues\n");
+	ret = cbd_blkdev_create_queues(cbd_blkdev, backend_info->handler_channels);
 	if (ret < 0)
 		goto destroy_cache;
 
 	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
 	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0);
 
+	pr_err("before disk_start\n");
 	ret = disk_start(cbd_blkdev);
+	pr_err("after disk_start\n");
 	if (ret < 0)
 		goto destroy_queues;
 	return 0;

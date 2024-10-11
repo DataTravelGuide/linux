@@ -1075,7 +1075,7 @@ struct cbd_queue {
 	struct cbd_worker_cfg	complete_worker_cfg;
 };
 
-int cbd_queue_start(struct cbd_queue *cbdq);
+int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id);
 void cbd_queue_stop(struct cbd_queue *cbdq);
 extern const struct blk_mq_ops cbd_mq_ops;
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
