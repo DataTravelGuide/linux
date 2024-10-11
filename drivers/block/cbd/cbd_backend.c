@@ -143,7 +143,7 @@ static int create_handlers(struct cbd_backend *cbdb, bool init_channel)
 	for (i = 0; i < backend_info->n_handlers; i++) {
 		channel_id = backend_info->handler_channels[i];
 
-		ret = cbd_handler_create(cbdb, i, init_channel);
+		ret = cbd_handler_create(cbdb, channel_id, init_channel);
 		if (ret) {
 			goto destroy_handlers;
 		}
