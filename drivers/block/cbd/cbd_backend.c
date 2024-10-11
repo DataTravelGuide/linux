@@ -117,54 +117,6 @@ static struct cbd_handler *cbdb_get_handler(struct cbd_backend *cbdb, u32 seg_id
 	return NULL;
 }
 
-static void state_work_fn(struct work_struct *work)
-{
-	struct cbd_backend *cbdb = container_of(work, struct cbd_backend, state_work.work);
-	struct cbd_transport *cbdt = cbdb->cbdt;
-	struct cbd_segment_info *segment_info;
-	struct cbd_channel_info *channel_info;
-	u32 blkdev_state, backend_state, backend_id;
-	int ret;
-	int i;
-
-	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
-		segment_info = cbdt_get_segment_info(cbdt, i);
-		if (segment_info->type != cbds_type_channel)
-			continue;
-
-		channel_info = (struct cbd_channel_info *)segment_info;
-
-		blkdev_state = channel_info->blkdev_state;
-		backend_state = channel_info->backend_state;
-		backend_id = channel_info->backend_id;
-
-		if (blkdev_state == cbdc_blkdev_state_running &&
-				backend_state == cbdc_backend_state_none &&
-				backend_id == cbdb->backend_id) {
-
-			pr_err("========================= create handler ======\n");
-			ret = cbd_handler_create(cbdb, i, false);
-			if (ret) {
-				cbdb_err(cbdb, "create handler for %u error", i);
-				continue;
-			}
-		}
-
-		if (blkdev_state == cbdc_blkdev_state_none &&
-				backend_state == cbdc_backend_state_running &&
-				backend_id == cbdb->backend_id) {
-			struct cbd_handler *handler;
-
-			handler = cbdb_get_handler(cbdb, i);
-			if (!handler)
-				continue;
-			cbd_handler_destroy(handler);
-		}
-	}
-
-	queue_delayed_work(cbd_wq, &cbdb->state_work, 1 * HZ);
-}
-
 static void destroy_handlers(struct cbd_backend *cbdb)
 {
 	struct cbd_handler *handler;
@@ -249,7 +201,6 @@ static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
 		}
 	}
 
-	INIT_DELAYED_WORK(&cbdb->state_work, state_work_fn);
 	INIT_DELAYED_WORK(&cbdb->hb_work, backend_hb_workfn);
 	hash_init(cbdb->handlers_hash);
 	cbdb->backend_device = &cbdt->cbd_backends_dev->backend_devs[cbdb->backend_id];
@@ -262,7 +213,6 @@ static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
 
 	b_info->state = cbd_backend_state_running;
 
-	//queue_delayed_work(cbd_wq, &cbdb->state_work, 0);
 	queue_delayed_work(cbd_wq, &cbdb->hb_work, 0);
 
 	return 0;
@@ -406,7 +356,6 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	}
 
 	cancel_delayed_work_sync(&cbdb->hb_work);
-	cancel_delayed_work_sync(&cbdb->state_work);
 
 	destroy_handlers(cbdb);
 

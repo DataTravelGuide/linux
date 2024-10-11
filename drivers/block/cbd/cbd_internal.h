@@ -934,7 +934,6 @@ struct cbd_backend {
 	struct file		*bdev_file;
 
 	struct workqueue_struct	*task_wq;
-	struct delayed_work	state_work;
 	struct delayed_work	hb_work; /* heartbeat work */
 
 	struct list_head	node; /* cbd_transport->backends */
