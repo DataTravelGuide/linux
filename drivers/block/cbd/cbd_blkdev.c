@@ -347,6 +347,7 @@ destroy_cache:
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 destroy_wq:
+	backend_info->blkdevs[devid_in_backend] = UINT_MAX;
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 	destroy_workqueue(cbd_blkdev->task_wq);
 ida_remove:
