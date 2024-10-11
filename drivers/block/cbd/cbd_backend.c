@@ -123,12 +123,10 @@ static void destroy_handlers(struct cbd_backend *cbdb)
 	struct hlist_node *tmp;
 	int i;
 
-	spin_lock(&cbdb->lock);
 	hash_for_each_safe(cbdb->handlers_hash, i, tmp, handler, hash_node) {
 		hash_del(&handler->hash_node);
 		cbd_handler_destroy(handler);
 	}
-	spin_unlock(&cbdb->lock);
 }
 
 static int create_handlers(struct cbd_backend *cbdb, bool init_channel)
@@ -328,17 +326,20 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend *cbdb;
 	struct cbd_backend_info *backend_info;
+	int i;
 
 	cbdb = cbdt_get_backend(cbdt, backend_id);
 	if (!cbdb)
 		return -ENOENT;
 
-	spin_lock(&cbdb->lock);
-	if (!hash_empty(cbdb->handlers_hash)) {
-		spin_unlock(&cbdb->lock);
-		return -EBUSY;
+	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
+		if (cbdb->backend_info->blkdevs[i] != UINT_MAX) {
+			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
+			return -EBUSY;
+		}
 	}
 
+	spin_lock(&cbdb->lock);
 	if (cbdb->backend_info->state == cbd_backend_state_removing) {
 		spin_unlock(&cbdb->lock);
 		return -EBUSY;
