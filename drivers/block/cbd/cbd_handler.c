@@ -50,6 +50,7 @@ static void backend_bio_end(struct bio *bio)
 
 	bio_put(bio);
 	kmem_cache_free(cbdb->backend_io_cache, backend_io);
+	atomic_dec(&handler->inflight_cmds);
 }
 
 static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
@@ -73,6 +74,7 @@ static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 		return NULL;
 	}
 
+	atomic_inc(&handler->inflight_cmds);
 	backend_io->bio->bi_iter.bi_sector = se->offset >> SECTOR_SHIFT;
 	backend_io->bio->bi_iter.bi_size = 0;
 	backend_io->bio->bi_private = backend_io;
@@ -131,15 +133,24 @@ void cbd_handler_notify(struct cbd_handler *handler)
 
 static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
 {
-	/* New blkdev */
-	if (req_tid == 0)
-		return true;
-
 	/* New handler */
 	if (handler->req_tid_expected == U64_MAX)
 		return true;
 
 	return (req_tid == handler->req_tid_expected);
+}
+
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id);
+static void handler_reset(struct cbd_handler *handler)
+{
+	handler->req_tid_expected = U64_MAX;
+	handler->se_to_handle = 0;
+
+	handler->channel.data_head = handler->channel.data_tail = 0;
+	handler->channel_info->submr_tail = handler->channel_info->submr_head = 0;
+	handler->channel_info->compr_tail = handler->channel_info->compr_head = 0;
+
+	handler->channel_info->need_reset = 0;
 }
 
 static void handle_work_fn(struct work_struct *work)
@@ -149,6 +160,12 @@ static void handle_work_fn(struct work_struct *work)
 	struct cbd_se *se;
 	u64 req_tid;
 	int ret;
+
+	if (handler->channel_info->need_reset) {
+		if (atomic_read(&handler->inflight_cmds) == 0)
+			handler_reset(handler);
+		goto out;
+	}
 
 again:
 	/* channel ctrl would be updated by blkdev queue */
@@ -198,6 +215,7 @@ miss:
 
 	cbdwc_miss(&handler->handle_worker_cfg);
 
+out:
 	if (handler->channel_info->polling)
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 	else
@@ -227,6 +245,8 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_chann
 	handler = kzalloc(sizeof(struct cbd_handler), GFP_KERNEL);
 	if (!handler)
 		return -ENOMEM;
+
+	atomic_set(&handler->inflight_cmds, 0);
 
 	ret = bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
 	if (ret)
@@ -265,6 +285,9 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 	cbdb_del_handler(handler->cbdb, handler);
 
 	cancel_delayed_work_sync(&handler->handle_work);
+
+	while (atomic_read(&handler->inflight_cmds))
+		fsleep(100000);
 
 	handler->channel_info->backend_state = cbdc_backend_state_none;
 	cbd_channel_exit(&handler->channel);

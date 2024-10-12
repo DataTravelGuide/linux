@@ -631,6 +631,7 @@ struct cbd_channel_info {
 	u32	backend_id;
 
 	u32	polling:1;
+	u32	need_reset:1;
 
 	u32	submr_head;
 	u32	submr_tail;
@@ -878,6 +879,8 @@ struct cbd_handler {
 
 	struct delayed_work	handle_work;
 	struct cbd_worker_cfg	handle_worker_cfg;
+
+	atomic_t		inflight_cmds;
 
 	struct hlist_node	hash_node;
 	struct bio_set		bioset;

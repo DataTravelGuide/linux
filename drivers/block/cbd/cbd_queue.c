@@ -15,6 +15,11 @@ static inline struct cbd_se *get_oldest_se(struct cbd_queue *cbdq)
 	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_info->submr_tail);
 }
 
+static inline bool queue_subm_ring_empty(struct cbd_queue *cbdq)
+{
+	return (cbdq->channel_info->submr_tail == cbdq->channel_info->submr_head);
+}
+
 static inline struct cbd_ce *get_complete_entry(struct cbd_queue *cbdq)
 {
 	if (cbdq->channel_info->compr_tail == cbdq->channel_info->compr_head)
@@ -358,6 +363,14 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 	spin_unlock(&cbd_req->lock);
 }
 
+static void queue_reset_channel(struct cbd_queue *cbdq)
+{
+	cbdq->channel_info->need_reset = 1;
+
+	while (!queue_subm_ring_empty(cbdq))
+		fsleep(100000);
+}
+
 static void complete_work_fn(struct work_struct *work)
 {
 	struct cbd_queue *cbdq = container_of(work, struct cbd_queue, complete_work.work);
@@ -514,6 +527,8 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 		ret = -ENOMEM;
 		goto channel_exit;
 	}
+
+	queue_reset_channel(cbdq);
 
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 

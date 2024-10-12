@@ -2375,7 +2375,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				seg_id = cache_info->seg_id;
 		}
 
-		pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
+		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
 		cache_seg_init(cache, seg_id, i);
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 	}
