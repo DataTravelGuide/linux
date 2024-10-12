@@ -129,6 +129,19 @@ void cbd_handler_notify(struct cbd_handler *handler)
 	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 }
 
+static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
+{
+	/* New blkdev */
+	if (req_tid == 0)
+		return true;
+
+	/* New handler */
+	if (handler->req_tid_expected == U64_MAX)
+		return true;
+
+	return (req_tid == handler->req_tid_expected);
+}
+
 static void handle_work_fn(struct work_struct *work)
 {
 	struct cbd_handler *handler = container_of(work, struct cbd_handler,
@@ -144,8 +157,7 @@ again:
 		goto miss;
 
 	req_tid = se->req_tid;
-	if (handler->req_tid_expected != U64_MAX &&
-			req_tid != handler->req_tid_expected) {
+	if (!req_tid_valid(handler, req_tid)) {
 		cbd_handler_err(handler, "req_tid (%llu) is not expected (%llu)",
 				req_tid, handler->req_tid_expected);
 		goto miss;

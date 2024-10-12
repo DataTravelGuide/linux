@@ -219,7 +219,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 		goto err;
 	}
 
-	cbd_req->req_tid = ++cbdq->req_tid;
+	cbd_req->req_tid = cbdq->req_tid++;
 	queue_req_se_init(cbd_req);
 
 	if (!cbd_req_nodata(cbd_req))
