@@ -2118,8 +2118,11 @@ static bool need_gc(struct cbd_cache *cache)
 	if (dirty_addr == key_addr)
 		return false;
 
-	if (bitmap_weight(cache->seg_map, cache->n_segs) < (cache->n_segs / 100 * cache->cache_info->gc_percent))
+	cbd_cache_err(cache, "weight: %u, %u\n", bitmap_weight(cache->seg_map, cache->n_segs), (cache->n_segs * cache->cache_info->gc_percent / 100));
+
+	if (bitmap_weight(cache->seg_map, cache->n_segs) < (cache->n_segs * cache->cache_info->gc_percent / 100))
 		return false;
+
 
 	return true;
 }
