@@ -336,6 +336,7 @@ again:
 
 static void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
+	//cbd_cache_err(cache_seg->cache, "before get seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
 	atomic_inc(&cache_seg->refs);
 }
 
@@ -364,6 +365,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 static void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
+	//cbd_cache_err(cache_seg->cache, "before put seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
 	if (atomic_dec_and_test(&cache_seg->refs))
 		cache_seg_invalidate(cache_seg);
 }
@@ -2425,6 +2427,12 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		if (ret) {
 			cbd_cache_err(cache, "failed to replay keys\n");
 			goto destroy_cache;
+		}
+
+		if (bitmap_weight(cache->seg_map, cache->n_segs) != cache->cache_info->used_segs) {
+			pr_err("weight: %u\n", bitmap_weight(cache->seg_map, cache->n_segs));
+			pr_err("used_segs: %u\n", cache->cache_info->used_segs);
+			cache->cache_info->used_segs = bitmap_weight(cache->seg_map, cache->n_segs);
 		}
 
 		cache->n_ksets = opts->n_paral;
