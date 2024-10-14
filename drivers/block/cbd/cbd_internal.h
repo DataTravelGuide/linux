@@ -595,7 +595,7 @@ struct cbd_segment {
 	struct delayed_work		hb_work; /* heartbeat work */
 };
 
-int cbd_segment_clear(struct cbd_transport *cbdt, u32 segment_id);
+void cbd_segment_clear(struct cbd_transport *cbdt, u32 segment_id);
 void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 		      struct cbds_init_options *options);
 void cbd_segment_exit(struct cbd_segment *segment);

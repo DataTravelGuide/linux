@@ -109,19 +109,12 @@ void cbd_segment_exit(struct cbd_segment *segment)
 	segment->segment_info->alive_ts = 0;
 }
 
-int cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)
+void cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)
 {
 	struct cbd_segment_info *segment_info;
 
 	segment_info = cbdt_get_segment_info(cbdt, seg_id);
-	if (cbd_segment_info_is_alive(segment_info)) {
-		cbdt_err(cbdt, "segment %u is still alive\n", seg_id);
-		return -EBUSY;
-	}
-
 	cbdt_zero_range(cbdt, segment_info, CBDT_SEG_SIZE);
-
-	return 0;
 }
 
 void cbds_copy_data(struct cbd_seg_pos *dst_pos,

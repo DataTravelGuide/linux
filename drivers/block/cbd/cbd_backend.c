@@ -205,11 +205,11 @@ static int cbd_backend_init(struct cbd_backend *cbdb, bool new_backend)
 
 	spin_lock_init(&cbdb->lock);
 
+	b_info->state = cbd_backend_state_running;
+
 	ret = create_handlers(cbdb, new_backend);
 	if (ret)
 		goto close_file;
-
-	b_info->state = cbd_backend_state_running;
 
 	queue_delayed_work(cbd_wq, &cbdb->hb_work, 0);
 
@@ -404,19 +404,9 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 		seg_info = cbdt_get_segment_info(cbdt, i);
 		if (seg_info->type == cbds_type_channel) {
 			channel_info = (struct cbd_channel_info *)seg_info;
-			if (channel_info->blkdev_state != cbdc_backend_state_running)
-				continue;
-
 			/* release the channels backend is using */
-			if (channel_info->backend_id != backend_id)
-				continue;
-
-			if (channel_info->blkdev_state == cbdc_blkdev_state_none) {
+			if (channel_info->backend_id == backend_id)
 				cbd_segment_clear(cbdt, i);
-				continue;
-			}
-
-			channel_info->backend_state = cbdc_backend_state_none;
 		}
 
 		if (seg_info->type == cbds_type_cache) {
