@@ -713,9 +713,6 @@ struct cbd_cache_pos_onmedia {
 #define CBD_CPOM_INDEX_MAX	2
 
 struct cbd_cache_info {
-	u8	blkdev_state;
-	u32	blkdev_id;
-
 	u32	seg_id;
 	u32	n_segs;
 
