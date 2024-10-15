@@ -327,6 +327,7 @@ again:
 
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
+	cbd_cache_err(cache, "init seg: %u flags\n", cache_seg->cache_seg_id);
 	cache_seg->cache_seg_info->flags = 0;
 
 	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
@@ -356,7 +357,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 	spin_unlock(&cache->seg_map_lock);
 
 	queue_work(cache->cache_wq, &cache->clean_work);
-	cbd_cache_debug(cache, "gc invalidat seg: %u\n", cache_seg->cache_seg_id);
+	cbd_cache_err(cache, "gc invalidat seg: %u\n", cache_seg->cache_seg_id);
 
 #ifdef CONFIG_CBD_DEBUG
 	dump_seg_map(cache);
@@ -1877,10 +1878,12 @@ static int cache_replay(struct cbd_cache *cache)
 		}
 
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
+		cbd_cache_err(cache, "after advance: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
 			struct cbd_cache_segment *cur_seg, *next_seg;
 
+			cbd_cache_err(cache, "last kset\n");
 			cur_seg = pos->cache_seg;
 			next_seg = cache_seg_get_next(cur_seg);
 			if (!next_seg)
@@ -1888,6 +1891,7 @@ static int cache_replay(struct cbd_cache *cache)
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
 			set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
+			cbd_cache_err(cache, "nest seg: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 			continue;
 		}
 	}
@@ -2085,11 +2089,13 @@ static void writeback_fn(struct work_struct *work)
 
 		vfs_fsync(cache->bdev_file, 1);
 
+		cbd_cache_err(cache, "writeback advance: %u:%u %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, get_kset_onmedia_size(kset_onmedia));
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
 
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
 			struct cbd_cache_segment *cur_seg, *next_seg;
 
+			cbd_cache_err(cache, "set wb done %u\n", pos->cache_seg->cache_seg_id);
 			pos->cache_seg->cache_seg_info->flags |= CBD_CACHE_SEG_FLAGS_WB_DONE;
 next_seg:
 			cur_seg = pos->cache_seg;
@@ -2156,8 +2162,8 @@ static void gc_fn(struct work_struct *work)
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 		if (kset_onmedia->magic != CBD_KSET_MAGIC) {
-			cbd_cache_err(cache, "gc error magic is not expected. magic: %llx, expected: %llx\n",
-									kset_onmedia->magic, CBD_KSET_MAGIC);
+			cbd_cache_err(cache, "gc error magic is not expected. key_tail: %u:%u magic: %llx, expected: %llx\n",
+						pos->cache_seg->cache_seg_id, pos->seg_off, kset_onmedia->magic, CBD_KSET_MAGIC);
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
 			return;
 		}
@@ -2205,7 +2211,7 @@ next_seg:
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
 			cache_encode_key_tail(cache);
-			cbd_cache_debug(cache, "gc kset seg: %u\n", cur_seg->cache_seg_id);
+			cbd_cache_err(cache, "gc kset seg: %u\n", cur_seg->cache_seg_id);
 
 			spin_lock(&cache->seg_map_lock);
 			clear_bit(cur_seg->cache_seg_id, cache->seg_map);
