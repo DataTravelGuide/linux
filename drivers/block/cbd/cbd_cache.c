@@ -2095,6 +2095,7 @@ static void writeback_fn(struct work_struct *work)
 
 		cbd_cache_err(cache, "writeback advance: %u:%u %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, get_kset_onmedia_size(kset_onmedia));
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
+		cache_encode_dirty_tail(cache);
 
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
 			struct cbd_cache_segment *cur_seg, *next_seg;
@@ -2108,9 +2109,8 @@ next_seg:
 				continue;
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
+			cache_encode_dirty_tail(cache);
 		}
-
-		cache_encode_dirty_tail(cache);
 	}
 }
 
