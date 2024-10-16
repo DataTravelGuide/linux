@@ -319,6 +319,7 @@ again:
 
 		if (++wait_count >= CBD_WAIT_NEW_CACHE_COUNT)
 			return NULL;
+
 		udelay(CBD_WAIT_NEW_CACHE_INTERVAL);
 		goto again;
 	}
@@ -340,7 +341,7 @@ again:
 
 static void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
-	//cbd_cache_err(cache_seg->cache, "before get seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
+	cbd_cache_err(cache_seg->cache, "before get seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
 	atomic_inc(&cache_seg->refs);
 }
 
@@ -369,7 +370,7 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 
 static void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
-	//cbd_cache_err(cache_seg->cache, "before put seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
+	cbd_cache_err(cache_seg->cache, "before put seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
 	if (atomic_dec_and_test(&cache_seg->refs))
 		cache_seg_invalidate(cache_seg);
 }
@@ -378,6 +379,7 @@ static void cache_key_gc(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
 
+	cbd_cache_err(cache, "gc %u\n", cache_seg->cache_seg_id);
 	cache_seg_put(cache_seg);
 }
 
@@ -391,6 +393,7 @@ static int cache_data_head_init(struct cbd_cache *cache, u32 i)
 	if (!next_seg)
 		return -EBUSY;
 
+	cbd_cache_err(cache, "next_seg for data: %u\n", next_seg->cache_seg_id);
 	cache_seg_get(next_seg);
 	data_head->head_pos.cache_seg = next_seg;
 	data_head->head_pos.seg_off = 0;
@@ -703,10 +706,12 @@ again:
 
 		next_seg = get_cache_segment(cache);
 		if (!next_seg) {
+			cbd_cache_err(cache, "no segment for kset\n");
 			ret = -EBUSY;
 			goto out;
 		}
 
+		cbd_cache_err(cache, "next_seg for kset: %u\n", next_seg->cache_seg_id);
 		cur_seg = cache->key_head.cache_seg;
 
 		cur_seg->cache_seg_info->next_cache_seg_id = next_seg->cache_seg_id;
@@ -757,6 +762,7 @@ static int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 	key->data_crc = cache_key_data_crc(key);
 #endif
 	cache_key_encode(key_onmedia, key);
+	cbd_cache_err(cache, "key_num: %u\n", kset_onmedia->key_num);
 	if (++kset_onmedia->key_num == CBD_KSET_KEYS_MAX) {
 		ret = cache_kset_close(cache, kset);
 		if (ret) {
@@ -1640,6 +1646,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		ret = cache_key_append(cache, key);
 		if (ret) {
+			cbd_cache_err(cache, "append failed\n");
 			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_delete(key);
 			goto unlock;
@@ -2121,14 +2128,18 @@ static bool need_gc(struct cbd_cache *cache)
 	int ret;
 
 	ret = cache_decode_dirty_tail(cache);
-	if (ret)
+	if (ret) {
+		cbd_cache_err(cache, "failed to decode dirty_tail\n");
 		return false;
+	}
 
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
 
-	if (dirty_addr == key_addr)
+	if (dirty_addr == key_addr) {
+		cbd_cache_err(cache, "dirty_tail == key_tail\n");
 		return false;
+	}
 
 	cbd_cache_err(cache, "weight: %u, %u\n", bitmap_weight(cache->seg_map, cache->n_segs), (cache->n_segs * cache->cache_info->gc_percent / 100));
 
