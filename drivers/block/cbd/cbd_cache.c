@@ -277,6 +277,9 @@ static void cache_seg_init(struct cbd_cache *cache,
 
 	seg_options.type = cbds_type_cache;
 	seg_options.data_off = round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE);
+	if (cache_seg_id == 0) {
+		seg_options.data_off += (4 * PAGE_SIZE);
+	}
 	seg_options.seg_ops = &cbd_cache_seg_ops;
 	seg_options.seg_id = seg_id;
 
@@ -1532,8 +1535,6 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	LIST_HEAD(delete_key_list);
 	LIST_HEAD(submit_req_list);
 	int ret;
-
-	cbd_cache_err(cache, "cache_read\n");
 
 	walk_ctx.cache = cache;
 	walk_ctx.req_done = 0;
