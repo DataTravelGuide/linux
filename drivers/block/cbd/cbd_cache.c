@@ -1913,7 +1913,7 @@ static int cache_replay(struct cbd_cache *cache)
 
 	spin_lock(&cache->key_head_lock);
 	cache_pos_copy(&cache->key_head, pos);
-	cache_seg_get(cache->key_head.cache_seg);
+	//cache_seg_get(cache->key_head.cache_seg);
 	cbd_cache_err(cache, "after reply key_head: %u:%u\n", cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off);
 	spin_unlock(&cache->key_head_lock);
 
