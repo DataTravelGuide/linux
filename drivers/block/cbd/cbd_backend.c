@@ -139,10 +139,20 @@ static int create_handlers(struct cbd_backend *cbdb, bool init_channel)
 	backend_info = cbdb->backend_info;
 
 	for (i = 0; i < backend_info->n_handlers; i++) {
-		channel_id = backend_info->handler_channels[i];
+		if (init_channel) {
+			ret = cbd_get_empty_channel_id(cbdb->cbdt, &channel_id);
+			if (ret < 0) {
+				cbdb_err(cbdb, "failed find available channel_id.\n");
+				goto destroy_handlers;
+			}
+			backend_info->handler_channels[i] = channel_id;
+		} else {
+			channel_id = backend_info->handler_channels[i];
+		}
 
 		ret = cbd_handler_create(cbdb, channel_id, init_channel);
 		if (ret) {
+			cbdb_err(cbdb, "failed to create handler: %d\n", ret);
 			goto destroy_handlers;
 		}
 	}
@@ -233,7 +243,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
 	struct cbd_backend *backend;
 	struct cbd_backend_info *backend_info;
 	struct cbd_cache_info *cache_info;
-	u32 channel_id;
 	bool new_backend = false;
 	int ret;
 	int i;
@@ -251,14 +260,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
 			backend_info->blkdevs[i] = UINT_MAX;
 
 		backend_info->n_handlers = handlers;
-		for (i = 0; i < backend_info->n_handlers; i++) {
-			ret = cbd_get_empty_channel_id(cbdt, &channel_id);
-			if (ret < 0) {
-				cbdt_err(cbdt, "failed find available channel_id.\n");
-				return ret;
-			}
-			backend_info->handler_channels[i] = channel_id;
-		}
 
 		cache_info = &backend_info->cache_info;
 		cache_info->n_segs = cache_segs;

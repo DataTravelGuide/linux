@@ -112,7 +112,7 @@
 #define cbdb_info(backend, fmt, ...)						\
 	cbdt_info(backend->cbdt, "backend%d: " fmt,				\
 		 backend->backend_id, ##__VA_ARGS__)
-#define cbdbdebug(backend, fmt, ...)						\
+#define cbdb_debug(backend, fmt, ...)						\
 	cbdt_debug(backend->cbdt, "backend%d: " fmt,				\
 		 backend->backend_id, ##__VA_ARGS__)
 

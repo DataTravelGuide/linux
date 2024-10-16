@@ -143,6 +143,7 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
 static void handler_channel_init(struct cbd_handler *handler, u32 channel_id);
 static void handler_reset(struct cbd_handler *handler)
 {
+	pr_err("channel_reset\n");
 	handler->req_tid_expected = U64_MAX;
 	handler->se_to_handle = 0;
 
@@ -151,6 +152,7 @@ static void handler_reset(struct cbd_handler *handler)
 	handler->channel_info->compr_tail = handler->channel_info->compr_head = 0;
 
 	handler->channel_info->need_reset = 0;
+	smp_mb();
 }
 
 static void handle_work_fn(struct work_struct *work)
@@ -161,10 +163,13 @@ static void handle_work_fn(struct work_struct *work)
 	u64 req_tid;
 	int ret;
 
+	smp_mb();
 	if (handler->channel_info->need_reset) {
-		if (atomic_read(&handler->inflight_cmds) == 0)
-			handler_reset(handler);
-		goto out;
+		pr_err("need_reset\n");
+		if (atomic_read(&handler->inflight_cmds))
+			goto out;
+
+		handler_reset(handler);
 	}
 
 again:
@@ -234,6 +239,9 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id)
 	handler->channel_info->compr_tail = handler->channel_info->compr_head = 0;
 
 	handler->channel_info->backend_id = handler->cbdb->backend_id;
+
+	handler->channel_info->need_reset = 0;
+	handler->channel_info->polling = 0;
 }
 
 int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_channel)

@@ -1319,6 +1319,7 @@ static int read_before(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 	struct cbd_request *backing_req;
 	int ret;
 
+
 	backing_req = create_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, key->len, true);
 	if (!backing_req) {
 		ret = -ENOMEM;
@@ -1531,6 +1532,8 @@ static int cache_read(struct cbd_cache *cache, struct cbd_request *cbd_req)
 	LIST_HEAD(delete_key_list);
 	LIST_HEAD(submit_req_list);
 	int ret;
+
+	cbd_cache_err(cache, "cache_read\n");
 
 	walk_ctx.cache = cache;
 	walk_ctx.req_done = 0;

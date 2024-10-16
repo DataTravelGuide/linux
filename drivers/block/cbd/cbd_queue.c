@@ -365,9 +365,11 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 
 static void queue_reset_channel(struct cbd_queue *cbdq)
 {
+	smp_mb();
 	cbdq->channel_info->need_reset = 1;
 
-	while (!queue_subm_ring_empty(cbdq))
+	smp_mb();
+	while (cbdq->channel_info->need_reset || !queue_subm_ring_empty(cbdq))
 		fsleep(100000);
 }
 
@@ -528,7 +530,9 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 		goto channel_exit;
 	}
 
+	pr_err("before reset\n");
 	queue_reset_channel(cbdq);
+	pr_err("after reset\n");
 
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 
