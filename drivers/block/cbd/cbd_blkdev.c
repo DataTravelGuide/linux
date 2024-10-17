@@ -246,7 +246,8 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 {
 	struct cbd_blkdev *cbd_blkdev;
 	struct cbd_backend_info *backend_info;
-	u32 devid_in_backend = UINT_MAX;
+	struct cbd_blkdev_info *blkdev_info;
+	u32 backend_blkdevs = 0;
 	u64 dev_size;
 	int ret;
 	int i;
@@ -257,17 +258,18 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		return -EINVAL;
 	}
 
-	/* find an available index in backend_info->blkdevs */
-	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
-		pr_err("blkdev %u : %u\n", i, backend_info->blkdevs[i]);
-		if (backend_info->blkdevs[i] == UINT_MAX) {
-			devid_in_backend = i;
-			break;
-		}
+	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (blkdev_info->state != cbd_blkdev_state_running)
+			continue;
+
+		if (blkdev_info->backend_id == backend_id)
+			backend_blkdevs++;
 	}
 
-	if (devid_in_backend == UINT_MAX)
+	if (backend_blkdevs >= CBDB_BLKDEV_COUNT_MAX) {
+		cbdt_err(cbdt, "too many(%u) blkdevs connected to backend %u.\n", backend_blkdevs, backend_id);
 		return -EBUSY;
+	}
 
 	if (queues > backend_info->n_handlers) {
 		cbdt_err(cbdt, "invalid queues: %u, larger than backend handlers: %u\n",
@@ -316,7 +318,6 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	cbd_blkdev->blkdev_info->backend_id = backend_id;
 	cbd_blkdev->blkdev_info->host_id = cbdt->host->host_id;
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_running;
-	backend_info->blkdevs[devid_in_backend] = cbd_blkdev->blkdev_id;
 
 	if (cbd_backend_cache_on(backend_info)) {
 		struct cbd_cache_opts cache_opts = { 0 };
@@ -357,7 +358,6 @@ destroy_cache:
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 destroy_wq:
-	backend_info->blkdevs[devid_in_backend] = UINT_MAX;
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 	destroy_workqueue(cbd_blkdev->task_wq);
 ida_remove:
@@ -378,8 +378,6 @@ static void disk_stop(struct cbd_blkdev *cbd_blkdev)
 int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 {
 	struct cbd_blkdev *cbd_blkdev;
-	struct cbd_backend_info *backend_info;
-	int i;
 
 	cbd_blkdev = cbdt_get_blkdev(cbdt, devid);
 	if (!cbd_blkdev)
@@ -399,11 +397,7 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	kfree(cbd_blkdev->queues);
 
 	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
-	backend_info = cbdt_get_backend_info(cbdt, cbd_blkdev->backend_id);
-	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
-		if (backend_info->blkdevs[i] == devid)
-			backend_info->blkdevs[i] = UINT_MAX;
-	}
+	cbd_blkdev->blkdev_info->backend_id = UINT_MAX;
 	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 
 	drain_workqueue(cbd_blkdev->task_wq);
@@ -421,7 +415,6 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 {
 	struct cbd_blkdev_info *blkdev_info;
-	struct cbd_backend_info *backend_info;
 	int i;
 
 	blkdev_info = cbdt_get_blkdev_info(cbdt, devid);
@@ -432,13 +425,6 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;
-
-	pr_err("into clear\n");
-	backend_info = cbdt_get_backend_info(cbdt, blkdev_info->backend_id);
-	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
-		if (backend_info->blkdevs[i] == devid)
-			backend_info->blkdevs[i] = UINT_MAX;
-	}
 
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
 		struct cbd_segment_info *seg_info;
@@ -465,6 +451,7 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 		channel_info->blkdev_state = cbdc_blkdev_state_none;
 	}
 
+	blkdev_info->backend_id = UINT_MAX;
 	blkdev_info->state = cbd_blkdev_state_none;
 
 	return 0;

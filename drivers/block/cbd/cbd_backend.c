@@ -245,7 +245,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
 	struct cbd_cache_info *cache_info;
 	bool new_backend = false;
 	int ret;
-	int i;
 
 	if (backend_id == U32_MAX)
 		new_backend = true;
@@ -256,9 +255,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
 			return ret;
 
 		backend_info = cbdt_get_backend_info(cbdt, backend_id);
-		for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++)
-			backend_info->blkdevs[i] = UINT_MAX;
-
 		backend_info->n_handlers = handlers;
 
 		cache_info = &backend_info->cache_info;
@@ -327,14 +323,18 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend *cbdb;
 	struct cbd_backend_info *backend_info;
+	struct cbd_blkdev_info *blkdev_info;
 	int i;
 
 	cbdb = cbdt_get_backend(cbdt, backend_id);
 	if (!cbdb)
 		return -ENOENT;
 
-	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
-		if (cbdb->backend_info->blkdevs[i] != UINT_MAX) {
+	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (blkdev_info->state != cbd_blkdev_state_running)
+			continue;
+
+		if (blkdev_info->backend_id == backend_id) {
 			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
 			return -EBUSY;
 		}
@@ -379,6 +379,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
+	struct cbd_blkdev_info *blkdev_info;
 	int i;
 
 	backend_info = cbdt_get_backend_info(cbdt, backend_id);
@@ -390,8 +391,11 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 	if (backend_info->state == cbd_backend_state_none)
 		return 0;
 
-	for (i = 0; i < CBDB_BLKDEV_COUNT_MAX; i++) {
-		if (backend_info->blkdevs[i] != UINT_MAX) {
+	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (blkdev_info->state != cbd_blkdev_state_running)
+			continue;
+
+		if (blkdev_info->backend_id == backend_id) {
 			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
 			return -EBUSY;
 		}

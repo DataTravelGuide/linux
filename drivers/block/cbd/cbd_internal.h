@@ -904,7 +904,6 @@ struct cbd_backend_info {
 	u64			alive_ts;
 	u64			dev_size; /* nr_sectors */
 
-	u32			blkdevs[CBDB_BLKDEV_COUNT_MAX];
 	char			path[CBD_PATH_LEN];
 
 	u32			n_handlers;
@@ -1096,7 +1095,6 @@ struct cbd_blkdev_info {
 	u32	backend_id;
 	u32	host_id;
 	u32	mapped_id;
-	u32	devid_in_backend;
 };
 
 struct cbd_blkdev {
@@ -1143,6 +1141,14 @@ bool cbd_blkdev_info_is_alive(struct cbd_blkdev_info *info);
 
 extern struct workqueue_struct	*cbd_wq;
 
+/* cbd_for_each functions to traverse object info */
+#define cbd_for_each_blkdev_info(cbdt, i, blkdev_info)					\
+	for (i = 0, blkdev_info = cbdt_get_blkdev_info(cbdt, i);			\
+	     i < cbdt->transport_info->blkdev_num;					\
+	     i++)
+
+
+/* sysfs device related macros */
 #define cbd_setup_device(DEV, PARENT, TYPE, fmt, ...)		\
 do {								\
 	device_initialize(DEV);					\
