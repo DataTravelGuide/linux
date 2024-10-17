@@ -261,12 +261,14 @@
 #define CBD_TRANSPORT_MAGIC		0x65B05EFA96C596EFULL
 #define CBD_TRANSPORT_VERSION		1
 
-#define CBDT_INFO_OFF			0
-#define CBDT_INFO_SIZE			PAGE_SIZE
+#define CBDT_META_INDEX_MAX		2
 
-#define CBDT_HOST_INFO_SIZE		round_up(sizeof(struct cbd_host_info), PAGE_SIZE)
-#define CBDT_BACKEND_INFO_SIZE		round_up(sizeof(struct cbd_backend_info), PAGE_SIZE)
-#define CBDT_BLKDEV_INFO_SIZE		round_up(sizeof(struct cbd_blkdev_info), PAGE_SIZE)
+#define CBDT_INFO_OFF			0
+#define CBDT_INFO_SIZE			PAGE_SIZE * CBDT_META_INDEX_MAX
+
+#define CBDT_HOST_INFO_SIZE		round_up(sizeof(struct cbd_host_info), PAGE_SIZE) * CBDT_META_INDEX_MAX
+#define CBDT_BACKEND_INFO_SIZE		round_up(sizeof(struct cbd_backend_info), PAGE_SIZE) * CBDT_META_INDEX_MAX
+#define CBDT_BLKDEV_INFO_SIZE		round_up(sizeof(struct cbd_blkdev_info), PAGE_SIZE) * CBDT_META_INDEX_MAX
 
 #define CBD_TRASNPORT_SIZE_MIN		(512 * 1024 * 1024)
 
@@ -511,6 +513,11 @@ enum cbd_host_state {
 };
 
 struct cbd_host_info {
+	u32	crc;
+	u8	version;
+	u8	res;
+	u16	res2;
+
 	u8	state;
 	u64	alive_ts;
 	char	hostname[CBD_NAME_LEN];
@@ -709,18 +716,24 @@ struct cbd_cache_pos_onmedia {
 	u32 seg_off;
 };
 
-/* max of index for cbd_cache_pos_onmedia */
-#define CBD_CPOM_INDEX_MAX	2
-
 struct cbd_cache_info {
 	u32	seg_id;
 	u32	n_segs;
 
-	u32	used_segs;
 	u16	gc_percent;
+	u16	res;
+	u32	res2;
+};
 
-	struct cbd_cache_pos_onmedia key_tail_pos[CBD_CPOM_INDEX_MAX];
-	struct cbd_cache_pos_onmedia dirty_tail_pos[CBD_CPOM_INDEX_MAX];
+#define CBDT_CACHE_INFO_SIZE	(round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE) * CBDT_META_INDEX_MAX)
+
+/* put cbd cache metadata at CBD_CACHE_META_OFF of first cqche segment */
+#define CBDT_CACHE_META_OFF	CBDT_CACHE_INFO_SIZE
+#define CBDT_CACHE_META_SIZE	PAGE_SIZE
+
+struct cbd_cache_meta {
+	struct cbd_cache_pos_onmedia key_tail_pos[CBDT_META_INDEX_MAX];
+	struct cbd_cache_pos_onmedia dirty_tail_pos[CBDT_META_INDEX_MAX];
 };
 
 struct cbd_cache_tree {
@@ -800,6 +813,8 @@ struct cbd_cache {
 	struct cbd_transport		*cbdt;
 	struct cbd_cache_info		*cache_info;
 	u32				cache_id;	/* same with related backend->backend_id */
+
+	struct cbd_cache_meta		*cache_meta;
 
 	u32				n_heads;
 	struct cbd_cache_data_head	*data_heads;
@@ -899,8 +914,14 @@ enum cbd_backend_state {
 #define CBDB_BLKDEV_COUNT_MAX	1
 
 struct cbd_backend_info {
+	u32			crc;
+	u8			version;
 	u8			state;
+	u16			res;
+
 	u32			host_id;
+	u32			res1;
+
 	u64			alive_ts;
 	u64			dev_size; /* nr_sectors */
 
