@@ -985,6 +985,9 @@ void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 bool cbd_backend_info_is_alive(struct cbd_backend_info *info);
 bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
 void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id);
+struct cbd_backend_info *cbd_backend_info_read(struct cbd_transport *cbdt,
+	       				       u32 backend_id,
+					       u32 *info_index);
 
 /* cbd_queue */
 enum cbd_op {

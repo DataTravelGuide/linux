@@ -252,8 +252,8 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	int ret;
 	int i;
 
-	backend_info = cbdt_get_backend_info(cbdt, backend_id);
-	if (!cbd_backend_info_is_alive(backend_info)) {
+	backend_info = cbd_backend_info_read(cbdt, backend_id, NULL);
+	if (!backend_info || !cbd_backend_info_is_alive(backend_info)) {
 		cbdt_err(cbdt, "backend %u is not alive\n", backend_id);
 		return -EINVAL;
 	}
