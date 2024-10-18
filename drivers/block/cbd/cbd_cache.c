@@ -1916,7 +1916,7 @@ static bool no_more_dirty(struct cbd_cache *cache)
 	pos = &cache->dirty_tail;
 
 	if (cache_seg_wb_done(pos->cache_seg)) {
-		//cbd_cache_err(cache, "seg %u wb done\n", pos->cache_seg->cache_seg_id);
+		cbd_cache_err(cache, "seg %u wb done\n", pos->cache_seg->cache_seg_id);
 		return !cache_seg_has_next(pos->cache_seg);
 	}
 
@@ -1935,6 +1935,8 @@ static bool no_more_dirty(struct cbd_cache *cache)
 				cache_kset_crc(kset_onmedia), kset_onmedia->crc);
 		return true;
 	}
+
+	cbd_cache_err(cache, "dirty\n");
 
 	return false;
 }
@@ -2028,6 +2030,7 @@ static void writeback_fn(struct work_struct *work)
 	void *addr;
 	int i;
 
+	cbd_cache_err(cache, "into writeback\n");
 	while (true) {
 		if (no_more_dirty(cache)) {
 			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
