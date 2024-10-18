@@ -470,3 +470,8 @@ void cbd_blkdev_exit(void)
 {
 	unregister_blkdev(cbd_major, "cbd");
 }
+
+void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
+{
+	return;
+}

@@ -173,3 +173,8 @@ int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 
 	return 0;
 }
+
+void cbd_host_hb(struct cbd_host *host)
+{
+	return;
+}

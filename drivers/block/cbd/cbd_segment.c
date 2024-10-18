@@ -40,12 +40,9 @@ static ssize_t cbd_seg_type_show(struct device *dev,
 static DEVICE_ATTR(detail, 0400, cbd_seg_detail_show, NULL);
 static DEVICE_ATTR(type, 0400, cbd_seg_type_show, NULL);
 
-CBD_OBJ_HEARTBEAT(segment);
-
 static struct attribute *cbd_segment_attrs[] = {
 	&dev_attr_detail.attr,
 	&dev_attr_type.attr,
-	&dev_attr_alive.attr,
 	NULL
 };
 
@@ -89,9 +86,6 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 
 	segment_info->ref++;
 	segment_info->state = cbd_segment_state_running;
-
-	INIT_DELAYED_WORK(&segment->hb_work, segment_hb_workfn);
-	queue_delayed_work(cbd_wq, &segment->hb_work, 0);
 }
 
 void cbd_segment_exit(struct cbd_segment *segment)
@@ -100,13 +94,10 @@ void cbd_segment_exit(struct cbd_segment *segment)
 			segment->segment_info->state != cbd_segment_state_running)
 		return;
 
-	cancel_delayed_work_sync(&segment->hb_work);
-
 	if (--segment->segment_info->ref > 0)
 		return;
 
 	segment->segment_info->state = cbd_segment_state_none;
-	segment->segment_info->alive_ts = 0;
 }
 
 void cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)

@@ -413,6 +413,11 @@ static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 #define CBDT_INFO_F_CRC			(1 << 1)
 #define CBDT_INFO_F_MULTIHOST		(1 << 2)
 
+static inline bool cbd_meta_seq_after(u8 seq1, u8 seq2)
+{
+	return (s8)(seq1 - seq2) > 0;
+}
+
 #ifdef CONFIG_CBD_MULTIHOST
 #define CBDT_HOSTS_MAX			16
 #else
@@ -915,9 +920,10 @@ enum cbd_backend_state {
 
 struct cbd_backend_info {
 	u32			crc;
+	u8			seq;
 	u8			version;
 	u8			state;
-	u16			res;
+	u8			res;
 
 	u32			host_id;
 	u32			res1;
@@ -945,10 +951,14 @@ struct cbd_backend_io {
 
 struct cbd_backend {
 	u32			backend_id;
-	char			path[CBD_PATH_LEN];
 	struct cbd_transport	*cbdt;
-	struct cbd_backend_info *backend_info;
 	spinlock_t		lock;
+
+	u32			backend_info_index;
+	struct cbd_backend_info	backend_info;
+	struct mutex		info_lock;
+
+	u32			host_id;
 
 	struct block_device	*bdev;
 	struct file		*bdev_file;
@@ -960,12 +970,10 @@ struct cbd_backend {
 	DECLARE_HASHTABLE(handlers_hash, CBD_BACKENDS_HANDLER_BITS);
 
 	struct cbd_backend_device *backend_device;
-
 	struct kmem_cache	*backend_io_cache;
 
 	struct cbd_cache	*cbd_cache;
 	struct device		cache_dev;
-	bool			cache_dev_registered;
 };
 
 int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
@@ -1169,6 +1177,10 @@ extern struct workqueue_struct	*cbd_wq;
 	     i++)
 
 
+void cbd_blkdev_hb(struct cbd_blkdev *blkdev);
+void cbd_backend_hb(struct cbd_backend *cbdb);
+void cbd_host_hb(struct cbd_host *host);
+
 /* sysfs device related macros */
 #define cbd_setup_device(DEV, PARENT, TYPE, fmt, ...)		\
 do {								\
@@ -1185,9 +1197,8 @@ do {								\
 static void OBJ##_hb_workfn(struct work_struct *work)					\
 {											\
 	struct cbd_##OBJ *obj = container_of(work, struct cbd_##OBJ, hb_work.work);	\
-	struct cbd_##OBJ##_info *info = obj->OBJ##_info;				\
 											\
-	info->alive_ts = ktime_get_real();						\
+	cbd_##OBJ##_hb(obj);								\
 											\
 	queue_delayed_work(cbd_wq, &obj->hb_work, CBD_HB_INTERVAL);			\
 }											\

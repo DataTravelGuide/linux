@@ -95,6 +95,8 @@ static inline struct cbd_##OBJ##_info						\
 	struct cbd_transport_info *info = cbdt->transport_info;			\
 	void *start = cbdt->transport_info;					\
 										\
+	BUG_ON(id >= info->OBJ##_num);						\
+										\
 	start += info->OBJ##_area_off;						\
 										\
 	return start + ((u64)info->OBJ_SIZE * id);				\
@@ -123,7 +125,7 @@ int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id)		\
 	for (i = 0; i < info->OBJ##_num; i++) {					\
 		_info = __get_##OBJ##_info(cbdt, i);				\
 		if (_info->state == cbd_##OBJ##_state_none) {			\
-			cbdt_zero_range(cbdt, _info, info->OBJ_SIZE);			\
+			cbdt_zero_range(cbdt, _info, info->OBJ_SIZE);		\
 			*id = i;						\
 			goto out;						\
 		}								\
