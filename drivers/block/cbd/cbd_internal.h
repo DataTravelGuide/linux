@@ -492,6 +492,7 @@ int cbdt_unregister(u32 transport_id);
 
 struct cbd_host_info *cbdt_get_host_info(struct cbd_transport *cbdt, u32 id);
 struct cbd_backend_info *cbdt_get_backend_info(struct cbd_transport *cbdt, u32 id);
+struct cbd_backend_info *cbdt_get_backend_latest_info(struct cbd_transport *cbdt, u32 id, u32 *index);
 struct cbd_blkdev_info *cbdt_get_blkdev_info(struct cbd_transport *cbdt, u32 id);
 struct cbd_segment_info *cbdt_get_segment_info(struct cbd_transport *cbdt, u32 id);
 static inline struct cbd_channel_info *cbdt_get_channel_info(struct cbd_transport *cbdt, u32 id)
@@ -922,15 +923,20 @@ enum cbd_backend_state {
 
 #define CBDB_BLKDEV_COUNT_MAX	1
 
-struct cbd_backend_info {
+struct cbd_meta_header {
 	u32			crc;
 	u8			seq;
 	u8			version;
+	u16			res;
+};
+
+struct cbd_backend_info {
+	struct cbd_meta_header	meta_header;
 	u8			state;
 	u8			res;
 
+	u16			res1;
 	u32			host_id;
-	u32			res1;
 
 	u64			alive_ts;
 	u64			dev_size; /* nr_sectors */
@@ -942,6 +948,42 @@ struct cbd_backend_info {
 
 	struct cbd_cache_info	cache_info;
 };
+
+static inline u32 cbd_meta_crc(struct cbd_meta_header *header,
+			       u32 meta_size)
+{
+	return crc32(0, (void *)header + 4, meta_size - 4);
+}
+
+static void *cbd_meta_find_latest(struct cbd_meta_header *header,
+				  u32 meta_size, u32 *index)
+{
+	struct cbd_meta_header *meta, *latest = NULL;
+	u32 i;
+
+	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
+		meta = (void *)header + (i * meta_size);
+		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
+			pr_err("crc: %u, info_crc: %u\n", meta->crc, cbd_meta_crc(meta, meta_size));
+			continue;
+		}
+
+		if (!latest) {
+			latest = meta;
+			if (index)
+				*index = i;
+			continue;
+		}
+
+		if (cbd_meta_seq_after(meta->seq, latest->seq)) {
+			latest = meta;
+			if (index)
+				*index = i;
+		}
+	}
+
+	return latest;
+}
 
 struct cbd_backend_io {
 	struct cbd_se		*se;

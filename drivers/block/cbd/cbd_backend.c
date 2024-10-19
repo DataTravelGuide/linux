@@ -2,9 +2,6 @@
 
 #include "cbd_internal.h"
 
-static struct cbd_backend_info *find_latest_info(struct cbd_transport *cbdt,
-						 struct cbd_backend_info *backend_info,
-						 u32 *info_index);
 static ssize_t backend_host_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -15,7 +12,7 @@ static ssize_t backend_host_id_show(struct device *dev,
 	backend = container_of(dev, struct cbd_backend_device, dev);
 	backend_info = backend->backend_info;
 
-	latest_info = find_latest_info(backend->cbdt, backend_info, NULL);
+	latest_info = cbd_meta_find_latest(&backend_info->meta_header, sizeof(struct cbd_backend_info), NULL);
 	if (!latest_info)
 		return 0;
 
@@ -37,7 +34,7 @@ static ssize_t backend_path_show(struct device *dev,
 	backend = container_of(dev, struct cbd_backend_device, dev);
 	backend_info = backend->backend_info;
 
-	latest_info = find_latest_info(backend->cbdt, backend_info, NULL);
+	latest_info = cbd_meta_find_latest(&backend_info->meta_header, sizeof(struct cbd_backend_info), NULL);
 	if (!latest_info)
 		return 0;
 
@@ -277,7 +274,7 @@ static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id
 			goto err;
 
 		pr_err("get empty backend: %u\n", backend_id);
-		cbdb->backend_info.version = 0;
+		cbdb->backend_info.meta_header.version = 0;
 		cbdb->backend_info.host_id = cbdb->host_id;
 		cbdb->backend_info.n_handlers = handlers;
 
@@ -330,37 +327,6 @@ static u32 cbd_backend_info_crc(struct cbd_backend_info *backend_info)
 	return crc32(0, (void *)backend_info + 4, sizeof(*backend_info) - 4);
 }
 
-static struct cbd_backend_info *find_latest_info(struct cbd_transport *cbdt,
-						 struct cbd_backend_info *backend_info,
-						 u32 *info_index)
-{
-	struct cbd_backend_info *latest_info = NULL;
-	u32 i;
-
-	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
-		backend_info = (void *)backend_info + (i * CBDT_SINGLE_BACKEND_INFO_SIZE);
-		if (backend_info->crc != cbd_backend_info_crc(backend_info)) {
-			cbdt_err(cbdt, "crc: %u, info_crc: %u\n", backend_info->crc, cbd_backend_info_crc(backend_info));
-			continue;
-		}
-
-		if (!latest_info) {
-			latest_info = backend_info;
-			if (info_index)
-				*info_index = i;
-			continue;
-		}
-
-		if (cbd_meta_seq_after(backend_info->seq, latest_info->seq)) {
-			latest_info = backend_info;
-			if (info_index)
-				*info_index = i;
-		}
-	}
-
-	return latest_info;
-}
-
 struct cbd_backend_info *cbd_backend_info_read(struct cbd_transport *cbdt,
 	       				       u32 backend_id,
 					       u32 *info_index)
@@ -369,7 +335,7 @@ struct cbd_backend_info *cbd_backend_info_read(struct cbd_transport *cbdt,
 
 	backend_info = cbdt_get_backend_info(cbdt, backend_id);
 
-	latest_info = find_latest_info(cbdt, backend_info, info_index);
+	latest_info = cbd_meta_find_latest(&backend_info->meta_header, sizeof(struct cbd_backend_info), info_index);
 	if (!latest_info) {
 		cbdt_err(cbdt, "all backend_info in backend_id: %u are corrupted.\n", backend_id);
 		return NULL;
@@ -389,12 +355,12 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 
 	backend_info = (void *)backend_info + (cbdb->backend_info_index * CBDT_SINGLE_BACKEND_INFO_SIZE);
 	cbdb->backend_info_index = (cbdb->backend_info_index + 1) % CBDT_META_INDEX_MAX;
+	cbdb->backend_info.alive_ts = ktime_get_real();
 
 	/* seq is u8 and we compare it with cbd_meta_seq_after() */
-	cbdb->backend_info.seq++;
-	cbdb->backend_info.alive_ts = ktime_get_real();
-	cbdb->backend_info.crc = cbd_backend_info_crc(&cbdb->backend_info);
-	cbdt_err(cbdb->cbdt, "info: %p write crc: %u, state: %u\n", backend_info, cbdb->backend_info.crc, cbdb->backend_info.state);
+	cbdb->backend_info.meta_header.seq++;
+	cbdb->backend_info.meta_header.crc = cbd_backend_info_crc(&cbdb->backend_info);
+	cbdt_err(cbdb->cbdt, "info: %p write crc: %u, state: %u\n", backend_info, cbdb->backend_info.meta_header.crc, cbdb->backend_info.state);
 
 	memcpy(backend_info, &cbdb->backend_info, sizeof(struct cbd_backend_info));
 	mutex_unlock(&cbdb->info_lock);
