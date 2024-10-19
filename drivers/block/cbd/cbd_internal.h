@@ -955,8 +955,8 @@ static inline u32 cbd_meta_crc(struct cbd_meta_header *header,
 	return crc32(0, (void *)header + 4, meta_size - 4);
 }
 
-static void *cbd_meta_find_latest(struct cbd_meta_header *header,
-				  u32 meta_size, u32 *index)
+static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
+					 u32 meta_size, u32 *index)
 {
 	struct cbd_meta_header *meta, *latest = NULL;
 	u32 i;
