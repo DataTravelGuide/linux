@@ -170,7 +170,7 @@
 #define CBD_MB	(CBD_KB * CBD_KB)
 
 #define CBD_TRANSPORT_MAX	1024
-#define CBD_PATH_LEN	512
+#define CBD_PATH_LEN	128
 #define CBD_NAME_LEN	32
 
 #define CBD_QUEUES_MAX		128
