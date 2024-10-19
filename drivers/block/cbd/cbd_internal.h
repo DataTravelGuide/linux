@@ -414,15 +414,59 @@ static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 	return false;
 }
 
-/* cbd_transport */
-#define CBDT_INFO_F_BIGENDIAN		(1 << 0)
-#define CBDT_INFO_F_CRC			(1 << 1)
-#define CBDT_INFO_F_MULTIHOST		(1 << 2)
+/* cbd metadata */
+struct cbd_meta_header {
+	u32			crc;
+	u8			seq;
+	u8			version;
+	u16			res;
+};
+
+static inline u32 cbd_meta_crc(struct cbd_meta_header *header,
+			       u32 meta_size)
+{
+	return crc32(0, (void *)header + 4, meta_size - 4);
+}
 
 static inline bool cbd_meta_seq_after(u8 seq1, u8 seq2)
 {
 	return (s8)(seq1 - seq2) > 0;
 }
+
+static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
+					 u32 meta_size, u32 *index)
+{
+	struct cbd_meta_header *meta, *latest = NULL;
+	u32 i;
+
+	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
+		meta = (void *)header + (i * meta_size);
+		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
+			pr_err("crc: %u, info_crc: %u\n", meta->crc, cbd_meta_crc(meta, meta_size));
+			continue;
+		}
+
+		if (!latest) {
+			latest = meta;
+			if (index)
+				*index = i;
+			continue;
+		}
+
+		if (cbd_meta_seq_after(meta->seq, latest->seq)) {
+			latest = meta;
+			if (index)
+				*index = i;
+		}
+	}
+
+	return latest;
+}
+
+/* cbd_transport */
+#define CBDT_INFO_F_BIGENDIAN		(1 << 0)
+#define CBDT_INFO_F_CRC			(1 << 1)
+#define CBDT_INFO_F_MULTIHOST		(1 << 2)
 
 #ifdef CONFIG_CBD_MULTIHOST
 #define CBDT_HOSTS_MAX			16
@@ -492,9 +536,9 @@ int cbdt_unregister(u32 transport_id);
 
 struct cbd_host_info *cbdt_get_host_info(struct cbd_transport *cbdt, u32 id);
 struct cbd_backend_info *cbdt_get_backend_info(struct cbd_transport *cbdt, u32 id);
-struct cbd_backend_info *cbdt_get_backend_latest_info(struct cbd_transport *cbdt, u32 id, u32 *index);
 struct cbd_blkdev_info *cbdt_get_blkdev_info(struct cbd_transport *cbdt, u32 id);
 struct cbd_segment_info *cbdt_get_segment_info(struct cbd_transport *cbdt, u32 id);
+
 static inline struct cbd_channel_info *cbdt_get_channel_info(struct cbd_transport *cbdt, u32 id)
 {
 	return (struct cbd_channel_info *)cbdt_get_segment_info(cbdt, id);
@@ -504,6 +548,15 @@ int cbdt_get_empty_host_id(struct cbd_transport *cbdt, u32 *id);
 int cbdt_get_empty_backend_id(struct cbd_transport *cbdt, u32 *id);
 int cbdt_get_empty_blkdev_id(struct cbd_transport *cbdt, u32 *id);
 int cbdt_get_empty_segment_id(struct cbd_transport *cbdt, u32 *id);
+
+struct cbd_host_info *cbdt_host_info_read(struct cbd_transport *cbdt,
+					  u32 id, u32 *index);
+struct cbd_backend_info *cbdt_backend_info_read(struct cbd_transport *cbdt,
+					  u32 id, u32 *index);
+struct cbd_blkdev_info *cbdt_blkdev_info_read(struct cbd_transport *cbdt,
+					  u32 id, u32 *index);
+struct cbd_segment_info *cbdt_segment_info_read(struct cbd_transport *cbdt,
+					  u32 id, u32 *index);
 
 void cbdt_add_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
 void cbdt_del_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
@@ -525,6 +578,7 @@ enum cbd_host_state {
 };
 
 struct cbd_host_info {
+	struct cbd_meta_header meta_header;
 	u32	crc;
 	u8	version;
 	u8	res;
@@ -574,6 +628,7 @@ static inline const char *cbds_type_str(enum cbd_seg_type type)
 }
 
 struct cbd_segment_info {
+	struct cbd_meta_header meta_header;
 	u8 state;
 	u8 type;
 	u8 ref;
@@ -923,13 +978,6 @@ enum cbd_backend_state {
 
 #define CBDB_BLKDEV_COUNT_MAX	1
 
-struct cbd_meta_header {
-	u32			crc;
-	u8			seq;
-	u8			version;
-	u16			res;
-};
-
 struct cbd_backend_info {
 	struct cbd_meta_header	meta_header;
 	u8			state;
@@ -948,42 +996,6 @@ struct cbd_backend_info {
 
 	struct cbd_cache_info	cache_info;
 };
-
-static inline u32 cbd_meta_crc(struct cbd_meta_header *header,
-			       u32 meta_size)
-{
-	return crc32(0, (void *)header + 4, meta_size - 4);
-}
-
-static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
-					 u32 meta_size, u32 *index)
-{
-	struct cbd_meta_header *meta, *latest = NULL;
-	u32 i;
-
-	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
-		meta = (void *)header + (i * meta_size);
-		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
-			pr_err("crc: %u, info_crc: %u\n", meta->crc, cbd_meta_crc(meta, meta_size));
-			continue;
-		}
-
-		if (!latest) {
-			latest = meta;
-			if (index)
-				*index = i;
-			continue;
-		}
-
-		if (cbd_meta_seq_after(meta->seq, latest->seq)) {
-			latest = meta;
-			if (index)
-				*index = i;
-		}
-	}
-
-	return latest;
-}
 
 struct cbd_backend_io {
 	struct cbd_se		*se;
@@ -1031,9 +1043,6 @@ void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 bool cbd_backend_info_is_alive(struct cbd_backend_info *info);
 bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
 void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id);
-struct cbd_backend_info *cbd_backend_info_read(struct cbd_transport *cbdt,
-	       				       u32 backend_id,
-					       u32 *info_index);
 
 /* cbd_queue */
 enum cbd_op {
@@ -1168,6 +1177,7 @@ enum cbd_blkdev_state {
 };
 
 struct cbd_blkdev_info {
+	struct cbd_meta_header meta_header;
 	u8	state;
 	u64	alive_ts;
 	u32	backend_id;

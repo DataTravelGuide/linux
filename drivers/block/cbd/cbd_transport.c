@@ -137,6 +137,23 @@ out:										\
 	mutex_unlock(&cbdt->lock);						\
 										\
 	return ret;								\
+}										\
+										\
+struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
+	       					u32 id,				\
+						u32 *info_index)		\
+{										\
+	struct cbd_##OBJ##_info *info, *latest = NULL;				\
+										\
+	info = cbdt_get_##OBJ##_info(cbdt, id);					\
+										\
+	latest = cbd_meta_find_latest(&info->meta_header,			\
+				      sizeof(struct cbd_##OBJ##_info),		\
+				      info_index);				\
+	if (!latest)								\
+		return NULL;							\
+										\
+	return latest;								\
 }
 
 CBDT_OBJ(host, host_info_size);

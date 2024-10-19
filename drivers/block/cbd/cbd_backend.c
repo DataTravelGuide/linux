@@ -327,23 +327,6 @@ static u32 cbd_backend_info_crc(struct cbd_backend_info *backend_info)
 	return crc32(0, (void *)backend_info + 4, sizeof(*backend_info) - 4);
 }
 
-struct cbd_backend_info *cbd_backend_info_read(struct cbd_transport *cbdt,
-	       				       u32 backend_id,
-					       u32 *info_index)
-{
-	struct cbd_backend_info *backend_info, *latest_info = NULL;
-
-	backend_info = cbdt_get_backend_info(cbdt, backend_id);
-
-	latest_info = cbd_meta_find_latest(&backend_info->meta_header, sizeof(struct cbd_backend_info), info_index);
-	if (!latest_info) {
-		cbdt_err(cbdt, "all backend_info in backend_id: %u are corrupted.\n", backend_id);
-		return NULL;
-	}
-
-	return latest_info;
-}
-
 static void cbd_backend_info_write(struct cbd_backend *cbdb)
 {
 	struct cbd_backend_info *backend_info;
@@ -378,7 +361,7 @@ static int cbd_backend_load_info(struct cbd_backend *cbdb, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
 
-	backend_info = cbd_backend_info_read(cbdb->cbdt, backend_id, &cbdb->backend_info_index);
+	backend_info = cbdt_backend_info_read(cbdb->cbdt, backend_id, &cbdb->backend_info_index);
 	if (!backend_info) {
 		cbdt_err(cbdb->cbdt, "can't read info from backend id %u.\n",
 				cbdb->backend_id);
@@ -538,7 +521,7 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 	struct cbd_blkdev_info *blkdev_info;
 	int i;
 
-	backend_info = cbd_backend_info_read(cbdt, backend_id, NULL);
+	backend_info = cbdt_backend_info_read(cbdt, backend_id, NULL);
 	if (!backend_info) {
 		cbdt_err(cbdt, "all backend_info in backend_id: %u are corrupted.\n", backend_id);
 		return -EINVAL;
