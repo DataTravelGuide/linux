@@ -349,14 +349,6 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 	mutex_unlock(&cbdb->info_lock);
 }
 
-static void cbd_backend_info_clear(struct cbd_transport *cbdt, u32 backend_id)
-{
-	struct cbd_backend_info *backend_info;
-
-	backend_info = cbdt_get_backend_info(cbdt, backend_id);
-	cbdt_zero_range(cbdt, backend_info, cbdt->transport_info->backend_info_size);
-}
-
 static int cbd_backend_load_info(struct cbd_backend *cbdb, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
@@ -502,7 +494,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 
 	destroy_handlers(cbdb);
 
-	cbd_backend_info_clear(cbdb->cbdt, cbdb->backend_id);
+	cbdt_backend_info_clear(cbdb->cbdt, cbdb->backend_id);
 
 	drain_workqueue(cbdb->task_wq);
 	destroy_workqueue(cbdb->task_wq);
@@ -567,7 +559,7 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 		}
 	}
 
-	cbd_backend_info_clear(cbdt, backend_id);
+	cbdt_backend_info_clear(cbdt, backend_id);
 
 	return 0;
 }

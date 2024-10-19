@@ -154,6 +154,14 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
 		return NULL;							\
 										\
 	return latest;								\
+}										\
+										\
+void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id)		\
+{										\
+	struct cbd_##OBJ##_info *info;						\
+										\
+	info = cbdt_get_##OBJ##_info(cbdt, id);					\
+	cbdt_zero_range(cbdt, info, cbdt->transport_info->OBJ_SIZE);		\
 }
 
 CBDT_OBJ(host, host_info_size);

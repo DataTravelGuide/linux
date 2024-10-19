@@ -534,29 +534,23 @@ struct cbd_cache;
 int cbdt_register(struct cbdt_register_options *opts);
 int cbdt_unregister(u32 transport_id);
 
-struct cbd_host_info *cbdt_get_host_info(struct cbd_transport *cbdt, u32 id);
-struct cbd_backend_info *cbdt_get_backend_info(struct cbd_transport *cbdt, u32 id);
-struct cbd_blkdev_info *cbdt_get_blkdev_info(struct cbd_transport *cbdt, u32 id);
-struct cbd_segment_info *cbdt_get_segment_info(struct cbd_transport *cbdt, u32 id);
+#define CBDT_OBJ_DECLARE(OBJ)								\
+struct cbd_##OBJ##_info	*cbdt_get_##OBJ##_info(struct cbd_transport *cbdt, u32 id);	\
+int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id);			\
+struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,		\
+	       					u32 id,					\
+						u32 *info_index);			\
+void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id);			\
+
+CBDT_OBJ_DECLARE(host);
+CBDT_OBJ_DECLARE(backend);
+CBDT_OBJ_DECLARE(blkdev);
+CBDT_OBJ_DECLARE(segment);
 
 static inline struct cbd_channel_info *cbdt_get_channel_info(struct cbd_transport *cbdt, u32 id)
 {
 	return (struct cbd_channel_info *)cbdt_get_segment_info(cbdt, id);
 }
-
-int cbdt_get_empty_host_id(struct cbd_transport *cbdt, u32 *id);
-int cbdt_get_empty_backend_id(struct cbd_transport *cbdt, u32 *id);
-int cbdt_get_empty_blkdev_id(struct cbd_transport *cbdt, u32 *id);
-int cbdt_get_empty_segment_id(struct cbd_transport *cbdt, u32 *id);
-
-struct cbd_host_info *cbdt_host_info_read(struct cbd_transport *cbdt,
-					  u32 id, u32 *index);
-struct cbd_backend_info *cbdt_backend_info_read(struct cbd_transport *cbdt,
-					  u32 id, u32 *index);
-struct cbd_blkdev_info *cbdt_blkdev_info_read(struct cbd_transport *cbdt,
-					  u32 id, u32 *index);
-struct cbd_segment_info *cbdt_segment_info_read(struct cbd_transport *cbdt,
-					  u32 id, u32 *index);
 
 void cbdt_add_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
 void cbdt_del_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
