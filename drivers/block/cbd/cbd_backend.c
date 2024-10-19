@@ -334,12 +334,11 @@ static struct cbd_backend_info *find_latest_info(struct cbd_transport *cbdt,
 						 struct cbd_backend_info *backend_info,
 						 u32 *info_index)
 {
-	u32 single_info_size = cbdt->transport_info->backend_info_size / CBDT_META_INDEX_MAX;
 	struct cbd_backend_info *latest_info = NULL;
 	u32 i;
 
 	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
-		backend_info = (void *)backend_info + (i * single_info_size);
+		backend_info = (void *)backend_info + (i * CBDT_SINGLE_BACKEND_INFO_SIZE);
 		if (backend_info->crc != cbd_backend_info_crc(backend_info)) {
 			cbdt_err(cbdt, "crc: %u, info_crc: %u\n", backend_info->crc, cbd_backend_info_crc(backend_info));
 			continue;
@@ -381,7 +380,6 @@ struct cbd_backend_info *cbd_backend_info_read(struct cbd_transport *cbdt,
 
 static void cbd_backend_info_write(struct cbd_backend *cbdb)
 {
-	u32 single_info_size = cbdb->cbdt->transport_info->backend_info_size / CBDT_META_INDEX_MAX;
 	struct cbd_backend_info *backend_info;
 
 	mutex_lock(&cbdb->info_lock);
@@ -389,7 +387,7 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 
 	cbdb_err(cbdb, "write backend_info index: %u\n", cbdb->backend_info_index);
 
-	backend_info = (void *)backend_info + (cbdb->backend_info_index * single_info_size);
+	backend_info = (void *)backend_info + (cbdb->backend_info_index * CBDT_SINGLE_BACKEND_INFO_SIZE);
 	cbdb->backend_info_index = (cbdb->backend_info_index + 1) % CBDT_META_INDEX_MAX;
 
 	/* seq is u8 and we compare it with cbd_meta_seq_after() */
