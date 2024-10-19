@@ -104,7 +104,7 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 static bool submit_ring_full(struct cbd_queue *cbdq)
 {
 	u32 space_available = cbdq->channel.submr_size;
-	struct cbd_channel_info *info = cbdq->channel_info;
+	struct cbd_channel_seg_info *info = cbdq->channel_info;
 
 	if (info->submr_head > info->submr_tail) {
 		space_available = cbdq->channel.submr_size - info->submr_head;

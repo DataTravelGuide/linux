@@ -16,7 +16,7 @@ static ssize_t cbd_seg_detail_show(struct device *dev,
 		return 0;
 
 	if (segment_info->type == cbds_type_channel)
-		return cbd_channel_seg_detail_show((struct cbd_channel_info *)segment_info, buf);
+		return cbd_channel_seg_detail_show((struct cbd_channel_seg_info *)segment_info, buf);
 
 	return 0;
 }

@@ -547,9 +547,9 @@ CBDT_OBJ_DECLARE(backend);
 CBDT_OBJ_DECLARE(blkdev);
 CBDT_OBJ_DECLARE(segment);
 
-static inline struct cbd_channel_info *cbdt_get_channel_info(struct cbd_transport *cbdt, u32 id)
+static inline struct cbd_channel_seg_info *cbdt_get_channel_info(struct cbd_transport *cbdt, u32 id)
 {
-	return (struct cbd_channel_info *)cbdt_get_segment_info(cbdt, id);
+	return (struct cbd_channel_seg_info *)cbdt_get_segment_info(cbdt, id);
 }
 
 void cbdt_add_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
@@ -690,7 +690,7 @@ enum cbdc_backend_state {
 	cbdc_backend_state_running,
 };
 
-struct cbd_channel_info {
+struct cbd_channel_seg_info {
 	struct cbd_segment_info seg_info;	/* must be the first member */
 	u8	blkdev_state;
 	u32	blkdev_id;
@@ -712,7 +712,7 @@ struct cbd_channel {
 	u32				seg_id;
 	struct cbd_segment		segment;
 
-	struct cbd_channel_info		*channel_info;
+	struct cbd_channel_seg_info		*channel_info;
 
 	struct cbd_transport		*cbdt;
 
@@ -739,7 +739,7 @@ void cbdc_copy_to_bio(struct cbd_channel *channel,
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
 int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io);
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
-ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf);
+ssize_t cbd_channel_seg_detail_show(struct cbd_channel_seg_info *channel_info, char *buf);
 
 /* cbd cache */
 struct cbd_cache_seg_info {
@@ -940,7 +940,7 @@ int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req);
 /* cbd_handler */
 struct cbd_handler {
 	struct cbd_backend	*cbdb;
-	struct cbd_channel_info *channel_info;
+	struct cbd_channel_seg_info *channel_info;
 
 	struct cbd_channel	channel;
 	spinlock_t		compr_lock;
@@ -1145,7 +1145,7 @@ struct cbd_queue {
 
 	u64			*released_extents;
 
-	struct cbd_channel_info	*channel_info;
+	struct cbd_channel_seg_info	*channel_info;
 	struct cbd_channel	channel;
 
 	atomic_t		state;

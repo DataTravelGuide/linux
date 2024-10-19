@@ -428,13 +428,13 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
 		struct cbd_segment_info *seg_info;
-		struct cbd_channel_info *channel_info;
+		struct cbd_channel_seg_info *channel_info;
 
 		seg_info = cbdt_get_segment_info(cbdt, i);
 		if (seg_info->type != cbds_type_channel)
 			continue;
 
-		channel_info = (struct cbd_channel_info *)seg_info;
+		channel_info = (struct cbd_channel_seg_info *)seg_info;
 		if (channel_info->blkdev_state != cbdc_blkdev_state_running)
 			continue;
 

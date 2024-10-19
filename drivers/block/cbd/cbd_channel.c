@@ -4,7 +4,7 @@
 
 static void channel_format(struct cbd_transport *cbdt, u32 id)
 {
-	struct cbd_channel_info *channel_info = cbdt_get_channel_info(cbdt, id);
+	struct cbd_channel_seg_info *channel_info = cbdt_get_channel_info(cbdt, id);
 
 	cbdt_zero_range(cbdt, channel_info, CBDC_META_SIZE);
 }
@@ -45,7 +45,7 @@ int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io)
 	return cbds_map_pages(&channel->segment, io);
 }
 
-ssize_t cbd_channel_seg_detail_show(struct cbd_channel_info *channel_info, char *buf)
+ssize_t cbd_channel_seg_detail_show(struct cbd_channel_seg_info *channel_info, char *buf)
 {
 	return sprintf(buf, "channel backend id: %u\n"
 			"channel blkdev id: %u\n",
@@ -68,7 +68,7 @@ static struct cbd_seg_ops cbd_channel_seg_ops = {
 
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id)
 {
-	struct cbd_channel_info *channel_info = cbdt_get_channel_info(cbdt, seg_id);
+	struct cbd_channel_seg_info *channel_info = cbdt_get_channel_info(cbdt, seg_id);
 	struct cbd_segment *segment = &channel->segment;
 	struct cbds_init_options seg_options;
 

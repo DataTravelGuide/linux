@@ -207,6 +207,13 @@ static int __init cbd_init(void)
 	if (ret < 0)
 		goto bus_unregister;
 
+	BUILD_BUG_ON(sizeof(struct cbd_transport_info) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct cbd_host_info) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct cbd_backend_info) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct cbd_blkdev_info) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct cbd_cache_seg_info) > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct cbd_channel_seg_info) > PAGE_SIZE);
+
 	return 0;
 
 bus_unregister:

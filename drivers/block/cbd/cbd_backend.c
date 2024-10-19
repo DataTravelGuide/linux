@@ -539,12 +539,12 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
 		struct cbd_segment_info *seg_info;
-		struct cbd_channel_info *channel_info;
+		struct cbd_channel_seg_info *channel_info;
 		struct cbd_cache_seg_info *cache_seg_info;
 
 		seg_info = cbdt_get_segment_info(cbdt, i);
 		if (seg_info->type == cbds_type_channel) {
-			channel_info = (struct cbd_channel_info *)seg_info;
+			channel_info = (struct cbd_channel_seg_info *)seg_info;
 			/* release the channels backend is using */
 			if (channel_info->backend_id == backend_id)
 				cbd_segment_clear(cbdt, i);
