@@ -421,7 +421,6 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 {
 	struct cbd_blkdev_info *blkdev_info;
-	int i;
 
 	blkdev_info = cbdt_get_blkdev_info(cbdt, devid);
 	if (cbd_blkdev_info_is_alive(blkdev_info)) {
@@ -432,33 +431,7 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;
 
-	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
-		struct cbd_segment_info *seg_info;
-		struct cbd_channel_seg_info *channel_info;
-
-		seg_info = cbdt_get_segment_info(cbdt, i);
-		if (seg_info->type != cbds_type_channel)
-			continue;
-
-		channel_info = (struct cbd_channel_seg_info *)seg_info;
-		if (channel_info->blkdev_state != cbdc_blkdev_state_running)
-			continue;
-
-		pr_err("channel->blkdev_id: %u\n", channel_info->blkdev_id);
-		/* release the channels blkdev is using */
-		if (channel_info->blkdev_id != devid)
-			continue;
-
-		if (channel_info->backend_state == cbdc_backend_state_none) {
-			cbd_segment_clear(cbdt, i);
-			continue;
-		}
-
-		channel_info->blkdev_state = cbdc_blkdev_state_none;
-	}
-
-	blkdev_info->backend_id = UINT_MAX;
-	blkdev_info->state = cbd_blkdev_state_none;
+	cbdt_blkdev_info_clear(cbdt, devid);
 
 	return 0;
 }

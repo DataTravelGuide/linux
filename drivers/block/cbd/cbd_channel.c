@@ -47,10 +47,7 @@ int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io)
 
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_seg_info *channel_info, char *buf)
 {
-	return sprintf(buf, "channel backend id: %u\n"
-			"channel blkdev id: %u\n",
-			channel_info->backend_id,
-			channel_info->blkdev_id);
+	return sprintf(buf, "backend id: %u\n", channel_info->backend_id);
 }
 
 static void cbd_channel_seg_sanitize_pos(struct cbd_seg_pos *pos)

@@ -507,9 +507,6 @@ static void cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 
 	if (!cbd_blkdev->backend)
 		cbdq->channel_info->polling = true;
-
-	cbdq->channel_info->blkdev_id = cbd_blkdev->blkdev_id;
-	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_running;
 }
 
 int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
@@ -541,7 +538,6 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 	return 0;
 
 channel_exit:
-	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_none;
 	cbd_channel_exit(&cbdq->channel);
 	return ret;
 }
@@ -570,6 +566,5 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 	}
 
 	kfree(cbdq->released_extents);
-	cbdq->channel_info->blkdev_state = cbdc_blkdev_state_none;
 	cbd_channel_exit(&cbdq->channel);
 }

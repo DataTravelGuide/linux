@@ -278,7 +278,6 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_chann
 	cbdwc_init(&handler->handle_worker_cfg);
 
 	cbdb_add_handler(cbdb, handler);
-	handler->channel_info->backend_state = cbdc_backend_state_running;
 
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 
@@ -297,7 +296,6 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 	while (atomic_read(&handler->inflight_cmds))
 		fsleep(100000);
 
-	handler->channel_info->backend_state = cbdc_backend_state_none;
 	cbd_channel_exit(&handler->channel);
 
 	bioset_exit(&handler->bioset);

@@ -630,9 +630,8 @@ struct cbd_segment_info {
 	struct cbd_meta_header meta_header;
 	u8 state;
 	u8 type;
-	u8 ref;
+	u16 res;
 	u32 next_seg;
-	u64 alive_ts;
 };
 
 struct cbd_seg_pos {
@@ -697,14 +696,21 @@ enum cbdc_backend_state {
 
 struct cbd_channel_seg_info {
 	struct cbd_segment_info seg_info;	/* must be the first member */
-	u8	blkdev_state;
-	u32	blkdev_id;
-
-	u8	backend_state;
 	u32	backend_id;
 
-	u32	polling:1;
-	u32	need_reset:1;
+	u64	polling:1;
+	u64	need_reset:1;
+
+	u32	submr_head;
+	u32	submr_tail;
+
+	u32	compr_head;
+	u32	compr_tail;
+};
+
+struct cbd_channel_ctrl_info {
+	u64	polling:1;
+	u64	need_reset:1;
 
 	u32	submr_head;
 	u32	submr_tail;
