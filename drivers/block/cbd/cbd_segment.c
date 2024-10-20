@@ -82,13 +82,12 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	segment->cbdt = cbdt;
 	segment->segment_info = segment_info;
 	segment->seg_id = options->seg_id;
-	segment_info->type = options->type;
 	segment->seg_ops = options->seg_ops;
 	segment->data_size = CBDT_SEG_SIZE - options->data_off;
 	segment->data = (void *)(segment->segment_info) + options->data_off;
 	segment->priv_data = options->priv_data;
 
-	segment_info->ref++;
+	segment_info->type = options->type;
 	segment_info->state = cbd_segment_state_running;
 }
 
@@ -98,10 +97,7 @@ void cbd_segment_exit(struct cbd_segment *segment)
 			segment->segment_info->state != cbd_segment_state_running)
 		return;
 
-	if (--segment->segment_info->ref > 0)
-		return;
-
-	segment->segment_info->state = cbd_segment_state_none;
+	cbdt_segment_info_clear(segment->cbdt, segment->seg_id);
 }
 
 void cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)

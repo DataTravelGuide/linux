@@ -542,6 +542,7 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,		\
 						u32 *info_index);			\
 void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,				\
 			     void *data,						\
+			     u32 data_size,						\
 			     u32 id,							\
 			     u32 info_index);						\
 void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id);

@@ -158,6 +158,7 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
 										\
 void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,			\
 				    void *data,					\
+				    u32 data_size,				\
 				    u32 id,					\
 				    u32 info_index)				\
 {										\
@@ -169,7 +170,7 @@ void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,			\
 	cbdt_err(cbdt, "write info index: %u\n", info_index);			\
 										\
 	info = (void *)info + (info_index * OBJ_SIZE);				\
-	memcpy(info, data, sizeof(struct cbd_##OBJ##_info));			\
+	memcpy(info, data, data_size);						\
 										\
 	/* seq is u8 and we compare it with cbd_meta_seq_after() */		\
 	info->meta_header.seq++;						\

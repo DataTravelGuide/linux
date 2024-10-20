@@ -279,9 +279,7 @@ static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id
 
 		strscpy(cbdb->backend_info.path, path, CBD_PATH_LEN);
 
-		/* TODO cbd_cache_info_init() */
 		cbdb->backend_info.cache_info.n_segs = cache_segs;
-		cbdb->backend_info.cache_info.gc_percent = 70;
 	} else {
 		/* attach backend, this could happend after an unexpected power off */
 		cbdt_info(cbdt, "attach backend to backend_id: %u\n", backend_id);
@@ -332,7 +330,8 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 
 	mutex_lock(&cbdb->info_lock);
 	cbdb->backend_info.alive_ts = ktime_get_real();
-	cbdt_backend_info_write(cbdb->cbdt, &cbdb->backend_info, cbdb->backend_id, cbdb->backend_info_index);
+	cbdt_backend_info_write(cbdb->cbdt, &cbdb->backend_info, sizeof(struct cbd_backend_info),
+				cbdb->backend_id, cbdb->backend_info_index);
 	cbdb->backend_info_index = (cbdb->backend_info_index + 1) % CBDT_META_INDEX_MAX;
 	mutex_unlock(&cbdb->info_lock);
 }
