@@ -264,17 +264,17 @@
 #define CBDT_META_INDEX_MAX		2
 
 #define CBDT_INFO_OFF			0
-#define CBDT_SINGLE_INFO_SIZE		PAGE_SIZE
-#define CBDT_INFO_SIZE			(CBDT_SINGLE_INFO_SIZE * CBDT_META_INDEX_MAX)
+#define CBDT_INFO_SIZE			PAGE_SIZE
+#define CBDT_INFO_STRIDE		(CBDT_INFO_SIZE * CBDT_META_INDEX_MAX)
 
-#define CBDT_SINGLE_HOST_INFO_SIZE		round_up(sizeof(struct cbd_host_info), PAGE_SIZE)
-#define CBDT_HOST_INFO_SIZE			(CBDT_SINGLE_HOST_INFO_SIZE * CBDT_META_INDEX_MAX)
-#define CBDT_SINGLE_BACKEND_INFO_SIZE		round_up(sizeof(struct cbd_backend_info), PAGE_SIZE)
-#define CBDT_BACKEND_INFO_SIZE			(CBDT_SINGLE_BACKEND_INFO_SIZE * CBDT_META_INDEX_MAX)
-#define CBDT_SINGLE_BLKDEV_INFO_SIZE		round_up(sizeof(struct cbd_blkdev_info), PAGE_SIZE)
-#define CBDT_BLKDEV_INFO_SIZE			(CBDT_SINGLE_BLKDEV_INFO_SIZE * CBDT_META_INDEX_MAX)
-#define CBDT_SINGLE_CACHE_INFO_SIZE		round_up(sizeof(struct cbd_cache_seg_info), PAGE_SIZE)
-#define CBDT_CACHE_INFO_SIZE			(CBDT_SINGLE_CACHE_INFO_SIZE * CBDT_META_INDEX_MAX)
+#define CBDT_HOST_INFO_SIZE			round_up(sizeof(struct cbd_host_info), PAGE_SIZE)
+#define CBDT_HOST_INFO_STRIDE			(CBDT_HOST_INFO_SIZE * CBDT_META_INDEX_MAX)
+#define CBDT_BACKEND_INFO_SIZE			round_up(sizeof(struct cbd_backend_info), PAGE_SIZE)
+#define CBDT_BACKEND_INFO_STRIDE		(CBDT_BACKEND_INFO_SIZE * CBDT_META_INDEX_MAX)
+#define CBDT_BLKDEV_INFO_SIZE			round_up(sizeof(struct cbd_blkdev_info), PAGE_SIZE)
+#define CBDT_BLKDEV_INFO_STRIDE			(CBDT_BLKDEV_INFO_SIZE * CBDT_META_INDEX_MAX)
+#define CBDT_SEG_INFO_SIZE			round_up(sizeof(struct cbd_segment_info), PAGE_SIZE)
+#define CBDT_SEG_INFO_STRIDE			CBD_SEG_SIZE
 
 #define CBD_TRASNPORT_SIZE_MIN		(512 * 1024 * 1024)
 
@@ -787,7 +787,7 @@ struct cbd_cache_info {
 };
 
 /* put cbd cache metadata at CBD_CACHE_META_OFF of first cqche segment */
-#define CBDT_CACHE_META_OFF	CBDT_CACHE_INFO_SIZE
+#define CBDT_CACHE_META_OFF	CBDT_SEG_INFO_SIZE
 #define CBDT_CACHE_META_SIZE	PAGE_SIZE
 
 struct cbd_cache_meta {

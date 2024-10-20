@@ -265,8 +265,8 @@ static void cache_seg_init(struct cbd_cache *cache,
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	seg_options.type = cbds_type_cache;
-	/*TODO CBDT_SEGMENT_INFO_SIZE? splite frequently changed member from info to meta*/
-	seg_options.data_off = CBDT_CACHE_INFO_SIZE;
+	/*TODO CBDT_CACHE_META_OFF splite frequently changed member from info to meta*/
+	seg_options.data_off = CBDT_CACHE_META_OFF;
 	if (cache_seg_is_meta_seg(cache_seg_id))
 		seg_options.data_off += CBDT_CACHE_META_SIZE;
 	seg_options.seg_ops = &cbd_cache_seg_ops;

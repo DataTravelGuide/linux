@@ -336,7 +336,7 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 
 	cbdb_err(cbdb, "write backend_info index: %u\n", cbdb->backend_info_index);
 
-	backend_info = (void *)backend_info + (cbdb->backend_info_index * CBDT_SINGLE_BACKEND_INFO_SIZE);
+	backend_info = (void *)backend_info + (cbdb->backend_info_index * CBDT_BACKEND_INFO_SIZE);
 	cbdb->backend_info_index = (cbdb->backend_info_index + 1) % CBDT_META_INDEX_MAX;
 	cbdb->backend_info.alive_ts = ktime_get_real();
 

@@ -452,11 +452,11 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	 * Try to fully utilize all available space,
 	 * assuming host:blkdev:backend:segment = 1:1:1:1
 	 */
-	seg_size = (CBDT_HOST_INFO_SIZE + CBDT_BACKEND_INFO_SIZE +
-			CBDT_BLKDEV_INFO_SIZE + CBDT_SEG_SIZE);
-	nr_segs = (transport_dev_size - CBDT_INFO_SIZE) / seg_size;
+	seg_size = (CBDT_HOST_INFO_STRIDE + CBDT_BACKEND_INFO_STRIDE +
+			CBDT_BLKDEV_INFO_STRIDE + CBDT_SEG_SIZE);
+	nr_segs = (transport_dev_size - CBDT_INFO_STRIDE) / seg_size;
 
-	info->host_area_off = CBDT_INFO_OFF + CBDT_INFO_SIZE;
+	info->host_area_off = CBDT_INFO_OFF + CBDT_INFO_STRIDE;
 	info->host_info_size = CBDT_HOST_INFO_SIZE;
 	info->host_num = min(nr_segs, CBDT_HOSTS_MAX);
 
