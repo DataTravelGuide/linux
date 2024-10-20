@@ -61,18 +61,6 @@ static inline bool cache_key_clean(struct cbd_cache_key *key)
 	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
 }
 
-static inline u32 get_backend_id(struct cbd_transport *cbdt,
-				 struct cbd_backend_info *backend_info)
-{
-	u64 backend_off;
-	struct cbd_transport_info *transport_info;
-
-	transport_info = cbdt->transport_info;
-	backend_off = (void *)backend_info - (void *)transport_info;
-
-	return (backend_off - transport_info->backend_area_off) / transport_info->backend_info_size;
-}
-
 static inline bool cache_seg_has_next(struct cbd_cache_segment *cache_seg)
 {
 	return (cache_seg->cache_seg_info->flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT);
@@ -2311,7 +2299,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	cache_info = opts->cache_info;
 	backend_info = container_of(cache_info, struct cbd_backend_info, cache_info);
-	backend_id = get_backend_id(cbdt, backend_info);
 
 	if (opts->n_paral * CBD_CACHE_SEGS_EACH_PARAL > cache_info->n_segs) {
 		cbdt_err(cbdt, "n_paral %u requires cache size (%llu), more than current (%llu).",
@@ -2324,7 +2311,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	if (!cache)
 		return NULL;
 
-	cache->cache_id = backend_id;
+	cache->cache_id = opts->cache_id;
 
 	cache->seg_map = bitmap_zalloc(cache_info->n_segs, GFP_KERNEL);
 	if (!cache->seg_map) {

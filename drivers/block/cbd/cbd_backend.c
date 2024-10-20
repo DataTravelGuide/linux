@@ -219,6 +219,7 @@ static int backend_cache_init(struct cbd_backend *cbdb, bool new_backend)
 	int ret;
 
 	cache_opts.cache_info = &cbdb->backend_info.cache_info;
+	cache_opts.cache_id = cbdb->backend_id;
 	cache_opts.alloc_segs = new_backend;
 	cache_opts.start_writeback = true;
 	cache_opts.start_gc = false;
@@ -332,20 +333,9 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 	struct cbd_backend_info *backend_info;
 
 	mutex_lock(&cbdb->info_lock);
-	backend_info = cbdt_get_backend_info(cbdb->cbdt, cbdb->backend_id);
-
-	cbdb_err(cbdb, "write backend_info index: %u\n", cbdb->backend_info_index);
-
-	backend_info = (void *)backend_info + (cbdb->backend_info_index * CBDT_BACKEND_INFO_SIZE);
-	cbdb->backend_info_index = (cbdb->backend_info_index + 1) % CBDT_META_INDEX_MAX;
 	cbdb->backend_info.alive_ts = ktime_get_real();
-
-	/* seq is u8 and we compare it with cbd_meta_seq_after() */
-	cbdb->backend_info.meta_header.seq++;
-	cbdb->backend_info.meta_header.crc = cbd_backend_info_crc(&cbdb->backend_info);
-	cbdt_err(cbdb->cbdt, "info: %p write crc: %u, state: %u\n", backend_info, cbdb->backend_info.meta_header.crc, cbdb->backend_info.state);
-
-	memcpy(backend_info, &cbdb->backend_info, sizeof(struct cbd_backend_info));
+	cbdt_backend_info_write(cbdb->cbdt, &cbdb->backend_info, cbdb->backend_id, cbdb->backend_info_index);
+	cbdb->backend_info_index = (cbdb->backend_info_index + 1) % CBDT_META_INDEX_MAX;
 	mutex_unlock(&cbdb->info_lock);
 }
 

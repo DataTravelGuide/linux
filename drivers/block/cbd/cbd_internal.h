@@ -274,7 +274,7 @@
 #define CBDT_BLKDEV_INFO_SIZE			round_up(sizeof(struct cbd_blkdev_info), PAGE_SIZE)
 #define CBDT_BLKDEV_INFO_STRIDE			(CBDT_BLKDEV_INFO_SIZE * CBDT_META_INDEX_MAX)
 #define CBDT_SEG_INFO_SIZE			round_up(sizeof(struct cbd_segment_info), PAGE_SIZE)
-#define CBDT_SEG_INFO_STRIDE			CBD_SEG_SIZE
+#define CBDT_SEG_INFO_STRIDE			CBDT_SEG_SIZE
 
 #define CBD_TRASNPORT_SIZE_MIN		(512 * 1024 * 1024)
 
@@ -540,7 +540,11 @@ int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id);			\
 struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,		\
 	       					u32 id,					\
 						u32 *info_index);			\
-void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id);			\
+void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,				\
+			     void *data,						\
+			     u32 id,							\
+			     u32 info_index);						\
+void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id);
 
 CBDT_OBJ_DECLARE(host);
 CBDT_OBJ_DECLARE(backend);
@@ -923,6 +927,7 @@ struct cbd_cache {
 struct cbd_request;
 struct cbd_cache_opts {
 	struct cbd_cache_info *cache_info;
+	u32 cache_id;
 	bool alloc_segs;
 	bool start_writeback;
 	bool start_gc;

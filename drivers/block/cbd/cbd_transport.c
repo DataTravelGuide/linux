@@ -3,7 +3,7 @@
 #include <linux/pfn_t.h>
 #include "cbd_internal.h"
 
-#define CBDT_OBJ(OBJ, OBJ_SIZE)							\
+#define CBDT_OBJ(OBJ, OBJ_SIZE, OBJ_STRIDE)					\
 extern struct device_type cbd_##OBJ##_type;					\
 extern struct device_type cbd_##OBJ##s_type;					\
 										\
@@ -99,7 +99,7 @@ static inline struct cbd_##OBJ##_info						\
 										\
 	start += info->OBJ##_area_off;						\
 										\
-	return start + ((u64)info->OBJ_SIZE * id);				\
+	return start + ((u64)OBJ_STRIDE * id);					\
 }										\
 										\
 struct cbd_##OBJ##_info								\
@@ -125,7 +125,7 @@ int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id)		\
 	for (i = 0; i < info->OBJ##_num; i++) {					\
 		_info = __get_##OBJ##_info(cbdt, i);				\
 		if (_info->state == cbd_##OBJ##_state_none) {			\
-			cbdt_zero_range(cbdt, _info, info->OBJ_SIZE);		\
+			cbdt_zero_range(cbdt, _info, OBJ_STRIDE);		\
 			*id = i;						\
 			goto out;						\
 		}								\
@@ -148,7 +148,7 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
 	info = cbdt_get_##OBJ##_info(cbdt, id);					\
 										\
 	latest = cbd_meta_find_latest(&info->meta_header,			\
-				      sizeof(struct cbd_##OBJ##_info),		\
+				      OBJ_SIZE,					\
 				      info_index);				\
 	if (!latest)								\
 		return NULL;							\
@@ -156,18 +156,38 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
 	return latest;								\
 }										\
 										\
+void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,			\
+				    void *data,					\
+				    u32 id,					\
+				    u32 info_index)				\
+{										\
+	struct cbd_##OBJ##_info *info;						\
+										\
+	info = cbdt_get_##OBJ##_info(cbdt, id);					\
+										\
+	cbdt_err(cbdt, "write info index: %u\n", info_index);			\
+										\
+	info = (void *)info + (info_index * OBJ_SIZE);				\
+	memcpy(info, data, sizeof(struct cbd_##OBJ##_info));			\
+										\
+	/* seq is u8 and we compare it with cbd_meta_seq_after() */		\
+	info->meta_header.seq++;						\
+	info->meta_header.crc = cbd_meta_crc(&info->meta_header, OBJ_SIZE);	\
+	pr_err("info: %p write crc: %u\n", info, info->meta_header.crc);	\
+}										\
+										\
 void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id)		\
 {										\
 	struct cbd_##OBJ##_info *info;						\
 										\
 	info = cbdt_get_##OBJ##_info(cbdt, id);					\
-	cbdt_zero_range(cbdt, info, cbdt->transport_info->OBJ_SIZE);		\
+	cbdt_zero_range(cbdt, info, OBJ_STRIDE);				\
 }
 
-CBDT_OBJ(host, host_info_size);
-CBDT_OBJ(backend, backend_info_size);
-CBDT_OBJ(blkdev, blkdev_info_size);
-CBDT_OBJ(segment, segment_size);
+CBDT_OBJ(host, CBDT_HOST_INFO_SIZE, CBDT_HOST_INFO_STRIDE);
+CBDT_OBJ(backend, CBDT_BACKEND_INFO_SIZE, CBDT_BACKEND_INFO_STRIDE);
+CBDT_OBJ(blkdev, CBDT_BLKDEV_INFO_SIZE, CBDT_BLKDEV_INFO_STRIDE);
+CBDT_OBJ(segment, CBDT_SEG_INFO_SIZE, CBDT_SEG_INFO_STRIDE);
 
 static struct cbd_transport *cbd_transports[CBD_TRANSPORT_MAX];
 static DEFINE_IDA(cbd_transport_id_ida);
