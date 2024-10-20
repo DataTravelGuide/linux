@@ -90,9 +90,17 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 
 	spin_lock_init(&channel->submr_lock);
 	spin_lock_init(&channel->compr_lock);
+	mutex_init(&channel->info_lock);
 }
 
 void cbd_channel_exit(struct cbd_channel *channel)
 {
 	cbd_segment_exit(&channel->segment);
+}
+
+void cbd_channel_write(struct cbd_channel *channel)
+{
+	mutex_lock(&channel->info_lock);
+
+	mutex_unlock(&channel->info_lock);
 }

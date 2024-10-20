@@ -241,7 +241,7 @@
 #define CBDC_DATA_ALIGH		4096
 #define CBDC_DATA_RESERVED	CBDC_DATA_ALIGH
 
-#define CBDC_CTRL_OFF		0
+#define CBDC_CTRL_OFF		(CBDT_SEG_INFO_SIZE * CBDT_META_INDEX_MAX)
 #define CBDC_CTRL_SIZE		PAGE_SIZE
 #define CBDC_COMPR_OFF		(CBDC_CTRL_OFF + CBDC_CTRL_SIZE)
 #define CBDC_COMPR_SIZE		(sizeof(struct cbd_ce) * 1024)
@@ -733,6 +733,7 @@ struct cbd_channel {
 
 	spinlock_t			submr_lock;
 	spinlock_t			compr_lock;
+	struct mutex			info_lock;
 };
 
 void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id);
