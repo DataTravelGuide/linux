@@ -6,11 +6,13 @@ static ssize_t cbd_seg_detail_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct cbd_segment_device *segment;
+	struct cbd_segment_device *segment_dev;
 	struct cbd_segment_info *segment_info;
 
-	segment = container_of(dev, struct cbd_segment_device, dev);
-	segment_info = segment->segment_info;
+	segment_dev = container_of(dev, struct cbd_segment_device, dev);
+	segment_info = cbdt_segment_info_read(segment_dev->cbdt, segment_dev->id, NULL);
+	if (!segment_info)
+		return 0;
 
 	if (segment_info->state == cbd_segment_state_none)
 		return 0;
@@ -25,11 +27,13 @@ static ssize_t cbd_seg_type_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct cbd_segment_device *segment;
+	struct cbd_segment_device *segment_dev;
 	struct cbd_segment_info *segment_info;
 
-	segment = container_of(dev, struct cbd_segment_device, dev);
-	segment_info = segment->segment_info;
+	segment_dev = container_of(dev, struct cbd_segment_device, dev);
+	segment_info = cbdt_segment_info_read(segment_dev->cbdt, segment_dev->id, NULL);
+	if (!segment_info)
+		return 0;
 
 	if (segment_info->state == cbd_segment_state_none)
 		return 0;

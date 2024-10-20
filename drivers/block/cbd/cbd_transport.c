@@ -38,7 +38,7 @@ static int cbd_##OBJ##s_init(struct cbd_transport *cbdt)			\
 		dev = &cbd_dev->dev;						\
 										\
 		cbd_dev->cbdt = cbdt;						\
-		cbd_dev->OBJ##_info = cbdt_get_##OBJ##_info(cbdt, i);		\
+		cbd_dev->id = i;						\
 		device_initialize(dev);						\
 		device_set_pm_not_required(dev);				\
 		dev_set_name(dev, #OBJ "%u", i);				\

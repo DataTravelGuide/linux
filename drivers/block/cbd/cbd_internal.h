@@ -337,7 +337,7 @@
 struct cbd_## OBJ ##_device {				\
 	struct device dev;				\
 	struct cbd_transport *cbdt;			\
-	struct cbd_## OBJ ##_info *OBJ##_info;		\
+	u32 id;						\
 };							\
 							\
 struct cbd_## OBJ ##s_device {				\
@@ -1279,12 +1279,17 @@ static ssize_t cbd_##OBJ##_alive_show(struct device *dev,				\
 			       char *buf)						\
 {											\
 	struct cbd_##OBJ##_device *_dev;						\
+	struct cbd_##OBJ##_info *info;							\
 											\
 	_dev = container_of(dev, struct cbd_##OBJ##_device, dev);			\
+	info = cbdt_##OBJ##_info_read(_dev->cbdt, _dev->id, NULL);			\
+	if (!info)									\
+		goto out;								\
 											\
-	if (cbd_##OBJ##_info_is_alive(_dev->OBJ##_info))				\
+	if (cbd_##OBJ##_info_is_alive(info))						\
 		return sprintf(buf, "true\n");						\
 											\
+out:											\
 	return sprintf(buf, "false\n");							\
 }											\
 											\

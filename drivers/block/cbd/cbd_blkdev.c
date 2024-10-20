@@ -6,11 +6,13 @@ static ssize_t blkdev_backend_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct cbd_blkdev_device *blkdev;
+	struct cbd_blkdev_device *blkdev_dev;
 	struct cbd_blkdev_info *blkdev_info;
 
-	blkdev = container_of(dev, struct cbd_blkdev_device, dev);
-	blkdev_info = blkdev->blkdev_info;
+	blkdev_dev = container_of(dev, struct cbd_blkdev_device, dev);
+	blkdev_info = cbdt_blkdev_info_read(blkdev_dev->cbdt, blkdev_dev->id, NULL);
+	if (!blkdev_info)
+		return 0;
 
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;
@@ -24,11 +26,13 @@ static ssize_t blkdev_host_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct cbd_blkdev_device *blkdev;
+	struct cbd_blkdev_device *blkdev_dev;
 	struct cbd_blkdev_info *blkdev_info;
 
-	blkdev = container_of(dev, struct cbd_blkdev_device, dev);
-	blkdev_info = blkdev->blkdev_info;
+	blkdev_dev = container_of(dev, struct cbd_blkdev_device, dev);
+	blkdev_info = cbdt_blkdev_info_read(blkdev_dev->cbdt, blkdev_dev->id, NULL);
+	if (!blkdev_info)
+		return 0;
 
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;
@@ -42,11 +46,13 @@ static ssize_t blkdev_mapped_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct cbd_blkdev_device *blkdev;
+	struct cbd_blkdev_device *blkdev_dev;
 	struct cbd_blkdev_info *blkdev_info;
 
-	blkdev = container_of(dev, struct cbd_blkdev_device, dev);
-	blkdev_info = blkdev->blkdev_info;
+	blkdev_dev = container_of(dev, struct cbd_blkdev_device, dev);
+	blkdev_info = cbdt_blkdev_info_read(blkdev_dev->cbdt, blkdev_dev->id, NULL);
+	if (!blkdev_info)
+		return 0;
 
 	if (blkdev_info->state == cbd_blkdev_state_none)
 		return 0;

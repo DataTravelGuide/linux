@@ -10,9 +10,8 @@ static ssize_t backend_host_id_show(struct device *dev,
 	struct cbd_backend_info *backend_info, *latest_info;
 
 	backend = container_of(dev, struct cbd_backend_device, dev);
-	backend_info = backend->backend_info;
 
-	latest_info = cbd_meta_find_latest(&backend_info->meta_header, sizeof(struct cbd_backend_info), NULL);
+	latest_info = cbdt_backend_info_read(backend->cbdt, backend->id, NULL);
 	if (!latest_info)
 		return 0;
 
@@ -32,9 +31,8 @@ static ssize_t backend_path_show(struct device *dev,
 	struct cbd_backend_info *backend_info, *latest_info;
 
 	backend = container_of(dev, struct cbd_backend_device, dev);
-	backend_info = backend->backend_info;
 
-	latest_info = cbd_meta_find_latest(&backend_info->meta_header, sizeof(struct cbd_backend_info), NULL);
+	latest_info = cbdt_backend_info_read(backend->cbdt, backend->id, NULL);
 	if (!latest_info)
 		return 0;
 

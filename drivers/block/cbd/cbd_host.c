@@ -6,11 +6,13 @@ static ssize_t cbd_host_name_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct cbd_host_device *host;
+	struct cbd_host_device *host_dev;
 	struct cbd_host_info *host_info;
 
-	host = container_of(dev, struct cbd_host_device, dev);
-	host_info = host->host_info;
+	host_dev = container_of(dev, struct cbd_host_device, dev);
+	host_info = cbdt_host_info_read(host_dev->cbdt, host_dev->id, NULL);
+	if (!host_info)
+		return 0;
 
 	if (host_info->state == cbd_host_state_none)
 		return 0;
