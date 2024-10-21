@@ -1,0 +1,130 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _CBD_QUEUE_H
+#define _CBD_QUEUE_H
+
+/* cbd_queue */
+enum cbd_op {
+	CBD_OP_WRITE = 0,
+	CBD_OP_READ,
+	CBD_OP_FLUSH,
+};
+
+struct cbd_se {
+#ifdef CONFIG_CBD_CRC
+	u32			se_crc;		/* should be the first member */
+	u32			data_crc;
+#endif
+	u32			op;
+	u32			flags;
+	u64			req_tid;
+
+	u64			offset;
+	u32			len;
+
+	u32			data_off;
+	u32			data_len;
+};
+
+struct cbd_ce {
+#ifdef CONFIG_CBD_CRC
+	u32		ce_crc;		/* should be the first member */
+	u32		data_crc;
+#endif
+	u64		req_tid;
+	u32		result;
+	u32		flags;
+};
+
+#ifdef CONFIG_CBD_CRC
+static inline u32 cbd_se_crc(struct cbd_se *se)
+{
+	return crc32(0, (void *)se + 4, sizeof(*se) - 4);
+}
+
+static inline u32 cbd_ce_crc(struct cbd_ce *ce)
+{
+	return crc32(0, (void *)ce + 4, sizeof(*ce) - 4);
+}
+#endif
+
+struct cbd_request {
+	struct cbd_queue	*cbdq;
+
+	struct cbd_se		*se;
+	struct cbd_ce		*ce;
+	struct request		*req;
+
+	u64			off;
+	struct bio		*bio;
+	u32			bio_off;
+	spinlock_t		lock; /* race between cache and complete_work to access bio */
+
+	enum cbd_op		op;
+	u64			req_tid;
+	struct list_head	inflight_reqs_node;
+
+	u32			data_off;
+	u32			data_len;
+
+	struct work_struct	work;
+
+	struct kref		ref;
+	int			ret;
+	struct cbd_request	*parent;
+
+	void			*priv_data;
+	void (*end_req)(struct cbd_request *cbd_req, void *priv_data);
+};
+
+struct cbd_cache_req {
+	struct cbd_cache	*cache;
+	enum cbd_op		op;
+	struct work_struct	work;
+};
+
+#define CBD_SE_FLAGS_DONE	1
+
+static inline bool cbd_se_flags_test(struct cbd_se *se, u32 bit)
+{
+	return (se->flags & bit);
+}
+
+static inline void cbd_se_flags_set(struct cbd_se *se, u32 bit)
+{
+	se->flags |= bit;
+}
+
+enum cbd_queue_state {
+	cbd_queue_state_none	= 0,
+	cbd_queue_state_running,
+	cbd_queue_state_removing
+};
+
+struct cbd_queue {
+	struct cbd_blkdev	*cbd_blkdev;
+	u32			index;
+	struct list_head	inflight_reqs;
+	spinlock_t		inflight_reqs_lock;
+	u64			req_tid;
+
+	u64			*released_extents;
+
+	struct cbd_channel_seg_info	*channel_info;
+	struct cbd_channel	channel;
+	struct cbd_channel_ctrl	*channel_ctrl;
+
+	atomic_t		state;
+
+	struct delayed_work	complete_work;
+	struct cbd_worker_cfg	complete_worker_cfg;
+};
+
+int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id);
+void cbd_queue_stop(struct cbd_queue *cbdq);
+extern const struct blk_mq_ops cbd_mq_ops;
+int cbd_queue_req_to_backend(struct cbd_request *cbd_req);
+void cbd_req_get(struct cbd_request *cbd_req);
+void cbd_req_put(struct cbd_request *cbd_req, int ret);
+void cbd_queue_advance(struct cbd_queue *cbdq, struct cbd_request *cbd_req);
+
+#endif /* _CBD_QUEUE_H */

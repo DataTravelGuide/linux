@@ -1,0 +1,74 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _CBD_BLKDEV_H
+#define _CBD_BLKDEV_H
+
+/* cbd_blkdev */
+CBD_DEVICE(blkdev);
+
+enum cbd_blkdev_state {
+	cbd_blkdev_state_none	= 0,
+	cbd_blkdev_state_running,
+};
+
+struct cbd_blkdev_info {
+	struct cbd_meta_header meta_header;
+	u8	state;
+	u64	alive_ts;
+	u32	backend_id;
+	u32	host_id;
+	u32	mapped_id;
+};
+
+struct cbd_blkdev {
+	u32			blkdev_id; /* index in transport blkdev area */
+	u32			backend_id;
+	int			mapped_id; /* id in block device such as: /dev/cbd0 */
+
+	struct cbd_backend	*backend; /* reference to backend if blkdev and backend on the same host */
+
+	int			major;		/* blkdev assigned major */
+	int			minor;
+	struct gendisk		*disk;		/* blkdev's gendisk and rq */
+
+	struct mutex		lock;
+	unsigned long		open_count;	/* protected by lock */
+
+	struct list_head	node;
+	struct delayed_work	hb_work; /* heartbeat work */
+
+	/* Block layer tags. */
+	struct blk_mq_tag_set	tag_set;
+
+	uint32_t		num_queues;
+	struct cbd_queue	*queues;
+
+	u64			dev_size;
+
+	struct workqueue_struct	*task_wq;
+
+	struct cbd_blkdev_device *blkdev_dev;
+	struct cbd_blkdev_info	blkdev_info;
+	struct mutex		info_lock;
+	u32			info_index;
+
+	struct cbd_transport *cbdt;
+
+	struct cbd_cache	*cbd_cache;
+};
+
+int cbd_blkdev_init(void);
+void cbd_blkdev_exit(void);
+int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues);
+int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force);
+int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid);
+bool cbd_blkdev_info_is_alive(struct cbd_blkdev_info *info);
+
+extern struct workqueue_struct	*cbd_wq;
+
+/* cbd_for_each functions to traverse object info */
+#define cbd_for_each_blkdev_info(cbdt, i, blkdev_info)					\
+	for (i = 0, blkdev_info = cbdt_blkdev_info_read(cbdt, i, NULL);			\
+	     i < cbdt->transport_info->blkdev_num;					\
+	     i++)
+
+#endif /* _CBD_BLKDEV_H */
