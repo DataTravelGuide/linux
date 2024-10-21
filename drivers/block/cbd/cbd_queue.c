@@ -536,7 +536,7 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 	cbdq->released_extents = kzalloc(sizeof(u64) * (CBDC_DATA_SIZE >> PAGE_SHIFT), GFP_KERNEL);
 	if (!cbdq->released_extents) {
 		ret = -ENOMEM;
-		goto channel_exit;
+		goto out;
 	}
 
 	pr_err("before reset\n");
@@ -549,8 +549,7 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 
 	return 0;
 
-channel_exit:
-	cbd_channel_exit(&cbdq->channel);
+out:
 	return ret;
 }
 
@@ -578,5 +577,4 @@ void cbd_queue_stop(struct cbd_queue *cbdq)
 	}
 
 	kfree(cbdq->released_extents);
-	cbd_channel_exit(&cbdq->channel);
 }
