@@ -630,9 +630,11 @@ struct cbd_segment_info {
 	struct cbd_meta_header meta_header;
 	u8 state;
 	u8 type;
-	u16 res;
+	u16 flags;
 	u32 next_seg;
 };
+
+#define CBD_SEG_INFO_FLAGS_HAS_NEXT	(1 << 0)
 
 struct cbd_seg_pos {
 	struct cbd_segment *segment;
@@ -644,8 +646,9 @@ struct cbd_seg_ops {
 };
 
 struct cbds_init_options {
-	u32 seg_id;
 	enum cbd_seg_type type;
+	enum cbd_segment_state state;
+	u32 seg_id;
 	u32 data_off;
 	struct cbd_seg_ops *seg_ops;
 	void *priv_data;
@@ -656,6 +659,7 @@ struct cbd_segment {
 	struct cbd_segment		*next;
 
 	u32				seg_id;
+
 	struct cbd_segment_info		*segment_info;
 	struct cbd_seg_ops		*seg_ops;
 
@@ -723,7 +727,9 @@ struct cbd_channel {
 	u32				seg_id;
 	struct cbd_segment		segment;
 
-	struct cbd_channel_seg_info		*channel_info;
+	struct cbd_channel_seg_info	channel_info;
+	struct mutex			info_lock;
+	u32				info_index;
 
 	struct cbd_transport		*cbdt;
 
@@ -739,10 +745,9 @@ struct cbd_channel {
 
 	spinlock_t			submr_lock;
 	spinlock_t			compr_lock;
-	struct mutex			info_lock;
 };
 
-void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id);
+void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id, bool update_info);
 void cbd_channel_exit(struct cbd_channel *channel);
 void cbdc_copy_from_bio(struct cbd_channel *channel,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);

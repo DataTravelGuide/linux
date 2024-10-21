@@ -231,8 +231,8 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id)
 {
 	struct cbd_transport *cbdt = handler->cbdb->cbdt;
 
-	cbd_channel_init(&handler->channel, cbdt, channel_id);
-	handler->channel_info = handler->channel.channel_info;
+	cbd_channel_init(&handler->channel, cbdt, channel_id, true);
+	handler->channel_info = &handler->channel.channel_info;
 
 	handler->channel.data_head = handler->channel.data_tail = 0;
 	handler->channel_info->submr_tail = handler->channel_info->submr_head = 0;
@@ -264,10 +264,10 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_chann
 	if (init_channel) {
 		handler_channel_init(handler, channel_id);
 	} else {
-		cbd_channel_init(&handler->channel, cbdt, channel_id);
+		cbd_channel_init(&handler->channel, cbdt, channel_id, true);
 	}
 
-	handler->channel_info = handler->channel.channel_info;
+	handler->channel_info = &handler->channel.channel_info;
 
 	handler->se_to_handle = handler->channel_info->submr_tail;
 	handler->req_tid_expected = U64_MAX;

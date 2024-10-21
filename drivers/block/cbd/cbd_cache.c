@@ -2365,16 +2365,23 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 			if (ret)
 				goto destroy_cache;
 
-			if (prev_seg_info)
+			if (prev_seg_info) {
+				prev_seg_info->flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
 				prev_seg_info->next_seg = seg_id;
-			else
+			} else {
 				cache_info->seg_id = seg_id;
+			}
 
 		} else {
-			if (prev_seg_info)
+			if (prev_seg_info) {
+				if (!prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT) {
+					ret = -EFAULT;
+					goto destroy_cache;
+				}
 				seg_id = prev_seg_info->next_seg;
-			else
+			} else {
 				seg_id = cache_info->seg_id;
+			}
 		}
 
 		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);

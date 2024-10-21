@@ -255,7 +255,7 @@ static void backend_cache_destroy(struct cbd_backend *cbdb)
 	}
 }
 
-static int cbd_backend_load_info(struct cbd_backend *cbdb, u32 backend_id);
+static int cbd_backend_info_load(struct cbd_backend *cbdb, u32 backend_id);
 static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id,
 			    u32 handlers, u32 cache_segs)
 {
@@ -283,7 +283,7 @@ static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id
 	} else {
 		/* attach backend, this could happend after an unexpected power off */
 		cbdt_info(cbdt, "attach backend to backend_id: %u\n", backend_id);
-		ret = cbd_backend_load_info(cbdb, backend_id);
+		ret = cbd_backend_info_load(cbdb, backend_id);
 		if (ret)
 			goto err;
 	}
@@ -336,31 +336,37 @@ static void cbd_backend_info_write(struct cbd_backend *cbdb)
 	mutex_unlock(&cbdb->info_lock);
 }
 
-static int cbd_backend_load_info(struct cbd_backend *cbdb, u32 backend_id)
+static int cbd_backend_info_load(struct cbd_backend *cbdb, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
+	int ret = 0;
 
+	mutex_lock(&cbdb->info_lock);
 	backend_info = cbdt_backend_info_read(cbdb->cbdt, backend_id, &cbdb->backend_info_index);
 	if (!backend_info) {
 		cbdt_err(cbdb->cbdt, "can't read info from backend id %u.\n",
 				cbdb->backend_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (cbd_backend_info_is_alive(backend_info)) {
 		cbdt_err(cbdb->cbdt, "backend %u is alive\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	if (backend_info->host_id != cbdb->host_id) {
 		cbdt_err(cbdb->cbdt, "backend_id: %u is on host %u but not on host %u\n",
 				cbdb->backend_id, backend_info->host_id, cbdb->host_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	memcpy(&cbdb->backend_info, backend_info, sizeof(struct cbd_backend_info));
-
-	return 0;
+out:
+	mutex_unlock(&cbdb->info_lock);
+	return ret;
 }
 
 static struct cbd_backend *cbd_backend_alloc(struct cbd_transport *cbdt)

@@ -502,8 +502,8 @@ static void cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	struct cbd_blkdev *cbd_blkdev = cbdq->cbd_blkdev;
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
 
-	cbd_channel_init(&cbdq->channel, cbdt, channel_id);
-	cbdq->channel_info = cbdq->channel.channel_info;
+	cbd_channel_init(&cbdq->channel, cbdt, channel_id, false);
+	cbdq->channel_info = &cbdq->channel.channel_info;
 
 	if (!cbd_blkdev->backend)
 		cbdq->channel_info->polling = true;
