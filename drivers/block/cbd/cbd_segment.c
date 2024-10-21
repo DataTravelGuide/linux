@@ -289,7 +289,7 @@ int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io)
 
 		ret = bio_add_page(io->bio, page, len, 0);
 		if (unlikely(ret != len)) {
-			cbdt_err(cbdt, "failed to add page");
+			cbd_segment_err(segment, "failed to add page");
 			goto out;
 		}
 

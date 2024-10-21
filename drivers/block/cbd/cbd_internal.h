@@ -146,6 +146,16 @@
 	cbd_blk_debug(queue->cbd_blkdev, "queue%d: " fmt,			\
 		     queue->channel.seg_id, ##__VA_ARGS__)
 
+#define cbd_segment_err(segment, fmt, ...)					\
+	cbdt_err(segment->cbdt, "segment%d: " fmt,				\
+		 segment->seg_id, ##__VA_ARGS__)
+#define cbd_segment_info(segment, fmt, ...)					\
+	cbdt_info(segment->cbdt, "segment%d: " fmt,				\
+		 segment->seg_id, ##__VA_ARGS__)
+#define cbd_segment_debug(segment, fmt, ...)					\
+	cbdt_debug(segment->cbdt, "segment%d: " fmt,				\
+		 segment->seg_id, ##__VA_ARGS__)
+
 #define cbd_channel_err(channel, fmt, ...)					\
 	cbdt_err(channel->cbdt, "channel%d: " fmt,				\
 		 channel->seg_id, ##__VA_ARGS__)
