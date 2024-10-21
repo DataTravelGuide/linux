@@ -77,12 +77,16 @@ const struct device_type cbd_segments_type = {
 void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 		      struct cbds_init_options *options)
 {
+	struct cbd_segment_info *seg_info;
+
 	segment->cbdt = cbdt;
 	segment->seg_id = options->seg_id;
 	segment->seg_ops = options->seg_ops;
 	segment->data_size = CBDT_SEG_SIZE - options->data_off;
-	segment->data = (void *)(segment->segment_info) + options->data_off;
 	segment->priv_data = options->priv_data;
+
+	seg_info = cbdt_get_segment_info(cbdt, segment->seg_id);
+	segment->data = (void *)(seg_info) + options->data_off;
 }
 
 void cbd_segment_exit(struct cbd_segment *segment)

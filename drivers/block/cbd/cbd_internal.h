@@ -670,7 +670,6 @@ struct cbd_segment {
 
 	u32				seg_id;
 
-	struct cbd_segment_info		*segment_info;
 	struct cbd_seg_ops		*seg_ops;
 
 	void				*data;
@@ -781,13 +780,13 @@ struct cbd_cache_seg_info {
 #define CBD_CACHE_SEG_FLAGS_GC_DONE	(1 << 2)
 
 struct cbd_cache_segment {
-	struct cbd_cache	*cache;
-	u32			cache_seg_id;	/* index in cache->segments */
-	u32			used;
-	spinlock_t		gen_lock;
-	struct cbd_cache_seg_info *cache_seg_info;
-	struct cbd_segment	segment;
-	atomic_t		refs;
+	struct cbd_cache		*cache;
+	u32				cache_seg_id;	/* index in cache->segments */
+	u32				used;
+	spinlock_t			gen_lock;
+	struct cbd_cache_seg_info	cache_seg_info;
+	struct cbd_segment		segment;
+	atomic_t			refs;
 };
 
 struct cbd_cache_pos {
