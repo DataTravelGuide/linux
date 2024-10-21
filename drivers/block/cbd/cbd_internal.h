@@ -637,11 +637,11 @@ static inline const char *cbds_type_str(enum cbd_seg_type type)
 }
 
 struct cbd_segment_info {
-	struct cbd_meta_header meta_header;
-	u8 state;
-	u8 type;
-	u16 flags;
-	u32 next_seg;
+	struct cbd_meta_header	meta_header;
+	u8			type;
+	u8			state;
+	u16			flags;
+	u32			next_seg;
 };
 
 #define CBD_SEG_INFO_FLAGS_HAS_NEXT	(1 << 0)
@@ -724,6 +724,7 @@ struct cbd_channel_ctrl {
 };
 
 struct cbd_channel_init_options {
+	struct cbd_transport *cbdt;
 	bool	new_channel;
 
 	u32	seg_id;
@@ -755,7 +756,7 @@ struct cbd_channel {
 	spinlock_t			compr_lock;
 };
 
-void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id, bool update_info);
+int cbd_channel_init(struct cbd_channel *channel, struct cbd_channel_init_options *init_opts);
 void cbd_channel_exit(struct cbd_channel *channel);
 void cbdc_copy_from_bio(struct cbd_channel *channel,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);

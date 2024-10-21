@@ -232,10 +232,11 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bo
 	struct cbd_transport *cbdt = handler->cbdb->cbdt;
 	struct cbd_channel_init_options init_opts = { 0 };
 
+	init_opts.cbdt = cbdt;
 	init_opts.backend_id = handler->cbdb->backend_id;
 	init_opts.seg_id = channel_id;
 	init_opts.new_channel = true;
-	cbd_channel_init(&handler->channel, cbdt, channel_id, true);
+	cbd_channel_init(&handler->channel, &init_opts);
 	handler->channel_ctrl = handler->channel.ctrl;
 
 	if (!reset)

@@ -95,39 +95,50 @@ static void channel_info_write(struct cbd_channel *channel)
 	mutex_unlock(&channel->info_lock);
 }
 
-void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u32 seg_id, bool update_info)
+int cbd_channel_init(struct cbd_channel *channel, struct cbd_channel_init_options *init_opts)
 {
-	struct cbd_channel_seg_info *channel_info = &channel->channel_info;
-	struct cbd_segment *segment = &channel->segment;
+	struct cbd_segment_info *seg_info;
 	struct cbds_init_options seg_options;
+	int ret;
 
-	channel->cbdt = cbdt;
-	channel->seg_id = seg_id;
-	channel->ctrl = (void *)channel_info + CBDC_CTRL_OFF;
-	channel->submr = (void *)channel_info + CBDC_SUBMR_OFF;
-	channel->compr = (void *)channel_info + CBDC_COMPR_OFF;
+	channel->cbdt = init_opts->cbdt;
+	channel->seg_id = init_opts->seg_id;
 	channel->submr_size = rounddown(CBDC_SUBMR_SIZE, sizeof(struct cbd_se));
 	channel->compr_size = rounddown(CBDC_COMPR_SIZE, sizeof(struct cbd_ce));
 	channel->data_size = CBDC_DATA_SIZE;
+
+	seg_info = cbdt_get_segment_info(channel->cbdt, channel->seg_id);
+	channel->ctrl = (void *)seg_info + CBDC_CTRL_OFF;
+	channel->submr = (void *)seg_info + CBDC_SUBMR_OFF;
+	channel->compr = (void *)seg_info + CBDC_COMPR_OFF;
 
 	spin_lock_init(&channel->submr_lock);
 	spin_lock_init(&channel->compr_lock);
 	mutex_init(&channel->info_lock);
 
-	seg_options.seg_id = seg_id;
+	/* Init channel_info and segment_info */
+	seg_options.seg_id = init_opts->seg_id;
 	seg_options.data_off = CBDC_DATA_OFF;
 	seg_options.seg_ops = &cbd_channel_seg_ops;
 
-	cbd_segment_init(cbdt, segment, &seg_options);
+	cbd_segment_init(init_opts->cbdt, &channel->segment, &seg_options);
 
-	if (update_info) {
-		channel_info->seg_info.type = cbds_type_channel;
-		channel_info->seg_info.state = cbd_segment_state_running;
+	if (init_opts->new_channel) {
+		channel->channel_info.seg_info.type = cbds_type_channel;
+		channel->channel_info.seg_info.state = cbd_segment_state_running;
+		channel->channel_info.seg_info.flags = 0;
+
+		channel->channel_info.backend_id = init_opts->backend_id;
 		channel_info_write(channel);
 	} else {
-		/*TODO check ret-val*/
-		channel_info_load(channel);
+		ret = channel_info_load(channel);
+		if (ret)
+			goto out;
 	}
+	ret = 0;
+
+out:
+	return ret;
 }
 
 void cbd_channel_exit(struct cbd_channel *channel)

@@ -497,23 +497,35 @@ const struct blk_mq_ops cbd_mq_ops = {
 	.init_hctx	= cbd_init_hctx,
 };
 
-static void cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
+static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 {
 	struct cbd_blkdev *cbd_blkdev = cbdq->cbd_blkdev;
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
+	struct cbd_channel_init_options init_opts = { 0 };
+	int ret;
 
-	cbd_channel_init(&cbdq->channel, cbdt, channel_id, false);
+	init_opts.cbdt = cbdt;
+	init_opts.backend_id = cbdq->cbd_blkdev->backend_id;
+	init_opts.seg_id = channel_id;
+	init_opts.new_channel = false;
+	ret = cbd_channel_init(&cbdq->channel, &init_opts);
+	if (ret)
+		return ret;
+
 	cbdq->channel_ctrl = cbdq->channel.ctrl;
 
 	if (!cbd_blkdev->backend)
 		cbdq->channel_ctrl->polling = true;
+	return 0;
 }
 
 int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 {
 	int ret;
 
-	cbd_queue_channel_init(cbdq, channel_id);
+	ret = cbd_queue_channel_init(cbdq, channel_id);
+	if (ret)
+		return ret;
 
 	INIT_LIST_HEAD(&cbdq->inflight_reqs);
 	spin_lock_init(&cbdq->inflight_reqs_lock);
