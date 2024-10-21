@@ -4,7 +4,7 @@
 
 static inline struct cbd_se *get_se_head(struct cbd_handler *handler)
 {
-	return (struct cbd_se *)(handler->channel.submr + handler->channel_info->submr_head);
+	return (struct cbd_se *)(handler->channel.submr + handler->channel_ctrl->submr_head);
 }
 
 static inline struct cbd_se *get_se_to_handle(struct cbd_handler *handler)
@@ -14,7 +14,7 @@ static inline struct cbd_se *get_se_to_handle(struct cbd_handler *handler)
 
 static inline struct cbd_ce *get_compr_head(struct cbd_handler *handler)
 {
-	return (struct cbd_ce *)(handler->channel.compr + handler->channel_info->compr_head);
+	return (struct cbd_ce *)(handler->channel.compr + handler->channel_ctrl->compr_head);
 }
 
 static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, int ret)
@@ -33,7 +33,7 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 		ce->data_crc = cbd_channel_crc(&handler->channel, se->data_off, se->data_len);
 	ce->ce_crc = cbd_ce_crc(ce);
 #endif
-	CBDC_UPDATE_COMPR_HEAD(handler->channel_info->compr_head,
+	CBDC_UPDATE_COMPR_HEAD(handler->channel_ctrl->compr_head,
 			       sizeof(struct cbd_ce),
 			       handler->channel.compr_size);
 	spin_unlock_irqrestore(&handler->compr_lock, flags);
@@ -140,7 +140,7 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
 	return (req_tid == handler->req_tid_expected);
 }
 
-static void handler_channel_init(struct cbd_handler *handler, u32 channel_id);
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool reset);
 static void handler_reset(struct cbd_handler *handler)
 {
 	pr_err("channel_reset\n");
@@ -148,10 +148,10 @@ static void handler_reset(struct cbd_handler *handler)
 	handler->se_to_handle = 0;
 
 	handler->channel.data_head = handler->channel.data_tail = 0;
-	handler->channel_info->submr_tail = handler->channel_info->submr_head = 0;
-	handler->channel_info->compr_tail = handler->channel_info->compr_head = 0;
+	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
+	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
-	handler->channel_info->need_reset = 0;
+	handler->channel_ctrl->need_reset = 0;
 	smp_mb();
 }
 
@@ -164,7 +164,7 @@ static void handle_work_fn(struct work_struct *work)
 	int ret;
 
 	smp_mb();
-	if (handler->channel_info->need_reset) {
+	if (handler->channel_ctrl->need_reset) {
 		pr_err("need_reset\n");
 		if (atomic_read(&handler->inflight_cmds))
 			goto out;
@@ -221,27 +221,32 @@ miss:
 	cbdwc_miss(&handler->handle_worker_cfg);
 
 out:
-	if (handler->channel_info->polling)
+	if (handler->channel_ctrl->polling)
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 	else
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 1);
 }
 
-static void handler_channel_init(struct cbd_handler *handler, u32 channel_id)
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool reset)
 {
 	struct cbd_transport *cbdt = handler->cbdb->cbdt;
+	struct cbd_channel_init_options init_opts = { 0 };
 
+	init_opts.backend_id = handler->cbdb->backend_id;
+	init_opts.seg_id = channel_id;
+	init_opts.new_channel = true;
 	cbd_channel_init(&handler->channel, cbdt, channel_id, true);
-	handler->channel_info = &handler->channel.channel_info;
+	handler->channel_ctrl = handler->channel.ctrl;
+
+	if (!reset)
+		return;
 
 	handler->channel.data_head = handler->channel.data_tail = 0;
-	handler->channel_info->submr_tail = handler->channel_info->submr_head = 0;
-	handler->channel_info->compr_tail = handler->channel_info->compr_head = 0;
+	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
+	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
-	handler->channel_info->backend_id = handler->cbdb->backend_id;
-
-	handler->channel_info->need_reset = 0;
-	handler->channel_info->polling = 0;
+	handler->channel_ctrl->need_reset = 0;
+	handler->channel_ctrl->polling = 0;
 }
 
 int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_channel)
@@ -261,15 +266,9 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_chann
 		goto err;
 
 	handler->cbdb = cbdb;
-	if (init_channel) {
-		handler_channel_init(handler, channel_id);
-	} else {
-		cbd_channel_init(&handler->channel, cbdt, channel_id, true);
-	}
+	handler_channel_init(handler, channel_id, init_channel);
 
-	handler->channel_info = &handler->channel.channel_info;
-
-	handler->se_to_handle = handler->channel_info->submr_tail;
+	handler->se_to_handle = handler->channel_ctrl->submr_tail;
 	handler->req_tid_expected = U64_MAX;
 
 	spin_lock_init(&handler->compr_lock);

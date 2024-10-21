@@ -103,6 +103,7 @@ void cbd_channel_init(struct cbd_channel *channel, struct cbd_transport *cbdt, u
 
 	channel->cbdt = cbdt;
 	channel->seg_id = seg_id;
+	channel->ctrl = (void *)channel_info + CBDC_CTRL_OFF;
 	channel->submr = (void *)channel_info + CBDC_SUBMR_OFF;
 	channel->compr = (void *)channel_info + CBDC_COMPR_OFF;
 	channel->submr_size = rounddown(CBDC_SUBMR_SIZE, sizeof(struct cbd_se));

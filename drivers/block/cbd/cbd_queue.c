@@ -4,28 +4,28 @@
 
 static inline struct cbd_se *get_submit_entry(struct cbd_queue *cbdq)
 {
-	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_info->submr_head);
+	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_ctrl->submr_head);
 }
 
 static inline struct cbd_se *get_oldest_se(struct cbd_queue *cbdq)
 {
-	if (cbdq->channel_info->submr_tail == cbdq->channel_info->submr_head)
+	if (cbdq->channel_ctrl->submr_tail == cbdq->channel_ctrl->submr_head)
 		return NULL;
 
-	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_info->submr_tail);
+	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_ctrl->submr_tail);
 }
 
 static inline bool queue_subm_ring_empty(struct cbd_queue *cbdq)
 {
-	return (cbdq->channel_info->submr_tail == cbdq->channel_info->submr_head);
+	return (cbdq->channel_ctrl->submr_tail == cbdq->channel_ctrl->submr_head);
 }
 
 static inline struct cbd_ce *get_complete_entry(struct cbd_queue *cbdq)
 {
-	if (cbdq->channel_info->compr_tail == cbdq->channel_info->compr_head)
+	if (cbdq->channel_ctrl->compr_tail == cbdq->channel_ctrl->compr_head)
 		return NULL;
 
-	return (struct cbd_ce *)(cbdq->channel.compr + cbdq->channel_info->compr_tail);
+	return (struct cbd_ce *)(cbdq->channel.compr + cbdq->channel_ctrl->compr_tail);
 }
 
 static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request *rq)
@@ -104,13 +104,13 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 static bool submit_ring_full(struct cbd_queue *cbdq)
 {
 	u32 space_available = cbdq->channel.submr_size;
-	struct cbd_channel_seg_info *info = cbdq->channel_info;
+	struct cbd_channel_ctrl *ctrl = cbdq->channel_ctrl;
 
-	if (info->submr_head > info->submr_tail) {
-		space_available = cbdq->channel.submr_size - info->submr_head;
-		space_available += info->submr_tail;
-	} else if (info->submr_head < info->submr_tail) {
-		space_available = info->submr_tail - info->submr_head;
+	if (ctrl->submr_head > ctrl->submr_tail) {
+		space_available = cbdq->channel.submr_size - ctrl->submr_head;
+		space_available += ctrl->submr_tail;
+	} else if (ctrl->submr_head < ctrl->submr_tail) {
+		space_available = ctrl->submr_tail - ctrl->submr_head;
 	}
 
 	/* There is a SUBMR_RESERVED we dont use to prevent the ring to be used up */
@@ -234,7 +234,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
 #endif
-	CBDC_UPDATE_SUBMR_HEAD(cbdq->channel_info->submr_head,
+	CBDC_UPDATE_SUBMR_HEAD(cbdq->channel_ctrl->submr_head,
 			sizeof(struct cbd_se),
 			cbdq->channel.submr_size);
 	spin_unlock(&cbdq->channel.submr_lock);
@@ -275,7 +275,7 @@ again:
 		goto out;
 
 	if (cbd_se_flags_test(se, CBD_SE_FLAGS_DONE)) {
-		CBDC_UPDATE_SUBMR_TAIL(cbdq->channel_info->submr_tail,
+		CBDC_UPDATE_SUBMR_TAIL(cbdq->channel_ctrl->submr_tail,
 				sizeof(struct cbd_se),
 				cbdq->channel.submr_size);
 		goto again;
@@ -366,10 +366,10 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 static void queue_reset_channel(struct cbd_queue *cbdq)
 {
 	smp_mb();
-	cbdq->channel_info->need_reset = 1;
+	cbdq->channel_ctrl->need_reset = 1;
 
 	smp_mb();
-	while (cbdq->channel_info->need_reset || !queue_subm_ring_empty(cbdq))
+	while (cbdq->channel_ctrl->need_reset || !queue_subm_ring_empty(cbdq))
 		fsleep(100000);
 }
 
@@ -416,7 +416,7 @@ again:
 #endif
 
 	cbdwc_hit(&cbdq->complete_worker_cfg);
-	CBDC_UPDATE_COMPR_TAIL(cbdq->channel_info->compr_tail,
+	CBDC_UPDATE_COMPR_TAIL(cbdq->channel_ctrl->compr_tail,
 			       sizeof(struct cbd_ce),
 			       cbdq->channel.compr_size);
 
@@ -503,10 +503,10 @@ static void cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
 
 	cbd_channel_init(&cbdq->channel, cbdt, channel_id, false);
-	cbdq->channel_info = &cbdq->channel.channel_info;
+	cbdq->channel_ctrl = cbdq->channel.ctrl;
 
 	if (!cbd_blkdev->backend)
-		cbdq->channel_info->polling = true;
+		cbdq->channel_ctrl->polling = true;
 }
 
 int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)

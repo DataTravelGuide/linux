@@ -701,7 +701,9 @@ enum cbdc_backend_state {
 struct cbd_channel_seg_info {
 	struct cbd_segment_info seg_info;	/* must be the first member */
 	u32	backend_id;
+};
 
+struct cbd_channel_ctrl {
 	u64	polling:1;
 	u64	need_reset:1;
 
@@ -712,15 +714,11 @@ struct cbd_channel_seg_info {
 	u32	compr_tail;
 };
 
-struct cbd_channel_ctrl_info {
-	u64	polling:1;
-	u64	need_reset:1;
+struct cbd_channel_init_options {
+	bool	new_channel;
 
-	u32	submr_head;
-	u32	submr_tail;
-
-	u32	compr_head;
-	u32	compr_tail;
+	u32	seg_id;
+	u32	backend_id;
 };
 
 struct cbd_channel {
@@ -733,6 +731,7 @@ struct cbd_channel {
 
 	struct cbd_transport		*cbdt;
 
+	struct cbd_channel_ctrl		*ctrl;
 	void				*submr;
 	void				*compr;
 
@@ -958,9 +957,9 @@ int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req);
 /* cbd_handler */
 struct cbd_handler {
 	struct cbd_backend	*cbdb;
-	struct cbd_channel_seg_info *channel_info;
 
 	struct cbd_channel	channel;
+	struct cbd_channel_ctrl	*channel_ctrl;
 	spinlock_t		compr_lock;
 
 	u32			se_to_handle;
@@ -1165,6 +1164,7 @@ struct cbd_queue {
 
 	struct cbd_channel_seg_info	*channel_info;
 	struct cbd_channel	channel;
+	struct cbd_channel_ctrl	*channel_ctrl;
 
 	atomic_t		state;
 
