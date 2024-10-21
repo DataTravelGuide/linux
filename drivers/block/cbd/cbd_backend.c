@@ -458,6 +458,9 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 		return -ENOENT;
 
 	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (!blkdev_info)
+			continue;
+
 		if (blkdev_info->state != cbd_blkdev_state_running)
 			continue;
 
@@ -486,6 +489,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	cancel_delayed_work_sync(&cbdb->hb_work);
 
 	destroy_handlers(cbdb);
+	pr_err("after destroy handler\n");
 
 	cbdt_backend_info_clear(cbdb->cbdt, cbdb->backend_id);
 

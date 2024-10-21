@@ -222,7 +222,7 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 	cbd_blkdev->disk = disk;
 
 	cbdt_add_blkdev(cbd_blkdev->cbdt, cbd_blkdev);
-	cbd_blkdev->blkdev_info->mapped_id = cbd_blkdev->blkdev_id;
+	cbd_blkdev->blkdev_info.mapped_id = cbd_blkdev->blkdev_id;
 
 	set_capacity(cbd_blkdev->disk, cbd_blkdev->dev_size);
 	set_disk_ro(cbd_blkdev->disk, false);
@@ -248,6 +248,19 @@ err:
 	return ret;
 }
 
+static void blkdev_info_write(struct cbd_blkdev *blkdev)
+{
+	struct cbd_blkdev_info *blkdev_info;
+
+	mutex_lock(&blkdev->info_lock);
+	blkdev->blkdev_info.alive_ts = ktime_get_real();
+	cbdt_blkdev_info_write(blkdev->cbdt, &blkdev->blkdev_info,
+			       sizeof(struct cbd_blkdev_info),
+			       blkdev->blkdev_id, blkdev->info_index);
+	blkdev->info_index = (blkdev->info_index + 1) % CBDT_META_INDEX_MAX;
+	mutex_unlock(&blkdev->info_lock);
+}
+
 int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 {
 	struct cbd_blkdev *cbd_blkdev;
@@ -265,6 +278,9 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	}
 
 	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (!blkdev_info)
+			continue;
+
 		if (blkdev_info->state != cbd_blkdev_state_running)
 			continue;
 
@@ -290,6 +306,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		return -ENOMEM;
 
 	mutex_init(&cbd_blkdev->lock);
+	mutex_init(&cbd_blkdev->info_lock);
 
 	if (backend_info->host_id == cbdt->host->host_id)
 		cbd_blkdev->backend = cbdt_get_backend(cbdt, backend_id);
@@ -318,12 +335,11 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	cbd_blkdev->backend_id = backend_id;
 	cbd_blkdev->num_queues = queues;
 	cbd_blkdev->dev_size = dev_size;
-	cbd_blkdev->blkdev_info = cbdt_get_blkdev_info(cbdt, cbd_blkdev->blkdev_id);
 	cbd_blkdev->blkdev_dev = &cbdt->cbd_blkdevs_dev->blkdev_devs[cbd_blkdev->blkdev_id];
 
-	cbd_blkdev->blkdev_info->backend_id = backend_id;
-	cbd_blkdev->blkdev_info->host_id = cbdt->host->host_id;
-	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_running;
+	cbd_blkdev->blkdev_info.backend_id = backend_id;
+	cbd_blkdev->blkdev_info.host_id = cbdt->host->host_id;
+	cbd_blkdev->blkdev_info.state = cbd_blkdev_state_running;
 
 	if (cbd_backend_cache_on(backend_info)) {
 		struct cbd_cache_opts cache_opts = { 0 };
@@ -364,7 +380,6 @@ destroy_cache:
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 destroy_wq:
-	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 	destroy_workqueue(cbd_blkdev->task_wq);
 ida_remove:
 	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
@@ -398,14 +413,16 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	cbdt_del_blkdev(cbdt, cbd_blkdev);
 	mutex_unlock(&cbd_blkdev->lock);
 
+	pr_err("before stop queues\n");
 	cbd_blkdev_stop_queues(cbd_blkdev);
+	pr_err("after stop queues\n");
 	disk_stop(cbd_blkdev);
 	kfree(cbd_blkdev->queues);
 
+	pr_err("before cancel hb_work\n");
 	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
-	cbd_blkdev->blkdev_info->backend_id = UINT_MAX;
-	cbd_blkdev->blkdev_info->state = cbd_blkdev_state_none;
 
+	pr_err("before drain workqueue\n");
 	drain_workqueue(cbd_blkdev->task_wq);
 	destroy_workqueue(cbd_blkdev->task_wq);
 	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
@@ -413,6 +430,9 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 
+	pr_err("before blkdev_info_clear\n");
+	cbdt_blkdev_info_clear(cbdt, devid);
+	pr_err("after blkdev_clear\n");
 	kfree(cbd_blkdev);
 
 	return 0;
@@ -422,7 +442,12 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 {
 	struct cbd_blkdev_info *blkdev_info;
 
-	blkdev_info = cbdt_get_blkdev_info(cbdt, devid);
+	blkdev_info = cbdt_blkdev_info_read(cbdt, devid, NULL);
+	if (!blkdev_info) {
+		cbdt_err(cbdt, "all blkdev_info in blkdev_id: %u are corrupted.\n", devid);
+		return -EINVAL;
+	}
+
 	if (cbd_blkdev_info_is_alive(blkdev_info)) {
 		cbdt_err(cbdt, "blkdev %u is still alive\n", devid);
 		return -EBUSY;
@@ -452,5 +477,5 @@ void cbd_blkdev_exit(void)
 
 void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
 {
-	return;
+	blkdev_info_write(blkdev);
 }

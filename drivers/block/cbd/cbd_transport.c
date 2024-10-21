@@ -184,7 +184,7 @@ void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id)		\
 	struct cbd_##OBJ##_info *info;						\
 										\
 	mutex_lock(&cbdt->lock);						\
-	info = cbdt_get_##OBJ##_info(cbdt, id);					\
+	info = __get_##OBJ##_info(cbdt, id);					\
 	cbdt_zero_range(cbdt, info, OBJ_STRIDE);				\
 	mutex_unlock(&cbdt->lock);						\
 }

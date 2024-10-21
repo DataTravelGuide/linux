@@ -1235,7 +1235,9 @@ struct cbd_blkdev {
 	struct workqueue_struct	*task_wq;
 
 	struct cbd_blkdev_device *blkdev_dev;
-	struct cbd_blkdev_info *blkdev_info;
+	struct cbd_blkdev_info	blkdev_info;
+	struct mutex		info_lock;
+	u32			info_index;
 
 	struct cbd_transport *cbdt;
 
@@ -1253,7 +1255,7 @@ extern struct workqueue_struct	*cbd_wq;
 
 /* cbd_for_each functions to traverse object info */
 #define cbd_for_each_blkdev_info(cbdt, i, blkdev_info)					\
-	for (i = 0, blkdev_info = cbdt_get_blkdev_info(cbdt, i);			\
+	for (i = 0, blkdev_info = cbdt_blkdev_info_read(cbdt, i, NULL);			\
 	     i < cbdt->transport_info->blkdev_num;					\
 	     i++)
 

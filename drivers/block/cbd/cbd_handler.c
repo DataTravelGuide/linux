@@ -293,8 +293,10 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 
 	cancel_delayed_work_sync(&handler->handle_work);
 
+	pr_err("before inflith\n");
 	while (atomic_read(&handler->inflight_cmds))
 		fsleep(100000);
+	pr_err("after inflight\n");
 
 	cbd_channel_exit(&handler->channel);
 
