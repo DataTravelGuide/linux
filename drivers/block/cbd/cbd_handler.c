@@ -140,7 +140,7 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
 	return (req_tid == handler->req_tid_expected);
 }
 
-static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool reset);
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool new_channel);
 static void handler_reset(struct cbd_handler *handler)
 {
 	pr_err("channel_reset\n");
@@ -227,7 +227,7 @@ out:
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 1);
 }
 
-static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool reset)
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool new_channel)
 {
 	struct cbd_transport *cbdt = handler->cbdb->cbdt;
 	struct cbd_channel_init_options init_opts = { 0 };
@@ -235,11 +235,11 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bo
 	init_opts.cbdt = cbdt;
 	init_opts.backend_id = handler->cbdb->backend_id;
 	init_opts.seg_id = channel_id;
-	init_opts.new_channel = true;
+	init_opts.new_channel = new_channel;
 	cbd_channel_init(&handler->channel, &init_opts);
 	handler->channel_ctrl = handler->channel.ctrl;
 
-	if (!reset)
+	if (!new_channel)
 		return;
 
 	handler->channel.data_head = handler->channel.data_tail = 0;
@@ -250,7 +250,7 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bo
 	handler->channel_ctrl->polling = 0;
 }
 
-int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_channel)
+int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channel)
 {
 	struct cbd_transport *cbdt = cbdb->cbdt;
 	struct cbd_handler *handler;
@@ -267,18 +267,15 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool init_chann
 		goto err;
 
 	handler->cbdb = cbdb;
-	handler_channel_init(handler, channel_id, init_channel);
+	handler_channel_init(handler, channel_id, new_channel);
 
 	handler->se_to_handle = handler->channel_ctrl->submr_tail;
 	handler->req_tid_expected = U64_MAX;
 
 	spin_lock_init(&handler->compr_lock);
 	INIT_DELAYED_WORK(&handler->handle_work, handle_work_fn);
-
 	cbdwc_init(&handler->handle_worker_cfg);
-
 	cbdb_add_handler(cbdb, handler);
-
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 
 	return 0;
