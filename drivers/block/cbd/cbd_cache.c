@@ -82,6 +82,7 @@ static inline void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_po
 }
 
 /* cbd_cache_seg_ops */
+static void cache_info_write(struct cbd_cache *cache);
 static struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache *cache = cache_seg->cache;
@@ -144,9 +145,9 @@ static ssize_t gc_percent_show(struct device *dev,
 }
 
 static ssize_t gc_percent_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf,
-					size_t size)
+				struct device_attribute *attr,
+				const char *buf,
+				size_t size)
 {
 	struct cbd_backend *backend;
 	unsigned long val;
@@ -165,6 +166,8 @@ static ssize_t gc_percent_store(struct device *dev,
 		return -EINVAL;
 
 	backend->cbd_cache->cache_info->gc_percent = val;
+
+	cache_info_write(backend->cbd_cache);
 
 	return size;
 }
@@ -2559,4 +2562,16 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 		kvfree(cache->cache_trees);
 
 	kfree(cache);
+}
+
+void cbd_backend_info_write(struct cbd_backend *cbdb);
+static void cache_info_write(struct cbd_cache *cache)
+{
+	struct cbd_backend_info *backend_info;
+	struct cbd_backend *backend;
+
+	backend_info = container_of(cache->cache_info, struct cbd_backend_info, cache_info);
+	backend = container_of(backend_info, struct cbd_backend, backend_info);
+
+	cbd_backend_info_write(backend);
 }

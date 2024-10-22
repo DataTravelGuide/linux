@@ -324,7 +324,7 @@ static u32 cbd_backend_info_crc(struct cbd_backend_info *backend_info)
 	return crc32(0, (void *)backend_info + 4, sizeof(*backend_info) - 4);
 }
 
-static void cbd_backend_info_write(struct cbd_backend *cbdb)
+void cbd_backend_info_write(struct cbd_backend *cbdb)
 {
 	struct cbd_backend_info *backend_info;
 

@@ -131,9 +131,9 @@ enum cbd_cache_state {
 
 struct cbd_cache {
 	struct cbd_transport		*cbdt;
-	struct cbd_cache_info		*cache_info;
 	u32				cache_id;	/* same with related backend->backend_id */
 
+	struct cbd_cache_info		*cache_info;
 	struct cbd_cache_meta		*cache_meta;
 
 	u32				n_heads;
