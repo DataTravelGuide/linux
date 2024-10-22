@@ -474,6 +474,31 @@ static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 	return latest;
 }
 
+static inline struct cbd_meta_header *cbd_meta_find_oldest(struct cbd_meta_header *header,
+							   u32 meta_size)
+{
+	struct cbd_meta_header *meta, *oldest = NULL;
+	u32 i;
+
+	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
+		meta = (void *)header + (meta_size * i);
+		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
+			oldest = meta;
+			break;
+		}
+
+		if (!oldest) {
+			oldest = meta;
+			continue;
+		}
+
+		if (cbd_meta_seq_after(oldest->seq, meta->seq))
+			oldest = meta;
+	}
+
+	return oldest;
+}
+
 #include "cbd_transport.h"
 
 #include "cbd_host.h"

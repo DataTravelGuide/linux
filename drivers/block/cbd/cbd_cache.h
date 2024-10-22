@@ -64,9 +64,17 @@ struct cbd_cache_segment {
 	struct cbd_segment		segment;
 	atomic_t			refs;
 
+	/* cache_seg_info is only updated by owner backend */
 	struct cbd_cache_seg_info	cache_seg_info;
 	u32				info_index;
 	struct mutex			info_lock;
+
+	u64				gen;
+	u32				next_cache_seg_id;
+	u64				wb_flags;
+	u64				gc_flags;
+	struct cbd_cache_seg_ctrl	*cache_seg_ctrl;
+	struct mutex			ctrl_lock;
 };
 
 enum cbd_cache_seg_state {
@@ -93,6 +101,7 @@ struct cbd_cache_info {
 #define CBDT_CACHE_CTRL_SIZE	PAGE_SIZE
 
 struct cbd_cache_ctrl {
+	struct cbd_cache_seg_ctrl	cache_seg_ctrl;
 	struct cbd_cache_pos_onmedia key_tail_pos[CBDT_META_INDEX_MAX];
 	struct cbd_cache_pos_onmedia dirty_tail_pos[CBDT_META_INDEX_MAX];
 };
