@@ -2287,6 +2287,88 @@ void cbd_cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
 	cache_info->gc_percent = CBD_CACHE_GC_PERCENT_DEFAULT;
 }
 
+static void cache_segments_destroy(struct cbd_cache *cache)
+{
+	struct cbd_cache_segment *cache_seg;
+	u32 i;
+
+	for (i = 0; i < cache->n_segs; i++) {
+		cache_seg = &cache->segments[i];
+		if (cache_seg->state == cbd_cache_seg_state_none)
+			continue;
+		cache_seg_exit(&cache->segments[i]);
+	}
+}
+
+static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
+{
+	struct cbd_segment_info *prev_seg_info = NULL;
+	struct cbd_cache_info *cache_info = cache->cache_info;
+	struct cbd_transport *cbdt = cache->cbdt;
+	u32 seg_id;
+	int ret;
+	u32 i;
+
+	for (i = 0; i < cache_info->n_segs; i++) {
+		if (new_cache) {
+			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
+			if (ret)
+				goto segments_destroy;
+
+			if (prev_seg_info) {
+				prev_seg_info->flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
+				prev_seg_info->next_seg = seg_id;
+			} else {
+				cache_info->seg_id = seg_id;
+			}
+
+		} else {
+			if (prev_seg_info) {
+				if (!prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT) {
+					ret = -EFAULT;
+					goto segments_destroy;
+				}
+				seg_id = prev_seg_info->next_seg;
+			} else {
+				seg_id = cache_info->seg_id;
+			}
+		}
+
+		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
+		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
+		if (cache_seg_is_meta_seg(i))
+			cache->cache_meta = (void *)prev_seg_info + CBDT_CACHE_META_OFF;
+		cache_seg_init(cache, seg_id, i);
+	}
+
+	if (new_cache) {
+		/* get first segment for key */
+		set_bit(0, cache->seg_map);
+
+		cache->key_head.cache_seg = &cache->segments[0];
+		cache->key_head.seg_off = 0;
+		cache_pos_copy(&cache->key_tail, &cache->key_head);
+		cache_pos_copy(&cache->dirty_tail, &cache->key_head);
+
+		cache_encode_dirty_tail(cache);
+		cache_encode_key_tail(cache);
+	} else {
+		//pr_err("read key_tail \n");
+		if (cache_decode_key_tail(cache) || cache_decode_dirty_tail(cache)) {
+			cbd_cache_err(cache, "Corrupted key tail or dirty tail.\n");
+			ret = -EIO;
+			goto segments_destroy;
+		}
+	}
+
+	return 0;
+
+segments_destroy:
+	cache_segments_destroy(cache);
+
+	return ret;
+}
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
@@ -2299,7 +2381,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	int ret;
 	int i;
 
-	/* options sanitize */
+	/* options validate */
 	if (opts->n_paral > CBD_CACHE_PARAL_MAX) {
 		cbdt_err(cbdt, "n_paral too large (max %u).\n",
 			 CBD_CACHE_PARAL_MAX);
@@ -2316,6 +2398,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		return NULL;
 	}
 
+	/* allocations */
 	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
 	if (!cache)
 		return NULL;
@@ -2367,57 +2450,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 
 	cache->dev_size = opts->dev_size;
 
-	for (i = 0; i < cache_info->n_segs; i++) {
-		if (opts->alloc_segs) {
-			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
-			if (ret)
-				goto destroy_cache;
-
-			if (prev_seg_info) {
-				prev_seg_info->flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
-				prev_seg_info->next_seg = seg_id;
-			} else {
-				cache_info->seg_id = seg_id;
-			}
-
-		} else {
-			if (prev_seg_info) {
-				if (!prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT) {
-					ret = -EFAULT;
-					goto destroy_cache;
-				}
-				seg_id = prev_seg_info->next_seg;
-			} else {
-				seg_id = cache_info->seg_id;
-			}
-		}
-
-		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
-		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
-		if (cache_seg_is_meta_seg(i))
-			cache->cache_meta = (void *)prev_seg_info + CBDT_CACHE_META_OFF;
-		cache_seg_init(cache, seg_id, i);
-	}
-
-	if (opts->alloc_segs) {
-		/* get first segment for key */
-		set_bit(0, cache->seg_map);
-
-		cache->key_head.cache_seg = &cache->segments[0];
-		cache->key_head.seg_off = 0;
-		cache_pos_copy(&cache->key_tail, &cache->key_head);
-		cache_pos_copy(&cache->dirty_tail, &cache->key_head);
-
-		cache_encode_dirty_tail(cache);
-		cache_encode_key_tail(cache);
-	} else {
-		//pr_err("read key_tail \n");
-		if (cache_decode_key_tail(cache) || cache_decode_dirty_tail(cache)) {
-			cbd_cache_err(cache, "Corrupted key tail or dirty tail.\n");
-			ret = -EIO;
-			goto destroy_cache;
-		}
-	}
 
 	cache->state = cbd_cache_state_running;
 

@@ -556,7 +556,10 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 		struct cbd_channel_seg_info *channel_info;
 		struct cbd_cache_seg_info *cache_seg_info;
 
-		seg_info = cbdt_get_segment_info(cbdt, i);
+		seg_info = cbdt_segment_info_read(cbdt, i, NULL);
+		if (!seg_info)
+			continue;
+
 		if (seg_info->type == cbds_type_channel) {
 			channel_info = (struct cbd_channel_seg_info *)seg_info;
 			/* release the channels backend is using */
