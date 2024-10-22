@@ -257,10 +257,10 @@ static void cache_seg_init(struct cbd_cache *cache,
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	seg_options.type = cbds_type_cache;
-	/*TODO CBDT_CACHE_META_OFF splite frequently changed member from info to meta*/
-	seg_options.data_off = CBDT_CACHE_META_OFF;
+	/*TODO CBDT_CACHE_CTRL_OFF splite frequently changed member from info to meta*/
+	seg_options.data_off = CBDT_CACHE_CTRL_OFF;
 	if (cache_seg_is_meta_seg(cache_seg_id))
-		seg_options.data_off += CBDT_CACHE_META_SIZE;
+		seg_options.data_off += CBDT_CACHE_CTRL_SIZE;
 	seg_options.seg_ops = &cbd_cache_seg_ops;
 	seg_options.seg_id = seg_id;
 
@@ -1695,14 +1695,14 @@ static void cache_pos_encode(struct cbd_cache *cache,
 
 	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
 		pos_om = &pos_onmedia[i];
-		if (pos_om->crc != cache_pos_onmedia_crc(pos_om)) {
+		if (pos_om->header.crc != cache_pos_onmedia_crc(pos_om)) {
 			pr_err("crc bad %u\n", i);
 			oldest_pos = pos_om;
 			continue;
 		}
 
-		if (pos_om->seq > newest_seq)
-			newest_seq = pos_om->seq;
+		if (pos_om->header.seq > newest_seq)
+			newest_seq = pos_om->header.seq;
 
 		if (!oldest_pos) {
 			//pr_err("init oldest %u\n", i);
@@ -1710,7 +1710,7 @@ static void cache_pos_encode(struct cbd_cache *cache,
 			continue;
 		}
 
-		if (pos_om->seq < oldest_pos->seq) {
+		if (pos_om->header.seq < oldest_pos->header.seq) {
 			//pr_err("seq : %llu, %u\n", pos_om->seq, i);
 			oldest_pos = pos_om;
 		}
@@ -1718,14 +1718,14 @@ static void cache_pos_encode(struct cbd_cache *cache,
 
 	BUG_ON(!oldest_pos);
 
-	oldest_pos->seq = newest_seq + 1;
+	oldest_pos->header.seq = newest_seq + 1;
 
 	//cbd_cache_err(cache, "%s oldest: %p set seq: %llu seg_id: %u\n", debug, oldest_pos, oldest_pos->seq, pos->cache_seg->cache_seg_id);
 	oldest_pos->cache_seg_id = pos->cache_seg->cache_seg_id;
 	//cbd_cache_err(cache, "%s finish set seg_off: %u\n", debug, pos->seg_off);
 	oldest_pos->seg_off = pos->seg_off;
 
-	oldest_pos->crc = cache_pos_onmedia_crc(oldest_pos);
+	oldest_pos->header.crc = cache_pos_onmedia_crc(oldest_pos);
 
 	//dax_flush(cache->cbdt->dax_dev, oldest_pos, sizeof(*oldest_pos));
 	//cbd_cache_err(cache, "%s dax_flush oldest_pos seq: %llu , crc: %u\n", debug, oldest_pos->seq, oldest_pos->crc);
@@ -1740,7 +1740,7 @@ static int cache_pos_decode(struct cbd_cache *cache,
 
 	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
 		pos_om = &pos_onmedia[i];
-		if (pos_om->crc != cache_pos_onmedia_crc(pos_om)) {
+		if (pos_om->header.crc != cache_pos_onmedia_crc(pos_om)) {
 			//cbd_cache_err(cache, "pos crc: %u, seq: %llu, onmedia crc: %u\n", pos_om->crc, pos_om->seq, cache_pos_onmedia_crc(pos_om));
 			continue;
 		}
@@ -1750,7 +1750,7 @@ static int cache_pos_decode(struct cbd_cache *cache,
 			continue;
 		}
 
-		if (pos_om->seq > newest_pos->seq)
+		if (pos_om->header.seq > newest_pos->header.seq)
 			newest_pos = pos_om;
 	}
 
@@ -1768,7 +1768,7 @@ static void cache_encode_key_tail(struct cbd_cache *cache)
 {
 	//pr_err("update key tail\n");
 	mutex_lock(&cache->key_tail_lock);
-	cache_pos_encode(cache, cache->cache_meta->key_tail_pos, &cache->key_tail, "key_tail");
+	cache_pos_encode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail, "key_tail");
 	mutex_unlock(&cache->key_tail_lock);
 }
 
@@ -1777,7 +1777,7 @@ static int cache_decode_key_tail(struct cbd_cache *cache)
 	int ret;
 
 	mutex_lock(&cache->key_tail_lock);
-	ret = cache_pos_decode(cache, cache->cache_meta->key_tail_pos, &cache->key_tail);
+	ret = cache_pos_decode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail);
 	mutex_unlock(&cache->key_tail_lock);
 
 	return ret;
@@ -1787,7 +1787,7 @@ static void cache_encode_dirty_tail(struct cbd_cache *cache)
 {
 	//pr_err("update dirty tail\n");
 	mutex_lock(&cache->dirty_tail_lock);
-	cache_pos_encode(cache, cache->cache_meta->dirty_tail_pos, &cache->dirty_tail, "dirty tail");
+	cache_pos_encode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail, "dirty tail");
 	mutex_unlock(&cache->dirty_tail_lock);
 }
 
@@ -1796,7 +1796,7 @@ static int cache_decode_dirty_tail(struct cbd_cache *cache)
 	int ret;
 
 	mutex_lock(&cache->dirty_tail_lock);
-	ret = cache_pos_decode(cache, cache->cache_meta->dirty_tail_pos, &cache->dirty_tail);
+	ret = cache_pos_decode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail);
 	mutex_unlock(&cache->dirty_tail_lock);
 
 	return ret;
@@ -2348,7 +2348,7 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 		if (cache_seg_is_meta_seg(i))
-			cache->cache_meta = (void *)prev_seg_info + CBDT_CACHE_META_OFF;
+			cache->cache_ctrl = (void *)prev_seg_info + CBDT_CACHE_CTRL_OFF;
 		cache_seg_init(cache, seg_id, i, new_cache);
 	}
 

@@ -6,9 +6,49 @@
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
 	u32 backend_id;
+	u32 next_cache_seg_id;
 	u32 flags;
-	u32 next_cache_seg_id;		/* index in cache->segments */
 	u64 gen;
+};
+
+struct cbd_cache_seg_next {
+	struct cbd_meta_header header;
+	u32 next_cache_seg_id;		/* index in cache->segments */
+};
+
+struct cbd_cache_seg_gen {
+	struct cbd_meta_header header;
+	u64 gen;
+};
+
+struct cbd_cache_seg_wb_flags {
+	struct cbd_meta_header header;
+	u64 wb_flags;
+};
+
+struct cbd_cache_seg_gc_flags {
+	struct cbd_meta_header header;
+	u64 gc_flags;
+};
+
+struct cbd_cache_pos_onmedia {
+	struct cbd_meta_header header;
+	u32 cache_seg_id;
+	u32 seg_off;
+};
+
+struct cbd_cache_seg_ctrl {
+	/* updated by blkdev, it would be changed after gc and reallocated. */
+	struct cbd_cache_seg_next next_cache_seg[CBDT_META_INDEX_MAX];
+
+	/* updated by blkdev, it is increased in invalidating */
+	struct cbd_cache_seg_gen gen[CBDT_META_INDEX_MAX];
+
+	/* updated by backend in writeback_fn, */
+	struct cbd_cache_seg_wb_flags wb_flags[CBDT_META_INDEX_MAX];
+
+	/* updated by blkdev in gc_fn */
+	struct cbd_cache_seg_gc_flags gc_flags[CBDT_META_INDEX_MAX];
 };
 
 #define CBD_CACHE_SEG_FLAGS_HAS_NEXT	(1 << 0)
@@ -39,14 +79,6 @@ struct cbd_cache_pos {
 	u32		seg_off;
 };
 
-struct cbd_cache_pos_onmedia {
-	u32 crc;
-	u32 res;
-	u64 seq;
-	u32 cache_seg_id;
-	u32 seg_off;
-};
-
 struct cbd_cache_info {
 	u32	seg_id;
 	u32	n_segs;
@@ -56,11 +88,11 @@ struct cbd_cache_info {
 	u32	res2;
 };
 
-/* put cbd cache metadata at CBD_CACHE_META_OFF of first cqche segment */
-#define CBDT_CACHE_META_OFF	CBDT_SEG_INFO_SIZE
-#define CBDT_CACHE_META_SIZE	PAGE_SIZE
+/* put cbd cache metadata at CBD_CACHE_CTRL_OFF of first cqche segment */
+#define CBDT_CACHE_CTRL_OFF	CBDT_SEG_INFO_SIZE
+#define CBDT_CACHE_CTRL_SIZE	PAGE_SIZE
 
-struct cbd_cache_meta {
+struct cbd_cache_ctrl {
 	struct cbd_cache_pos_onmedia key_tail_pos[CBDT_META_INDEX_MAX];
 	struct cbd_cache_pos_onmedia dirty_tail_pos[CBDT_META_INDEX_MAX];
 };
@@ -143,7 +175,7 @@ struct cbd_cache {
 	u32				cache_id;	/* same with related backend->backend_id */
 
 	struct cbd_cache_info		*cache_info;
-	struct cbd_cache_meta		*cache_meta;
+	struct cbd_cache_ctrl		*cache_ctrl;
 
 	u32				n_heads;
 	struct cbd_cache_data_head	*data_heads;
