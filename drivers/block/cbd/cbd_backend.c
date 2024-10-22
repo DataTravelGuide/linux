@@ -255,6 +255,32 @@ static void backend_cache_destroy(struct cbd_backend *cbdb)
 	}
 }
 
+static int cbd_backend_info_init(struct cbd_backend *cbdb, char *path,
+				 u32 handlers, u32 cache_segs)
+{
+	struct cbd_transport *cbdt = cbdb->cbdt;
+	u32 backend_id;
+	int ret;
+
+	ret = cbdt_get_empty_backend_id(cbdt, &backend_id);
+	if (ret)
+		goto err;
+
+	pr_err("get empty backend: %u\n", backend_id);
+	cbdb->backend_id = backend_id;
+	cbdb->backend_info.meta_header.version = 0;
+	cbdb->backend_info.host_id = cbdb->host_id;
+	cbdb->backend_info.n_handlers = handlers;
+
+	strscpy(cbdb->backend_info.path, path, CBD_PATH_LEN);
+
+	cbd_cache_info_init(&cbdb->backend_info.cache_info, cache_segs);
+
+	return 0;
+err:
+	return ret;
+}
+
 static int cbd_backend_info_load(struct cbd_backend *cbdb, u32 backend_id);
 static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id,
 			    u32 handlers, u32 cache_segs)
@@ -268,27 +294,18 @@ static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id
 
 	if (new_backend) {
 		/* new backend */
-		ret = cbdt_get_empty_backend_id(cbdt, &backend_id);
+		ret = cbd_backend_info_init(cbdb, path, handlers, cache_segs);
 		if (ret)
 			goto err;
-
-		pr_err("get empty backend: %u\n", backend_id);
-		cbdb->backend_info.meta_header.version = 0;
-		cbdb->backend_info.host_id = cbdb->host_id;
-		cbdb->backend_info.n_handlers = handlers;
-
-		strscpy(cbdb->backend_info.path, path, CBD_PATH_LEN);
-
-		cbdb->backend_info.cache_info.n_segs = cache_segs;
 	} else {
 		/* attach backend, this could happend after an unexpected power off */
 		cbdt_info(cbdt, "attach backend to backend_id: %u\n", backend_id);
-		ret = cbd_backend_info_load(cbdb, backend_id);
+		cbdb->backend_id = backend_id;
+		ret = cbd_backend_info_load(cbdb, cbdb->backend_id);
 		if (ret)
 			goto err;
 	}
 
-	cbdb->backend_id = backend_id;
 	cbdb->backend_device = &cbdt->cbd_backends_dev->backend_devs[cbdb->backend_id];
 	pr_err("backend_id: %u\n", cbdb->backend_id);
 

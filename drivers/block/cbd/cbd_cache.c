@@ -2281,6 +2281,12 @@ again:
 	}
 }
 
+void cbd_cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
+{
+	cache_info->n_segs = cache_segs;
+	cache_info->gc_percent = CBD_CACHE_GC_PERCENT_DEFAULT;
+}
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
@@ -2346,7 +2352,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->n_segs = cache_info->n_segs;
 	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
-	cache->cache_info->gc_percent = CBD_CACHE_GC_PERCENT_DEFAULT;
 
 	spin_lock_init(&cache->key_head_lock);
 	spin_lock_init(&cache->miss_read_reqs_lock);
