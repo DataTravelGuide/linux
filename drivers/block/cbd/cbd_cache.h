@@ -21,9 +21,12 @@ struct cbd_cache_segment {
 	u32				cache_seg_id;	/* index in cache->segments */
 	u32				used;
 	spinlock_t			gen_lock;
-	struct cbd_cache_seg_info	cache_seg_info;
 	struct cbd_segment		segment;
 	atomic_t			refs;
+
+	struct cbd_cache_seg_info	cache_seg_info;
+	u32				info_index;
+	struct mutex			info_lock;
 };
 
 enum cbd_cache_seg_state {

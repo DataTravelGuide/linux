@@ -248,7 +248,8 @@ static inline bool cache_seg_is_meta_seg(u32 cache_seg_id)
 
 /* cache_segment allocation and reclaim */
 static void cache_seg_init(struct cbd_cache *cache,
-			   u32 seg_id, u32 cache_seg_id)
+			   u32 seg_id, u32 cache_seg_id,
+			   bool new_cache)
 {
 	struct cbd_transport *cbdt = cache->cbdt;
 	struct cbd_cache_segment *cache_seg = &cache->segments[cache_seg_id];
@@ -2300,6 +2301,16 @@ static void cache_segments_destroy(struct cbd_cache *cache)
 	}
 }
 
+static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
+{
+	mutex_lock(&cache_seg->info_lock);
+	cbdt_segment_info_write(cache_seg->cache->cbdt, &cache_seg->cache_seg_info,
+				sizeof(struct cbd_cache_seg_info), cache_seg->segment.seg_id,
+				cache_seg->info_index);
+	cache_seg->info_index = (cache_seg->info_index + 1) % CBDT_META_INDEX_MAX;
+	mutex_unlock(&cache_seg->info_lock);
+}
+
 static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 {
 	struct cbd_segment_info *prev_seg_info = NULL;
@@ -2338,7 +2349,7 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 		if (cache_seg_is_meta_seg(i))
 			cache->cache_meta = (void *)prev_seg_info + CBDT_CACHE_META_OFF;
-		cache_seg_init(cache, seg_id, i);
+		cache_seg_init(cache, seg_id, i, new_cache);
 	}
 
 	if (new_cache) {
