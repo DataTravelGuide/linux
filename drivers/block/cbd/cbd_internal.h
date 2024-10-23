@@ -505,7 +505,7 @@ static inline struct cbd_meta_header *cbd_meta_find_oldest(struct cbd_meta_heade
 #include "cbd_segment.h"
 #include "cbd_channel.h"
 
-#include "cbd_cache.h"
+#include "cbd_cache/cbd_cache.h"
 
 #include "cbd_handler.h"
 #include "cbd_backend.h"
