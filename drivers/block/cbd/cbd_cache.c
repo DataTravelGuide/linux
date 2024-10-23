@@ -2380,6 +2380,82 @@ segments_destroy:
 	return ret;
 }
 
+static struct cbd_cache *cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_info *cache_info)
+{
+	struct cbd_cache *cache;
+
+	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
+	if (!cache) {
+		cbdt_err(cbdt, "failed to alloc cache\n");
+		goto err;
+	}
+
+	cache->seg_map = bitmap_zalloc(cache_info->n_segs, GFP_KERNEL);
+	if (!cache->seg_map) {
+		cbdt_err(cbdt, "failed to alloc bitmap\n");
+		goto free_cache;
+	}
+
+	cache->key_cache = KMEM_CACHE(cbd_cache_key, 0);
+	if (!cache->key_cache) {
+		cbdt_err(cbdt, "failed to alloc key_cache\n");
+		goto free_bitmap;
+	}
+
+	cache->req_cache = KMEM_CACHE(cbd_request, 0);
+	if (!cache->req_cache) {
+		cbdt_err(cbdt, "failed to alloc req_cache\n");
+		goto free_key_cache;
+	}
+
+	cache->cache_wq = alloc_workqueue("cbdt%d-c%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
+					0, cbdt->id, cache->cache_id);
+	if (!cache->cache_wq) {
+		cbdt_err(cbdt, "failed to alloc cache_wq\n");
+		goto free_req_cache;
+	}
+
+	cache->cbdt = cbdt;
+	cache->cache_info = cache_info;
+	cache->n_segs = cache_info->n_segs;
+	spin_lock_init(&cache->seg_map_lock);
+
+	spin_lock_init(&cache->key_head_lock);
+	spin_lock_init(&cache->miss_read_reqs_lock);
+	INIT_LIST_HEAD(&cache->miss_read_reqs);
+
+	mutex_init(&cache->key_tail_lock);
+	mutex_init(&cache->dirty_tail_lock);
+
+	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
+	INIT_DELAYED_WORK(&cache->gc_work, gc_fn);
+	INIT_WORK(&cache->clean_work, clean_fn);
+	INIT_WORK(&cache->miss_read_end_work, miss_read_end_work_fn);
+
+	return cache;
+
+free_req_cache:
+	kmem_cache_destroy(cache->req_cache);
+free_key_cache:
+	kmem_cache_destroy(cache->key_cache);
+free_bitmap:
+	bitmap_free(cache->seg_map);
+free_cache:
+	kfree(cache);
+err:
+	return NULL;
+}
+
+static void cache_free(struct cbd_cache *cache)
+{
+	drain_workqueue(cache->cache_wq);
+	destroy_workqueue(cache->cache_wq);
+	kmem_cache_destroy(cache->req_cache);
+	kmem_cache_destroy(cache->key_cache);
+	bitmap_free(cache->seg_map);
+	kfree(cache);
+}
+
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
@@ -2410,57 +2486,13 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	}
 
 	/* allocations */
-	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
+	cache = cache_alloc(cbdt, cache_info);
 	if (!cache)
 		return NULL;
 
-	cache->cache_id = opts->cache_id;
-
-	cache->seg_map = bitmap_zalloc(cache_info->n_segs, GFP_KERNEL);
-	if (!cache->seg_map) {
-		ret = -ENOMEM;
-		goto destroy_cache;
-	}
-
-	cache->key_cache = KMEM_CACHE(cbd_cache_key, 0);
-	if (!cache->key_cache) {
-		ret = -ENOMEM;
-		goto destroy_cache;
-	}
-
-	cache->req_cache = KMEM_CACHE(cbd_request, 0);
-	if (!cache->req_cache) {
-		ret = -ENOMEM;
-		goto destroy_cache;
-	}
-
-	cache->cache_wq = alloc_workqueue("cbdt%d-c%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
-					0, cbdt->id, cache->cache_id);
-	if (!cache->cache_wq) {
-		ret = -ENOMEM;
-		goto destroy_cache;
-	}
-
-	cache->cbdt = cbdt;
-	cache->cache_info = cache_info;
-	cache->n_segs = cache_info->n_segs;
-	spin_lock_init(&cache->seg_map_lock);
 	cache->bdev_file = opts->bdev_file;
-
-	spin_lock_init(&cache->key_head_lock);
-	spin_lock_init(&cache->miss_read_reqs_lock);
-	INIT_LIST_HEAD(&cache->miss_read_reqs);
-
-	mutex_init(&cache->key_tail_lock);
-	mutex_init(&cache->dirty_tail_lock);
-
-	INIT_DELAYED_WORK(&cache->writeback_work, writeback_fn);
-	INIT_DELAYED_WORK(&cache->gc_work, gc_fn);
-	INIT_WORK(&cache->clean_work, clean_fn);
-	INIT_WORK(&cache->miss_read_end_work, miss_read_end_work_fn);
-
 	cache->dev_size = opts->dev_size;
-
+	cache->cache_id = opts->cache_id;
 
 	cache->state = cbd_cache_state_running;
 
