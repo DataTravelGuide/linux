@@ -673,27 +673,6 @@ next_seg:
 	}
 }
 
-/*
- * function for flush_work, flush_work is queued in cache_key_append(). When key append
- * to kset, if this kset is full, then the kset will be closed immediately, if this kset
- * is not full, cache_key_append() will queue a kset->flush_work to close this kset later.
- */
-static void kset_flush_fn(struct work_struct *work)
-{
-	struct cbd_cache_kset *kset = container_of(work, struct cbd_cache_kset, flush_work.work);
-	struct cbd_cache *cache = kset->cache;
-	int ret;
-
-	spin_lock(&kset->kset_lock);
-	ret = cache_kset_close(cache, kset);
-	spin_unlock(&kset->kset_lock);
-
-	if (ret) {
-		/* Failed to flush kset, retry it. */
-		queue_delayed_work(cache->cache_wq, &kset->flush_work, 0);
-	}
-}
-
 void cbd_cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
 {
 	cache_info->n_segs = cache_segs;
