@@ -21,14 +21,20 @@ struct cbd_cache_seg_gen {
 	u64 gen;
 };
 
-struct cbd_cache_seg_wb_flags {
+struct cbd_cache_seg_wb_ctrl {
 	struct cbd_meta_header header;
-	u64 wb_flags;
+	u8 wb_flags;
+	u8 res;
+	u16 res1;
+	u32 res2;
 };
 
-struct cbd_cache_seg_gc_flags {
+struct cbd_cache_seg_gc_ctrl {
 	struct cbd_meta_header header;
-	u64 gc_flags;
+	u8 gc_flags;
+	u8 res;
+	u16 res1;
+	u32 res2;
 };
 
 struct cbd_cache_pos_onmedia {
@@ -45,10 +51,10 @@ struct cbd_cache_seg_ctrl {
 	struct cbd_cache_seg_gen gen[CBDT_META_INDEX_MAX];
 
 	/* updated by backend in writeback_fn, */
-	struct cbd_cache_seg_wb_flags wb_flags[CBDT_META_INDEX_MAX];
+	struct cbd_cache_seg_wb_ctrl wb_ctrl[CBDT_META_INDEX_MAX];
 
 	/* updated by blkdev in gc_fn */
-	struct cbd_cache_seg_gc_flags gc_flags[CBDT_META_INDEX_MAX];
+	struct cbd_cache_seg_gc_ctrl gc_ctrl[CBDT_META_INDEX_MAX];
 };
 
 #define CBD_CACHE_SEG_FLAGS_HAS_NEXT	(1 << 0)
@@ -71,8 +77,8 @@ struct cbd_cache_segment {
 
 	u64				gen;
 	u32				next_cache_seg_id;
-	u64				wb_flags;
-	u64				gc_flags;
+	u8				wb_flags;
+	u8				gc_flags;
 	struct cbd_cache_seg_ctrl	*cache_seg_ctrl;
 	struct mutex			ctrl_lock;
 };
