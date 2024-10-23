@@ -640,9 +640,10 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 			}
 		}
 
-		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
+		prev_cache_seg = &cache->segments[i];
+		pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
 		if (cache_seg_is_meta_seg(i))
-			cache->cache_ctrl = (void *)cbdt_get_segment_info(cbdt, seg_id) + CBDT_CACHE_CTRL_OFF;
+			cache->cache_ctrl = (void *)cbdt_get_segment_info(cbdt, seg_id) + CBDT_CACHE_SEG_CTRL_OFF;
 		cache_seg_init(cache, seg_id, i, new_cache);
 	}
 
