@@ -457,6 +457,7 @@ static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 			continue;
 		}
 
+		pr_err("i: %u, seq: %u\n", i, meta->seq);
 		if (!latest) {
 			latest = meta;
 			if (index)

@@ -4,6 +4,7 @@
 static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 {
 	mutex_lock(&cache_seg->info_lock);
+	cbd_cache_err(cache_seg->cache, "seq: %u\n", cache_seg->cache_seg_info.segment_info.meta_header.seq);
 	cbdt_segment_info_write(cache_seg->cache->cbdt, &cache_seg->cache_seg_info,
 				sizeof(struct cbd_cache_seg_info), cache_seg->segment.seg_id,
 				cache_seg->info_index);
@@ -13,8 +14,29 @@ static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 
 void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
 {
+	cache_seg->cache_seg_info.segment_info.flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
 	cache_seg->cache_seg_info.segment_info.next_seg = seg_id;
 	cache_seg_info_write(cache_seg);
+}
+
+static int cache_seg_info_load(struct cbd_cache_segment *cache_seg)
+{
+	struct cbd_segment_info *cache_seg_info;
+
+	mutex_lock(&cache_seg->info_lock);
+	cache_seg_info = cbdt_segment_info_read(cache_seg->cache->cbdt,
+						cache_seg->segment.seg_id,
+						&cache_seg->info_index);
+	if (!cache_seg_info) {
+		cbd_cache_err(cache_seg->cache, "can't read segment info of segment: %u\n",
+			      cache_seg->segment.seg_id);
+		return -EIO;
+	}
+
+	memcpy(&cache_seg->cache_seg_info, cache_seg_info, sizeof(struct cbd_cache_seg_info));
+	mutex_unlock(&cache_seg->info_lock);
+
+	return 0;
 }
 
 /* cbd_cache_seg_ops */
@@ -66,15 +88,16 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 	cache_seg->cache = cache;
 	cache_seg->cache_seg_id = cache_seg_id;
 
-	if (!new_cache)
-		return;
+	if (new_cache) {
+		cache_seg->cache_seg_info.segment_info.type = cbds_type_cache;
+		cache_seg->cache_seg_info.segment_info.state = cbd_segment_state_running;
+		cache_seg->cache_seg_info.segment_info.flags = 0;
 
-	cache_seg->cache_seg_info.segment_info.type = cbds_type_cache;
-	cache_seg->cache_seg_info.segment_info.state = cbd_segment_state_running;
-	cache_seg->cache_seg_info.segment_info.flags = 0;
-
-	cache_seg->cache_seg_info.backend_id = cache->cache_id;
-	cache_seg_info_write(cache_seg);
+		cache_seg->cache_seg_info.backend_id = cache->cache_id;
+		cache_seg_info_write(cache_seg);
+	} else {
+		cache_seg_info_load(cache_seg);
+	}
 }
 
 void cache_seg_exit(struct cbd_cache_segment *cache_seg)

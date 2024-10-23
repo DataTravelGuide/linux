@@ -629,8 +629,8 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 
 		} else {
 			if (prev_cache_seg) {
-				if (!prev_cache_seg->cache_seg_info.segment_info.flags & CBD_SEG_INFO_FLAGS_HAS_NEXT) {
-					cbd_cache_err(cache, "!prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT\n");
+				if (!(prev_cache_seg->cache_seg_info.segment_info.flags & CBD_SEG_INFO_FLAGS_HAS_NEXT)) {
+					cbd_cache_err(cache, "flags: %llu, !prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT\n", prev_cache_seg->cache_seg_info.segment_info.flags);
 					ret = -EFAULT;
 					goto segments_destroy;
 				}
