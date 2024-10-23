@@ -502,3 +502,47 @@ search:
 out:
 	return ret;
 }
+
+/* function to clean_work, clean work would be queued after a cache_segment to be invalidated
+ * in cache gc, then it will clean up the invalid keys from cache_tree in backgroud.
+ *
+ * As this clean need to spin_lock(&cache_tree->tree_lock), we unlock after
+ * CBD_CLEAN_KEYS_MAX keys deleted and start another round for clean.
+ */
+void clean_fn(struct work_struct *work)
+{
+	struct cbd_cache *cache = container_of(work, struct cbd_cache, clean_work);
+	struct cbd_cache_tree *cache_tree;
+	struct rb_node *node;
+	struct cbd_cache_key *key;
+	int i, count;
+
+	for (i = 0; i < cache->n_trees; i++) {
+		cache_tree = &cache->cache_trees[i];
+
+again:
+		if (cache->state == cbd_cache_state_stopping)
+			return;
+
+		/* delete at most CBD_CLEAN_KEYS_MAX a round */
+		count = 0;
+		spin_lock(&cache_tree->tree_lock);
+		node = rb_first(&cache_tree->root);
+		while (node) {
+			key = CACHE_KEY(node);
+			node = rb_next(node);
+			if (cache_key_invalid(key)) {
+				count++;
+				cache_key_delete(key);
+			}
+
+			if (count >= CBD_CLEAN_KEYS_MAX) {
+				spin_unlock(&cache_tree->tree_lock);
+				usleep_range(1000, 2000);
+				goto again;
+			}
+		}
+		spin_unlock(&cache_tree->tree_lock);
+
+	}
+}

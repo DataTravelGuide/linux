@@ -91,9 +91,17 @@ struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, struct cbd_
 				  struct rb_node **parentp, struct rb_node ***newp,
 				  struct list_head *delete_key_list);
 int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset);
+void clean_fn(struct work_struct *work);
 
 /* cache segments */
 struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache);
+void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
+		    bool new_cache);
+void cache_seg_exit(struct cbd_cache_segment *cache_seg);
+void cache_seg_get(struct cbd_cache_segment *cache_seg);
+void cache_seg_put(struct cbd_cache_segment *cache_seg);
+
+void cache_info_write(struct cbd_cache *cache);
 
 static inline struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache_segment *cache_seg)
 {
