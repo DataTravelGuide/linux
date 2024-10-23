@@ -152,6 +152,7 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
 				      info_index);				\
 	if (!latest)								\
 		return NULL;							\
+	cbdt_err(cbdt, "read from %p\n", latest);				\
 										\
 	return latest;								\
 }										\
@@ -163,8 +164,13 @@ void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,			\
 				    u32 info_index)				\
 {										\
 	struct cbd_##OBJ##_info *info;						\
+	struct cbd_meta_header *meta;						\
 										\
 	mutex_lock(&cbdt->lock);						\
+	/* seq is u8 and we compare it with cbd_meta_seq_after() */		\
+	meta = (struct cbd_meta_header *)data;					\
+	meta->seq++;								\
+										\
 	info = __get_##OBJ##_info(cbdt, id);					\
 										\
 	cbdt_err(cbdt, "write info index: %u\n", info_index);			\
@@ -172,11 +178,9 @@ void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,			\
 	info = (void *)info + (info_index * OBJ_SIZE);				\
 	memcpy(info, data, data_size);						\
 										\
-	/* seq is u8 and we compare it with cbd_meta_seq_after() */		\
-	info->meta_header.seq++;						\
 	info->meta_header.crc = cbd_meta_crc(&info->meta_header, OBJ_SIZE);	\
 	mutex_unlock(&cbdt->lock);						\
-	pr_err("info: %p write crc: %u\n", info, info->meta_header.crc);	\
+	pr_err("info: %p seq: %u write crc: %u\n", info, info->meta_header.seq, info->meta_header.crc);	\
 }										\
 										\
 void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id)		\
