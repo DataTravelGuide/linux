@@ -218,7 +218,7 @@ static int backend_cache_init(struct cbd_backend *cbdb, bool new_backend)
 
 	cache_opts.cache_info = &cbdb->backend_info.cache_info;
 	cache_opts.cache_id = cbdb->backend_id;
-	cache_opts.alloc_segs = new_backend;
+	cache_opts.new_cache = new_backend;
 	cache_opts.start_writeback = true;
 	cache_opts.start_gc = false;
 	cache_opts.init_keys = false;

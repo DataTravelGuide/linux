@@ -241,7 +241,7 @@ struct cbd_request;
 struct cbd_cache_opts {
 	struct cbd_cache_info *cache_info;
 	u32 cache_id;
-	bool alloc_segs;
+	bool new_cache;
 	bool start_writeback;
 	bool start_gc;
 	bool init_keys;
