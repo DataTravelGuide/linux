@@ -147,7 +147,7 @@ again:
 	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
 	cbdt_flush(cache->cbdt, get_key_head_addr(cache), kset_onmedia_size);
 	//dax_flush(cache->cbdt->dax_dev, get_key_head_addr(cache), kset_onmedia_size);
-	//cbd_cache_err(cache, "flush kset: flags: %llu %u/%u size: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, kset_onmedia_size);
+	cbd_cache_err(cache, "flush kset: flags: %llu %u/%u size: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, kset_onmedia_size);
 	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));
 
 	cache_pos_advance(&cache->key_head, kset_onmedia_size);

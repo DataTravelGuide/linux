@@ -1,5 +1,6 @@
 #include "../cbd_internal.h"
 #include "cbd_cache_internal.h"
+
 static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 {
 	mutex_lock(&cache_seg->info_lock);
@@ -8,6 +9,12 @@ static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 				cache_seg->info_index);
 	cache_seg->info_index = (cache_seg->info_index + 1) % CBDT_META_INDEX_MAX;
 	mutex_unlock(&cache_seg->info_lock);
+}
+
+void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
+{
+	cache_seg->cache_seg_info.segment_info.next_seg = seg_id;
+	cache_seg_info_write(cache_seg);
 }
 
 /* cbd_cache_seg_ops */
@@ -62,6 +69,7 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 	cache_seg->cache_seg_id = cache_seg_id;
 
 	cache_seg->cache_seg_info.backend_id = cache->cache_id;
+	cache_seg_info_write(cache_seg);
 }
 
 void cache_seg_exit(struct cbd_cache_segment *cache_seg)

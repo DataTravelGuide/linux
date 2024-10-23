@@ -102,6 +102,7 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 void cache_seg_exit(struct cbd_cache_segment *cache_seg);
 void cache_seg_get(struct cbd_cache_segment *cache_seg);
 void cache_seg_put(struct cbd_cache_segment *cache_seg);
+void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id);
 
 void cache_info_write(struct cbd_cache *cache);
 int cache_flush(struct cbd_cache *cache);

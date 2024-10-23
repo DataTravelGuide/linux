@@ -126,6 +126,9 @@ static void dump_cache(struct cbd_cache *cache)
 
 #endif /* CONFIG_CBD_DEBUG */
 
+#define CBD_CACHE_WRITEBACK_INTERVAL	(10 * HZ)
+#define CBD_CACHE_GC_INTERVAL	(10 * HZ)
+
 static void cache_key_gc(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
@@ -134,7 +137,6 @@ static void cache_key_gc(struct cbd_cache *cache, struct cbd_cache_key *key)
 	cache_seg_put(cache_seg);
 }
 
-/* cache replay */
 static u32 cache_pos_onmedia_crc(struct cbd_cache_pos_onmedia *pos_om)
 {
 	return crc32(0, (void *)pos_om + 4, sizeof(*pos_om) - 4);
@@ -385,7 +387,7 @@ static void writeback_fn(struct work_struct *work)
 	cbd_cache_err(cache, "into writeback\n");
 	while (true) {
 		if (no_more_dirty(cache)) {
-			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
 			return;
 		}
 
@@ -412,7 +414,7 @@ static void writeback_fn(struct work_struct *work)
 			if (key->data_crc != cache_key_data_crc(key)) {
 				cbd_cache_debug(cache, "key: %llu:%u data crc(%x) is not expected(%x), wait for data ready.\n",
 						key->off, key->len, cache_key_data_crc(key), key->data_crc);
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
 				return;
 			}
 		}
@@ -423,7 +425,7 @@ static void writeback_fn(struct work_struct *work)
 			key = cache_key_alloc(cache);
 			if (!key) {
 				cbd_cache_err(cache, "writeback error failed to alloc key\n");
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
 				return;
 			}
 
@@ -433,7 +435,7 @@ static void writeback_fn(struct work_struct *work)
 
 			if (ret) {
 				cbd_cache_err(cache, "writeback error: %d\n", ret);
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 1 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
 				return;
 			}
 		}
@@ -506,7 +508,7 @@ static void gc_fn(struct work_struct *work)
 			return;
 
 		if (!need_gc(cache)) {
-			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
 			return;
 		}
 
@@ -519,14 +521,14 @@ static void gc_fn(struct work_struct *work)
 		if (kset_onmedia->magic != CBD_KSET_MAGIC) {
 			cbd_cache_err(cache, "gc error magic is not expected. key_tail: %u:%u magic: %llx, expected: %llx\n",
 						pos->cache_seg->cache_seg_id, pos->seg_off, kset_onmedia->magic, CBD_KSET_MAGIC);
-			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
 			return;
 		}
 
 		if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
 			cbd_cache_err(cache, "gc error crc is not expected. crc: %x, expected: %x\n",
 						cache_kset_crc(kset_onmedia), kset_onmedia->crc);
-			queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
 			return;
 		}
 
@@ -536,7 +538,7 @@ static void gc_fn(struct work_struct *work)
 			key = cache_key_alloc(cache);
 			if (!key) {
 				cbd_cache_err(cache, "gc error failed to alloc key\n");
-				queue_delayed_work(cache->cache_wq, &cache->gc_work, 1 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
 				return;
 			}
 
@@ -596,9 +598,15 @@ static void cache_segs_destroy(struct cbd_cache *cache)
 	}
 }
 
+static void cache_info_set_seg_id(struct cbd_cache *cache, u32 seg_id)
+{
+	cache->cache_info->seg_id = seg_id;
+	cache_info_write(cache);
+}
+
 static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 {
-	struct cbd_segment_info *prev_seg_info = NULL;
+	struct cbd_cache_segment *prev_cache_seg = NULL;
 	struct cbd_cache_info *cache_info = cache->cache_info;
 	struct cbd_transport *cbdt = cache->cbdt;
 	u32 seg_id;
@@ -608,32 +616,33 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 	for (i = 0; i < cache_info->n_segs; i++) {
 		if (new_cache) {
 			ret = cbdt_get_empty_segment_id(cbdt, &seg_id);
-			if (ret)
+			if (ret) {
+				cbd_cache_err(cache, "no available segment\n");
 				goto segments_destroy;
+			}
 
-			if (prev_seg_info) {
-				prev_seg_info->flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
-				prev_seg_info->next_seg = seg_id;
+			if (prev_cache_seg) {
+				cache_seg_set_next_seg(prev_cache_seg, seg_id);
 			} else {
-				cache_info->seg_id = seg_id;
+				cache_info_set_seg_id(cache, seg_id);
 			}
 
 		} else {
-			if (prev_seg_info) {
-				if (!prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT) {
+			if (prev_cache_seg) {
+				if (!prev_cache_seg->cache_seg_info.segment_info.flags & CBD_SEG_INFO_FLAGS_HAS_NEXT) {
+					cbd_cache_err(cache, "!prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT\n");
 					ret = -EFAULT;
 					goto segments_destroy;
 				}
-				seg_id = prev_seg_info->next_seg;
+				seg_id = prev_cache_seg->cache_seg_info.segment_info.next_seg;
 			} else {
 				seg_id = cache_info->seg_id;
 			}
 		}
 
 		//pr_err("cache_seg_init: %u, seg_id: %u\n", i, seg_id);
-		prev_seg_info = cbdt_get_segment_info(cbdt, seg_id);
 		if (cache_seg_is_meta_seg(i))
-			cache->cache_ctrl = (void *)prev_seg_info + CBDT_CACHE_CTRL_OFF;
+			cache->cache_ctrl = (void *)cbdt_get_segment_info(cbdt, seg_id) + CBDT_CACHE_CTRL_OFF;
 		cache_seg_init(cache, seg_id, i, new_cache);
 	}
 
@@ -649,7 +658,7 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 		cache_encode_dirty_tail(cache);
 		cache_encode_key_tail(cache);
 	} else {
-		//pr_err("read key_tail \n");
+		pr_err("read key_tail \n");
 		if (cache_decode_key_tail(cache) || cache_decode_dirty_tail(cache)) {
 			cbd_cache_err(cache, "Corrupted key tail or dirty tail.\n");
 			ret = -EIO;
@@ -660,6 +669,7 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 	return 0;
 
 segments_destroy:
+	cbd_cache_err(cache, "segments_destroy\n");
 	cache_segs_destroy(cache);
 
 	return ret;
@@ -914,10 +924,13 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	return cache;
 
 destroy_keys:
+	cbd_cache_err(cache, "destroy_keys\n");
 	cache_destroy_keys(cache);
 segs_destroy:
+	cbd_cache_err(cache, "destroy_segs\n");
 	cache_segs_destroy(cache);
 free_cache:
+	cbd_cache_err(cache, "error \n");
 	cache_free(cache);
 
 	return NULL;
