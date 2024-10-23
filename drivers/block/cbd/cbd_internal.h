@@ -474,8 +474,8 @@ static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 	return latest;
 }
 
-static inline struct cbd_meta_header *cbd_meta_find_oldest(struct cbd_meta_header *header,
-							   u32 meta_size)
+static inline void *cbd_meta_find_oldest(struct cbd_meta_header *header,
+					 u32 meta_size)
 {
 	struct cbd_meta_header *meta, *oldest = NULL;
 	u32 i;

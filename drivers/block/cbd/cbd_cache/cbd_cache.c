@@ -147,77 +147,39 @@ static void cache_pos_encode(struct cbd_cache *cache,
 			     struct cbd_cache_pos *pos,
 			     char *debug)
 {
-	struct cbd_cache_pos_onmedia *pos_om, *oldest_pos = NULL;
-	u64 newest_seq = 0;
-	u32 i;
+	struct cbd_cache_pos_onmedia *latest, *oldest;
 
-	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
-		pos_om = &pos_onmedia[i];
-		if (pos_om->header.crc != cache_pos_onmedia_crc(pos_om)) {
-			pr_err("crc bad %u\n", i);
-			oldest_pos = pos_om;
-			continue;
-		}
+	latest = cbd_meta_find_latest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia), NULL);
+	oldest = cbd_meta_find_oldest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia));
 
-		if (pos_om->header.seq > newest_seq)
-			newest_seq = pos_om->header.seq;
+	BUG_ON(!oldest);
 
-		if (!oldest_pos) {
-			//pr_err("init oldest %u\n", i);
-			oldest_pos = pos_om;
-			continue;
-		}
+	oldest->header.seq = latest? latest->header.seq + 1 : 0;
 
-		if (pos_om->header.seq < oldest_pos->header.seq) {
-			//pr_err("seq : %llu, %u\n", pos_om->seq, i);
-			oldest_pos = pos_om;
-		}
-	}
-
-	BUG_ON(!oldest_pos);
-
-	oldest_pos->header.seq = newest_seq + 1;
-
-	//cbd_cache_err(cache, "%s oldest: %p set seq: %llu seg_id: %u\n", debug, oldest_pos, oldest_pos->seq, pos->cache_seg->cache_seg_id);
-	oldest_pos->cache_seg_id = pos->cache_seg->cache_seg_id;
+	//cbd_cache_err(cache, "%s oldest: %p set seq: %llu seg_id: %u\n", debug, oldest, oldest->seq, pos->cache_seg->cache_seg_id);
+	oldest->cache_seg_id = pos->cache_seg->cache_seg_id;
 	//cbd_cache_err(cache, "%s finish set seg_off: %u\n", debug, pos->seg_off);
-	oldest_pos->seg_off = pos->seg_off;
+	oldest->seg_off = pos->seg_off;
 
-	oldest_pos->header.crc = cache_pos_onmedia_crc(oldest_pos);
+	oldest->header.crc = cache_pos_onmedia_crc(oldest);
 
-	//dax_flush(cache->cbdt->dax_dev, oldest_pos, sizeof(*oldest_pos));
-	//cbd_cache_err(cache, "%s dax_flush oldest_pos seq: %llu , crc: %u\n", debug, oldest_pos->seq, oldest_pos->crc);
+	//dax_flush(cache->cbdt->dax_dev, oldest, sizeof(*oldest));
+	//cbd_cache_err(cache, "%s dax_flush oldest seq: %llu , crc: %u\n", debug, oldest->seq, oldest->crc);
 }
 
 static int cache_pos_decode(struct cbd_cache *cache,
 		            struct cbd_cache_pos_onmedia *pos_onmedia,
 			    struct cbd_cache_pos *pos)
 {
-	struct cbd_cache_pos_onmedia *pos_om, *newest_pos = NULL;
-	u32 i;
+	struct cbd_cache_pos_onmedia *latest;
 
-	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
-		pos_om = &pos_onmedia[i];
-		if (pos_om->header.crc != cache_pos_onmedia_crc(pos_om)) {
-			//cbd_cache_err(cache, "pos crc: %u, seq: %llu, onmedia crc: %u\n", pos_om->crc, pos_om->seq, cache_pos_onmedia_crc(pos_om));
-			continue;
-		}
-
-		if (!newest_pos) {
-			newest_pos = pos_om;
-			continue;
-		}
-
-		if (pos_om->header.seq > newest_pos->header.seq)
-			newest_pos = pos_om;
-	}
-
-	if (!newest_pos)
+	latest = cbd_meta_find_latest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia), NULL);
+	if (!latest)
 		return -EIO;
 
 	//cbd_cache_err(cache, "read pos: %u:%u\n", newest_pos->cache_seg_id, newest_pos->seg_off);
-	pos->cache_seg = &cache->segments[newest_pos->cache_seg_id];
-	pos->seg_off = newest_pos->seg_off;
+	pos->cache_seg = &cache->segments[latest->cache_seg_id];
+	pos->seg_off = latest->seg_off;
 
 	return 0;
 }
