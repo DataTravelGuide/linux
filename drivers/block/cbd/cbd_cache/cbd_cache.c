@@ -2599,10 +2599,13 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->cache_id = opts->cache_id;
 
 	cache->state = cbd_cache_state_running;
+
+	/* init cache segments */
 	ret = cache_segs_init(cache, opts->new_cache);
 	if (ret)
 		goto free_cache;
 
+	/* init cache keys and do cache replay */
 	if (opts->init_keys) {
 		ret = cache_init_keys(cache, opts->n_paral);
 		if (ret)
