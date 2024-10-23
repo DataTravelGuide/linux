@@ -78,5 +78,6 @@ void cbdb_del_handler(struct cbd_backend *cbdb, struct cbd_handler *handler);
 bool cbd_backend_info_is_alive(struct cbd_backend_info *info);
 bool cbd_backend_cache_on(struct cbd_backend_info *backend_info);
 void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id);
+void cbd_backend_info_write(struct cbd_backend *cbdb);
 
 #endif /* _CBD_BACKEND_H */

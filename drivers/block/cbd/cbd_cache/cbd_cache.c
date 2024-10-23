@@ -1921,7 +1921,6 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 	cache_free(cache);
 }
 
-void cbd_backend_info_write(struct cbd_backend *cbdb);
 static void cache_info_write(struct cbd_cache *cache)
 {
 	struct cbd_backend_info *backend_info;
