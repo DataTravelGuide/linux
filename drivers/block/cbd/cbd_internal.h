@@ -499,6 +499,13 @@ static inline struct cbd_meta_header *cbd_meta_find_oldest(struct cbd_meta_heade
 	return oldest;
 }
 
+static inline void cbd_meta_commit(struct cbd_meta_header *header,
+				   u32 meta_size)
+{
+	header->seq++;
+	header->crc = cbd_meta_crc(header, meta_size);
+}
+
 #include "cbd_transport.h"
 
 #include "cbd_host.h"
