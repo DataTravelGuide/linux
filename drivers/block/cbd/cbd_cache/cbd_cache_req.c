@@ -13,7 +13,7 @@ static int cache_data_head_init(struct cbd_cache *cache, u32 i)
 	if (!next_seg)
 		return -EBUSY;
 
-	//cbd_cache_err(cache, "next_seg for data: %u\n", next_seg->cache_seg_id);
+	cbd_cache_err(cache, "next_seg for data: %u\n", next_seg->cache_seg_id);
 	cache_seg_get(next_seg);
 	data_head->head_pos.cache_seg = next_seg;
 	data_head->head_pos.seg_off = 0;
@@ -81,6 +81,7 @@ static void cache_copy_from_req_bio(struct cbd_cache *cache, struct cbd_cache_ke
 
 	segment = &pos->cache_seg->segment;
 
+	cbd_cache_err(cache, "copy_from_req_bio: %u:%u %u, bio_off: %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, key->len, bio_off);
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, cbd_req->bio, bio_off);
 }
 
@@ -89,6 +90,8 @@ static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cb
 {
 	struct cbd_cache_segment *cache_seg = pos->cache_seg;
 	struct cbd_segment *segment = &cache_seg->segment;
+
+	cbd_cache_err(cache, "copy_to_req_bio: %u:%u %u, bio_off: %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, len, off);
 
 	spin_lock(&cache_seg->gen_lock);
 	if (key_gen < cache_seg->cache_seg_info.gen) {
@@ -205,6 +208,8 @@ static void cache_backing_req_end_req(struct cbd_request *cbd_req, void *priv_da
 static void submit_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	int ret;
+
+	cbd_cache_err(cache, "backend_req: %lu:%u\n", cbd_req->off, cbd_req->data_len);
 
 	if (cbd_req->priv_data) {
 		struct cbd_cache_key *key;
@@ -604,6 +609,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 			continue;
 		}
 
+		cbd_cache_err(cache, "data_alloc: %u:%u %u\n", key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off, key->len);
 		BUG_ON(!key->cache_pos.cache_seg);
 		cache_copy_from_req_bio(cache, key, cbd_req, io_done);
 

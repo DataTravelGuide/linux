@@ -43,6 +43,9 @@ struct cbd_cache_pos_onmedia {
 	u32 seg_off;
 };
 
+#define CBDT_CACHE_SEG_CTRL_OFF		(CBDT_SEG_INFO_SIZE * CBDT_META_INDEX_MAX)
+#define CBDT_CACHE_SEG_CTRL_SIZE		PAGE_SIZE
+
 struct cbd_cache_seg_ctrl {
 	/* updated by blkdev, it would be changed after gc and reallocated. */
 	struct cbd_cache_seg_next next_cache_seg[CBDT_META_INDEX_MAX];

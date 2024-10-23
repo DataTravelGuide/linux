@@ -117,7 +117,7 @@ int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset)
 
 	spin_lock(&cache->key_head_lock);
 again:
-	if (cache->key_head.seg_off > 4096) {
+	if (cache->key_head.seg_off > 1024) {
 		struct cbd_cache_segment *cur_seg, *next_seg;
 
 		next_seg = get_cache_segment(cache);
@@ -138,7 +138,7 @@ again:
 		goto again;
 	}
 
-	if (cache->key_head.seg_off + kset_onmedia_size > 4096)
+	if (cache->key_head.seg_off + kset_onmedia_size > 1024)
 		kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
 
 	kset_onmedia->magic = CBD_KSET_MAGIC;

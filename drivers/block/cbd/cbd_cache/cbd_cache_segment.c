@@ -55,9 +55,7 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 
 	seg_options.type = cbds_type_cache;
 	/*TODO CBDT_CACHE_CTRL_OFF splite frequently changed member from info to meta*/
-	seg_options.data_off = CBDT_CACHE_CTRL_OFF;
-	if (cache_seg_is_meta_seg(cache_seg_id))
-		seg_options.data_off += CBDT_CACHE_CTRL_SIZE;
+	seg_options.data_off = CBDT_CACHE_SEG_CTRL_OFF + CBDT_CACHE_SEG_CTRL_SIZE;
 	seg_options.seg_ops = &cbd_cache_seg_ops;
 	seg_options.seg_id = seg_id;
 
