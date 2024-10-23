@@ -143,7 +143,7 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
 
-	cbd_segment_err(segment, "data: %p, data_off: %u, data_len: %u\n", segment->data, data_off, data_len);
+	//cbd_segment_err(segment, "data: %p, data_off: %u, data_len: %u\n", segment->data, data_off, data_len);
 
 next:
 	bio_for_each_segment(bv, bio, iter) {
@@ -198,7 +198,7 @@ void cbds_copy_from_bio(struct cbd_segment *segment,
 	u32 to_copy, page_off = 0;
 	struct cbd_seg_pos pos = { .segment = segment,
 				   .off = data_off };
-	cbd_segment_err(segment, "data: %p, data_off: %u, data_len: %u\n", segment->data, data_off, data_len);
+	//cbd_segment_err(segment, "data: %p, data_off: %u, data_len: %u\n", segment->data, data_off, data_len);
 next:
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
