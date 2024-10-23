@@ -103,6 +103,7 @@ int cbd_channel_init(struct cbd_channel *channel, struct cbd_channel_init_option
 
 	channel->cbdt = init_opts->cbdt;
 	channel->seg_id = init_opts->seg_id;
+	pr_err("channel: segid: %u\n", channel->seg_id);
 	channel->submr_size = rounddown(CBDC_SUBMR_SIZE, sizeof(struct cbd_se));
 	channel->compr_size = rounddown(CBDC_COMPR_SIZE, sizeof(struct cbd_ce));
 	channel->data_size = CBDC_DATA_SIZE;
