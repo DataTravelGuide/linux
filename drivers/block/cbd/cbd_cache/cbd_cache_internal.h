@@ -102,6 +102,8 @@ void cache_seg_get(struct cbd_cache_segment *cache_seg);
 void cache_seg_put(struct cbd_cache_segment *cache_seg);
 
 void cache_info_write(struct cbd_cache *cache);
+int cache_flush(struct cbd_cache *cache);
+void miss_read_end_work_fn(struct work_struct *work);
 
 static inline struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache_segment *cache_seg)
 {
