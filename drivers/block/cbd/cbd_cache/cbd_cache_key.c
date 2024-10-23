@@ -117,7 +117,7 @@ int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset)
 
 	spin_lock(&cache->key_head_lock);
 again:
-	if (cache->key_head.seg_off > 1024) {
+	if (cache->key_head.seg_off > 4096) {
 		struct cbd_cache_segment *cur_seg, *next_seg;
 
 		next_seg = get_cache_segment(cache);
@@ -138,13 +138,14 @@ again:
 		goto again;
 	}
 
-	if (cache->key_head.seg_off + kset_onmedia_size > 1024)
+	if (cache->key_head.seg_off + kset_onmedia_size > 4096)
 		kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
 
 	kset_onmedia->magic = CBD_KSET_MAGIC;
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
 
-	memcpy_flushcache(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
+	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
+	cbdt_flush(cache->cbdt, get_key_head_addr(cache), kset_onmedia_size);
 	//dax_flush(cache->cbdt->dax_dev, get_key_head_addr(cache), kset_onmedia_size);
 	//cbd_cache_err(cache, "flush kset: flags: %llu %u/%u size: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, kset_onmedia_size);
 	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));

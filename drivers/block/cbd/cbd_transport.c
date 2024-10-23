@@ -410,10 +410,15 @@ out:
 	return ret;
 }
 
+void cbdt_flush(struct cbd_transport *cbdt, void *pos, u32 size)
+{
+	dax_flush(cbdt->dax_dev, pos, size);
+}
+
 void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size)
 {
 	memset(pos, 0, size);
-	dax_flush(cbdt->dax_dev, pos, size);
+	cbdt_flush(cbdt, pos, size);
 }
 
 static void segments_format(struct cbd_transport *cbdt)

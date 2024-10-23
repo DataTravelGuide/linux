@@ -105,5 +105,6 @@ struct cbd_blkdev *cbdt_get_blkdev(struct cbd_transport *cbdt, u32 id);
 
 struct page *cbdt_page(struct cbd_transport *cbdt, u64 transport_off, u32 *page_off);
 void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size);
+void cbdt_flush(struct cbd_transport *cbdt, void *pos, u32 size);
 
 #endif /* _CBD_TRANSPORT_H */
