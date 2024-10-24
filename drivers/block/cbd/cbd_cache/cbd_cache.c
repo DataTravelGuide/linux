@@ -147,14 +147,13 @@ static void cache_pos_encode(struct cbd_cache *cache,
 			     struct cbd_cache_pos *pos,
 			     char *debug)
 {
-	struct cbd_cache_pos_onmedia *latest, *oldest;
+	struct cbd_cache_pos_onmedia *oldest;
 
-	latest = cbd_meta_find_latest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia), NULL);
 	oldest = cbd_meta_find_oldest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia));
 
 	BUG_ON(!oldest);
 
-	oldest->header.seq = latest? latest->header.seq + 1 : 0;
+	oldest->header.seq = cbd_meta_get_next_seq(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia));
 
 	//cbd_cache_err(cache, "%s oldest: %p set seq: %llu seg_id: %u\n", debug, oldest, oldest->seq, pos->cache_seg->cache_seg_id);
 	oldest->cache_seg_id = pos->cache_seg->cache_seg_id;

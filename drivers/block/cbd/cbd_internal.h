@@ -506,6 +506,18 @@ static inline void cbd_meta_commit(struct cbd_meta_header *header,
 	header->crc = cbd_meta_crc(header, meta_size);
 }
 
+static inline u32 cbd_meta_get_next_seq(struct cbd_meta_header *header,
+					u32 meta_size)
+{
+	struct cbd_meta_header *latest;
+
+	latest = cbd_meta_find_latest(header, meta_size, NULL);
+	if (!latest)
+		return 0;
+
+	return (latest->seq + 1);
+}
+
 #include "cbd_transport.h"
 
 #include "cbd_host.h"
