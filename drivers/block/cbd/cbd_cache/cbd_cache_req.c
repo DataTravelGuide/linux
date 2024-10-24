@@ -26,7 +26,6 @@ static int cache_data_alloc(struct cbd_cache *cache, struct cbd_cache_key *key, 
 	struct cbd_cache_data_head *data_head;
 	struct cbd_cache_pos *head_pos;
 	struct cbd_cache_segment *cache_seg;
-	struct cbd_segment *segment;
 	u32 seg_remain;
 	u32 allocated = 0, to_alloc;
 	int ret = 0;
@@ -42,9 +41,7 @@ again:
 		key->seg_gen = key->cache_pos.cache_seg->cache_seg_info.gen;
 
 		head_pos = &data_head->head_pos;
-		cache_seg = head_pos->cache_seg;
-		segment = &cache_seg->segment;
-		seg_remain = segment->data_size - head_pos->seg_off;
+		seg_remain = get_seg_remain(head_pos);
 		to_alloc = key->len - allocated;
 	}
 
