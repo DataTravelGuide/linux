@@ -246,7 +246,7 @@ static bool no_more_dirty(struct cbd_cache *cache)
 		return true;
 	}
 
-	cbd_cache_err(cache, "dirty\n");
+	//cbd_cache_err(cache, "dirty\n");
 
 	return false;
 }

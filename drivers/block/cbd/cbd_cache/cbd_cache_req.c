@@ -41,6 +41,7 @@ again:
 		key->seg_gen = key->cache_pos.cache_seg->cache_seg_info.gen;
 
 		head_pos = &data_head->head_pos;
+		cache_seg = head_pos->cache_seg;
 		seg_remain = get_seg_remain(head_pos);
 		to_alloc = key->len - allocated;
 	}
