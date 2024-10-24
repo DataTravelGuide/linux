@@ -165,9 +165,12 @@ struct cbd_cache_key_onmedia {
 
 struct cbd_cache_kset_onmedia {
 	u32	crc;
+	union {
+		u32	key_num;
+		u32	next_cache_seg_id;
+	};
 	u64	magic;
 	u64	flags;
-	u32	key_num;
 	struct cbd_cache_key_onmedia	data[];
 };
 

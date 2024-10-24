@@ -231,11 +231,6 @@ static bool no_more_dirty(struct cbd_cache *cache)
 
 	pos = &cache->dirty_tail;
 
-	if (cache_seg_wb_done(pos->cache_seg)) {
-		cbd_cache_err(cache, "seg %u wb done\n", pos->cache_seg->cache_seg_id);
-		return !cache_seg_has_next(pos->cache_seg);
-	}
-
 	addr = cache_pos_addr(pos);
 	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
@@ -354,11 +349,21 @@ static void writeback_fn(struct work_struct *work)
 		}
 
 		pos = &cache->dirty_tail;
-		if (cache_seg_wb_done(pos->cache_seg))
-			goto next_seg;
-
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
+
+		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
+			struct cbd_cache_segment *cur_seg, *next_seg;
+
+			cbd_cache_err(cache, "last kset, next: %u\n", kset_onmedia->next_cache_seg_id);
+			cur_seg = pos->cache_seg;
+			next_seg = &cache->segments[kset_onmedia->next_cache_seg_id];
+			pos->cache_seg = next_seg;
+			pos->seg_off = 0;
+			cache_encode_dirty_tail(cache);
+
+			continue;
+		}
 #ifdef CONFIG_CBD_CRC
 		/* check the data crc */
 		for (i = 0; i < kset_onmedia->key_num; i++) {
@@ -407,21 +412,6 @@ static void writeback_fn(struct work_struct *work)
 		//cbd_cache_err(cache, "writeback advance: %u:%u %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, get_kset_onmedia_size(kset_onmedia));
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
 		cache_encode_dirty_tail(cache);
-
-		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
-			struct cbd_cache_segment *cur_seg, *next_seg;
-
-			//cbd_cache_err(cache, "set wb done %u\n", pos->cache_seg->cache_seg_id);
-			pos->cache_seg->cache_seg_info.flags |= CBD_CACHE_SEG_FLAGS_WB_DONE;
-next_seg:
-			cur_seg = pos->cache_seg;
-			next_seg = cache_seg_get_next(cur_seg);
-			if (!next_seg)
-				continue;
-			pos->cache_seg = next_seg;
-			pos->seg_off = 0;
-			cache_encode_dirty_tail(cache);
-		}
 	}
 }
 
@@ -475,9 +465,6 @@ static void gc_fn(struct work_struct *work)
 		}
 
 		pos = &cache->key_tail;
-		if (cache_seg_gc_done(pos->cache_seg))
-			goto next_seg;
-
 		addr = cache_pos_addr(pos);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 		if (kset_onmedia->magic != CBD_KSET_MAGIC) {
@@ -492,6 +479,29 @@ static void gc_fn(struct work_struct *work)
 						cache_kset_crc(kset_onmedia), kset_onmedia->crc);
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
 			return;
+		}
+
+		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
+			struct cbd_cache_segment *cur_seg, *next_seg;
+
+			ret = cache_decode_dirty_tail(cache);
+			if (ret)
+				continue;
+
+			/* dont move next segment if dirty_tail has not move */
+			if (cache->dirty_tail.cache_seg == pos->cache_seg)
+				continue;
+			cur_seg = pos->cache_seg;
+			next_seg = &cache->segments[kset_onmedia->next_cache_seg_id];
+			pos->cache_seg = next_seg;
+			pos->seg_off = 0;
+			cache_encode_key_tail(cache);
+			cbd_cache_err(cache, "gc kset seg: %u\n", cur_seg->cache_seg_id);
+
+			spin_lock(&cache->seg_map_lock);
+			clear_bit(cur_seg->cache_seg_id, cache->seg_map);
+			spin_unlock(&cache->seg_map_lock);
+			continue;
 		}
 
 		for (i = 0; i < kset_onmedia->key_num; i++) {
@@ -510,34 +520,7 @@ static void gc_fn(struct work_struct *work)
 		}
 
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
-
-		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
-			struct cbd_cache_segment *cur_seg, *next_seg;
-
-			pos->cache_seg->cache_seg_info.flags |= CBD_CACHE_SEG_FLAGS_GC_DONE;
-next_seg:
-			ret = cache_decode_dirty_tail(cache);
-			if (ret)
-				continue;
-
-			/* dont move next segment if dirty_tail has not move */
-			if (cache->dirty_tail.cache_seg == pos->cache_seg)
-				continue;
-			cur_seg = pos->cache_seg;
-			next_seg = cache_seg_get_next(cur_seg);
-			if (!next_seg)
-				continue;
-			pos->cache_seg = next_seg;
-			pos->seg_off = 0;
-			cache_encode_key_tail(cache);
-			//cbd_cache_err(cache, "gc kset seg: %u\n", cur_seg->cache_seg_id);
-
-			spin_lock(&cache->seg_map_lock);
-			clear_bit(cur_seg->cache_seg_id, cache->seg_map);
-			spin_unlock(&cache->seg_map_lock);
-		} else {
-			cache_encode_key_tail(cache);
-		}
+		cache_encode_key_tail(cache);
 	}
 }
 

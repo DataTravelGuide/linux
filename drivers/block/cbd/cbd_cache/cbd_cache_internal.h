@@ -220,7 +220,14 @@ static inline u32 cache_key_data_crc(struct cbd_cache_key *key)
 
 static inline u32 cache_kset_crc(struct cbd_cache_kset_onmedia *kset_onmedia)
 {
-	return crc32(0, (void *)kset_onmedia + 4, struct_size(kset_onmedia, data, kset_onmedia->key_num) - 4);
+	u32 crc_size;
+
+	if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST)
+		crc_size = sizeof(struct cbd_cache_kset_onmedia) - 4;
+	else
+		crc_size = struct_size(kset_onmedia, data, kset_onmedia->key_num) - 4;
+
+	return crc32(0, (void *)kset_onmedia + 4, crc_size);
 }
 
 static inline u32 get_kset_onmedia_size(struct cbd_cache_kset_onmedia *kset_onmedia)

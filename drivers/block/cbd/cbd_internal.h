@@ -453,7 +453,7 @@ static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
 		meta = (void *)header + (i * meta_size);
 		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
-			pr_err("crc: %u, info_crc: %u\n", meta->crc, cbd_meta_crc(meta, meta_size));
+			//pr_err("crc: %u, info_crc: %u\n", meta->crc, cbd_meta_crc(meta, meta_size));
 			continue;
 		}
 

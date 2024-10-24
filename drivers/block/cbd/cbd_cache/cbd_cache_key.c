@@ -102,6 +102,18 @@ void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct cbd_cach
 }
 
 /* cache_kset */
+static void append_last_kset(struct cbd_cache *cache, u32 next_seg)
+{
+	struct cbd_cache_kset_onmedia *kset_onmedia;
+
+	kset_onmedia = get_key_head_addr(cache);
+	kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
+	kset_onmedia->next_cache_seg_id = next_seg;
+	kset_onmedia->magic = CBD_KSET_MAGIC;
+	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
+	cbd_cache_err(cache, "append last kset: flags: %llu %u/%u next: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, next_seg);
+	cache_pos_advance(&cache->key_head, sizeof(struct cbd_cache_kset_onmedia));
+}
 int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
@@ -127,6 +139,8 @@ again:
 			goto out;
 		}
 
+		append_last_kset(cache, next_seg->cache_seg_id);
+
 		//cbd_cache_err(cache, "next_seg for kset: %u\n", next_seg->cache_seg_id);
 		cur_seg = cache->key_head.cache_seg;
 
@@ -137,9 +151,6 @@ again:
 		cache->key_head.seg_off = 0;
 		goto again;
 	}
-
-	if (cache->key_head.seg_off + kset_onmedia_size > 1024)
-		kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
 
 	kset_onmedia->magic = CBD_KSET_MAGIC;
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
@@ -596,6 +607,19 @@ int cache_replay(struct cbd_cache *cache)
 			break;
 		}
 
+		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
+			struct cbd_cache_segment *cur_seg, *next_seg;
+
+			//cbd_cache_err(cache, "last kset\n");
+			cur_seg = pos->cache_seg;
+			next_seg = &cache->segments[kset_onmedia->next_cache_seg_id];
+			pos->cache_seg = next_seg;
+			pos->seg_off = 0;
+			set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
+			//cbd_cache_err(cache, "nest seg: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
+			continue;
+		}
+
 		//pr_err("replay kset: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 		for (i = 0; i < kset_onmedia->key_num; i++) {
 			key_onmedia = &kset_onmedia->data[i];
@@ -634,21 +658,6 @@ int cache_replay(struct cbd_cache *cache)
 
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
 		//cbd_cache_err(cache, "after advance: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
-
-		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
-			struct cbd_cache_segment *cur_seg, *next_seg;
-
-			//cbd_cache_err(cache, "last kset\n");
-			cur_seg = pos->cache_seg;
-			next_seg = cache_seg_get_next(cur_seg);
-			if (!next_seg)
-				break;
-			pos->cache_seg = next_seg;
-			pos->seg_off = 0;
-			set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
-			//cbd_cache_err(cache, "nest seg: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
-			continue;
-		}
 	}
 
 #ifdef CONFIG_CBD_DEBUG
