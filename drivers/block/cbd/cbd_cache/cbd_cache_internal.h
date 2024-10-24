@@ -108,16 +108,6 @@ void cache_info_write(struct cbd_cache *cache);
 int cache_flush(struct cbd_cache *cache);
 void miss_read_end_work_fn(struct work_struct *work);
 
-static inline struct cbd_cache_segment *cache_seg_get_next(struct cbd_cache_segment *cache_seg)
-{
-	struct cbd_cache *cache = cache_seg->cache;
-
-	if (cache_seg->cache_seg_info.flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT)
-		return &cache->segments[cache_seg->cache_seg_info.next_cache_seg_id];
-
-	return NULL;
-}
-
 static inline struct cbd_cache_tree *get_cache_tree(struct cbd_cache *cache, u64 off)
 {
 	return &cache->cache_trees[off >> CBD_CACHE_TREE_SIZE_SHIFT];
@@ -155,21 +145,6 @@ static inline bool cache_key_empty(struct cbd_cache_key *key)
 static inline bool cache_key_clean(struct cbd_cache_key *key)
 {
 	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
-}
-
-static inline bool cache_seg_has_next(struct cbd_cache_segment *cache_seg)
-{
-	return (cache_seg->cache_seg_info.flags & CBD_CACHE_SEG_FLAGS_HAS_NEXT);
-}
-
-static inline bool cache_seg_wb_done(struct cbd_cache_segment *cache_seg)
-{
-	return (cache_seg->cache_seg_info.flags & CBD_CACHE_SEG_FLAGS_WB_DONE);
-}
-
-static inline bool cache_seg_gc_done(struct cbd_cache_segment *cache_seg)
-{
-	return (cache_seg->cache_seg_info.flags & CBD_CACHE_SEG_FLAGS_GC_DONE);
 }
 
 static inline void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)

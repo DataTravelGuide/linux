@@ -43,27 +43,17 @@ void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
 	u32 seg_remain, to_advance;
 	u32 advanced = 0;
 
-again:
 	cache_seg = pos->cache_seg;
 	BUG_ON(!cache_seg);
 	segment = &cache_seg->segment;
 	seg_remain = segment->data_size - pos->seg_off;
 	to_advance = len - advanced;
 
-	if (seg_remain >= to_advance) {
-		pos->seg_off += to_advance;
-		advanced += to_advance;
-	} else if (seg_remain) {
-		pos->seg_off += seg_remain;
-		advanced += seg_remain;
-	} else {
-		pos->cache_seg = cache_seg_get_next(pos->cache_seg);
-		BUG_ON(!pos->cache_seg);
-		pos->seg_off = 0;
-	}
+	/* currently, key for data is splitted into different cache_seg */
+	BUG_ON(seg_remain < to_advance);
 
-	if (advanced < len)
-		goto again;
+	pos->seg_off += to_advance;
+	advanced += to_advance;
 }
 
 static void cache_key_encode(struct cbd_cache_key_onmedia *key_onmedia,
@@ -140,12 +130,6 @@ again:
 		}
 
 		append_last_kset(cache, next_seg->cache_seg_id);
-
-		//cbd_cache_err(cache, "next_seg for kset: %u\n", next_seg->cache_seg_id);
-		cur_seg = cache->key_head.cache_seg;
-
-		cur_seg->cache_seg_info.next_cache_seg_id = next_seg->cache_seg_id;
-		cur_seg->cache_seg_info.flags |= CBD_CACHE_SEG_FLAGS_HAS_NEXT;
 
 		cache->key_head.cache_seg = next_seg;
 		cache->key_head.seg_off = 0;

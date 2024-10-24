@@ -43,23 +43,9 @@ static int cache_seg_info_load(struct cbd_cache_segment *cache_seg)
 static void cbd_cache_seg_sanitize_pos(struct cbd_seg_pos *pos)
 {
 	struct cbd_segment *segment;
-	struct cbd_cache_segment *cache_seg;
 
-again:
 	segment = pos->segment;
-	cache_seg = container_of(segment, struct cbd_cache_segment, segment);
-	if (pos->off >= segment->data_size) {
-		pos->off -= segment->data_size;
-		cache_seg = cache_seg_get_next(cache_seg);
-		if (unlikely(!cache_seg)) {
-			pr_err("FIXME: %s %d no next seg for sanitize, pos->off: %u\n",
-					__func__, __LINE__, pos->off);
-			BUG_ON(!cache_seg);
-		}
-		pos->segment = &cache_seg->segment;
-
-		goto again;
-	}
+	BUG_ON(pos->off > segment->data_size);
 }
 
 static struct cbd_seg_ops cbd_cache_seg_ops = {

@@ -6,7 +6,6 @@
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
 	u32 backend_id;
-	u32 next_cache_seg_id;
 	u32 flags;
 	u64 gen;
 };
@@ -47,22 +46,9 @@ struct cbd_cache_pos_onmedia {
 #define CBDT_CACHE_SEG_CTRL_SIZE		PAGE_SIZE
 
 struct cbd_cache_seg_ctrl {
-	/* updated by blkdev, it would be changed after gc and reallocated. */
-	struct cbd_cache_seg_next next_cache_seg[CBDT_META_INDEX_MAX];
-
 	/* updated by blkdev, it is increased in invalidating */
 	struct cbd_cache_seg_gen gen[CBDT_META_INDEX_MAX];
-
-	/* updated by backend in writeback_fn, */
-	struct cbd_cache_seg_wb_ctrl wb_ctrl[CBDT_META_INDEX_MAX];
-
-	/* updated by blkdev in gc_fn */
-	struct cbd_cache_seg_gc_ctrl gc_ctrl[CBDT_META_INDEX_MAX];
 };
-
-#define CBD_CACHE_SEG_FLAGS_HAS_NEXT	(1 << 0)
-#define CBD_CACHE_SEG_FLAGS_WB_DONE	(1 << 1)
-#define CBD_CACHE_SEG_FLAGS_GC_DONE	(1 << 2)
 
 struct cbd_cache_segment {
 	struct cbd_cache		*cache;
@@ -79,7 +65,6 @@ struct cbd_cache_segment {
 	struct mutex			info_lock;
 
 	u64				gen;
-	u32				next_cache_seg_id;
 	u8				wb_flags;
 	u8				gc_flags;
 	struct cbd_cache_seg_ctrl	*cache_seg_ctrl;
