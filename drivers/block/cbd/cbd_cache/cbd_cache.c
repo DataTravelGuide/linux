@@ -343,7 +343,7 @@ static void writeback_fn(struct work_struct *work)
 	cbd_cache_err(cache, "into writeback\n");
 	while (true) {
 		if (no_more_dirty(cache)) {
-			queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
 			return;
 		}
 
@@ -380,7 +380,7 @@ static void writeback_fn(struct work_struct *work)
 			if (key->data_crc != cache_key_data_crc(key)) {
 				cbd_cache_debug(cache, "key: %llu:%u data crc(%x) is not expected(%x), wait for data ready.\n",
 						key->off, key->len, cache_key_data_crc(key), key->data_crc);
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
 				return;
 			}
 		}
@@ -391,7 +391,7 @@ static void writeback_fn(struct work_struct *work)
 			key = cache_key_alloc(cache);
 			if (!key) {
 				cbd_cache_err(cache, "writeback error failed to alloc key\n");
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
 				return;
 			}
 
@@ -401,7 +401,7 @@ static void writeback_fn(struct work_struct *work)
 
 			if (ret) {
 				cbd_cache_err(cache, "writeback error: %d\n", ret);
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, 10 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
 				return;
 			}
 		}
@@ -459,7 +459,7 @@ static void gc_fn(struct work_struct *work)
 			return;
 
 		if (!need_gc(cache)) {
-			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, CBD_CACHE_GC_INTERVAL);
 			return;
 		}
 
@@ -469,14 +469,14 @@ static void gc_fn(struct work_struct *work)
 		if (kset_onmedia->magic != CBD_KSET_MAGIC) {
 			cbd_cache_err(cache, "gc error magic is not expected. key_tail: %u:%u magic: %llx, expected: %llx\n",
 						pos->cache_seg->cache_seg_id, pos->seg_off, kset_onmedia->magic, CBD_KSET_MAGIC);
-			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, CBD_CACHE_GC_INTERVAL);
 			return;
 		}
 
 		if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
 			cbd_cache_err(cache, "gc error crc is not expected. crc: %x, expected: %x\n",
 						cache_kset_crc(kset_onmedia), kset_onmedia->crc);
-			queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
+			queue_delayed_work(cache->cache_wq, &cache->gc_work, CBD_CACHE_GC_INTERVAL);
 			return;
 		}
 
@@ -509,7 +509,7 @@ static void gc_fn(struct work_struct *work)
 			key = cache_key_alloc(cache);
 			if (!key) {
 				cbd_cache_err(cache, "gc error failed to alloc key\n");
-				queue_delayed_work(cache->cache_wq, &cache->gc_work, 10 * HZ);
+				queue_delayed_work(cache->cache_wq, &cache->gc_work, CBD_CACHE_GC_INTERVAL);
 				return;
 			}
 
