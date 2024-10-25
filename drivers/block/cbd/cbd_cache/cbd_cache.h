@@ -33,7 +33,6 @@ struct cbd_cache_segment {
 	struct cbd_cache		*cache;
 	u32				cache_seg_id;	/* index in cache->segments */
 	u32				used;
-	spinlock_t			gen_lock;
 	struct cbd_segment		segment;
 	atomic_t			refs;
 
@@ -42,6 +41,7 @@ struct cbd_cache_segment {
 	u32				info_index;
 	struct mutex			info_lock;
 
+	spinlock_t			gen_lock;
 	u64				gen;
 	struct cbd_cache_seg_ctrl	*cache_seg_ctrl;
 	struct mutex			ctrl_lock;

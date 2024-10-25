@@ -58,19 +58,22 @@ int cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 	struct cbd_segment *segment = &cache_seg->segment;
 	int ret;
 
+	cache_seg->cache = cache;
+	cache_seg->cache_seg_id = cache_seg_id;
+	spin_lock_init(&cache_seg->gen_lock);
+	atomic_set(&cache_seg->refs, 0);
+	cache_seg->info_index = 0;
+	mutex_init(&cache_seg->info_lock);
+	mutex_init(&cache_seg->ctrl_lock);
+
+	/* init cbd_segment */
 	seg_options.type = cbds_type_cache;
 	seg_options.data_off = CBDT_CACHE_SEG_CTRL_OFF + CBDT_CACHE_SEG_CTRL_SIZE;
 	seg_options.seg_ops = &cbd_cache_seg_ops;
 	seg_options.seg_id = seg_id;
-
 	cbd_segment_init(cbdt, segment, &seg_options);
 
-	atomic_set(&cache_seg->refs, 0);
-	spin_lock_init(&cache_seg->gen_lock);
-	mutex_init(&cache_seg->info_lock);
-	mutex_init(&cache_seg->ctrl_lock);
-	cache_seg->cache = cache;
-	cache_seg->cache_seg_id = cache_seg_id;
+	cache_seg->cache_seg_ctrl = (void *)segment->data + CBDT_CACHE_SEG_CTRL_OFF;
 
 	if (new_cache) {
 		cache_seg->cache_seg_info.segment_info.type = cbds_type_cache;
