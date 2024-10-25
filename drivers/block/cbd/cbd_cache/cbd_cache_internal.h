@@ -20,6 +20,9 @@
 
 #define CBD_CLEAN_KEYS_MAX		10
 
+#define CBD_CACHE_WRITEBACK_INTERVAL	(10 * HZ)
+#define CBD_CACHE_GC_INTERVAL	(10 * HZ)
+
 #define CACHE_KEY(node)		(container_of(node, struct cbd_cache_key, rb_node))
 
 struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache);
@@ -107,6 +110,9 @@ void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id);
 void cache_info_write(struct cbd_cache *cache);
 int cache_flush(struct cbd_cache *cache);
 void miss_read_end_work_fn(struct work_struct *work);
+
+/* gc */
+void cbd_cache_gc_fn(struct work_struct *work);
 
 static inline struct cbd_cache_tree *get_cache_tree(struct cbd_cache *cache, u64 off)
 {
@@ -250,6 +256,91 @@ static inline void cache_key_copy(struct cbd_cache_key *key_dst, struct cbd_cach
 	key_dst->flags = key_src->flags;
 
 	cache_pos_copy(&key_dst->cache_pos, &key_src->cache_pos);
+}
+
+
+static inline u32 cache_pos_onmedia_crc(struct cbd_cache_pos_onmedia *pos_om)
+{
+	return crc32(0, (void *)pos_om + 4, sizeof(*pos_om) - 4);
+}
+
+static inline void cache_pos_encode(struct cbd_cache *cache,
+			     struct cbd_cache_pos_onmedia *pos_onmedia,
+			     struct cbd_cache_pos *pos,
+			     char *debug)
+{
+	struct cbd_cache_pos_onmedia *oldest;
+
+	oldest = cbd_meta_find_oldest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia));
+
+	BUG_ON(!oldest);
+
+	oldest->header.seq = cbd_meta_get_next_seq(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia));
+
+	//cbd_cache_err(cache, "%s oldest: %p set seq: %llu seg_id: %u\n", debug, oldest, oldest->seq, pos->cache_seg->cache_seg_id);
+	oldest->cache_seg_id = pos->cache_seg->cache_seg_id;
+	//cbd_cache_err(cache, "%s finish set seg_off: %u\n", debug, pos->seg_off);
+	oldest->seg_off = pos->seg_off;
+
+	oldest->header.crc = cache_pos_onmedia_crc(oldest);
+
+	//dax_flush(cache->cbdt->dax_dev, oldest, sizeof(*oldest));
+	//cbd_cache_err(cache, "%s dax_flush oldest seq: %llu , crc: %u\n", debug, oldest->seq, oldest->crc);
+}
+
+static inline int cache_pos_decode(struct cbd_cache *cache,
+		            struct cbd_cache_pos_onmedia *pos_onmedia,
+			    struct cbd_cache_pos *pos)
+{
+	struct cbd_cache_pos_onmedia *latest;
+
+	latest = cbd_meta_find_latest(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia), NULL);
+	if (!latest)
+		return -EIO;
+
+	//cbd_cache_err(cache, "read pos: %u:%u\n", newest_pos->cache_seg_id, newest_pos->seg_off);
+	pos->cache_seg = &cache->segments[latest->cache_seg_id];
+	pos->seg_off = latest->seg_off;
+
+	return 0;
+}
+
+static inline void cache_encode_key_tail(struct cbd_cache *cache)
+{
+	//pr_err("update key tail\n");
+	mutex_lock(&cache->key_tail_lock);
+	cache_pos_encode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail, "key_tail");
+	mutex_unlock(&cache->key_tail_lock);
+}
+
+static inline int cache_decode_key_tail(struct cbd_cache *cache)
+{
+	int ret;
+
+	mutex_lock(&cache->key_tail_lock);
+	ret = cache_pos_decode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail);
+	mutex_unlock(&cache->key_tail_lock);
+
+	return ret;
+}
+
+static inline void cache_encode_dirty_tail(struct cbd_cache *cache)
+{
+	//pr_err("update dirty tail\n");
+	mutex_lock(&cache->dirty_tail_lock);
+	cache_pos_encode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail, "dirty tail");
+	mutex_unlock(&cache->dirty_tail_lock);
+}
+
+static inline int cache_decode_dirty_tail(struct cbd_cache *cache)
+{
+	int ret;
+
+	mutex_lock(&cache->dirty_tail_lock);
+	ret = cache_pos_decode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail);
+	mutex_unlock(&cache->dirty_tail_lock);
+
+	return ret;
 }
 
 #endif /* _CBD_CACHE_INTERNAL_H */
