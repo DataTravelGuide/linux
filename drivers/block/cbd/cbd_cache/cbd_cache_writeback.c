@@ -72,88 +72,118 @@ static int cache_key_writeback(struct cbd_cache *cache, struct cbd_cache_key *ke
 	return 0;
 }
 
+static int kset_writeback(struct cbd_cache *cache,
+		struct cbd_cache_kset_onmedia *kset_onmedia)
+{
+	struct cbd_cache_key_onmedia *key_onmedia;
+	struct cbd_cache_key *key;
+	int ret;
+	u32 i;
+
+	for (i = 0; i < kset_onmedia->key_num; i++) {
+		key_onmedia = &kset_onmedia->data[i];
+
+		key = cache_key_alloc(cache);
+		if (!key) {
+			cbd_cache_err(cache, "writeback error failed to alloc key\n");
+			return -ENOMEM;
+		}
+
+		cache_key_decode(key_onmedia, key);
+		ret = cache_key_writeback(cache, key);
+		cache_key_put(key);
+
+		if (ret) {
+			cbd_cache_err(cache, "writeback error: %d\n", ret);
+			return ret;
+		}
+	}
+
+	vfs_fsync(cache->bdev_file, 1);
+
+	return 0;
+}
+
+static void last_kset_handle(struct cbd_cache *cache,
+		struct cbd_cache_kset_onmedia *last_kset_onmedia)
+{
+	struct cbd_cache_segment *next_seg;
+
+	cbd_cache_debug(cache, "last kset, next: %u\n", last_kset_onmedia->next_cache_seg_id);
+
+	next_seg = &cache->segments[last_kset_onmedia->next_cache_seg_id];
+
+	/* update dirty_tail pos */
+	cache->dirty_tail.cache_seg = next_seg;
+	cache->dirty_tail.seg_off = 0;
+
+	cache_encode_dirty_tail(cache);
+}
+
+#ifdef CONFIG_CBD_CRC
+static int kset_data_verify(struct cbd_cache *cache,
+		struct cbd_cache_kset_onmedia *kset_onmedia)
+{
+	u32 i;
+
+	for (i = 0; i < kset_onmedia->key_num; i++) {
+		struct cbd_cache_key key_tmp = { 0 };
+		struct cbd_cache_key *key;
+		struct cbd_cache_key_onmedia *key_onmedia;
+
+		key = &key_tmp;
+		kref_init(&key->ref);
+		key->cache = cache;
+		INIT_LIST_HEAD(&key->list_node);
+
+		key_onmedia = &kset_onmedia->data[i];
+		cache_key_decode(key_onmedia, key);
+
+		if (key->data_crc != cache_key_data_crc(key)) {
+			cbd_cache_debug(cache, "key: %llu:%u data crc(%x) is not expected(%x), wait for data ready.\n",
+					key->off, key->len, cache_key_data_crc(key), key->data_crc);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 void cache_writeback_fn(struct work_struct *work)
 {
 	struct cbd_cache *cache = container_of(work, struct cbd_cache, writeback_work.work);
-	struct cbd_cache_pos *pos;
 	struct cbd_cache_kset_onmedia *kset_onmedia;
-	struct cbd_cache_key_onmedia *key_onmedia;
-	struct cbd_cache_key *key = NULL;
 	int ret = 0;
 	void *addr;
-	int i;
 
 	cbd_cache_err(cache, "into writeback\n");
 	while (true) {
-		if (cache_clean(cache)) {
-			queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
-			return;
-		}
+		if (cache_clean(cache))
+			break;
 
-		pos = &cache->dirty_tail;
-		addr = cache_pos_addr(pos);
+		addr = cache_pos_addr(&cache->dirty_tail);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
-			struct cbd_cache_segment *cur_seg, *next_seg;
-
-			cbd_cache_err(cache, "last kset, next: %u\n", kset_onmedia->next_cache_seg_id);
-			cur_seg = pos->cache_seg;
-			next_seg = &cache->segments[kset_onmedia->next_cache_seg_id];
-			pos->cache_seg = next_seg;
-			pos->seg_off = 0;
-			cache_encode_dirty_tail(cache);
-
+			last_kset_handle(cache, kset_onmedia);
 			continue;
 		}
+
 #ifdef CONFIG_CBD_CRC
 		/* check the data crc */
-		for (i = 0; i < kset_onmedia->key_num; i++) {
-			struct cbd_cache_key key_tmp = { 0 };
-
-			key = &key_tmp;
-
-			kref_init(&key->ref);
-			key->cache = cache;
-			INIT_LIST_HEAD(&key->list_node);
-
-			key_onmedia = &kset_onmedia->data[i];
-
-			cache_key_decode(key_onmedia, key);
-			if (key->data_crc != cache_key_data_crc(key)) {
-				cbd_cache_debug(cache, "key: %llu:%u data crc(%x) is not expected(%x), wait for data ready.\n",
-						key->off, key->len, cache_key_data_crc(key), key->data_crc);
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
-				return;
-			}
-		}
+		ret = kset_data_verify(cache, kset_onmedia);
+		if (ret)
+			break;
 #endif
-		for (i = 0; i < kset_onmedia->key_num; i++) {
-			key_onmedia = &kset_onmedia->data[i];
-
-			key = cache_key_alloc(cache);
-			if (!key) {
-				cbd_cache_err(cache, "writeback error failed to alloc key\n");
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
-				return;
-			}
-
-			cache_key_decode(key_onmedia, key);
-			ret = cache_key_writeback(cache, key);
-			cache_key_put(key);
-
-			if (ret) {
-				cbd_cache_err(cache, "writeback error: %d\n", ret);
-				queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
-				return;
-			}
-		}
-
-		vfs_fsync(cache->bdev_file, 1);
+		ret = kset_writeback(cache, kset_onmedia);
+		if (ret)
+			break;
 
 		//cbd_cache_err(cache, "writeback advance: %u:%u %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, get_kset_onmedia_size(kset_onmedia));
-		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
+		cache_pos_advance(&cache->dirty_tail, get_kset_onmedia_size(kset_onmedia));
 		cache_encode_dirty_tail(cache);
 	}
-}
 
+	queue_delayed_work(cache->cache_wq, &cache->writeback_work, CBD_CACHE_WRITEBACK_INTERVAL);
+}
