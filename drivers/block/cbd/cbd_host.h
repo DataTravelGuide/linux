@@ -28,7 +28,11 @@ struct cbd_host {
 	struct cbd_transport	*cbdt;
 
 	struct cbd_host_device	*dev;
-	struct cbd_host_info	*host_info;
+
+	struct cbd_host_info	host_info;
+	struct mutex		info_lock;
+	u32			info_index;
+
 	struct delayed_work	hb_work; /* heartbeat work */
 };
 

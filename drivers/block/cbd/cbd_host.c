@@ -54,6 +54,18 @@ const struct device_type cbd_hosts_type = {
 	.release	= cbd_host_release,
 };
 
+static void host_info_write(struct cbd_host *host)
+{
+	struct cbd_host_info *host_info;
+
+	mutex_lock(&host->info_lock);
+	host->host_info.alive_ts = ktime_get_real();
+	cbdt_host_info_write(host->cbdt, &host->host_info, sizeof(struct cbd_host_info),
+			     host->host_id, host->info_index);
+	host->info_index = (host->info_index + 1) % CBDT_META_INDEX_MAX;
+	mutex_unlock(&host->info_lock);
+}
+
 int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 {
 	struct cbd_host *host;
@@ -79,7 +91,8 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 		}
 	}
 
-	if (cbd_host_info_is_alive(cbdt_get_host_info(cbdt, host_id))) {
+	host_info = cbdt_host_info_read(cbdt, host_id, NULL);
+	if (host_info && cbd_host_info_is_alive(host_info)) {
 		pr_err("host id %u is still alive\n", host_id);
 		return -EBUSY;
 	}
@@ -90,13 +103,14 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 
 	host->host_id = host_id;
 	host->cbdt = cbdt;
+	mutex_init(&host->info_lock);
 	INIT_DELAYED_WORK(&host->hb_work, host_hb_workfn);
 
-	host_info = cbdt_get_host_info(cbdt, host_id);
+	host_info = &host->host_info;
 	host_info->state = cbd_host_state_running;
 	memcpy(host_info->hostname, hostname, CBD_NAME_LEN);
 
-	host->host_info = host_info;
+	host_info_write(host);
 	cbdt->host = host;
 
 	queue_delayed_work(cbd_wq, &host->hb_work, 0);
@@ -114,12 +128,9 @@ int cbd_host_unregister(struct cbd_transport *cbdt)
 		return 0;
 	}
 
-	host->host_info->state = cbd_host_state_removing;
 	cancel_delayed_work_sync(&host->hb_work);
-	host_info = host->host_info;
-	memset(host_info->hostname, 0, CBD_NAME_LEN);
-	host_info->alive_ts = 0;
-	host_info->state = cbd_host_state_none;
+
+	cbdt_host_info_clear(cbdt, host->host_id);
 
 	cbdt->host = NULL;
 	kfree(cbdt->host);
@@ -178,5 +189,5 @@ int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 
 void cbd_host_hb(struct cbd_host *host)
 {
-	return;
+	host_info_write(host);
 }
