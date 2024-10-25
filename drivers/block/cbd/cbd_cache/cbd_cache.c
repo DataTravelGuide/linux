@@ -804,7 +804,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
 	struct cbd_cache_info *cache_info;
-	struct cbd_backend_info *backend_info;
 	struct cbd_segment_info *prev_seg_info = NULL;
 	struct cbd_cache *cache;
 	u32 seg_id;
@@ -820,7 +819,6 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	}
 
 	cache_info = opts->cache_info;
-	backend_info = container_of(cache_info, struct cbd_backend_info, cache_info);
 
 	if (opts->n_paral * CBD_CACHE_SEGS_EACH_PARAL > cache_info->n_segs) {
 		cbdt_err(cbdt, "n_paral %u requires cache size (%llu), more than current (%llu).",
@@ -907,11 +905,9 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 void cache_info_write(struct cbd_cache *cache)
 {
-	struct cbd_backend_info *backend_info;
-	struct cbd_backend *backend;
+	struct cbd_backend *backend = cache->backend;
 
-	backend_info = container_of(cache->cache_info, struct cbd_backend_info, cache_info);
-	backend = container_of(backend_info, struct cbd_backend, backend_info);
+	BUG_ON(!backend);
 
 	cbd_backend_info_write(backend);
 }

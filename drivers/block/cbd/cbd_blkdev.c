@@ -346,6 +346,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 
 		cache_opts.cache_info = &backend_info->cache_info;
 		cache_opts.cache_id = backend_id;
+		cache_opts.backend = NULL;
 		cache_opts.new_cache = false;
 		cache_opts.start_writeback = false;
 		cache_opts.start_gc = true;

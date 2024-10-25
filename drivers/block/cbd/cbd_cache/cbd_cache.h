@@ -180,6 +180,10 @@ struct cbd_cache {
 	struct cbd_transport		*cbdt;
 	u32				cache_id;	/* same with related backend->backend_id */
 
+	/* ->backend is only used for cache on backend size,
+	 * on the blkdev size, ->backend should be NULL */
+	struct cbd_backend		*backend;
+
 	struct cbd_cache_info		*cache_info;
 	struct cbd_cache_ctrl		*cache_ctrl;
 
@@ -232,6 +236,7 @@ struct cbd_request;
 struct cbd_cache_opts {
 	struct cbd_cache_info *cache_info;
 	u32 cache_id;
+	struct cbd_backend *backend;
 	bool new_cache;
 	bool start_writeback;
 	bool start_gc;
