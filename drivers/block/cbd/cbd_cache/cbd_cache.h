@@ -52,7 +52,6 @@ struct cbd_cache_seg_ctrl {
 
 struct cbd_cache_segment {
 	struct cbd_cache		*cache;
-	u8				state;
 	u32				cache_seg_id;	/* index in cache->segments */
 	u32				used;
 	spinlock_t			gen_lock;
@@ -69,11 +68,6 @@ struct cbd_cache_segment {
 	u8				gc_flags;
 	struct cbd_cache_seg_ctrl	*cache_seg_ctrl;
 	struct mutex			ctrl_lock;
-};
-
-enum cbd_cache_seg_state {
-	cbd_cache_seg_state_none = 0,
-	cbd_cache_seg_state_running,
 };
 
 struct cbd_cache_pos {
