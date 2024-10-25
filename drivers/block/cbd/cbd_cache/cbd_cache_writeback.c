@@ -3,7 +3,6 @@
 #include "../cbd_internal.h"
 #include "cbd_cache_internal.h"
 
-/* Writeback */
 void cache_writeback_exit(struct cbd_cache *cache)
 {
 	cache_flush(cache);
@@ -72,7 +71,7 @@ static int cache_key_writeback(struct cbd_cache *cache, struct cbd_cache_key *ke
 	return 0;
 }
 
-static int kset_writeback(struct cbd_cache *cache,
+static int cache_kset_writeback(struct cbd_cache *cache,
 		struct cbd_cache_kset_onmedia *kset_onmedia)
 {
 	struct cbd_cache_key_onmedia *key_onmedia;
@@ -157,11 +156,11 @@ void cache_writeback_fn(struct work_struct *work)
 	int ret = 0;
 	void *addr;
 
-	cbd_cache_err(cache, "into writeback\n");
 	while (true) {
 		if (cache_clean(cache))
 			break;
 
+		/* get kset_onmedia from dirty_tail position */
 		addr = cache_pos_addr(&cache->dirty_tail);
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 
@@ -176,7 +175,7 @@ void cache_writeback_fn(struct work_struct *work)
 		if (ret)
 			break;
 #endif
-		ret = kset_writeback(cache, kset_onmedia);
+		ret = cache_kset_writeback(cache, kset_onmedia);
 		if (ret)
 			break;
 
