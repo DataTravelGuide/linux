@@ -25,6 +25,7 @@
 
 #define CACHE_KEY(node)		(container_of(node, struct cbd_cache_key, rb_node))
 
+void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key);
 struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache);
 void cache_key_get(struct cbd_cache_key *key);
 void cache_key_put(struct cbd_cache_key *key);

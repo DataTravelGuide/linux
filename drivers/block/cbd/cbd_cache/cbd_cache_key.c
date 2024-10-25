@@ -1,7 +1,14 @@
 #include "../cbd_internal.h"
 #include "cbd_cache_internal.h"
 
-/* cache_key management, allocation, destroy, cutfront, cutback...*/
+void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key)
+{
+	kref_init(&key->ref);
+	key->cache = cache;
+	INIT_LIST_HEAD(&key->list_node);
+	RB_CLEAR_NODE(&key->rb_node);
+}
+
 struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 {
 	struct cbd_cache_key *key;
@@ -10,10 +17,7 @@ struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 	if (!key)
 		return NULL;
 
-	kref_init(&key->ref);
-	key->cache = cache;
-	INIT_LIST_HEAD(&key->list_node);
-	RB_CLEAR_NODE(&key->rb_node);
+	cache_key_init(cache, key);
 
 	return key;
 }

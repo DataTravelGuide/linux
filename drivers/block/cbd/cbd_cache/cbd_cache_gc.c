@@ -101,17 +101,15 @@ void cbd_cache_gc_fn(struct work_struct *work)
 
 		/* gc each key_onmedia in kset_onmedia */
 		for (i = 0; i < kset_onmedia->key_num; i++) {
+			struct cbd_cache_key key_tmp = { 0 };
+
 			key_onmedia = &kset_onmedia->data[i];
 
-			key = cache_key_alloc(cache);
-			if (!key) {
-				cbd_cache_err(cache, "gc error failed to alloc key\n");
-				break;
-			}
+			key = &key_tmp;
+			cache_key_init(cache, key);
 
 			cache_key_decode(key_onmedia, key);
 			cache_key_gc(cache, key);
-			cache_key_put(key);
 		}
 
 		cache_pos_advance(&cache->key_tail, get_kset_onmedia_size(kset_onmedia));

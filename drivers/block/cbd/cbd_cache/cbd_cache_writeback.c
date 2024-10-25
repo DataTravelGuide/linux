@@ -131,9 +131,7 @@ static int kset_data_verify(struct cbd_cache *cache,
 		struct cbd_cache_key_onmedia *key_onmedia;
 
 		key = &key_tmp;
-		kref_init(&key->ref);
-		key->cache = cache;
-		INIT_LIST_HEAD(&key->list_node);
+		cache_key_init(cache, key);
 
 		key_onmedia = &kset_onmedia->data[i];
 		cache_key_decode(key_onmedia, key);
