@@ -5,18 +5,16 @@
 
 static void cache_key_gc(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
-	struct cbd_cache_segment *cache_seg = key->cache_pos.cache_seg;
-
-	//cbd_cache_err(cache, "gc %u\n", cache_seg->cache_seg_id);
-	cache_seg_put(cache_seg);
+	cache_seg_put(key->cache_pos.cache_seg);
 }
 
-/* gc */
 static bool need_gc(struct cbd_cache *cache)
 {
 	void *dirty_addr, *key_addr;
+	u32 segs_used, segs_gc_threshold;
 	int ret;
 
+	/* refresh dirty_tail pos, it could be updated by writeback on blkdev side */
 	ret = cache_decode_dirty_tail(cache);
 	if (ret) {
 		cbd_cache_err(cache, "failed to decode dirty_tail\n");
@@ -27,15 +25,15 @@ static bool need_gc(struct cbd_cache *cache)
 	key_addr = cache_pos_addr(&cache->key_tail);
 
 	if (dirty_addr == key_addr) {
-		//cbd_cache_err(cache, "dirty_tail == key_tail\n");
+		cbd_cache_debug(cache, "key tail is equal with dirty tail.\n");
 		return false;
 	}
 
-	//cbd_cache_err(cache, "weight: %u, %u\n", bitmap_weight(cache->seg_map, cache->n_segs), (cache->n_segs * cache->cache_info->gc_percent / 100));
-
-	if (bitmap_weight(cache->seg_map, cache->n_segs) < (cache->n_segs * cache->cache_info->gc_percent / 100))
+	/* gc threshold*/
+	segs_used = bitmap_weight(cache->seg_map, cache->n_segs);
+	segs_gc_threshold = cache->n_segs * cache->cache_info->gc_percent / 100;
+	if (segs_used < segs_gc_threshold)
 		return false;
-
 
 	return true;
 }
@@ -52,9 +50,6 @@ void cbd_cache_gc_fn(struct work_struct *work)
 	int i;
 
 	while (true) {
-		if (cache->state == cbd_cache_state_stopping)
-			return;
-
 		if (!need_gc(cache)) {
 			queue_delayed_work(cache->cache_wq, &cache->gc_work, CBD_CACHE_GC_INTERVAL);
 			return;
