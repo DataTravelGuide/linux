@@ -435,7 +435,7 @@ static void segments_format(struct cbd_transport *cbdt)
 
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
 		seg_info = cbdt_get_segment_info(cbdt, i);
-		cbdt_zero_range(cbdt, seg_info, sizeof(struct cbd_segment_info));
+		cbdt_zero_range(cbdt, seg_info, CBDT_SEG_INFO_SIZE * CBDT_META_INDEX_MAX);
 	}
 }
 

@@ -531,15 +531,10 @@ static void cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
 
 static void cache_segs_destroy(struct cbd_cache *cache)
 {
-	struct cbd_cache_segment *cache_seg;
 	u32 i;
 
-	for (i = 0; i < cache->n_segs; i++) {
-		cache_seg = &cache->segments[i];
-		if (cache_seg->state == cbd_cache_seg_state_none)
-			continue;
+	for (i = 0; i < cache->n_segs; i++)
 		cache_seg_exit(&cache->segments[i]);
-	}
 }
 
 static void cache_info_set_seg_id(struct cbd_cache *cache, u32 seg_id)
