@@ -114,6 +114,11 @@ void miss_read_end_work_fn(struct work_struct *work);
 /* gc */
 void cbd_cache_gc_fn(struct work_struct *work);
 
+/* writeback */
+void cache_writeback_exit(struct cbd_cache *cache);
+int cache_writeback_init(struct cbd_cache *cache);
+void cache_writeback_fn(struct work_struct *work);
+
 static inline struct cbd_cache_tree *get_cache_tree(struct cbd_cache *cache, u64 off)
 {
 	return &cache->cache_trees[off >> CBD_CACHE_TREE_SIZE_SHIFT];
@@ -341,6 +346,35 @@ static inline int cache_decode_dirty_tail(struct cbd_cache *cache)
 	mutex_unlock(&cache->dirty_tail_lock);
 
 	return ret;
+}
+
+static inline bool cache_clean(struct cbd_cache *cache)
+{
+	struct cbd_cache_kset_onmedia *kset_onmedia;
+	struct cbd_cache_pos *pos;
+	void *addr;
+
+	pos = &cache->dirty_tail;
+
+	addr = cache_pos_addr(pos);
+	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
+	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
+		cbd_cache_err(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
+				pos->cache_seg->cache_seg_id, pos->seg_off,
+				kset_onmedia->magic, CBD_KSET_MAGIC);
+		return true;
+	}
+
+	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
+		cbd_cache_err(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
+				pos->cache_seg->cache_seg_id, pos->seg_off,
+				cache_kset_crc(kset_onmedia), kset_onmedia->crc);
+		return true;
+	}
+
+	//cbd_cache_err(cache, "dirty\n");
+
+	return false;
 }
 
 #endif /* _CBD_CACHE_INTERNAL_H */
