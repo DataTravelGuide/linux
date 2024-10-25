@@ -53,6 +53,7 @@ struct cbd_blkdev {
 
 	struct cbd_transport *cbdt;
 
+	struct cbd_cache_info	cache_info;
 	struct cbd_cache	*cbd_cache;
 };
 

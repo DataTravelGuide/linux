@@ -211,7 +211,7 @@ static void backend_close_bdev(struct cbd_backend *cbdb)
 	fput(cbdb->bdev_file);
 }
 
-static int backend_cache_init(struct cbd_backend *cbdb, bool new_backend)
+static int backend_cache_init(struct cbd_backend *cbdb, u32 cache_segs, bool new_backend)
 {
 	struct cbd_cache_opts cache_opts = { 0 };
 	int ret;
@@ -219,6 +219,7 @@ static int backend_cache_init(struct cbd_backend *cbdb, bool new_backend)
 	cache_opts.cache_info = &cbdb->backend_info.cache_info;
 	cache_opts.cache_id = cbdb->backend_id;
 	cache_opts.backend = cbdb;
+	cache_opts.n_segs = cache_segs;
 	cache_opts.new_cache = new_backend;
 	cache_opts.start_writeback = true;
 	cache_opts.start_gc = false;
@@ -275,8 +276,6 @@ static int cbd_backend_info_init(struct cbd_backend *cbdb, char *path,
 
 	strscpy(cbdb->backend_info.path, path, CBD_PATH_LEN);
 
-	cbd_cache_info_init(&cbdb->backend_info.cache_info, cache_segs);
-
 	return 0;
 err:
 	return ret;
@@ -318,8 +317,8 @@ static int cbd_backend_init(struct cbd_backend *cbdb, char *path, u32 backend_id
 	if (ret)
 		goto close_bdev;
 
-	if (cbdb->backend_info.cache_info.n_segs) {
-		ret = backend_cache_init(cbdb, new_backend);
+	if (cache_segs) {
+		ret = backend_cache_init(cbdb, cache_segs, new_backend);
 		if (ret)
 			goto destroy_handlers;
 	}

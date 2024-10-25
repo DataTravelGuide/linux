@@ -523,7 +523,7 @@ static void gc_fn(struct work_struct *work)
 	}
 }
 
-void cbd_cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
+static void cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
 {
 	cache_info->n_segs = cache_segs;
 	cache_info->gc_percent = CBD_CACHE_GC_PERCENT_DEFAULT;
@@ -800,22 +800,29 @@ static void cache_destroy_keys(struct cbd_cache *cache)
 	kvfree(cache->cache_trees);
 }
 
-struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
-				  struct cbd_cache_opts *opts)
+static int cache_validate(struct cbd_transport *cbdt,
+			  struct cbd_cache_opts *opts)
 {
 	struct cbd_cache_info *cache_info;
-	struct cbd_segment_info *prev_seg_info = NULL;
-	struct cbd_cache *cache;
-	u32 seg_id;
-	u32 backend_id;
-	int ret;
-	int i;
 
-	/* options validate */
 	if (opts->n_paral > CBD_CACHE_PARAL_MAX) {
 		cbdt_err(cbdt, "n_paral too large (max %u).\n",
 			 CBD_CACHE_PARAL_MAX);
-		return NULL;
+		goto err;
+	}
+
+	if (opts->new_cache) {
+		if (!opts->backend) {
+			cbdt_err(cbdt, "backend is needed for new cache.\n");
+			goto err;
+		}
+
+		cache_info_init(opts->cache_info, opts->n_segs);
+	} else {
+		struct cbd_backend_info *backend_info;
+
+		backend_info = cbdt_backend_info_read(cbdt, opts->cache_id, NULL);
+		memcpy(opts->cache_info, &backend_info->cache_info, sizeof(struct cbd_cache_info));
 	}
 
 	cache_info = opts->cache_info;
@@ -824,17 +831,38 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 		cbdt_err(cbdt, "n_paral %u requires cache size (%llu), more than current (%llu).",
 				opts->n_paral, opts->n_paral * CBD_CACHE_SEGS_EACH_PARAL * (u64)CBDT_SEG_SIZE,
 				cache_info->n_segs * (u64)CBDT_SEG_SIZE);
-		return NULL;
+		goto err;
 	}
 
+	return 0;
+err:
+	return -EINVAL;
+}
+
+struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
+				  struct cbd_cache_opts *opts)
+{
+	struct cbd_segment_info *prev_seg_info = NULL;
+	struct cbd_cache *cache;
+	u32 seg_id;
+	u32 backend_id;
+	int ret;
+	int i;
+
+	/* options validate */
+	ret = cache_validate(cbdt, opts);
+	if (ret)
+		return NULL;
+
 	/* allocations */
-	cache = cache_alloc(cbdt, cache_info);
+	cache = cache_alloc(cbdt, opts->cache_info);
 	if (!cache)
 		return NULL;
 
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
 	cache->cache_id = opts->cache_id;
+	cache->backend = opts->backend;
 
 	cache->state = cbd_cache_state_running;
 

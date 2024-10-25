@@ -234,9 +234,10 @@ struct cbd_cache {
 
 struct cbd_request;
 struct cbd_cache_opts {
-	struct cbd_cache_info *cache_info;
 	u32 cache_id;
+	struct cbd_cache_info *cache_info;
 	struct cbd_backend *backend;
+	u32 n_segs;
 	bool new_cache;
 	bool start_writeback;
 	bool start_gc;
@@ -249,7 +250,6 @@ struct cbd_cache_opts {
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts);
 void cbd_cache_destroy(struct cbd_cache *cache);
-void cbd_cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs);
 int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req);
 
 #endif /* _CBD_CACHE_H */
