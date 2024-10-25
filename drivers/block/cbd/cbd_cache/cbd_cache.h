@@ -10,30 +10,9 @@ struct cbd_cache_seg_info {
 	u64 gen;
 };
 
-struct cbd_cache_seg_next {
-	struct cbd_meta_header header;
-	u32 next_cache_seg_id;		/* index in cache->segments */
-};
-
 struct cbd_cache_seg_gen {
 	struct cbd_meta_header header;
 	u64 gen;
-};
-
-struct cbd_cache_seg_wb_ctrl {
-	struct cbd_meta_header header;
-	u8 wb_flags;
-	u8 res;
-	u16 res1;
-	u32 res2;
-};
-
-struct cbd_cache_seg_gc_ctrl {
-	struct cbd_meta_header header;
-	u8 gc_flags;
-	u8 res;
-	u16 res1;
-	u32 res2;
 };
 
 struct cbd_cache_pos_onmedia {
@@ -64,8 +43,6 @@ struct cbd_cache_segment {
 	struct mutex			info_lock;
 
 	u64				gen;
-	u8				wb_flags;
-	u8				gc_flags;
 	struct cbd_cache_seg_ctrl	*cache_seg_ctrl;
 	struct mutex			ctrl_lock;
 };

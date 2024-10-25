@@ -49,13 +49,14 @@ static struct cbd_seg_ops cbd_cache_seg_ops = {
 };
 
 /* cache_segment allocation and reclaim */
-void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
-		    bool new_cache)
+int cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
+		   bool new_cache)
 {
 	struct cbd_transport *cbdt = cache->cbdt;
 	struct cbd_cache_segment *cache_seg = &cache->segments[cache_seg_id];
 	struct cbds_init_options seg_options = { 0 };
 	struct cbd_segment *segment = &cache_seg->segment;
+	int ret;
 
 	seg_options.type = cbds_type_cache;
 	seg_options.data_off = CBDT_CACHE_SEG_CTRL_OFF + CBDT_CACHE_SEG_CTRL_SIZE;
@@ -66,6 +67,8 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 
 	atomic_set(&cache_seg->refs, 0);
 	spin_lock_init(&cache_seg->gen_lock);
+	mutex_init(&cache_seg->info_lock);
+	mutex_init(&cache_seg->ctrl_lock);
 	cache_seg->cache = cache;
 	cache_seg->cache_seg_id = cache_seg_id;
 
@@ -77,8 +80,14 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 		cache_seg->cache_seg_info.backend_id = cache->cache_id;
 		cache_seg_info_write(cache_seg);
 	} else {
-		cache_seg_info_load(cache_seg);
+		ret = cache_seg_info_load(cache_seg);
+		if (ret)
+			goto err;
 	}
+
+	return 0;
+err:
+	return ret;
 }
 
 void cache_seg_exit(struct cbd_cache_segment *cache_seg)
@@ -128,7 +137,6 @@ again:
 
 void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
-	//cbd_cache_err(cache_seg->cache, "before get seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
 	atomic_inc(&cache_seg->refs);
 }
 

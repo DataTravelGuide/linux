@@ -101,8 +101,8 @@ int cache_replay(struct cbd_cache *cache);
 
 /* cache segments */
 struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache);
-void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
-		    bool new_cache);
+int cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
+		   bool new_cache);
 void cache_seg_exit(struct cbd_cache_segment *cache_seg);
 void cache_seg_get(struct cbd_cache_segment *cache_seg);
 void cache_seg_put(struct cbd_cache_segment *cache_seg);
