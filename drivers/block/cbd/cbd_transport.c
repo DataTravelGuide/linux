@@ -497,15 +497,15 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	info->host_info_size = CBDT_HOST_INFO_SIZE;
 	info->host_num = min(nr_segs, CBDT_HOSTS_MAX);
 
-	info->backend_area_off = info->host_area_off + (info->host_info_size * info->host_num);
+	info->backend_area_off = info->host_area_off + (CBDT_HOST_INFO_STRIDE * info->host_num);
 	info->backend_info_size = CBDT_BACKEND_INFO_SIZE;
 	info->backend_num = nr_segs;
 
-	info->blkdev_area_off = info->backend_area_off + (info->backend_info_size * info->backend_num);
+	info->blkdev_area_off = info->backend_area_off + (CBDT_BACKEND_INFO_STRIDE * info->backend_num);
 	info->blkdev_info_size = CBDT_BLKDEV_INFO_SIZE;
 	info->blkdev_num = nr_segs;
 
-	info->segment_area_off = info->blkdev_area_off + (info->blkdev_info_size * info->blkdev_num);
+	info->segment_area_off = info->blkdev_area_off + (CBDT_BLKDEV_INFO_STRIDE * info->blkdev_num);
 	info->segment_size = CBDT_SEG_SIZE;
 	info->segment_num = nr_segs;
 
