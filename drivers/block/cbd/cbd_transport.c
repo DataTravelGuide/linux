@@ -192,7 +192,7 @@ void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id)		\
 										\
 	mutex_lock(&cbdt->lock);						\
 	info = __get_##OBJ##_info(cbdt, id);					\
-	cbdt_zero_range(cbdt, info, OBJ_STRIDE);				\
+	cbdt_zero_range(cbdt, info, OBJ_SIZE * CBDT_META_INDEX_MAX);		\
 	mutex_unlock(&cbdt->lock);						\
 }
 
