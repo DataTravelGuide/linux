@@ -24,7 +24,6 @@ static bool need_gc(struct cbd_cache *cache)
 
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
-
 	if (dirty_addr == key_addr) {
 		cbd_cache_debug(cache, "key tail is equal with dirty tail.\n");
 		return false;
@@ -91,7 +90,6 @@ void cbd_cache_gc_fn(struct work_struct *work)
 			break;
 
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)cache_pos_addr(&cache->key_tail);
-
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
 			ret = last_kset_gc(cache, kset_onmedia);
 			if (ret)

@@ -177,7 +177,11 @@ void cache_writeback_fn(struct work_struct *work)
 		if (ret)
 			break;
 
-		//cbd_cache_err(cache, "writeback advance: %u:%u %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, get_kset_onmedia_size(kset_onmedia));
+		cbd_cache_debug(cache, "writeback advance: %u:%u %u\n",
+				cache->dirty_tail.cache_seg->cache_seg_id,
+				cache->dirty_tail.seg_off,
+				get_kset_onmedia_size(kset_onmedia));
+
 		cache_pos_advance(&cache->dirty_tail, get_kset_onmedia_size(kset_onmedia));
 		cache_encode_dirty_tail(cache);
 	}
