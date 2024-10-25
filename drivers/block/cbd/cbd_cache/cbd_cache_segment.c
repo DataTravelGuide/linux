@@ -14,21 +14,24 @@ static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 static int cache_seg_info_load(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_segment_info *cache_seg_info;
+	int ret;
 
 	mutex_lock(&cache_seg->info_lock);
 	cache_seg_info = cbdt_segment_info_read(cache_seg->cache->cbdt,
 						cache_seg->segment.seg_id,
 						&cache_seg->info_index);
 	if (!cache_seg_info) {
+		mutex_unlock(&cache_seg->info_lock);
 		cbd_cache_err(cache_seg->cache, "can't read segment info of segment: %u\n",
 			      cache_seg->segment.seg_id);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	memcpy(&cache_seg->cache_seg_info, cache_seg_info, sizeof(struct cbd_cache_seg_info));
+out:
 	mutex_unlock(&cache_seg->info_lock);
-
-	return 0;
+	return ret;
 }
 
 void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
