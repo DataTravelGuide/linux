@@ -23,15 +23,6 @@ config CBD_CRC
 	  and a completion entry checksum. This ensures the integrity of the
 	  data transmitted through the CXL memory device.
 
-config CBD_DEBUG
-	bool "Enable CBD debug"
-	default n
-	depends on BLK_DEV_CBD
-	help
-	  When CBD_DEBUG is enabled, CBD module will print more messages
-	  for debugging. But that will affact performance, so do not use it
-	  in production case.
-
 config CBD_MULTIHOST
 	bool "multi-hosts CXL Dlock Device"
 	default n

@@ -84,48 +84,6 @@ const struct device_type cbd_cache_type = {
 	.release	= cbd_cache_release,
 };
 
-/* debug functions */
-#ifdef CONFIG_CBD_DEBUG
-static void dump_seg_map(struct cbd_cache *cache)
-{
-	int i;
-
-	cbd_cache_debug(cache, "start seg map dump");
-	for (i = 0; i < cache->n_segs; i++)
-		cbd_cache_debug(cache, "seg: %u, %u", i, test_bit(i, cache->seg_map));
-	cbd_cache_debug(cache, "end seg map dump");
-}
-
-static void dump_cache(struct cbd_cache *cache)
-{
-	struct cbd_cache_key *key;
-	struct rb_node *node;
-	int i;
-
-	cbd_cache_debug(cache, "start cache tree dump");
-
-	for (i = 0; i < cache->n_trees; i++) {
-		struct cbd_cache_tree *cache_tree;
-
-		cache_tree = &cache->cache_trees[i];
-		node = rb_first(&cache_tree->root);
-		while (node) {
-			key = CACHE_KEY(node);
-			node = rb_next(node);
-
-			if (cache_key_empty(key))
-				continue;
-
-			cbd_cache_debug(cache, "key: %p gen: %llu key->off: %llu, len: %u, cache: %p segid: %u, seg_off: %u\n",
-					key, key->seg_gen, key->off, key->len, cache_pos_addr(&key->cache_pos),
-					key->cache_pos.cache_seg->cache_seg_id, key->cache_pos.seg_off);
-		}
-	}
-	cbd_cache_debug(cache, "end cache tree dump");
-}
-
-#endif /* CONFIG_CBD_DEBUG */
-
 static void cache_info_init(struct cbd_cache_info *cache_info, u32 cache_segs)
 {
 	cache_info->n_segs = cache_segs;

@@ -147,16 +147,10 @@ static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 	spin_unlock(&cache->seg_map_lock);
 
 	queue_work(cache->cache_wq, &cache->clean_work);
-	//cbd_cache_err(cache, "gc invalidat seg: %u\n", cache_seg->cache_seg_id);
-
-#ifdef CONFIG_CBD_DEBUG
-	dump_seg_map(cache);
-#endif
 }
 
 void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
-	//cbd_cache_err(cache_seg->cache, "before put seg id: %u, ref: %u\n", cache_seg->cache_seg_id, atomic_read(&cache_seg->refs));
 	if (atomic_dec_and_test(&cache_seg->refs))
 		cache_seg_invalidate(cache_seg);
 }

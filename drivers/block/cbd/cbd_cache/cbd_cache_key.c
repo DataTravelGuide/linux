@@ -637,10 +637,6 @@ int cache_replay(struct cbd_cache *cache)
 		//cbd_cache_err(cache, "after advance: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 	}
 
-#ifdef CONFIG_CBD_DEBUG
-	dump_cache(cache);
-#endif
-
 	spin_lock(&cache->key_head_lock);
 	cache_pos_copy(&cache->key_head, pos);
 	//cache_seg_get(cache->key_head.cache_seg);
