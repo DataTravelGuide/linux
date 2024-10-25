@@ -4,7 +4,6 @@
 static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 {
 	mutex_lock(&cache_seg->info_lock);
-	cbd_cache_err(cache_seg->cache, "seq: %u\n", cache_seg->cache_seg_info.segment_info.meta_header.seq);
 	cbdt_segment_info_write(cache_seg->cache->cbdt, &cache_seg->cache_seg_info,
 				sizeof(struct cbd_cache_seg_info), cache_seg->segment.seg_id,
 				cache_seg->info_index);
@@ -62,7 +61,6 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 	struct cbd_segment *segment = &cache_seg->segment;
 
 	seg_options.type = cbds_type_cache;
-	/*TODO CBDT_CACHE_CTRL_OFF splite frequently changed member from info to meta*/
 	seg_options.data_off = CBDT_CACHE_SEG_CTRL_OFF + CBDT_CACHE_SEG_CTRL_SIZE;
 	seg_options.seg_ops = &cbd_cache_seg_ops;
 	seg_options.seg_id = seg_id;
@@ -88,7 +86,7 @@ void cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 
 void cache_seg_exit(struct cbd_cache_segment *cache_seg)
 {
-	cbd_segment_exit(&cache_seg->segment);
+	cbd_segment_info_clear(&cache_seg->segment);
 }
 
 #define CBD_WAIT_NEW_CACHE_INTERVAL	100 /* usecs */

@@ -103,6 +103,11 @@ void cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)
 	cbdt_zero_range(cbdt, segment_info, CBDT_SEG_SIZE);
 }
 
+void cbd_segment_info_clear(struct cbd_segment *segment)
+{
+	cbdt_segment_info_clear(segment->cbdt, segment->seg_id);
+}
+
 void cbds_copy_data(struct cbd_seg_pos *dst_pos,
 		struct cbd_seg_pos *src_pos, u32 len)
 {
