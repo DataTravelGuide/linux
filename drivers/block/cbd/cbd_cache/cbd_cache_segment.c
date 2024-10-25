@@ -11,13 +11,6 @@ static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 	mutex_unlock(&cache_seg->info_lock);
 }
 
-void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
-{
-	cache_seg->cache_seg_info.segment_info.flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
-	cache_seg->cache_seg_info.segment_info.next_seg = seg_id;
-	cache_seg_info_write(cache_seg);
-}
-
 static int cache_seg_info_load(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_segment_info *cache_seg_info;
@@ -38,13 +31,17 @@ static int cache_seg_info_load(struct cbd_cache_segment *cache_seg)
 	return 0;
 }
 
+void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
+{
+	cache_seg->cache_seg_info.segment_info.flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
+	cache_seg->cache_seg_info.segment_info.next_seg = seg_id;
+	cache_seg_info_write(cache_seg);
+}
+
 /* cbd_cache_seg_ops */
 static void cbd_cache_seg_sanitize_pos(struct cbd_seg_pos *pos)
 {
-	struct cbd_segment *segment;
-
-	segment = pos->segment;
-	BUG_ON(pos->off > segment->data_size);
+	BUG_ON(pos->off > pos->segment->data_size);
 }
 
 static struct cbd_seg_ops cbd_cache_seg_ops = {
