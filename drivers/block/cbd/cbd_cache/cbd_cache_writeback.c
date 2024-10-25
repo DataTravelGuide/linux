@@ -6,13 +6,10 @@
 /* Writeback */
 void cache_writeback_exit(struct cbd_cache *cache)
 {
-	if (!cache->bioset)
-		return;
-
 	cache_flush(cache);
 
 	while (!cache_clean(cache))
-		msleep(100);
+		schedule_timeout(HZ);
 
 	cancel_delayed_work_sync(&cache->writeback_work);
 	bioset_exit(cache->bioset);
@@ -49,8 +46,6 @@ static int cache_key_writeback(struct cbd_cache *cache, struct cbd_cache_key *ke
 	struct cbd_cache_pos *pos;
 	void *addr;
 	ssize_t written;
-	struct cbd_cache_segment *cache_seg;
-	struct cbd_segment *segment;
 	u32 seg_remain;
 	u64 off;
 
@@ -59,17 +54,12 @@ static int cache_key_writeback(struct cbd_cache *cache, struct cbd_cache_key *ke
 
 	pos = &key->cache_pos;
 
-	cache_seg = pos->cache_seg;
-	BUG_ON(!cache_seg);
-
-	segment = &cache_seg->segment;
-	seg_remain = segment->data_size - pos->seg_off;
+	seg_remain = cache_seg_remain(pos);
 	/* all data in one key should be int the same segment */
 	BUG_ON(seg_remain < key->len);
 
 	addr = cache_pos_addr(pos);
 	off = key->off;
-
 	/* Here write is in sync way, because it should consider
 	 * the sequence of overwrites. E.g, K1 writes A at 0-4K,
 	 * K2 after K1 writes B to 0-4K, we have to ensure K1

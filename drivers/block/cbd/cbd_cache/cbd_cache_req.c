@@ -42,7 +42,7 @@ again:
 
 		head_pos = &data_head->head_pos;
 		cache_seg = head_pos->cache_seg;
-		seg_remain = get_seg_remain(head_pos);
+		seg_remain = cache_seg_remain(head_pos);
 		to_alloc = key->len - allocated;
 	}
 

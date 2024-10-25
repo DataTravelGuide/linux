@@ -221,7 +221,7 @@ static inline u32 get_kset_onmedia_size(struct cbd_cache_kset_onmedia *kset_onme
 	return struct_size_t(struct cbd_cache_kset_onmedia, data, kset_onmedia->key_num);
 }
 
-static inline u32 get_seg_remain(struct cbd_cache_pos *pos)
+static inline u32 cache_seg_remain(struct cbd_cache_pos *pos)
 {
 	struct cbd_cache_segment *cache_seg;
 	struct cbd_segment *segment;

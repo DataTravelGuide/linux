@@ -39,7 +39,7 @@ void cache_key_put(struct cbd_cache_key *key)
 void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
 {
 	/* currently, key for data is splitted into different cache_seg */
-	BUG_ON(get_seg_remain(pos) < len);
+	BUG_ON(cache_seg_remain(pos) < len);
 
 	pos->seg_off += len;
 }
@@ -108,7 +108,7 @@ int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset)
 	spin_lock(&cache->key_head_lock);
 again:
 	/* reserve a kset_onmedia for last kset */
-	if (get_seg_remain(&cache->key_head) < kset_onmedia_size + sizeof(struct cbd_cache_kset_onmedia)) {
+	if (cache_seg_remain(&cache->key_head) < kset_onmedia_size + sizeof(struct cbd_cache_kset_onmedia)) {
 		struct cbd_cache_segment *next_seg;
 
 		next_seg = get_cache_segment(cache);
