@@ -1,6 +1,14 @@
 #include "../cbd_internal.h"
 #include "cbd_cache_internal.h"
 
+/**
+ * cache_seg_info_write - Writes cache_seg_info of the cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * This function locks the `info_lock` to ensure thread-safe access to `cache_seg_info`,
+ * calls `cbdt_segment_info_write` to write the cache segment's cache_seg_info to storage,
+ * and updates the cache_seg_info index (`info_index`) for tracking changes.
+ */
 static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 {
 	mutex_lock(&cache_seg->info_lock);
@@ -11,6 +19,14 @@ static void cache_seg_info_write(struct cbd_cache_segment *cache_seg)
 	mutex_unlock(&cache_seg->info_lock);
 }
 
+/**
+ * cache_seg_info_load - Loads cache_seg_info for a cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * Locks `info_lock`, reads segment cache_seg_info using `cbdt_segment_info_read`, and stores 
+ * it in `cache_seg_info`. If cache_seg_info cannot be read, logs an error and returns -EIO.
+ * Returns 0 on success or -EIO if reading fails.
+ */
 static int cache_seg_info_load(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_segment_info *cache_seg_info;
@@ -32,6 +48,14 @@ out:
 	return ret;
 }
 
+/**
+ * cache_seg_ctrl_load - Loads control information for the cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * Locks `ctrl_lock` to safely read the control structure (`cache_seg_ctrl`).
+ * Finds the latest generation information using `cbd_meta_find_latest` and updates 
+ * `cache_seg->gen` with the generation number. Sets `gen` to 0 if no valid entry exists.
+ */
 static void cache_seg_ctrl_load(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache_seg_ctrl *cache_seg_ctrl = cache_seg->cache_seg_ctrl;
@@ -51,6 +75,15 @@ out:
 	mutex_unlock(&cache_seg->ctrl_lock);
 }
 
+/**
+ * cache_seg_ctrl_write - Writes control information for the cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * Locks `ctrl_lock`, finds the oldest control entry using `cbd_meta_find_oldest`, 
+ * and updates its generation data with the current segment generation number.
+ * Also calculates and updates the CRC for integrity.
+ * Triggers a BUG if no oldest entry is found (should not happen).
+ */
 static void cache_seg_ctrl_write(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache_seg_ctrl *cache_seg_ctrl = cache_seg->cache_seg_ctrl;
@@ -68,6 +101,14 @@ static void cache_seg_ctrl_write(struct cbd_cache_segment *cache_seg)
 	mutex_unlock(&cache_seg->ctrl_lock);
 }
 
+/**
+ * cache_seg_meta_load - Loads cache_seg_info and control data for the cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * Calls `cache_seg_info_load` to load segment cache_seg_info, and if successful, 
+ * calls `cache_seg_ctrl_load` to load control information. Returns 0 on success,
+ * otherwise returns the error code from `cache_seg_info_load`.
+ */
 static int cache_seg_meta_load(struct cbd_cache_segment *cache_seg)
 {
 	int ret;
@@ -145,7 +186,7 @@ err:
 	return ret;
 }
 
-void cache_seg_exit(struct cbd_cache_segment *cache_seg)
+void cache_seg_destroy(struct cbd_cache_segment *cache_seg)
 {
 	cbd_segment_info_clear(&cache_seg->segment);
 }

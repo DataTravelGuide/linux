@@ -98,7 +98,7 @@ static void cache_segs_destroy(struct cbd_cache *cache)
 		return;
 
 	for (i = 0; i < cache->n_segs; i++)
-		cache_seg_exit(&cache->segments[i]);
+		cache_seg_destroy(&cache->segments[i]);
 }
 
 static void cache_info_set_seg_id(struct cbd_cache *cache, u32 seg_id)

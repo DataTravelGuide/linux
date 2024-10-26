@@ -103,7 +103,7 @@ int cache_replay(struct cbd_cache *cache);
 struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache);
 int cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 		   bool new_cache);
-void cache_seg_exit(struct cbd_cache_segment *cache_seg);
+void cache_seg_destroy(struct cbd_cache_segment *cache_seg);
 void cache_seg_get(struct cbd_cache_segment *cache_seg);
 void cache_seg_put(struct cbd_cache_segment *cache_seg);
 void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id);
