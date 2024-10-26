@@ -186,7 +186,6 @@ again:
 
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
-	cache_seg->cache_seg_info.flags = 0;
 
 	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
 

@@ -6,7 +6,6 @@
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
 	u32 backend_id;
-	u32 flags;
 };
 
 struct cbd_cache_seg_gen {
