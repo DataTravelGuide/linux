@@ -49,16 +49,12 @@ static void cache_seg_ctrl_load(struct cbd_cache_segment *cache_seg)
 	cache_seg->gen = cache_seg_gen->gen;
 out:
 	mutex_unlock(&cache_seg->ctrl_lock);
-
-	cbd_cache_debug(cache_seg->cache, "load cache_seg->gen: %llu\n", cache_seg->gen);
 }
 
 static void cache_seg_ctrl_write(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache_seg_ctrl *cache_seg_ctrl = cache_seg->cache_seg_ctrl;
 	struct cbd_cache_seg_gen *cache_seg_gen;
-
-	cbd_cache_debug(cache_seg->cache, "write cache_seg->gen: %llu\n", cache_seg->gen);
 
 	mutex_lock(&cache_seg->ctrl_lock);
 	cache_seg_gen = cbd_meta_find_oldest(&cache_seg_ctrl->gen->header,
