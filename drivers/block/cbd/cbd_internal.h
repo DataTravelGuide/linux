@@ -177,22 +177,22 @@
 	cbdt_debug(cache->cbdt, "cache%d: " fmt,				\
 		 cache->cache_id, ##__VA_ARGS__)
 
-#define CBD_KB	(1024)
-#define CBD_MB	(CBD_KB * CBD_KB)
+#define CBD_KB                  (1024)                      /* 1 Kilobyte in bytes */
+#define CBD_MB                  (CBD_KB * CBD_KB)           /* 1 Megabyte in bytes */
 
-#define CBD_TRANSPORT_MAX	1024
-#define CBD_PATH_LEN	128
-#define CBD_NAME_LEN	32
+#define CBD_TRANSPORT_MAX       1024                        /* Maximum number of transport instances */
+#define CBD_PATH_LEN            128                         /* Maximum path length for device names */
+#define CBD_NAME_LEN            32                          /* Maximum length for a name string */
 
-#define CBD_QUEUES_MAX		128
-#define CBD_HANDLERS_MAX		128
+#define CBD_QUEUES_MAX          128                         /* Maximum number of I/O queues */
+#define CBD_HANDLERS_MAX        128                         /* Maximum number of handlers */
 
-#define CBD_PART_SHIFT 4
-#define CBD_DRV_NAME "cbd"
-#define CBD_DEV_NAME_LEN 32
+#define CBD_PART_SHIFT          4                           /* Bit shift for partition identifier */
+#define CBD_DRV_NAME            "cbd"                       /* Default driver name for CBD */
+#define CBD_DEV_NAME_LEN        32                          /* Maximum device name length */
 
-#define CBD_HB_INTERVAL		msecs_to_jiffies(5000) /* 5s */
-#define CBD_HB_TIMEOUT		(30 * 1000) /* 30s */
+#define CBD_HB_INTERVAL         msecs_to_jiffies(5000)      /* Heartbeat interval in jiffies (5 seconds) */
+#define CBD_HB_TIMEOUT          (30 * 1000)                 /* Heartbeat timeout in milliseconds (30 seconds) */
 
 /*
  * CBD transport layout:

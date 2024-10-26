@@ -87,7 +87,6 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 
 	seg_info = cbdt_get_segment_info(cbdt, segment->seg_id);
 	segment->data = (void *)(seg_info) + options->data_off;
-	cbd_segment_err(segment, "seg_id: %u, data: %p, data_off: %u\n", segment->seg_id, segment->data, options->data_off);
 }
 
 void cbd_segment_exit(struct cbd_segment *segment)
@@ -301,7 +300,7 @@ int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io)
 
 		ret = bio_add_page(io->bio, page, len, 0);
 		if (unlikely(ret != len)) {
-			cbd_segment_err(segment, "failed to add page");
+			cbd_segment_err(segment, "failed to add page\n");
 			goto out;
 		}
 
