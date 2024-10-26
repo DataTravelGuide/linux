@@ -25,7 +25,7 @@ static bool need_gc(struct cbd_cache *cache)
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
 	if (dirty_addr == key_addr) {
-		cbd_cache_debug(cache, "key tail is equal with dirty tail.\n");
+		cbd_cache_err(cache, "key tail is equal with dirty tail.\n");
 		return false;
 	}
 
@@ -47,8 +47,10 @@ static bool need_gc(struct cbd_cache *cache)
 	/* gc threshold */
 	segs_used = bitmap_weight(cache->seg_map, cache->n_segs);
 	segs_gc_threshold = cache->n_segs * cache->cache_info->gc_percent / 100;
-	if (segs_used < segs_gc_threshold)
+	if (segs_used < segs_gc_threshold) {
+		cbd_cache_err(cache, "segs_used: %u, segs_gc_threashold: %u\n", segs_used, segs_gc_threshold);
 		return false;
+	}
 
 	return true;
 }
@@ -86,9 +88,11 @@ void cbd_cache_gc_fn(struct work_struct *work)
 	int i;
 
 	while (true) {
+		cbd_cache_err(cache, "into gc %u:%u \n", cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
 		if (!need_gc(cache))
 			break;
 
+		cbd_cache_err(cache, "need gc\n");
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)cache_pos_addr(&cache->key_tail);
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
 			ret = last_kset_gc(cache, kset_onmedia);
