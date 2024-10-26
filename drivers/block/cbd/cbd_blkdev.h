@@ -68,8 +68,9 @@ extern struct workqueue_struct	*cbd_wq;
 
 /* cbd_for_each functions to traverse object info */
 #define cbd_for_each_blkdev_info(cbdt, i, blkdev_info)					\
-	for (i = 0, blkdev_info = cbdt_blkdev_info_read(cbdt, i, NULL);			\
-	     i < cbdt->transport_info->blkdev_num;					\
+	for (i = 0;									\
+	     i < cbdt->transport_info->blkdev_num &&					\
+	     (blkdev_info = cbdt_blkdev_info_read(cbdt, i, NULL));			\
 	     i++)
 
 #endif /* _CBD_BLKDEV_H */

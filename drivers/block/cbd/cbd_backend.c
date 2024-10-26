@@ -481,6 +481,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 		if (blkdev_info->state != cbd_blkdev_state_running)
 			continue;
 
+		cbdb_err(cbdb, "blkdev %u blkdev->backend_id: %u, backend_id: %u\n", i, blkdev_info->backend_id, backend_id);
 		if (blkdev_info->backend_id == backend_id) {
 			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
 			return -EBUSY;

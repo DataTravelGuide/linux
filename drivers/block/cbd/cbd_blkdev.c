@@ -365,6 +365,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	if (ret < 0)
 		goto destroy_cache;
 
+	blkdev_info_write(cbd_blkdev);
 	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
 	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0);
 

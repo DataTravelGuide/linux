@@ -147,6 +147,7 @@ struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
 						u32 *info_index)		\
 {										\
 	struct cbd_##OBJ##_info *info, *latest = NULL;				\
+	cbdt_err(cbdt, "read id: %u\n", id);					\
 										\
 	info = cbdt_get_##OBJ##_info(cbdt, id);					\
 										\
