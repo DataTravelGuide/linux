@@ -437,25 +437,63 @@ static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 	return false;
 }
 
-/* cbd metadata */
+/* 
+ * struct cbd_meta_header - CBD metadata header structure 
+ * @crc: CRC checksum for validating metadata integrity.
+ * @seq: Sequence number to track metadata updates.
+ * @version: Metadata version.
+ * @res: Reserved space for future use.
+ */
 struct cbd_meta_header {
-	u32			crc;
-	u8			seq;
-	u8			version;
-	u16			res;
+	u32 crc;
+	u8  seq;
+	u8  version;
+	u16 res;
 };
 
-static inline u32 cbd_meta_crc(struct cbd_meta_header *header,
-			       u32 meta_size)
+/*
+ * cbd_meta_crc - Calculate CRC for the given metadata header.
+ * @header: Pointer to the metadata header.
+ * @meta_size: Size of the metadata structure.
+ *
+ * Returns the CRC checksum calculated by excluding the CRC field itself.
+ */
+static inline u32 cbd_meta_crc(struct cbd_meta_header *header, u32 meta_size)
 {
-	return crc32(0, (void *)header + 4, meta_size - 4);
+	return crc32(0, (void *)header + 4, meta_size - 4);  /* CRC calculated starting after the crc field */
 }
 
+/*
+ * cbd_meta_seq_after - Check if a sequence number is more recent, accounting for overflow.
+ * @seq1: First sequence number.
+ * @seq2: Second sequence number.
+ *
+ * Determines if @seq1 is more recent than @seq2 by calculating the signed
+ * difference between them. This approach allows handling sequence number
+ * overflow correctly because the difference wraps naturally, and any value
+ * greater than zero indicates that @seq1 is "after" @seq2. This method
+ * assumes 8-bit unsigned sequence numbers, where the difference wraps
+ * around if seq1 overflows past seq2.
+ *
+ * Returns:
+ *   - true if @seq1 is more recent than @seq2, indicating it comes "after."
+ *   - false otherwise.
+ */
 static inline bool cbd_meta_seq_after(u8 seq1, u8 seq2)
 {
 	return (s8)(seq1 - seq2) > 0;
 }
 
+/*
+ * cbd_meta_find_latest - Find the latest valid metadata.
+ * @header: Pointer to the metadata header.
+ * @meta_size: Size of each metadata block.
+ * @index: Optional pointer to store the index of the latest metadata.
+ *
+ * Finds the latest valid metadata by checking sequence numbers. If a
+ * valid entry with the highest sequence number is found, its pointer
+ * is returned. Returns NULL if no valid metadata is found.
+ */
 static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 					 u32 meta_size, u32 *index)
 {
@@ -464,19 +502,13 @@ static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 
 	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
 		meta = (void *)header + (i * meta_size);
-		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
-			//pr_err("crc: %u, info_crc: %u\n", meta->crc, cbd_meta_crc(meta, meta_size));
-			continue;
-		}
 
-		if (!latest) {
-			latest = meta;
-			if (index)
-				*index = i;
+		/* Skip if CRC check fails */
+		if (meta->crc != cbd_meta_crc(meta, meta_size))
 			continue;
-		}
 
-		if (cbd_meta_seq_after(meta->seq, latest->seq)) {
+		/* Update latest if a more recent sequence is found */
+		if (!latest || cbd_meta_seq_after(meta->seq, latest->seq)) {
 			latest = meta;
 			if (index)
 				*index = i;
@@ -486,6 +518,15 @@ static inline void *cbd_meta_find_latest(struct cbd_meta_header *header,
 	return latest;
 }
 
+/*
+ * cbd_meta_find_oldest - Find the oldest valid metadata.
+ * @header: Pointer to the metadata header.
+ * @meta_size: Size of each metadata block.
+ *
+ * Returns the oldest valid metadata by comparing sequence numbers.
+ * If an entry with the lowest sequence number is found, its pointer
+ * is returned. Returns NULL if no valid metadata is found.
+ */
 static inline void *cbd_meta_find_oldest(struct cbd_meta_header *header,
 					 u32 meta_size)
 {
@@ -494,30 +535,29 @@ static inline void *cbd_meta_find_oldest(struct cbd_meta_header *header,
 
 	for (i = 0; i < CBDT_META_INDEX_MAX; i++) {
 		meta = (void *)header + (meta_size * i);
+
+		/* Mark as oldest if CRC check fails */
 		if (meta->crc != cbd_meta_crc(meta, meta_size)) {
 			oldest = meta;
 			break;
 		}
 
-		if (!oldest) {
-			oldest = meta;
-			continue;
-		}
-
-		if (cbd_meta_seq_after(oldest->seq, meta->seq))
+		/* Update oldest if an older sequence is found */
+		if (!oldest || cbd_meta_seq_after(oldest->seq, meta->seq))
 			oldest = meta;
 	}
 
 	return oldest;
 }
 
-static inline void cbd_meta_commit(struct cbd_meta_header *header,
-				   u32 meta_size)
-{
-	header->seq++;
-	header->crc = cbd_meta_crc(header, meta_size);
-}
-
+/*
+ * cbd_meta_get_next_seq - Get the next sequence number for metadata.
+ * @header: Pointer to the metadata header.
+ * @meta_size: Size of each metadata block.
+ *
+ * Returns the next sequence number based on the latest metadata entry.
+ * If no latest metadata is found, returns 0.
+ */
 static inline u32 cbd_meta_get_next_seq(struct cbd_meta_header *header,
 					u32 meta_size)
 {
