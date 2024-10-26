@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "../cbd_internal.h"
 #include "cbd_cache_internal.h"
 
@@ -124,6 +126,19 @@ err:
 	return ret;
 }
 
+/**
+ * cache_seg_set_next_seg - Sets the ID of the next segment
+ * @cache_seg: Pointer to the cache segment structure.
+ * @seg_id: The segment ID to set as the next segment.
+ *
+ * This function updates the flags to indicate that there is a next segment 
+ * and sets the ID of the next segment in the segment information structure.
+ * Finally, it writes the updated cache segment information to storage.
+ *
+ * A cbd_cache allocates multiple cache segments, which are linked together
+ * through next_seg. When loading a cbd_cache, the first cache segment can
+ * be found using cache->seg_id, which allows access to all the cache segments.
+ */
 void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
 {
 	cache_seg->cache_seg_info.segment_info.flags |= CBD_SEG_INFO_FLAGS_HAS_NEXT;
@@ -131,7 +146,13 @@ void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id)
 	cache_seg_info_write(cache_seg);
 }
 
-/* cbd_cache_seg_ops */
+/**
+ * cbd_cache_seg_sanitize_pos - Validates the position within the segment.
+ * @pos: Pointer to the segment position structure.
+ *
+ * This function checks if the offset (`off`) in the segment position 
+ * does not exceed the data size of the segment.
+ */
 static void cbd_cache_seg_sanitize_pos(struct cbd_seg_pos *pos)
 {
 	BUG_ON(pos->off > pos->segment->data_size);
@@ -141,7 +162,20 @@ static struct cbd_seg_ops cbd_cache_seg_ops = {
 	.sanitize_pos = cbd_cache_seg_sanitize_pos
 };
 
-/* cache_segment allocation and reclaim */
+/**
+ * cache_seg_init - Initializes a cache segment.
+ * @cache: Pointer to the cache structure.
+ * @seg_id: The segment ID to initialize, this is the id of cbd segment.
+ * @cache_seg_id: The ID of the cache segment, this is the index id in cache->segments[]
+ * @new_cache: Boolean indicating if this is a new cache segment.
+ *
+ * This function initializes the cache segment structure, including 
+ * setting up locks, reference counters, and segment options. If 
+ * it's a new cache segment, it initializes its state and flags; 
+ * otherwise, it attempts to load existing metadata.
+ *
+ * Returns 0 on success or an error code on failure.
+ */
 int cache_seg_init(struct cbd_cache *cache, u32 seg_id, u32 cache_seg_id,
 		   bool new_cache)
 {
@@ -186,14 +220,39 @@ err:
 	return ret;
 }
 
+/**
+ * cache_seg_destroy - Cleans up and clears the cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * This function clears the segment information to release resources 
+ * and prepares the segment for cleanup. It should be called when 
+ * the cache segment is no longer needed. This function should only
+ * be called by owner backend.
+ */
 void cache_seg_destroy(struct cbd_cache_segment *cache_seg)
 {
+	/* clear cache segment ctrl */
+	cbdt_zero_range(cache_seg->cache->cbdt, cache_seg->cache_seg_ctrl,
+			CBDT_CACHE_SEG_CTRL_SIZE);
+
+	/* clear cbd segment infomation */
 	cbd_segment_info_clear(&cache_seg->segment);
 }
 
 #define CBD_WAIT_NEW_CACHE_INTERVAL	100 /* usecs */
 #define CBD_WAIT_NEW_CACHE_COUNT	100
 
+/**
+ * get_cache_segment - Retrieves a free cache segment from the cache.
+ * @cache: Pointer to the cache structure.
+ *
+ * This function attempts to find a free cache segment that can be used.
+ * It locks the segment map and checks for the next available segment ID.
+ * If no segment is available, it waits for a predefined interval and retries.
+ * If a free segment is found, it initializes it and returns a pointer to the 
+ * cache segment structure. Returns NULL if no segments are available after 
+ * waiting for a specified count.
+ */
 struct cbd_cache_segment *get_cache_segment(struct cbd_cache *cache)
 {
 	struct cbd_cache_segment *cache_seg;
@@ -205,6 +264,7 @@ again:
 	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, cache->last_cache_seg);
 	if (seg_id == cache->n_segs) {
 		spin_unlock(&cache->seg_map_lock);
+		/* reset the hint of ->last_cache_seg and retry */
 		if (cache->last_cache_seg) {
 			cache->last_cache_seg = 0;
 			goto again;
@@ -217,6 +277,10 @@ again:
 		goto again;
 	}
 
+	/*
+	 * found an available cache_seg, mark it used in seg_map
+	 * and update the search hint ->last_cache_seg
+	 */
 	set_bit(seg_id, cache->seg_map);
 	cache->last_cache_seg = seg_id;
 	spin_unlock(&cache->seg_map_lock);
@@ -224,11 +288,20 @@ again:
 	cache_seg = &cache->segments[seg_id];
 	cache_seg->cache_seg_id = seg_id;
 
+	/* Zero out the memory region for the segment data */
 	cbdt_zero_range(cache->cbdt, cache_seg->segment.data, cache_seg->segment.data_size);
 
 	return cache_seg;
 }
 
+/**
+ * cache_seg_gen_increase - Increases the generation counter for a cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * This function locks the generation lock, increments the generation counter 
+ * of the specified cache segment, and writes the updated control information 
+ * to the cache segment. It ensures that generation updates are synchronized.
+ */
 static void cache_seg_gen_increase(struct cbd_cache_segment *cache_seg)
 {
 	spin_lock(&cache_seg->gen_lock);
@@ -238,26 +311,48 @@ static void cache_seg_gen_increase(struct cbd_cache_segment *cache_seg)
 	cache_seg_ctrl_write(cache_seg);
 }
 
+/**
+ * cache_seg_get - Increases the reference count for a cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * This function increments the reference count of the specified cache segment.
+ * It indicates that the segment is in use and prevents it from being invalidated.
+ */
 void cache_seg_get(struct cbd_cache_segment *cache_seg)
 {
 	atomic_inc(&cache_seg->refs);
 }
 
+/**
+ * cache_seg_invalidate - Invalidates a cache segment, marking it as no longer in use.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * This function increments the generation counter for the segment, clears its 
+ * bit from the segment map, and queues a work item for cache cleaning.
+ */
 static void cache_seg_invalidate(struct cbd_cache_segment *cache_seg)
 {
 	struct cbd_cache *cache;
 
 	cache = cache_seg->cache;
-
 	cache_seg_gen_increase(cache_seg);
 
 	spin_lock(&cache->seg_map_lock);
 	clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 	spin_unlock(&cache->seg_map_lock);
 
+	/* clean_work will clean the bad key in key_tree*/
 	queue_work(cache->cache_wq, &cache->clean_work);
 }
 
+/**
+ * cache_seg_put - Decreases the reference count for a cache segment.
+ * @cache_seg: Pointer to the cache segment structure.
+ *
+ * This function atomically decrements the reference count for the specified 
+ * cache segment. If the reference count reaches zero, it invalidates the 
+ * segment, marking it as no longer in use.
+ */
 void cache_seg_put(struct cbd_cache_segment *cache_seg)
 {
 	if (atomic_dec_and_test(&cache_seg->refs))
