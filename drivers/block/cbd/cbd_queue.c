@@ -93,7 +93,7 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 		space_available = channel->data_tail - channel->data_head;
 	}
 
-	space_needed = round_up(cbd_req->data_len, CBDC_DATA_ALIGH);
+	space_needed = round_up(cbd_req->data_len, CBDC_DATA_ALIGN);
 
 	if (space_available - CBDC_DATA_RESERVED < space_needed)
 		return false;
