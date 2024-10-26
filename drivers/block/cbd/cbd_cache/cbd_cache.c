@@ -94,6 +94,9 @@ static void cache_segs_destroy(struct cbd_cache *cache)
 {
 	u32 i;
 
+	if (!cache->backend)
+		return;
+
 	for (i = 0; i < cache->n_segs; i++)
 		cache_seg_exit(&cache->segments[i]);
 }
