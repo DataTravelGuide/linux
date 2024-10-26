@@ -44,7 +44,11 @@ static bool need_gc(struct cbd_cache *cache)
 		return false;
 	}
 
-	/* gc threshold */
+	/*
+	 * load gc_percent and check gc threashold, gc_percent could be changed by sysfs in metadata,
+	 * so it needed load latest cache_info here.
+	 * */
+	cache_info_load(cache);
 	segs_used = bitmap_weight(cache->seg_map, cache->n_segs);
 	segs_gc_threshold = cache->n_segs * cache->cache_info->gc_percent / 100;
 	if (segs_used < segs_gc_threshold) {

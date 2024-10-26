@@ -358,6 +358,9 @@ static void cache_destroy_keys(struct cbd_cache *cache)
 	kvfree(cache->cache_trees);
 }
 
+static void __cache_info_load(struct cbd_transport *cbdt,
+			      struct cbd_cache_info *cache_info,
+			      u32 cache_id);
 static int cache_validate(struct cbd_transport *cbdt,
 			  struct cbd_cache_opts *opts)
 {
@@ -377,10 +380,7 @@ static int cache_validate(struct cbd_transport *cbdt,
 
 		cache_info_init(opts->cache_info, opts->n_segs);
 	} else {
-		struct cbd_backend_info *backend_info;
-
-		backend_info = cbdt_backend_info_read(cbdt, opts->cache_id, NULL);
-		memcpy(opts->cache_info, &backend_info->cache_info, sizeof(struct cbd_cache_info));
+		__cache_info_load(cbdt, opts->cache_info, opts->cache_id);
 	}
 
 	cache_info = opts->cache_info;
@@ -496,4 +496,19 @@ void cache_info_write(struct cbd_cache *cache)
 	BUG_ON(!backend);
 
 	cbd_backend_info_write(backend);
+}
+
+static void __cache_info_load(struct cbd_transport *cbdt,
+			      struct cbd_cache_info *cache_info,
+			      u32 cache_id)
+{
+	struct cbd_backend_info *backend_info;
+
+	backend_info = cbdt_backend_info_read(cbdt, cache_id, NULL);
+	memcpy(cache_info, &backend_info->cache_info, sizeof(struct cbd_cache_info));
+}
+
+void cache_info_load(struct cbd_cache *cache)
+{
+	return __cache_info_load(cache->cbdt, cache->cache_info, cache->cache_id);
 }
