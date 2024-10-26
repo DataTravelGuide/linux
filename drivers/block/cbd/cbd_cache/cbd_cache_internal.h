@@ -241,7 +241,7 @@ static inline bool cache_key_invalid(struct cbd_cache_key *key)
 	if (cache_key_empty(key))
 		return false;
 
-	return (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info.gen);
+	return (key->seg_gen < key->cache_pos.cache_seg->gen);
 }
 
 static inline u64 cache_key_lstart(struct cbd_cache_key *key)

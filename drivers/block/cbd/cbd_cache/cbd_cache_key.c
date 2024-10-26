@@ -620,7 +620,7 @@ int cache_replay(struct cbd_cache *cache)
 #endif
 			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
-			if (key->seg_gen < key->cache_pos.cache_seg->cache_seg_info.gen) {
+			if (key->seg_gen < key->cache_pos.cache_seg->gen) {
 				cache_key_put(key);
 			} else {
 				ret = cache_insert_key(cache, key, true);

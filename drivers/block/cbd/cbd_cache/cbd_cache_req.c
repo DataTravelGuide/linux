@@ -38,7 +38,7 @@ again:
 		seg_remain = 0;
 	} else {
 		cache_pos_copy(&key->cache_pos, &data_head->head_pos);
-		key->seg_gen = key->cache_pos.cache_seg->cache_seg_info.gen;
+		key->seg_gen = key->cache_pos.cache_seg->gen;
 
 		head_pos = &data_head->head_pos;
 		cache_seg = head_pos->cache_seg;
@@ -92,7 +92,7 @@ static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cb
 	//cbd_cache_err(cache, "copy_to_req_bio: %u:%u %u, bio_off: %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, len, off);
 
 	spin_lock(&cache_seg->gen_lock);
-	if (key_gen < cache_seg->cache_seg_info.gen) {
+	if (key_gen < cache_seg->gen) {
 		spin_unlock(&cache_seg->gen_lock);
 		return -EINVAL;
 	}
