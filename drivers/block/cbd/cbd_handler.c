@@ -111,7 +111,7 @@ static int handle_backend_cmd(struct cbd_handler *handler, struct cbd_se *se)
 	if (!backend_io)
 		return -ENOMEM;
 
-	ret = cbdc_map_pages(&handler->channel, backend_io);
+	ret = cbdc_map_pages(&handler->channel, backend_io->bio, se->data_off, se->data_len);
 	if (ret) {
 		kmem_cache_free(cbdb->backend_io_cache, backend_io);
 		return ret;

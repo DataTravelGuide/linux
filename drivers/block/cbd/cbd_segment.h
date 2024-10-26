@@ -81,7 +81,9 @@ void cbds_copy_to_bio(struct cbd_segment *segment,
 void cbds_copy_from_bio(struct cbd_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len);
-int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io);
+int cbds_map_pages(struct cbd_segment *segment,
+		   struct bio *bio,
+		   u32 off, u32 size);
 int cbds_pos_advance(struct cbd_seg_pos *seg_pos, u32 len);
 void cbds_copy_data(struct cbd_seg_pos *dst_pos,
 		struct cbd_seg_pos *src_pos, u32 len);

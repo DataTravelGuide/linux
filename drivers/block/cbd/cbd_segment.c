@@ -271,12 +271,11 @@ u32 cbd_seg_crc(struct cbd_segment *segment, u32 data_off, u32 data_len)
 	return crc;
 }
 
-int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io)
+int cbds_map_pages(struct cbd_segment *segment,
+		   struct bio *bio,
+		   u32 off, u32 size)
 {
 	struct cbd_transport *cbdt = segment->cbdt;
-	struct cbd_se *se = io->se;
-	u32 off = se->data_off;
-	u32 size = se->data_len;
 	u32 done = 0;
 	struct page *page;
 	u32 page_off;
@@ -298,7 +297,7 @@ int cbds_map_pages(struct cbd_segment *segment, struct cbd_backend_io *io)
 
 		page = cbdt_page(cbdt, transport_off, &page_off);
 
-		ret = bio_add_page(io->bio, page, len, 0);
+		ret = bio_add_page(bio, page, len, 0);
 		if (unlikely(ret != len)) {
 			cbd_segment_err(segment, "failed to add page\n");
 			goto out;

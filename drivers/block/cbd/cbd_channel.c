@@ -40,9 +40,9 @@ u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len)
 }
 
 
-int cbdc_map_pages(struct cbd_channel *channel, struct cbd_backend_io *io)
+int cbdc_map_pages(struct cbd_channel *channel, struct bio *bio, u32 off, u32 size)
 {
-	return cbds_map_pages(&channel->segment, io);
+	return cbds_map_pages(&channel->segment, bio, off, size);
 }
 
 ssize_t cbd_channel_seg_detail_show(struct cbd_channel_seg_info *channel_info, char *buf)
