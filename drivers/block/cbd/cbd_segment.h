@@ -24,7 +24,6 @@
 
 extern struct cbd_transport;
 
-/* cbd_segment */
 CBD_DEVICE(segment);
 
 enum cbd_segment_state {
@@ -73,21 +72,15 @@ struct cbds_init_options {
 	u32 seg_id;
 	u32 data_off;
 	struct cbd_seg_ops *seg_ops;
-	void *priv_data;
 };
 
 struct cbd_segment {
 	struct cbd_transport		*cbdt;
-	struct cbd_segment		*next;
-
-	u32				seg_id;
-
 	struct cbd_seg_ops		*seg_ops;
+	u32				seg_id;
 
 	void				*data;
 	u32				data_size;
-
-	void				*priv_data;
 
 	struct delayed_work		hb_work; /* heartbeat work */
 };
