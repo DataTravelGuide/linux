@@ -42,10 +42,16 @@ typedef ssize_t (*detail_show_fn)(struct cbd_segment_info *seg_info, char *buf);
 /* it's defined in cbd_channel.c */
 ssize_t cbd_channel_seg_detail_show(struct cbd_segment_info *seg_info, char *buf);
 
+/* it's defined in cbd_cache.c */
+ssize_t cbd_cache_seg_detail_show(struct cbd_segment_info *seg_info, char *buf);
+
 static inline detail_show_fn cbd_seg_get_detail_shower(enum cbd_seg_type type)
 {
 	if (type == cbds_type_channel)
 		return cbd_channel_seg_detail_show;
+	else if (type == cbds_type_cache)
+		return cbd_cache_seg_detail_show;
+
 	return NULL;
 }
 

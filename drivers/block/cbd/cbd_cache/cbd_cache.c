@@ -517,3 +517,12 @@ void cache_info_load(struct cbd_cache *cache)
 {
 	return __cache_info_load(cache->cbdt, cache->cache_info, cache->cache_id);
 }
+
+ssize_t cbd_cache_seg_detail_show(struct cbd_segment_info *seg_info, char *buf)
+{
+	struct cbd_cache_seg_info *cache_info;
+
+	cache_info = (struct cbd_cache_seg_info *)seg_info;
+
+	return sprintf(buf, "backend id: %u\n", cache_info->backend_id);
+}
