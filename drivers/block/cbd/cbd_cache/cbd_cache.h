@@ -2,7 +2,7 @@
 #ifndef _CBD_CACHE_H
 #define _CBD_CACHE_H
 
-#include "../cbd_internal.h"
+#include "../cbd_transport.h"
 #include "../cbd_segment.h"
 
 #define cbd_cache_err(cache, fmt, ...)						\
