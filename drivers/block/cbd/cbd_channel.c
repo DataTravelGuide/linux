@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "cbd_internal.h"
+#include "cbd_transport.h"
+#include "cbd_channel.h"
 
 static void channel_format(struct cbd_transport *cbdt, u32 id)
 {
-	struct cbd_channel_seg_info *channel_info = cbdt_get_channel_info(cbdt, id);
+	void *channel = cbdt_get_segment_info(cbdt, id);
 
-	cbdt_zero_range(cbdt, channel_info, CBDC_META_SIZE);
+	cbdt_zero_range(cbdt, channel, CBDC_META_SIZE);
 }
 
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)

@@ -2,6 +2,17 @@
 #ifndef _CBD_BACKEND_H
 #define _CBD_BACKEND_H
 
+#include "cbd_internal.h"
+
+#include "cbd_transport.h"
+
+#include "cbd_host.h"
+
+#include "cbd_cache/cbd_cache.h"
+
+#include "cbd_handler.h"
+#include "cbd_blkdev.h"
+
 /* cbd_backend */
 CBD_DEVICE(backend);
 

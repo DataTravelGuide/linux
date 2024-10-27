@@ -23,6 +23,7 @@
 #include <linux/types.h>
 
 #include "cbd_internal.h"
+#include "cbd_blkdev.h"
 
 struct workqueue_struct	*cbd_wq;
 

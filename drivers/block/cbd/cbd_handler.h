@@ -2,6 +2,9 @@
 #ifndef _CBD_HANDLER_H
 #define _CBD_HANDLER_H
 
+#include "cbd_channel.h"
+#include "cbd_backend.h"
+
 /* cbd_handler */
 struct cbd_handler {
 	struct cbd_backend	*cbdb;

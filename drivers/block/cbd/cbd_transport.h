@@ -4,11 +4,6 @@
 
 #include "cbd_internal.h"
 
-#include "cbd_host.h"
-#include "cbd_segment.h"
-#include "cbd_backend.h"
-#include "cbd_blkdev.h"
-
 /* cbd_transport */
 #define CBDT_INFO_F_BIGENDIAN		(1 << 0)
 #define CBDT_INFO_F_CRC			(1 << 1)

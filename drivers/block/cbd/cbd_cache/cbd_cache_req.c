@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "../cbd_internal.h"
+#include "../cbd_transport.h"
 #include "cbd_cache_internal.h"
+#include "../cbd_queue.h"
 
 static int cache_data_head_init(struct cbd_cache *cache, u32 i)
 {

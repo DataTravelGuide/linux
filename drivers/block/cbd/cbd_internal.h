@@ -90,6 +90,8 @@
  *	+--------------------------------------------------------------------------------------------------------+
  */
 
+struct cbd_transport;
+
 #define cbd_err(fmt, ...)							\
 	pr_err("cbd: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
 #define cbd_info(fmt, ...)							\
@@ -243,24 +245,6 @@
 
 /* cbd segment */
 #define CBDT_SEG_SIZE           (16 * 1024 * 1024)                  /* Size of each CBD segment (16 MB) */
-
-/* cbd channel segment metadata */
-#define CBDC_META_SIZE          (4 * 1024 * 1024)                   /* Metadata size for each CBD channel segment (4 MB) */
-#define CBDC_SUBMR_RESERVED     sizeof(struct cbd_se)               /* Reserved space for SUBMR (submission metadata region) */
-#define CBDC_COMPR_RESERVED      sizeof(struct cbd_ce)               /* Reserved space for COMPR (completion metadata region) */
-
-#define CBDC_DATA_ALIGN         4096                                /* Data alignment boundary (4 KB) */
-#define CBDC_DATA_RESERVED      CBDC_DATA_ALIGN                     /* Reserved space aligned to data boundary */
-
-#define CBDC_CTRL_OFF           (CBDT_SEG_INFO_SIZE * CBDT_META_INDEX_MAX)  /* Offset for control data */
-#define CBDC_CTRL_SIZE          PAGE_SIZE                           /* Control data size (1 page) */
-#define CBDC_COMPR_OFF          (CBDC_CTRL_OFF + CBDC_CTRL_SIZE)    /* Offset for COMPR metadata */
-#define CBDC_COMPR_SIZE         (sizeof(struct cbd_ce) * 1024)      /* Size of COMPR metadata region (1024 entries) */
-#define CBDC_SUBMR_OFF          (CBDC_COMPR_OFF + CBDC_COMPR_SIZE)  /* Offset for SUBMR metadata */
-#define CBDC_SUBMR_SIZE         (CBDC_META_SIZE - CBDC_SUBMR_OFF)   /* Size of SUBMR metadata region */
-
-#define CBDC_DATA_OFF           CBDC_META_SIZE                      /* Offset for data storage following metadata */
-#define CBDC_DATA_SIZE          (CBDT_SEG_SIZE - CBDC_META_SIZE)    /* Size of data storage in a segment */
 
 /* Update macros for SUBMR head and tail pointers */
 #define CBDC_UPDATE_SUBMR_HEAD(head, used, size)    (head = ((head % size) + used) % size)
@@ -569,24 +553,6 @@ static inline u32 cbd_meta_get_next_seq(struct cbd_meta_header *header,
 
 	return (latest->seq + 1);
 }
-
-#include "cbd_transport.h"
-
-#include "cbd_host.h"
-#include "cbd_segment.h"
-#include "cbd_channel.h"
-
-#include "cbd_cache/cbd_cache.h"
-
-#include "cbd_handler.h"
-#include "cbd_backend.h"
-
-#include "cbd_queue.h"
-#include "cbd_blkdev.h"
-
-void cbd_blkdev_hb(struct cbd_blkdev *blkdev);
-void cbd_backend_hb(struct cbd_backend *cbdb);
-void cbd_host_hb(struct cbd_host *host);
 
 #define CBD_OBJ_HEARTBEAT(OBJ)								\
 static void OBJ##_hb_workfn(struct work_struct *work)					\

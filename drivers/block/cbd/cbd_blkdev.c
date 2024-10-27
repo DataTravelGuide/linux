@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "cbd_internal.h"
+#include "cbd_blkdev.h"
 
 static ssize_t blkdev_backend_id_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -62,6 +63,7 @@ static ssize_t blkdev_mapped_id_show(struct device *dev,
 
 static DEVICE_ATTR(mapped_id, 0400, blkdev_mapped_id_show, NULL);
 
+static void cbd_blkdev_hb(struct cbd_blkdev *blkdev);
 CBD_OBJ_HEARTBEAT(blkdev);
 
 static struct attribute *cbd_blkdev_attrs[] = {
@@ -346,7 +348,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 
 		cache_opts.cache_info = &cbd_blkdev->cache_info;
 		cache_opts.cache_id = backend_id;
-		cache_opts.backend = NULL;
+		cache_opts.owner = NULL;
 		cache_opts.new_cache = false;
 		cache_opts.start_writeback = false;
 		cache_opts.start_gc = true;
@@ -478,7 +480,7 @@ void cbd_blkdev_exit(void)
 	unregister_blkdev(cbd_major, "cbd");
 }
 
-void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
+static void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
 {
 	blkdev_info_write(blkdev);
 }

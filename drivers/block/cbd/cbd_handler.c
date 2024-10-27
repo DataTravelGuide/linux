@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "cbd_internal.h"
+#include "cbd_handler.h"
 
 static inline struct cbd_se *get_se_head(struct cbd_handler *handler)
 {

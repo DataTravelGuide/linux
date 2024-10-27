@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "cbd_internal.h"
+#include "cbd_host.h"
+#include "cbd_blkdev.h"
+#include "cbd_backend.h"
 
 static ssize_t cbd_host_name_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -22,6 +24,7 @@ static ssize_t cbd_host_name_show(struct device *dev,
 
 static DEVICE_ATTR(hostname, 0400, cbd_host_name_show, NULL);
 
+static void cbd_host_hb(struct cbd_host *host);
 CBD_OBJ_HEARTBEAT(host);
 
 static struct attribute *cbd_host_attrs[] = {
@@ -187,7 +190,7 @@ int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 	return 0;
 }
 
-void cbd_host_hb(struct cbd_host *host)
+static void cbd_host_hb(struct cbd_host *host)
 {
 	host_info_write(host);
 }

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "../cbd_internal.h"
+#include "../cbd_transport.h"
 #include "cbd_cache_internal.h"
+#include "../cbd_backend.h"
 
 
 /* sysfs for cache */
@@ -94,7 +96,7 @@ static void cache_segs_destroy(struct cbd_cache *cache)
 {
 	u32 i;
 
-	if (!cache->backend)
+	if (!cache->owner)
 		return;
 
 	for (i = 0; i < cache->n_segs; i++)
@@ -376,7 +378,7 @@ static int cache_validate(struct cbd_transport *cbdt,
 	}
 
 	if (opts->new_cache) {
-		if (!opts->backend) {
+		if (!opts->owner) {
 			cbdt_err(cbdt, "backend is needed for new cache.\n");
 			goto err;
 		}
@@ -423,7 +425,7 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
 	cache->cache_id = opts->cache_id;
-	cache->backend = opts->backend;
+	cache->owner = opts->owner;
 
 	cache->state = cbd_cache_state_running;
 
@@ -494,7 +496,7 @@ void cbd_cache_destroy(struct cbd_cache *cache)
 
 void cache_info_write(struct cbd_cache *cache)
 {
-	struct cbd_backend *backend = cache->backend;
+	struct cbd_backend *backend = cache->owner;
 
 	BUG_ON(!backend);
 

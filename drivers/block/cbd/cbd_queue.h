@@ -2,50 +2,10 @@
 #ifndef _CBD_QUEUE_H
 #define _CBD_QUEUE_H
 
+#include "cbd_channel.h"
+#include "cbd_blkdev.h"
+
 /* cbd_queue */
-enum cbd_op {
-	CBD_OP_WRITE = 0,
-	CBD_OP_READ,
-	CBD_OP_FLUSH,
-};
-
-struct cbd_se {
-#ifdef CONFIG_CBD_CRC
-	u32			se_crc;		/* should be the first member */
-	u32			data_crc;
-#endif
-	u32			op;
-	u32			flags;
-	u64			req_tid;
-
-	u64			offset;
-	u32			len;
-
-	u32			data_off;
-	u32			data_len;
-};
-
-struct cbd_ce {
-#ifdef CONFIG_CBD_CRC
-	u32		ce_crc;		/* should be the first member */
-	u32		data_crc;
-#endif
-	u64		req_tid;
-	u32		result;
-	u32		flags;
-};
-
-#ifdef CONFIG_CBD_CRC
-static inline u32 cbd_se_crc(struct cbd_se *se)
-{
-	return crc32(0, (void *)se + 4, sizeof(*se) - 4);
-}
-
-static inline u32 cbd_ce_crc(struct cbd_ce *ce)
-{
-	return crc32(0, (void *)ce + 4, sizeof(*ce) - 4);
-}
-#endif
 
 struct cbd_request {
 	struct cbd_queue	*cbdq;

@@ -2,6 +2,11 @@
 #ifndef _CBD_CACHE_H
 #define _CBD_CACHE_H
 
+#include "../cbd_internal.h"
+#include "../cbd_segment.h"
+
+extern struct cbd_transport;
+
 /* cbd cache */
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */
@@ -149,9 +154,9 @@ struct cbd_cache {
 	struct cbd_transport		*cbdt;
 	u32				cache_id;	/* same with related backend->backend_id */
 
-	/* ->backend is only used for cache on backend size,
-	 * on the blkdev size, ->backend should be NULL */
-	struct cbd_backend		*backend;
+	/* ->owner is only used for cache on backend size,
+	 * on the blkdev size, ->owner should be NULL */
+	void				*owner;
 
 	struct cbd_cache_info		*cache_info;
 	struct cbd_cache_ctrl		*cache_ctrl;
@@ -205,7 +210,7 @@ struct cbd_request;
 struct cbd_cache_opts {
 	u32 cache_id;
 	struct cbd_cache_info *cache_info;
-	struct cbd_backend *backend;
+	void *owner;
 	u32 n_segs;
 	bool new_cache;
 	bool start_writeback;

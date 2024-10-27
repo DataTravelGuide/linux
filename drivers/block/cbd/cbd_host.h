@@ -2,6 +2,10 @@
 #ifndef _CBD_HOST_H
 #define _CBD_HOST_H
 
+#include "cbd_internal.h"
+
+#include "cbd_transport.h"
+
 /* cbd_host */
 CBD_DEVICE(host);
 

@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/pfn_t.h>
-#include "cbd_internal.h"
+#include "cbd_transport.h"
+#include "cbd_host.h"
+#include "cbd_segment.h"
+#include "cbd_backend.h"
+#include "cbd_blkdev.h"
+
 
 #define CBDT_OBJ(OBJ, OBJ_SIZE, OBJ_STRIDE)					\
 extern struct device_type cbd_##OBJ##_type;					\

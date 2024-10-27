@@ -2,6 +2,19 @@
 
 #include "cbd_internal.h"
 
+#include "cbd_transport.h"
+
+#include "cbd_host.h"
+#include "cbd_segment.h"
+#include "cbd_channel.h"
+
+#include "cbd_cache/cbd_cache.h"
+
+#include "cbd_handler.h"
+#include "cbd_backend.h"
+
+#include "cbd_queue.h"
+
 static ssize_t backend_host_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -44,6 +57,7 @@ static ssize_t backend_path_show(struct device *dev,
 
 static DEVICE_ATTR(path, 0400, backend_path_show, NULL);
 
+static void cbd_backend_hb(struct cbd_backend *cbdb);
 CBD_OBJ_HEARTBEAT(backend);
 
 static struct attribute *cbd_backend_attrs[] = {
@@ -218,7 +232,7 @@ static int backend_cache_init(struct cbd_backend *cbdb, u32 cache_segs, bool new
 
 	cache_opts.cache_info = &cbdb->backend_info.cache_info;
 	cache_opts.cache_id = cbdb->backend_id;
-	cache_opts.backend = cbdb;
+	cache_opts.owner = cbdb;
 	cache_opts.n_segs = cache_segs;
 	cache_opts.new_cache = new_backend;
 	cache_opts.start_writeback = true;
@@ -601,7 +615,8 @@ void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id)
 	cbd_handler_notify(handler);
 }
 
-void cbd_backend_hb(struct cbd_backend *cbdb)
+static void cbd_backend_hb(struct cbd_backend *cbdb)
 {
 	cbd_backend_info_write(cbdb);
 }
+

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "cbd_internal.h"
+#include "cbd_transport.h"
+#include "cbd_segment.h"
 
 static ssize_t cbd_seg_detail_show(struct device *dev,
 				   struct device_attribute *attr,
@@ -17,8 +19,7 @@ static ssize_t cbd_seg_detail_show(struct device *dev,
 	if (segment_info->state == cbd_segment_state_none)
 		return 0;
 
-	if (segment_info->type == cbds_type_channel)
-		return cbd_channel_seg_detail_show((struct cbd_channel_seg_info *)segment_info, buf);
+	/* TODO show detail*/
 
 	return 0;
 }

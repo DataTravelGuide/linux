@@ -2,6 +2,8 @@
 #ifndef _CBD_CACHE_INTERNAL_H
 #define _CBD_CACHE_INTERNAL_H
 
+#include "cbd_cache.h"
+
 #define CBD_CACHE_PARAL_MAX		(128)
 
 #define CBD_CACHE_TREE_SIZE		(4 * 1024 * 1024)
