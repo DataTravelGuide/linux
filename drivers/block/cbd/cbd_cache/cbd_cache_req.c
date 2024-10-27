@@ -215,7 +215,7 @@ static void submit_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_
 		struct cbd_cache_key *key;
 
 		key = (struct cbd_cache_key *)cbd_req->priv_data;
-		ret = cache_insert_key(cache, key, true);
+		ret = cache_key_insert(cache, key, true);
 		if (ret) {
 			cache_key_put(key);
 			cbd_req->priv_data = NULL;
@@ -615,7 +615,7 @@ static int cache_write(struct cbd_cache *cache, struct cbd_request *cbd_req)
 
 		cache_tree = get_cache_tree(cache, key->off);
 		spin_lock(&cache_tree->tree_lock);
-		ret = cache_insert_key(cache, key, true);
+		ret = cache_key_insert(cache, key, true);
 		if (ret) {
 			cache_seg_put(key->cache_pos.cache_seg);
 			cache_key_put(key);

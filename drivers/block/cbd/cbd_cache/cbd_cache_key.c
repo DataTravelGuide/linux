@@ -405,7 +405,7 @@ static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_k
 		if (key_fixup->len == 0) {
 			cache_key_put(key_fixup);
 		} else {
-			ret = cache_insert_key(cache, key_fixup, false);
+			ret = cache_key_insert(cache, key_fixup, false);
 			if (ret)
 				goto out;
 			need_research = true;
@@ -454,7 +454,7 @@ static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key
 	return cache_tree_walk(cache, &walk_ctx);
 }
 
-int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
+int cache_key_insert(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
 {
 	struct rb_node **new, *parent = NULL;
 	struct cbd_cache_tree *cache_tree;
@@ -626,7 +626,7 @@ int cache_replay(struct cbd_cache *cache)
 			if (key->seg_gen < key->cache_pos.cache_seg->gen) {
 				cache_key_put(key);
 			} else {
-				ret = cache_insert_key(cache, key, true);
+				ret = cache_key_insert(cache, key, true);
 				if (ret) {
 					cache_key_put(key);
 					goto out;

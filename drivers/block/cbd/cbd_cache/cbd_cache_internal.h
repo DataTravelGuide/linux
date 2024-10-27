@@ -42,9 +42,9 @@ void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key);
 void cache_key_get(struct cbd_cache_key *key);
 void cache_key_put(struct cbd_cache_key *key);
 int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key);
-int cache_insert_key(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key);
-void cache_pos_advance(struct cbd_cache_pos *pos, u32 len);
+int cache_key_insert(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key);
 void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct cbd_cache_key *key);
+void cache_pos_advance(struct cbd_cache_pos *pos, u32 len);
 
 struct cbd_cache_tree_walk_ctx {
 	struct cbd_cache *cache;
