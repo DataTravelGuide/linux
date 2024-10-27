@@ -6,6 +6,16 @@
 
 #include "cbd_internal.h"
 
+#define cbdt_err(transport, fmt, ...)						\
+	cbd_err("cbd_transport%u: " fmt,					\
+		 transport->id, ##__VA_ARGS__)
+#define cbdt_info(transport, fmt, ...)						\
+	cbd_info("cbd_transport%u: " fmt,					\
+		 transport->id, ##__VA_ARGS__)
+#define cbdt_debug(transport, fmt, ...)						\
+	cbd_debug("cbd_transport%u: " fmt,					\
+		 transport->id, ##__VA_ARGS__)
+
 /* cbd_transport */
 #define CBDT_INFO_F_BIGENDIAN		(1 << 0)
 #define CBDT_INFO_F_CRC			(1 << 1)

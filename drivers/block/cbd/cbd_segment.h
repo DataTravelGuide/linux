@@ -4,6 +4,19 @@
 
 #include <linux/bio.h>
 
+#include "cbd_internal.h"
+
+#define cbd_segment_err(segment, fmt, ...)					\
+	cbdt_err(segment->cbdt, "segment%d: " fmt,				\
+		 segment->seg_id, ##__VA_ARGS__)
+#define cbd_segment_info(segment, fmt, ...)					\
+	cbdt_info(segment->cbdt, "segment%d: " fmt,				\
+		 segment->seg_id, ##__VA_ARGS__)
+#define cbd_segment_debug(segment, fmt, ...)					\
+	cbdt_debug(segment->cbdt, "segment%d: " fmt,				\
+		 segment->seg_id, ##__VA_ARGS__)
+
+
 CBD_DEVICE(segment); /* Macro to define CBD device named "segment" */
 
 /* Enumeration for CBD segment states */

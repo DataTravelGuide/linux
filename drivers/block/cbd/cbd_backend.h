@@ -5,15 +5,21 @@
 #include <linux/hashtable.h>
 
 #include "cbd_internal.h"
-
 #include "cbd_transport.h"
-
 #include "cbd_host.h"
-
 #include "cbd_cache/cbd_cache.h"
-
 #include "cbd_handler.h"
 #include "cbd_blkdev.h"
+
+#define cbdb_err(backend, fmt, ...)						\
+	cbdt_err(backend->cbdt, "backend%d: " fmt,				\
+		 backend->backend_id, ##__VA_ARGS__)
+#define cbdb_info(backend, fmt, ...)						\
+	cbdt_info(backend->cbdt, "backend%d: " fmt,				\
+		 backend->backend_id, ##__VA_ARGS__)
+#define cbdb_debug(backend, fmt, ...)						\
+	cbdt_debug(backend->cbdt, "backend%d: " fmt,				\
+		 backend->backend_id, ##__VA_ARGS__)
 
 /* cbd_backend */
 CBD_DEVICE(backend);

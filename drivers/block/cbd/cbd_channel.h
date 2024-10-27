@@ -8,6 +8,16 @@
 
 #include "cbd_cache/cbd_cache.h"
 
+#define cbd_channel_err(channel, fmt, ...)					\
+	cbdt_err(channel->cbdt, "channel%d: " fmt,				\
+		 channel->seg_id, ##__VA_ARGS__)
+#define cbd_channel_info(channel, fmt, ...)					\
+	cbdt_info(channel->cbdt, "channel%d: " fmt,				\
+		 channel->seg_id, ##__VA_ARGS__)
+#define cbd_channel_debug(channel, fmt, ...)					\
+	cbdt_debug(channel->cbdt, "channel%d: " fmt,				\
+		 channel->seg_id, ##__VA_ARGS__)
+
 enum cbd_op {
 	CBD_OP_WRITE = 0,
 	CBD_OP_READ,

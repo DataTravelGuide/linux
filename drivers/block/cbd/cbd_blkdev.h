@@ -20,6 +20,16 @@
 #include "cbd_queue.h"
 #include "cbd_blkdev.h"
 
+#define cbd_blk_err(dev, fmt, ...)						\
+	cbdt_err(dev->cbdt, "cbd%d: " fmt,					\
+		 dev->mapped_id, ##__VA_ARGS__)
+#define cbd_blk_info(dev, fmt, ...)						\
+	cbdt_info(dev->cbdt, "cbd%d: " fmt,					\
+		 dev->mapped_id, ##__VA_ARGS__)
+#define cbd_blk_debug(dev, fmt, ...)						\
+	cbdt_debug(dev->cbdt, "cbd%d: " fmt,					\
+		 dev->mapped_id, ##__VA_ARGS__)
+
 /* cbd_blkdev */
 CBD_DEVICE(blkdev);
 

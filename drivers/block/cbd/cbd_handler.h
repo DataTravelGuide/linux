@@ -5,6 +5,16 @@
 #include "cbd_channel.h"
 #include "cbd_backend.h"
 
+#define cbd_handler_err(handler, fmt, ...)					\
+	cbdb_err(handler->cbdb, "handler%d: " fmt,				\
+		 handler->channel.seg_id, ##__VA_ARGS__)
+#define cbd_handler_info(handler, fmt, ...)					\
+	cbdb_info(handler->cbdb, "handler%d: " fmt,				\
+		 handler->channel.seg_id, ##__VA_ARGS__)
+#define cbd_handler_debug(handler, fmt, ...)					\
+	cbdb_debug(handler->cbdb, "handler%d: " fmt,				\
+		 handler->channel.seg_id, ##__VA_ARGS__)
+
 /* cbd_handler */
 struct cbd_handler {
 	struct cbd_backend	*cbdb;

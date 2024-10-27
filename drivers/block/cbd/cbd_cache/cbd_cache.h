@@ -5,6 +5,16 @@
 #include "../cbd_internal.h"
 #include "../cbd_segment.h"
 
+#define cbd_cache_err(cache, fmt, ...)						\
+	cbdt_err(cache->cbdt, "cache%d: " fmt,					\
+		 cache->cache_id, ##__VA_ARGS__)
+#define cbd_cache_info(cache, fmt, ...)						\
+	cbdt_info(cache->cbdt, "cache%d: " fmt,					\
+		 cache->cache_id, ##__VA_ARGS__)
+#define cbd_cache_debug(cache, fmt, ...)					\
+	cbdt_debug(cache->cbdt, "cache%d: " fmt,				\
+		 cache->cache_id, ##__VA_ARGS__)
+
 /* cbd cache */
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */

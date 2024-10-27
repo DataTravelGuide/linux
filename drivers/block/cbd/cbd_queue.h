@@ -5,6 +5,16 @@
 #include "cbd_channel.h"
 #include "cbd_blkdev.h"
 
+#define cbd_queue_err(queue, fmt, ...)						\
+	cbd_blk_err(queue->cbd_blkdev, "queue%d: " fmt,				\
+		     queue->channel.seg_id, ##__VA_ARGS__)
+#define cbd_queue_info(queue, fmt, ...)						\
+	cbd_blk_info(queue->cbd_blkdev, "queue%d: " fmt,			\
+		     queue->channel.seg_id, ##__VA_ARGS__)
+#define cbd_queue_debug(queue, fmt, ...)					\
+	cbd_blk_debug(queue->cbd_blkdev, "queue%d: " fmt,			\
+		     queue->channel.seg_id, ##__VA_ARGS__)
+
 /* cbd_queue */
 
 struct cbd_request {
