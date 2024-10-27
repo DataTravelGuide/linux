@@ -147,9 +147,9 @@ out:
 	return ret;
 }
 
-void cbd_channel_exit(struct cbd_channel *channel)
+void cbd_channel_destroy(struct cbd_channel *channel)
 {
-	cbd_segment_exit(&channel->segment);
+	channel_format(channel->cbdt, channel->seg_id);
 }
 
 void cbd_channel_write(struct cbd_channel *channel)

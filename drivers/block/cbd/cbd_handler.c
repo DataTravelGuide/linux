@@ -296,7 +296,7 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 		fsleep(100000);
 	pr_err("after inflight\n");
 
-	cbd_channel_exit(&handler->channel);
+	cbd_channel_destroy(&handler->channel);
 
 	bioset_exit(&handler->bioset);
 	kfree(handler);
