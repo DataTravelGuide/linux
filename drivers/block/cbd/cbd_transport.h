@@ -2,6 +2,8 @@
 #ifndef _CBD_TRANSPORT_H
 #define _CBD_TRANSPORT_H
 
+#include <linux/device.h>
+
 #include "cbd_internal.h"
 
 /* cbd_transport */

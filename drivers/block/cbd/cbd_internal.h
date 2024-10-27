@@ -4,8 +4,6 @@
 
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
 
