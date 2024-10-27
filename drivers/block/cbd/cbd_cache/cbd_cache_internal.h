@@ -4,31 +4,41 @@
 
 #include "cbd_cache.h"
 
-#define CBD_CACHE_PARAL_MAX		(128)
+/* Maximum level of parallelism in cache IO */
+#define CBD_CACHE_PARAL_MAX            128
+/* Number of segments handled per parallel operation */
+#define CBD_CACHE_SEGS_EACH_PARAL      10
 
-#define CBD_CACHE_TREE_SIZE		(4 * 1024 * 1024)
-#define CBD_CACHE_TREE_SIZE_MASK	0x3FFFFF
-#define CBD_CACHE_TREE_SIZE_SHIFT	22
+/* Cache tree structure sizes and masking values */
+#define CBD_CACHE_TREE_SIZE            (4 * 1024 * 1024)   /* 4MB total tree size */
+#define CBD_CACHE_TREE_SIZE_MASK       0x3FFFFF            /* Mask for tree size */
+#define CBD_CACHE_TREE_SIZE_SHIFT      22                  /* Bit shift for tree size */
 
-#define CBD_KSET_KEYS_MAX		128
-#define CBD_KSET_ONMEDIA_SIZE_MAX	struct_size_t(struct cbd_cache_kset_onmedia, data, CBD_KSET_KEYS_MAX)
-#define CBD_KSET_SIZE			(sizeof(struct cbd_cache_kset) + sizeof(struct cbd_cache_key_onmedia) * CBD_KSET_KEYS_MAX)
+/* Maximum number of keys per key set */
+#define CBD_KSET_KEYS_MAX              128
 
-#define CBD_CACHE_GC_PERCENT_MIN	0
-#define CBD_CACHE_GC_PERCENT_MAX	90
-#define CBD_CACHE_GC_PERCENT_DEFAULT	70
+/* Maximum on-media size for key set structure */
+#define CBD_KSET_ONMEDIA_SIZE_MAX      struct_size_t(struct cbd_cache_kset_onmedia, data, CBD_KSET_KEYS_MAX)
+/* Total size of a cache key set */
+#define CBD_KSET_SIZE                  (sizeof(struct cbd_cache_kset) + sizeof(struct cbd_cache_key_onmedia) * CBD_KSET_KEYS_MAX)
 
-#define CBD_CACHE_SEGS_EACH_PARAL	10
+/* Garbage collection thresholds */
+#define CBD_CACHE_GC_PERCENT_MIN       0                   /* Minimum GC percentage */
+#define CBD_CACHE_GC_PERCENT_MAX       90                  /* Maximum GC percentage */
+#define CBD_CACHE_GC_PERCENT_DEFAULT   70                  /* Default GC percentage */
 
-#define CBD_CLEAN_KEYS_MAX		10
+/* Maximum number of keys to clean in one round of clean_work */
+#define CBD_CLEAN_KEYS_MAX             10
 
-#define CBD_CACHE_WRITEBACK_INTERVAL	(10 * HZ)
-#define CBD_CACHE_GC_INTERVAL	(10 * HZ)
+/* Writeback and garbage collection intervals in jiffies */
+#define CBD_CACHE_WRITEBACK_INTERVAL   (1 * HZ)           /* Writeback interval */
+#define CBD_CACHE_GC_INTERVAL          (1 * HZ)           /* Garbage collection interval */
 
-#define CACHE_KEY(node)		(container_of(node, struct cbd_cache_key, rb_node))
+/* Macro to get the cache key structure from an rb_node pointer */
+#define CACHE_KEY(node)                (container_of(node, struct cbd_cache_key, rb_node))
 
-void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key);
 struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache);
+void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key);
 void cache_key_get(struct cbd_cache_key *key);
 void cache_key_put(struct cbd_cache_key *key);
 int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key);
