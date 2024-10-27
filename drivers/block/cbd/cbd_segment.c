@@ -128,11 +128,6 @@ void cbd_segment_init(struct cbd_transport *cbdt, struct cbd_segment *segment,
 	segment->data = (void *)(seg_info) + options->data_off;
 }
 
-void cbd_segment_exit(struct cbd_segment *segment)
-{
-	cbdt_segment_info_clear(segment->cbdt, segment->seg_id);
-}
-
 void cbd_segment_clear(struct cbd_transport *cbdt, u32 seg_id)
 {
 	struct cbd_segment_info *segment_info;
