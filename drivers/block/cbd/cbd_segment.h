@@ -37,6 +37,18 @@ struct cbd_segment_info {
 
 #define CBD_SEG_INFO_FLAGS_HAS_NEXT	(1 << 0)
 
+typedef ssize_t (*detail_show_fn)(struct cbd_segment_info *seg_info, char *buf);
+
+/* it's defined in cbd_channel.c */
+ssize_t cbd_channel_seg_detail_show(struct cbd_segment_info *seg_info, char *buf);
+
+static inline detail_show_fn cbd_seg_get_detail_shower(enum cbd_seg_type type)
+{
+	if (type == cbds_type_channel)
+		return cbd_channel_seg_detail_show;
+	return NULL;
+}
+
 struct cbd_seg_pos {
 	struct cbd_segment *segment;
 	u32 off;

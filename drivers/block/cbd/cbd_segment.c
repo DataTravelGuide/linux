@@ -11,6 +11,7 @@ static ssize_t cbd_seg_detail_show(struct device *dev,
 {
 	struct cbd_segment_device *segment_dev;
 	struct cbd_segment_info *segment_info;
+	detail_show_fn show_fn;
 
 	segment_dev = container_of(dev, struct cbd_segment_device, dev);
 	segment_info = cbdt_segment_info_read(segment_dev->cbdt, segment_dev->id, NULL);
@@ -20,9 +21,11 @@ static ssize_t cbd_seg_detail_show(struct device *dev,
 	if (segment_info->state == cbd_segment_state_none)
 		return 0;
 
-	/* TODO show detail*/
+	show_fn = cbd_seg_get_detail_shower(segment_info->type);
+	if (!show_fn)
+		return 0;
 
-	return 0;
+	return show_fn(segment_info, buf);;
 }
 
 static ssize_t cbd_seg_type_show(struct device *dev,

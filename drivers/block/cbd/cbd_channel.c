@@ -46,8 +46,12 @@ int cbdc_map_pages(struct cbd_channel *channel, struct bio *bio, u32 off, u32 si
 	return cbds_map_pages(&channel->segment, bio, off, size);
 }
 
-ssize_t cbd_channel_seg_detail_show(struct cbd_channel_seg_info *channel_info, char *buf)
+ssize_t cbd_channel_seg_detail_show(struct cbd_segment_info *seg_info, char *buf)
 {
+	struct cbd_channel_seg_info *channel_info;
+
+	channel_info = (struct cbd_channel_seg_info *)seg_info;
+
 	return sprintf(buf, "backend id: %u\n", channel_info->backend_id);
 }
 
