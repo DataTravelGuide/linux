@@ -37,6 +37,7 @@
 /* Macro to get the cache key structure from an rb_node pointer */
 #define CACHE_KEY(node)                (container_of(node, struct cbd_cache_key, rb_node))
 
+/* cache key */
 struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache);
 void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key);
 void cache_key_get(struct cbd_cache_key *key);
@@ -120,8 +121,11 @@ void cache_seg_get(struct cbd_cache_segment *cache_seg);
 void cache_seg_put(struct cbd_cache_segment *cache_seg);
 void cache_seg_set_next_seg(struct cbd_cache_segment *cache_seg, u32 seg_id);
 
+/* cache info */
 void cache_info_write(struct cbd_cache *cache);
 void cache_info_load(struct cbd_cache *cache);
+
+/* cache request*/
 int cache_flush(struct cbd_cache *cache);
 void miss_read_end_work_fn(struct work_struct *work);
 
@@ -133,55 +137,129 @@ void cache_writeback_exit(struct cbd_cache *cache);
 int cache_writeback_init(struct cbd_cache *cache);
 void cache_writeback_fn(struct work_struct *work);
 
+/* inline functions */
+/**
+ * get_cache_tree - Retrieves the cache tree based on offset.
+ * @cache: Pointer to cbd_cache structure.
+ * @off: Offset value to determine cache tree.
+ *
+ * Returns the cache tree corresponding to the specified offset.
+ */
 static inline struct cbd_cache_tree *get_cache_tree(struct cbd_cache *cache, u64 off)
 {
 	return &cache->cache_trees[off >> CBD_CACHE_TREE_SIZE_SHIFT];
 }
 
+/**
+ * cache_pos_addr - Gets address in cache segment based on position.
+ * @pos: Pointer to cbd_cache_pos structure.
+ *
+ * Returns the memory address within the cache segment corresponding to the given position.
+ */
 static inline void *cache_pos_addr(struct cbd_cache_pos *pos)
 {
 	return (pos->cache_seg->segment.data + pos->seg_off);
 }
+
+/**
+ * get_key_head_addr - Gets the address of key head.
+ * @cache: Pointer to cbd_cache structure.
+ *
+ * Returns a pointer to the head of the key set in on-media format.
+ */
 static inline struct cbd_cache_kset_onmedia *get_key_head_addr(struct cbd_cache *cache)
 {
 	return (struct cbd_cache_kset_onmedia *)cache_pos_addr(&cache->key_head);
 }
 
+/**
+ * get_kset_id - Determines key set ID based on offset.
+ * @cache: Pointer to cbd_cache structure.
+ * @off: Offset value.
+ *
+ * Calculates the ID of the key set based on the provided offset.
+ */
 static inline u32 get_kset_id(struct cbd_cache *cache, u64 off)
 {
 	return (off >> CBD_CACHE_TREE_SIZE_SHIFT) % cache->n_ksets;
 }
 
+/**
+ * get_kset - Retrieves a key set by its ID.
+ * @cache: Pointer to cbd_cache structure.
+ * @kset_id: ID of the key set.
+ *
+ * Returns a pointer to the key set with the specified ID.
+ */
 static inline struct cbd_cache_kset *get_kset(struct cbd_cache *cache, u32 kset_id)
 {
 	return (void *)cache->ksets + CBD_KSET_SIZE * kset_id;
 }
 
+/**
+ * get_data_head - Retrieves a data head based on index.
+ * @cache: Pointer to cbd_cache structure.
+ * @i: Index of the data head.
+ *
+ * Returns the data head corresponding to the specified index.
+ */
 static inline struct cbd_cache_data_head *get_data_head(struct cbd_cache *cache, u32 i)
 {
 	return &cache->data_heads[i % cache->n_heads];
 }
 
+/**
+ * cache_key_empty - Checks if cache key is empty.
+ * @key: Pointer to cbd_cache_key structure.
+ *
+ * Returns true if the key is marked as empty.
+ */
 static inline bool cache_key_empty(struct cbd_cache_key *key)
 {
 	return key->flags & CBD_CACHE_KEY_FLAGS_EMPTY;
 }
 
+/**
+ * cache_key_clean - Checks if cache key is clean.
+ * @key: Pointer to cbd_cache_key structure.
+ *
+ * Returns true if the key is marked as clean.
+ */
 static inline bool cache_key_clean(struct cbd_cache_key *key)
 {
 	return key->flags & CBD_CACHE_KEY_FLAGS_CLEAN;
 }
 
+/**
+ * cache_pos_copy - Copies one cache position to another.
+ * @dst: Destination position.
+ * @src: Source position.
+ *
+ * Copies the cache position data from src to dst.
+ */
 static inline void cache_pos_copy(struct cbd_cache_pos *dst, struct cbd_cache_pos *src)
 {
 	memcpy(dst, src, sizeof(struct cbd_cache_pos));
 }
 
+/**
+ * cache_seg_is_meta_seg - Checks if a cache segment is a metadata segment.
+ * @cache_seg_id: ID of the cache segment.
+ *
+ * Returns true if the cache segment ID corresponds to a metadata segment.
+ */
 static inline bool cache_seg_is_meta_seg(u32 cache_seg_id)
 {
 	return (cache_seg_id == 0);
 }
 
+/**
+ * cache_key_cutfront - Cuts a specified length from the front of a cache key.
+ * @key: Pointer to cbd_cache_key structure.
+ * @cut_len: Length to cut from the front.
+ *
+ * Advances the cache key position by cut_len and adjusts offset and length accordingly.
+ */
 static inline void cache_key_cutfront(struct cbd_cache_key *key, u32 cut_len)
 {
 	if (key->cache_pos.cache_seg)
@@ -191,11 +269,25 @@ static inline void cache_key_cutfront(struct cbd_cache_key *key, u32 cut_len)
 	key->len -= cut_len;
 }
 
+/**
+ * cache_key_cutback - Cuts a specified length from the back of a cache key.
+ * @key: Pointer to cbd_cache_key structure.
+ * @cut_len: Length to cut from the back.
+ *
+ * Reduces the length of the cache key by cut_len.
+ */
 static inline void cache_key_cutback(struct cbd_cache_key *key, u32 cut_len)
 {
 	key->len -= cut_len;
 }
 
+/**
+ * cache_key_delete - Removes a cache key from the cache tree.
+ * @key: Pointer to the cbd_cache_key structure to be deleted.
+ *
+ * Removes the cache key from its red-black tree and clears its flags.
+ * Calls cache_key_put to release the key.
+ */
 static inline void cache_key_delete(struct cbd_cache_key *key)
 {
 	struct cbd_cache_tree *cache_tree;
@@ -209,6 +301,12 @@ static inline void cache_key_delete(struct cbd_cache_key *key)
 	cache_key_put(key);
 }
 
+/**
+ * cache_key_data_crc - Calculates CRC for data in a cache key.
+ * @key: Pointer to the cbd_cache_key structure.
+ *
+ * Returns the CRC-32 checksum of the data within the cache key's position.
+ */
 static inline u32 cache_key_data_crc(struct cbd_cache_key *key)
 {
 	void *data;
@@ -218,6 +316,13 @@ static inline u32 cache_key_data_crc(struct cbd_cache_key *key)
 	return crc32(0, data, key->len);
 }
 
+/**
+ * cache_kset_crc - Calculates CRC for a key set.
+ * @kset_onmedia: Pointer to cbd_cache_kset_onmedia structure.
+ *
+ * Calculates the CRC-32 checksum of the key set, excluding the last 4 bytes.
+ * Adjusts size based on whether the set is the last in sequence.
+ */
 static inline u32 cache_kset_crc(struct cbd_cache_kset_onmedia *kset_onmedia)
 {
 	u32 crc_size;
@@ -230,11 +335,24 @@ static inline u32 cache_kset_crc(struct cbd_cache_kset_onmedia *kset_onmedia)
 	return crc32(0, (void *)kset_onmedia + 4, crc_size);
 }
 
+/**
+ * get_kset_onmedia_size - Calculates the size of a key set on media.
+ * @kset_onmedia: Pointer to cbd_cache_kset_onmedia structure.
+ *
+ * Returns the size of the key set, including the data for each key.
+ */
 static inline u32 get_kset_onmedia_size(struct cbd_cache_kset_onmedia *kset_onmedia)
 {
 	return struct_size_t(struct cbd_cache_kset_onmedia, data, kset_onmedia->key_num);
 }
 
+/**
+ * cache_seg_remain - Computes remaining space in a cache segment.
+ * @pos: Pointer to cbd_cache_pos structure.
+ *
+ * Returns the amount of remaining space in the segment data starting from
+ * the current position offset.
+ */
 static inline u32 cache_seg_remain(struct cbd_cache_pos *pos)
 {
 	struct cbd_cache_segment *cache_seg;
@@ -248,6 +366,13 @@ static inline u32 cache_seg_remain(struct cbd_cache_pos *pos)
 	return seg_remain;
 }
 
+/**
+ * cache_key_invalid - Checks if a cache key is invalid.
+ * @key: Pointer to cbd_cache_key structure.
+ *
+ * Returns true if the cache key is invalid due to its generation being
+ * less than the generation of its segment; otherwise returns false.
+ */
 static inline bool cache_key_invalid(struct cbd_cache_key *key)
 {
 	if (cache_key_empty(key))
@@ -256,16 +381,35 @@ static inline bool cache_key_invalid(struct cbd_cache_key *key)
 	return (key->seg_gen < key->cache_pos.cache_seg->gen);
 }
 
+/**
+ * cache_key_lstart - Retrieves the logical start offset of a cache key.
+ * @key: Pointer to cbd_cache_key structure.
+ *
+ * Returns the logical start offset for the cache key.
+ */
 static inline u64 cache_key_lstart(struct cbd_cache_key *key)
 {
 	return key->off;
 }
 
+/**
+ * cache_key_lend - Retrieves the logical end offset of a cache key.
+ * @key: Pointer to cbd_cache_key structure.
+ *
+ * Returns the logical end offset for the cache key.
+ */
 static inline u64 cache_key_lend(struct cbd_cache_key *key)
 {
 	return key->off + key->len;
 }
 
+/**
+ * cache_key_copy - Copies one cache key's details to another.
+ * @key_dst: Destination cache key.
+ * @key_src: Source cache key.
+ *
+ * Copies the properties and position of key_src to key_dst.
+ */
 static inline void cache_key_copy(struct cbd_cache_key *key_dst, struct cbd_cache_key *key_src)
 {
 	key_dst->off = key_src->off;
@@ -277,12 +421,29 @@ static inline void cache_key_copy(struct cbd_cache_key *key_dst, struct cbd_cach
 	cache_pos_copy(&key_dst->cache_pos, &key_src->cache_pos);
 }
 
-
+/**
+ * cache_pos_onmedia_crc - Calculates the CRC for an on-media cache position.
+ * @pos_om: Pointer to cbd_cache_pos_onmedia structure.
+ *
+ * Calculates the CRC-32 checksum of the position, excluding the first 4 bytes.
+ * Returns the computed CRC value.
+ */
 static inline u32 cache_pos_onmedia_crc(struct cbd_cache_pos_onmedia *pos_om)
 {
 	return crc32(0, (void *)pos_om + 4, sizeof(*pos_om) - 4);
 }
 
+/**
+ * cache_pos_encode - Encodes and updates the cache position on media.
+ * @cache: Pointer to the cbd_cache structure.
+ * @pos_onmedia: Pointer to the on-media position structure to update.
+ * @pos: Pointer to the current cache position.
+ * @debug: Debug message for logging.
+ *
+ * Encodes the cache position by finding the oldest entry, updating its
+ * sequence and segment information, and calculating its CRC. The cache
+ * position is flushed to media after encoding.
+ */
 static inline void cache_pos_encode(struct cbd_cache *cache,
 			     struct cbd_cache_pos_onmedia *pos_onmedia,
 			     struct cbd_cache_pos *pos,
@@ -296,17 +457,23 @@ static inline void cache_pos_encode(struct cbd_cache *cache,
 
 	oldest->header.seq = cbd_meta_get_next_seq(&pos_onmedia->header, sizeof(struct cbd_cache_pos_onmedia));
 
-	//cbd_cache_err(cache, "%s oldest: %p set seq: %llu seg_id: %u\n", debug, oldest, oldest->seq, pos->cache_seg->cache_seg_id);
 	oldest->cache_seg_id = pos->cache_seg->cache_seg_id;
-	//cbd_cache_err(cache, "%s finish set seg_off: %u\n", debug, pos->seg_off);
 	oldest->seg_off = pos->seg_off;
 
 	oldest->header.crc = cache_pos_onmedia_crc(oldest);
-
-	//dax_flush(cache->cbdt->dax_dev, oldest, sizeof(*oldest));
-	//cbd_cache_err(cache, "%s dax_flush oldest seq: %llu , crc: %u\n", debug, oldest->seq, oldest->crc);
 }
 
+/**
+ * cache_pos_decode - Decodes the latest cache position from media.
+ * @cache: Pointer to the cbd_cache structure.
+ * @pos_onmedia: Pointer to the on-media position structure.
+ * @pos: Pointer to the cache position structure to store the decoded position.
+ *
+ * Finds the latest entry from on-media position and decodes its segment and
+ * offset information into the cache position structure.
+ *
+ * Returns 0 on success, -EIO on failure.
+ */
 static inline int cache_pos_decode(struct cbd_cache *cache,
 		            struct cbd_cache_pos_onmedia *pos_onmedia,
 			    struct cbd_cache_pos *pos)
@@ -317,21 +484,33 @@ static inline int cache_pos_decode(struct cbd_cache *cache,
 	if (!latest)
 		return -EIO;
 
-	//cbd_cache_err(cache, "read pos: %u:%u\n", newest_pos->cache_seg_id, newest_pos->seg_off);
 	pos->cache_seg = &cache->segments[latest->cache_seg_id];
 	pos->seg_off = latest->seg_off;
 
 	return 0;
 }
 
+/**
+ * cache_encode_key_tail - Encodes the key tail position on media.
+ * @cache: Pointer to the cbd_cache structure.
+ *
+ * Locks the key tail position, encodes it on media, and releases the lock.
+ */
 static inline void cache_encode_key_tail(struct cbd_cache *cache)
 {
-	//pr_err("update key tail\n");
 	mutex_lock(&cache->key_tail_lock);
 	cache_pos_encode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail, "key_tail");
 	mutex_unlock(&cache->key_tail_lock);
 }
 
+/**
+ * cache_decode_key_tail - Decodes the key tail position from media.
+ * @cache: Pointer to the cbd_cache structure.
+ *
+ * Locks the key tail position, decodes it from media, and releases the lock.
+ *
+ * Returns 0 on success, -EIO on failure.
+ */
 static inline int cache_decode_key_tail(struct cbd_cache *cache)
 {
 	int ret;
@@ -343,14 +522,27 @@ static inline int cache_decode_key_tail(struct cbd_cache *cache)
 	return ret;
 }
 
+/**
+ * cache_encode_dirty_tail - Encodes the dirty tail position on media.
+ * @cache: Pointer to the cbd_cache structure.
+ *
+ * Locks the dirty tail position, encodes it on media, and releases the lock.
+ */
 static inline void cache_encode_dirty_tail(struct cbd_cache *cache)
 {
-	//pr_err("update dirty tail\n");
 	mutex_lock(&cache->dirty_tail_lock);
 	cache_pos_encode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail, "dirty tail");
 	mutex_unlock(&cache->dirty_tail_lock);
 }
 
+/**
+ * cache_decode_dirty_tail - Decodes the dirty tail position from media.
+ * @cache: Pointer to the cbd_cache structure.
+ *
+ * Locks the dirty tail position, decodes it from media, and releases the lock.
+ *
+ * Returns 0 on success, -EIO on failure.
+ */
 static inline int cache_decode_dirty_tail(struct cbd_cache *cache)
 {
 	int ret;
@@ -360,35 +552,6 @@ static inline int cache_decode_dirty_tail(struct cbd_cache *cache)
 	mutex_unlock(&cache->dirty_tail_lock);
 
 	return ret;
-}
-
-static inline bool cache_clean(struct cbd_cache *cache)
-{
-	struct cbd_cache_kset_onmedia *kset_onmedia;
-	struct cbd_cache_pos *pos;
-	void *addr;
-
-	pos = &cache->dirty_tail;
-
-	addr = cache_pos_addr(pos);
-	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
-	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
-		cbd_cache_err(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
-				pos->cache_seg->cache_seg_id, pos->seg_off,
-				kset_onmedia->magic, CBD_KSET_MAGIC);
-		return true;
-	}
-
-	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-		cbd_cache_err(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
-				pos->cache_seg->cache_seg_id, pos->seg_off,
-				cache_kset_crc(kset_onmedia), kset_onmedia->crc);
-		return true;
-	}
-
-	//cbd_cache_err(cache, "dirty\n");
-
-	return false;
 }
 
 #endif /* _CBD_CACHE_INTERNAL_H */

@@ -6,11 +6,53 @@
 #include "../cbd_transport.h"
 #include "cbd_cache_internal.h"
 
+/**
+ * is_cache_clean - Check if the cache is clean by validating the dirty tail.
+ * @cache: Pointer to the cbd_cache structure.
+ *
+ * This function determines if the cache is clean by verifying the integrity
+ * of the dirty tail. If the dirty tail has an invalid magic number or CRC
+ * checksum, it indicates that the dirty tail is incomplete, meaning there
+ * are no more valid dirty ksets, and thus the cache is clean.
+ * 
+ * Returns:
+ * true if the cache is clean (no more valid dirty ksets),
+ * false if the cache has valid dirty ksets (dirty and requires flushing).
+ */
+static inline bool is_cache_clean(struct cbd_cache *cache)
+{
+	struct cbd_cache_kset_onmedia *kset_onmedia;
+	struct cbd_cache_pos *pos;
+	void *addr;
+
+	pos = &cache->dirty_tail;
+	addr = cache_pos_addr(pos);
+	kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
+
+	/* Check if the magic number matches the expected value */
+	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
+		cbd_cache_err(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
+			      pos->cache_seg->cache_seg_id, pos->seg_off,
+			      kset_onmedia->magic, CBD_KSET_MAGIC);
+		return true; /* Incomplete dirty tail, cache is clean */
+	}
+
+	/* Verify the CRC checksum for data integrity */
+	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
+		cbd_cache_err(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
+			      pos->cache_seg->cache_seg_id, pos->seg_off,
+			      cache_kset_crc(kset_onmedia), kset_onmedia->crc);
+		return true; /* Incomplete dirty tail, cache is clean */
+	}
+
+	return false; /* Complete dirty kset found, cache is not clean */
+}
+
 void cache_writeback_exit(struct cbd_cache *cache)
 {
 	cache_flush(cache);
 
-	while (!cache_clean(cache))
+	while (!is_cache_clean(cache))
 		schedule_timeout(HZ);
 
 	cancel_delayed_work_sync(&cache->writeback_work);
@@ -158,7 +200,7 @@ void cache_writeback_fn(struct work_struct *work)
 	void *addr;
 
 	while (true) {
-		if (cache_clean(cache))
+		if (is_cache_clean(cache))
 			break;
 
 		/* get kset_onmedia from dirty_tail position */
