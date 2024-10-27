@@ -2,6 +2,8 @@
 #ifndef _CBD_BLKDEV_H
 #define _CBD_BLKDEV_H
 
+#include <linux/blk-mq.h>
+
 #include "cbd_internal.h"
 
 #include "cbd_transport.h"

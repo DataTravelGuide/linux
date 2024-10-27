@@ -2,6 +2,8 @@
 #ifndef _CBD_SEGMENT_H
 #define _CBD_SEGMENT_H
 
+#include <linux/bio.h>
+
 CBD_DEVICE(segment);
 
 enum cbd_segment_state {

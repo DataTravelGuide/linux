@@ -2,15 +2,11 @@
 #ifndef _CBD_INTERNAL_H
 #define _CBD_INTERNAL_H
 
+#include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/blk-mq.h>
-#include <asm/byteorder.h>
-#include <asm/types.h>
-#include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/fs.h>
 #include <linux/crc32.h>
 
 

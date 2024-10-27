@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include <linux/blkdev.h>
 
 #include "cbd_handler.h"
 
