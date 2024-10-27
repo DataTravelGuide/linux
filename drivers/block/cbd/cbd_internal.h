@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _CBD_INTERNAL_H
 #define _CBD_INTERNAL_H
 
@@ -143,14 +143,14 @@
  */
 
 /* cbd segment */
-#define CBDT_SEG_SIZE           (16 * 1024 * 1024)                  /* Size of each CBD segment (16 MB) */
+#define CBDT_SEG_SIZE			(16 * 1024 * 1024)                  /* Size of each CBD segment (16 MB) */
 
 /* cbd transport */
 #define CBD_TRANSPORT_MAGIC             0x65B05EFA96C596EFULL  /* Unique identifier for CBD transport layer */
 #define CBD_TRANSPORT_VERSION           1                      /* Version number for CBD transport layer */
 
 /* Maximum number of metadata indices */
-#define CBDT_META_INDEX_MAX             2                      
+#define CBDT_META_INDEX_MAX             2
 
 /*
  * CBD structure diagram:
@@ -310,8 +310,8 @@ static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 	return false;
 }
 
-/* 
- * struct cbd_meta_header - CBD metadata header structure 
+/*
+ * struct cbd_meta_header - CBD metadata header structure
  * @crc: CRC checksum for validating metadata integrity.
  * @seq: Sequence number to track metadata updates.
  * @version: Metadata version.
