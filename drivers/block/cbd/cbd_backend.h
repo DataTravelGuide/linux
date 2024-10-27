@@ -2,6 +2,8 @@
 #ifndef _CBD_BACKEND_H
 #define _CBD_BACKEND_H
 
+#include <linux/hashtable.h>
+
 #include "cbd_internal.h"
 
 #include "cbd_transport.h"

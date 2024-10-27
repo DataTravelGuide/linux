@@ -2,28 +2,6 @@
 #ifndef _CBD_SEGMENT_H
 #define _CBD_SEGMENT_H
 
-#include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/module.h>
-#include <linux/blk-mq.h>
-#include <asm/byteorder.h>
-#include <asm/types.h>
-#include <linux/types.h>
-#include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/dax.h>
-#include <linux/blkdev.h>
-#include <linux/slab.h>
-#include <linux/parser.h>
-#include <linux/idr.h>
-#include <linux/workqueue.h>
-#include <linux/uuid.h>
-#include <linux/bitfield.h>
-#include <linux/crc32.h>
-#include <linux/hashtable.h>
-
-extern struct cbd_transport;
-
 CBD_DEVICE(segment);
 
 enum cbd_segment_state {

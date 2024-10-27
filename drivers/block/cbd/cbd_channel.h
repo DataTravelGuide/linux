@@ -70,8 +70,6 @@ static inline u32 cbd_ce_crc(struct cbd_ce *ce)
 #define CBDC_DATA_OFF           CBDC_META_SIZE                      /* Offset for data storage following metadata */
 #define CBDC_DATA_SIZE          (CBDT_SEG_SIZE - CBDC_META_SIZE)    /* Size of data storage in a segment */
 
-
-extern struct cbd_transport;
 /* cbd_channel */
 enum cbdc_blkdev_state {
 	cbdc_blkdev_state_none		= 0,

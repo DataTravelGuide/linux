@@ -5,8 +5,6 @@
 #include "../cbd_internal.h"
 #include "../cbd_segment.h"
 
-extern struct cbd_transport;
-
 /* cbd cache */
 struct cbd_cache_seg_info {
 	struct cbd_segment_info segment_info;	/* first member */

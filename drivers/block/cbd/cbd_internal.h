@@ -20,7 +20,6 @@
 #include <linux/uuid.h>
 #include <linux/bitfield.h>
 #include <linux/crc32.h>
-#include <linux/hashtable.h>
 
 
 /*
