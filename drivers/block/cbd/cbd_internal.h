@@ -219,26 +219,35 @@ struct cbd_## OBJ ##s_device {				\
 	struct cbd_## OBJ ##_device OBJ ##_devs[];	\
 }
 
-/* cbd_worker_cfg*/
+/* cbd_worker_cfg - Structure to manage retry configurations for a worker */
 struct cbd_worker_cfg {
-	u32			busy_retry_cur;
-	u32			busy_retry_count;
-	u32			busy_retry_max;
-	u32			busy_retry_min;
-	u64			busy_retry_interval;
+	u32			busy_retry_cur;     /* Current retry count */
+	u32			busy_retry_count;   /* Dynamic retry threshold */
+	u32			busy_retry_max;     /* Maximum retry threshold */
+	u32			busy_retry_min;     /* Minimum retry threshold */
+	u64			busy_retry_interval; /* Time interval between retries in microseconds */
 };
 
+/**
+ * cbdwc_init - Initialize cbd_worker_cfg with default values.
+ * @cfg: Pointer to the cbd_worker_cfg structure to initialize.
+ */
 static inline void cbdwc_init(struct cbd_worker_cfg *cfg)
 {
-	/* init cbd_worker_cfg with default values */
 	cfg->busy_retry_cur = 0;
 	cfg->busy_retry_count = 100;
 	cfg->busy_retry_max = cfg->busy_retry_count * 2;
 	cfg->busy_retry_min = 0;
-	cfg->busy_retry_interval = 1;			/* 1us */
+	cfg->busy_retry_interval = 1; /* 1 microsecond */
 }
 
-/* reset retry_cur and increase busy_retry_count */
+/**
+ * cbdwc_hit - Reset retry counter and increase busy_retry_count on success.
+ * @cfg: Pointer to the cbd_worker_cfg structure to update.
+ *
+ * Increases busy_retry_count by 1/16 of its current value,
+ * unless it's already at the maximum.
+ */
 static inline void cbdwc_hit(struct cbd_worker_cfg *cfg)
 {
 	u32 delta;
@@ -248,7 +257,6 @@ static inline void cbdwc_hit(struct cbd_worker_cfg *cfg)
 	if (cfg->busy_retry_count == cfg->busy_retry_max)
 		return;
 
-	/* retry_count increase by 1/16 */
 	delta = cfg->busy_retry_count >> 4;
 	if (!delta)
 		delta = (cfg->busy_retry_max + cfg->busy_retry_min) >> 1;
@@ -259,7 +267,13 @@ static inline void cbdwc_hit(struct cbd_worker_cfg *cfg)
 		cfg->busy_retry_count = cfg->busy_retry_max;
 }
 
-/* reset retry_cur and decrease busy_retry_count */
+/**
+ * cbdwc_miss - Reset retry counter and decrease busy_retry_count on failure.
+ * @cfg: Pointer to the cbd_worker_cfg structure to update.
+ *
+ * Decreases busy_retry_count by 1/16 of its current value,
+ * unless it's already at the minimum.
+ */
 static inline void cbdwc_miss(struct cbd_worker_cfg *cfg)
 {
 	u32 delta;
@@ -269,7 +283,6 @@ static inline void cbdwc_miss(struct cbd_worker_cfg *cfg)
 	if (cfg->busy_retry_count == cfg->busy_retry_min)
 		return;
 
-	/* retry_count decrease by 1/16 */
 	delta = cfg->busy_retry_count >> 4;
 	if (!delta)
 		delta = cfg->busy_retry_count;
@@ -277,6 +290,15 @@ static inline void cbdwc_miss(struct cbd_worker_cfg *cfg)
 	cfg->busy_retry_count -= delta;
 }
 
+/**
+ * cbdwc_need_retry - Determine if another retry attempt should be made.
+ * @cfg: Pointer to the cbd_worker_cfg structure to check.
+ *
+ * Increments busy_retry_cur and compares it to busy_retry_count.
+ * If retry is needed, yields CPU and waits for busy_retry_interval.
+ *
+ * Return: true if retry is allowed, false if retry limit reached.
+ */
 static inline bool cbdwc_need_retry(struct cbd_worker_cfg *cfg)
 {
 	if (++cfg->busy_retry_cur < cfg->busy_retry_count) {
