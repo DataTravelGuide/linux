@@ -237,6 +237,8 @@ struct cbd_cache_opts {
 /* CBD Cache API function declarations */
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_opts *opts);
 void cbd_cache_destroy(struct cbd_cache *cache);
+
+struct cbd_request;
 int cbd_cache_handle_req(struct cbd_cache *cache, struct cbd_request *cbd_req);
 
 #endif /* _CBD_CACHE_H */
