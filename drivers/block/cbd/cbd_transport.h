@@ -2,6 +2,13 @@
 #ifndef _CBD_TRANSPORT_H
 #define _CBD_TRANSPORT_H
 
+#include "cbd_internal.h"
+
+#include "cbd_host.h"
+#include "cbd_segment.h"
+#include "cbd_backend.h"
+#include "cbd_blkdev.h"
+
 /* cbd_transport */
 #define CBDT_INFO_F_BIGENDIAN		(1 << 0)
 #define CBDT_INFO_F_CRC			(1 << 1)
@@ -90,11 +97,6 @@ CBDT_OBJ_DECLARE(host);
 CBDT_OBJ_DECLARE(backend);
 CBDT_OBJ_DECLARE(blkdev);
 CBDT_OBJ_DECLARE(segment);
-
-static inline struct cbd_channel_seg_info *cbdt_get_channel_info(struct cbd_transport *cbdt, u32 id)
-{
-	return (struct cbd_channel_seg_info *)cbdt_get_segment_info(cbdt, id);
-}
 
 void cbdt_add_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
 void cbdt_del_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
