@@ -14,11 +14,6 @@
 #include <linux/dax.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
-#include <linux/parser.h>
-#include <linux/idr.h>
-#include <linux/workqueue.h>
-#include <linux/uuid.h>
-#include <linux/bitfield.h>
 #include <linux/crc32.h>
 
 

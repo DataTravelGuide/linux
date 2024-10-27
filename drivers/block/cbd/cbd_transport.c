@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/pfn_t.h>
+#include <linux/parser.h>
+
 #include "cbd_transport.h"
 #include "cbd_host.h"
 #include "cbd_segment.h"
