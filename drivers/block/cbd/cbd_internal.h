@@ -2,8 +2,6 @@
 #ifndef _CBD_INTERNAL_H
 #define _CBD_INTERNAL_H
 
-#include <asm/byteorder.h>
-#include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
 
