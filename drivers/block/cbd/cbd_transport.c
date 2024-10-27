@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/dax.h>
 #include <linux/pfn_t.h>
 #include <linux/parser.h>
 

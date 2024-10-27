@@ -11,9 +11,6 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
-#include <linux/dax.h>
-#include <linux/blkdev.h>
-#include <linux/slab.h>
 #include <linux/crc32.h>
 
 
