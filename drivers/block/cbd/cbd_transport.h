@@ -27,6 +27,31 @@
 #define CBDT_HOSTS_MAX			1
 #endif /*CONFIG_CBD_MULTIHOST*/
 
+/* Info section offsets and sizes */
+#define CBDT_INFO_OFF                   0                       /* Offset for transport info */
+#define CBDT_INFO_SIZE                  PAGE_SIZE               /* Size of transport info section (1 page) */
+#define CBDT_INFO_STRIDE                (CBDT_INFO_SIZE * CBDT_META_INDEX_MAX) /* Stride for alternating metadata copies */
+
+/* Host info metadata size and stride */
+#define CBDT_HOST_INFO_SIZE             round_up(sizeof(struct cbd_host_info), PAGE_SIZE)  /* Host info size (rounded to page) */
+#define CBDT_HOST_INFO_STRIDE           (CBDT_HOST_INFO_SIZE * CBDT_META_INDEX_MAX)        /* Stride for host info metadata copies */
+
+/* Backend info metadata size and stride */
+#define CBDT_BACKEND_INFO_SIZE          round_up(sizeof(struct cbd_backend_info), PAGE_SIZE) /* Backend info size (rounded to page) */
+#define CBDT_BACKEND_INFO_STRIDE        (CBDT_BACKEND_INFO_SIZE * CBDT_META_INDEX_MAX)       /* Stride for backend info metadata copies */
+
+/* Block device info metadata size and stride */
+#define CBDT_BLKDEV_INFO_SIZE           round_up(sizeof(struct cbd_blkdev_info), PAGE_SIZE) /* Block device info size (rounded to page) */
+#define CBDT_BLKDEV_INFO_STRIDE         (CBDT_BLKDEV_INFO_SIZE * CBDT_META_INDEX_MAX)      /* Stride for block device info metadata copies */
+
+/* Segment info metadata size and stride */
+#define CBDT_SEG_INFO_SIZE              round_up(sizeof(struct cbd_segment_info), PAGE_SIZE) /* Segment info size (rounded to page) */
+#define CBDT_SEG_INFO_STRIDE            CBDT_SEG_SIZE                                       /* Stride size equal to segment size */
+
+/* Minimum size for CBD transport layer */
+#define CBD_TRASNPORT_SIZE_MIN          (512 * 1024 * 1024)     /* Minimum size for CBD transport (512 MB) */
+
+
 struct cbd_transport_info {
 	__le64 magic;
 	__le16 version;

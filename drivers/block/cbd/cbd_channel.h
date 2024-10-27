@@ -80,6 +80,14 @@ static inline u32 cbd_ce_crc(struct cbd_ce *ce)
 #define CBDC_DATA_OFF           CBDC_META_SIZE                      /* Offset for data storage following metadata */
 #define CBDC_DATA_SIZE          (CBDT_SEG_SIZE - CBDC_META_SIZE)    /* Size of data storage in a segment */
 
+/* Update macros for SUBMR head and tail pointers */
+#define CBDC_UPDATE_SUBMR_HEAD(head, used, size)    (head = ((head % size) + used) % size)
+#define CBDC_UPDATE_SUBMR_TAIL(tail, used, size)    (tail = ((tail % size) + used) % size)
+
+/* Update macros for COMPR head and tail pointers */
+#define CBDC_UPDATE_COMPR_HEAD(head, used, size)    (head = ((head % size) + used) % size)
+#define CBDC_UPDATE_COMPR_TAIL(tail, used, size)    (tail = ((tail % size) + used) % size)
+
 /* cbd_channel */
 enum cbdc_blkdev_state {
 	cbdc_blkdev_state_none		= 0,
