@@ -5,7 +5,6 @@
 #include <linux/delay.h>
 #include <linux/crc32.h>
 
-
 /*
  * CBD (CXL Block Device) provides two usage scenarios: single-host and multi-hosts.
  *
@@ -72,9 +71,6 @@
  *	|                                                                                                        |
  *	+--------------------------------------------------------------------------------------------------------+
  */
-
-struct cbd_transport;
-
 #define cbd_err(fmt, ...)							\
 	pr_err("cbd: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
 #define cbd_info(fmt, ...)							\
