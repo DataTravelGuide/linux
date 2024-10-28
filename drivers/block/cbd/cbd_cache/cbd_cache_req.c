@@ -253,58 +253,131 @@ unlock:
 	kmem_cache_free(cache->req_cache, cbd_req);
 }
 
+/**
+ * miss_read_end_work_fn - Work function to handle the completion of cache miss reads
+ * @work: Pointer to the work_struct associated with miss read handling
+ *
+ * This function processes requests that were placed on the miss read list
+ * (`cache->miss_read_reqs`) to wait for data retrieval from the backend storage.
+ * Once the data has been retrieved, the requests are handled to complete the
+ * read operation.
+ *
+ * The function transfers the pending miss read requests to a temporary list to
+ * process them without holding the spinlock, improving concurrency. It then
+ * iterates over each request, removing it from the list and calling
+ * `miss_read_end_req()` to finalize the read operation.
+ */
 void miss_read_end_work_fn(struct work_struct *work)
 {
 	struct cbd_cache *cache = container_of(work, struct cbd_cache, miss_read_end_work);
 	struct cbd_request *cbd_req;
 	LIST_HEAD(tmp_list);
 
+	/* Lock and transfer miss read requests to temporary list */
 	spin_lock(&cache->miss_read_reqs_lock);
 	list_splice_init(&cache->miss_read_reqs, &tmp_list);
 	spin_unlock(&cache->miss_read_reqs_lock);
 
+	/* Process each request in the temporary list */
 	while (!list_empty(&tmp_list)) {
 		cbd_req = list_first_entry(&tmp_list,
-				struct cbd_request, inflight_reqs_node);
+					    struct cbd_request, inflight_reqs_node);
 		list_del_init(&cbd_req->inflight_reqs_node);
-		miss_read_end_req(cache, cbd_req);
+		miss_read_end_req(cache, cbd_req);  /* Finalize read operation */
 	}
 }
 
+/**
+ * cache_backing_req_end_req - Handle the end of a cache miss read request
+ * @cbd_req: The cache request that has completed
+ * @priv_data: Private data associated with the request (unused in this function)
+ *
+ * This function is called when a cache miss read request completes. The request
+ * is added to the `miss_read_reqs` list, which stores pending miss read requests
+ * to be processed later by `miss_read_end_work_fn`.
+ *
+ * After adding the request to the list, the function triggers the `miss_read_end_work`
+ * workqueue to process the completed requests.
+ */
 static void cache_backing_req_end_req(struct cbd_request *cbd_req, void *priv_data)
 {
 	struct cbd_cache *cache = cbd_req->cbdq->cbd_blkdev->cbd_cache;
 
+	/* Lock the miss read requests list and add the completed request */
 	spin_lock(&cache->miss_read_reqs_lock);
 	list_add_tail(&cbd_req->inflight_reqs_node, &cache->miss_read_reqs);
 	spin_unlock(&cache->miss_read_reqs_lock);
 
+	/* Queue work to process the miss read requests */
 	queue_work(cache->cache_wq, &cache->miss_read_end_work);
 }
 
+/**
+ * submit_backing_req - Submit a backend request when cache data is missing
+ * @cache: The cache context that manages cache operations
+ * @cbd_req: The cache request containing information about the read request
+ *
+ * This function is used to handle cases where a cache read request cannot locate
+ * the required data in the cache. When such a miss occurs during `cache_tree_walk`,
+ * it triggers a backend read request to fetch data from the storage backend.
+ *
+ * If `cbd_req->priv_data` is set, it points to a `cbd_cache_key`, representing
+ * a new cache key to be inserted into the cache. The function calls `cache_key_insert`
+ * to attempt adding the key. On insertion failure, it releases the key reference and
+ * clears `priv_data` to avoid further processing.
+ *
+ * After handling the potential cache key insertion, the request is queued to the
+ * backend using `cbd_queue_req_to_backend`. Finally, `cbd_req_put` is called to
+ * release the request resources with the result of the backend operation.
+ */
 static void submit_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
 	int ret;
 
-	//cbd_cache_err(cache, "backend_req: %lu:%u\n", cbd_req->off, cbd_req->data_len);
-
 	if (cbd_req->priv_data) {
 		struct cbd_cache_key *key;
 
+		/* Attempt to insert the key into the cache if priv_data is set */
 		key = (struct cbd_cache_key *)cbd_req->priv_data;
 		ret = cache_key_insert(cache, key, true);
 		if (ret) {
+			/* Release the key if insertion fails */
 			cache_key_put(key);
 			cbd_req->priv_data = NULL;
 			goto out;
 		}
 	}
 
+	/* Queue the request to the backend for data retrieval */
 	ret = cbd_queue_req_to_backend(cbd_req);
 out:
+	/* Release the cache request resources based on backend result */
 	cbd_req_put(cbd_req, ret);
 }
 
+/**
+ * create_backing_req - Create a backend read request for a cache miss
+ * @cache: The cache structure that manages cache operations
+ * @parent: The parent request structure initiating the miss read
+ * @off: Offset in the parent request to read from
+ * @len: Length of data to read from the backend
+ * @insert_key: Determines whether to insert a placeholder empty key in the cache tree
+ *
+ * This function generates a new backend read request when a cache miss occurs. The
+ * `insert_key` parameter controls whether a placeholder (empty) cache key should be
+ * added to the cache tree to prevent multiple backend requests for the same missing
+ * data. Generally, when the miss read occurs in a cache segment that doesn’t contain
+ * the requested data, a placeholder key is created and inserted.
+ *
+ * However, if the cache tree already has an empty key at the location for this
+ * read, there is no need to create another. Instead, this function just send the
+ * new request without adding a duplicate placeholder.
+ *
+ * Returns:
+ * A pointer to the newly created request structure on success, or NULL on failure.
+ * If an empty key is created, it will be released if any errors occur during the
+ * process to ensure proper cleanup.
+ */
 static struct cbd_request *create_backing_req(struct cbd_cache *cache, struct cbd_request *parent,
 					u32 off, u32 len, bool insert_key)
 {
@@ -312,6 +385,7 @@ static struct cbd_request *create_backing_req(struct cbd_cache *cache, struct cb
 	struct cbd_cache_key *key = NULL;
 	int ret;
 
+	/* Allocate a new empty key if insert_key is set */
 	if (insert_key) {
 		key = cache_key_alloc(cache);
 		if (!key) {
@@ -319,17 +393,20 @@ static struct cbd_request *create_backing_req(struct cbd_cache *cache, struct cb
 			goto out;
 		}
 
+		/* Initialize the empty key with offset, length, and empty flag */
 		key->off = parent->off + off;
 		key->len = len;
 		key->flags |= CBD_CACHE_KEY_FLAGS_EMPTY;
 	}
 
+	/* Allocate memory for the new backend request */
 	new_req = kmem_cache_zalloc(cache->req_cache, GFP_NOWAIT);
 	if (!new_req) {
 		ret = -ENOMEM;
 		goto delete_key;
 	}
 
+	/* Initialize the request structure */
 	INIT_LIST_HEAD(&new_req->inflight_reqs_node);
 	kref_init(&new_req->ref);
 	spin_lock_init(&new_req->lock);
@@ -342,25 +419,47 @@ static struct cbd_request *create_backing_req(struct cbd_cache *cache, struct cb
 	new_req->data_len = len;
 	new_req->req = NULL;
 
+	/* Reference the parent request */
 	cbd_req_get(parent);
 	new_req->parent = parent;
 
+	/* Attach the empty key to the request if it was created */
 	if (key) {
 		cache_key_get(key);
 		new_req->priv_data = key;
 	}
 
+	/* Set the end request handler */
 	new_req->end_req = cache_backing_req_end_req;
 
 	return new_req;
 
 delete_key:
+	/* Clean up the key if allocation failed */
 	if (key)
 		cache_key_delete(key);
 out:
 	return NULL;
 }
 
+/**
+ * send_backing_req - Submits a backend request for data retrieval
+ * @cache: Pointer to the cache structure managing request details
+ * @cbd_req: Pointer to the parent request structure from which the new request originates
+ * @off: Offset within the parent request for this new request
+ * @len: Length of data to retrieve for the new request
+ * @insert_key: Flag indicating whether to insert an empty key into the cache tree
+ *
+ * This function is responsible for creating and submitting a backend request
+ * if the requested data is not found in the cache. The function first calls
+ * create_backing_req() to create a new request object with the specified
+ * offset and length. If the creation is successful, the new request is then
+ * submitted using submit_backing_req().
+ *
+ * Returns:
+ *   0 if the request is successfully submitted,
+ *   -ENOMEM if there is insufficient memory to create the new request.
+ */
 static int send_backing_req(struct cbd_cache *cache, struct cbd_request *cbd_req,
 			    u32 off, u32 len, bool insert_key)
 {
@@ -382,7 +481,10 @@ static int read_before(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
 	struct cbd_request *backing_req;
 	int ret;
 
-
+	/*
+	 *	  |--------|		key_tmp
+	 * |====|			key
+	 */
 	backing_req = create_backing_req(ctx->cache, ctx->cbd_req, ctx->req_done, key->len, true);
 	if (!backing_req) {
 		ret = -ENOMEM;
