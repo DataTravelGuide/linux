@@ -3,17 +3,16 @@
 #include "cbd_cache_internal.h"
 #include "../cbd_queue.h"
 
-static int cache_data_head_init(struct cbd_cache *cache, u32 i)
+static int cache_data_head_init(struct cbd_cache *cache, u32 head_index)
 {
 	struct cbd_cache_segment *next_seg;
 	struct cbd_cache_data_head *data_head;
 
-	data_head = get_data_head(cache, i);
+	data_head = get_data_head(cache, head_index);
 	next_seg = get_cache_segment(cache);
 	if (!next_seg)
 		return -EBUSY;
 
-	//cbd_cache_err(cache, "next_seg for data: %u\n", next_seg->cache_seg_id);
 	cache_seg_get(next_seg);
 	data_head->head_pos.cache_seg = next_seg;
 	data_head->head_pos.seg_off = 0;
