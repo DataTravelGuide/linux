@@ -392,32 +392,46 @@ out:
 	return ret;  /* Return error code */
 }
 
-/* cache_tree_search, search in a cache_tree */
+/**
+ * cache_tree_search - Search for a key in the cache tree.
+ * @cache_tree: Pointer to the cache tree structure.
+ * @key: Pointer to the cache key to search for.
+ * @parentp: Pointer to store the parent node of the found node.
+ * @newp: Pointer to store the location where the new node should be inserted.
+ * @delete_key_list: List to collect invalid keys for deletion.
+ *
+ * This function searches the cache tree for a specific key and returns
+ * the node that is the predecessor of the key, or first node if the key is
+ * less than all keys in the tree. If any invalid keys are found during
+ * the search, they are added to the delete_key_list for later cleanup.
+ *
+ * Returns a pointer to the previous node.
+ */
 struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, struct cbd_cache_key *key,
 				  struct rb_node **parentp, struct rb_node ***newp,
 				  struct list_head *delete_key_list)
 {
-	struct rb_node **new, *parent = NULL;
-	struct cbd_cache_key *key_tmp;
-	struct rb_node *prev_node = NULL;
+	struct rb_node **new, *parent = NULL;  /* Pointers for tree traversal */
+	struct cbd_cache_key *key_tmp;  /* Temporary pointer to the current key */
+	struct rb_node *prev_node = NULL;  /* Pointer to the previous node */
 
-	new = &(cache_tree->root.rb_node);
+	new = &(cache_tree->root.rb_node);  /* Start at the root of the tree */
 	while (*new) {
-		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);
+		key_tmp = container_of(*new, struct cbd_cache_key, rb_node);  /* Get the key from the node */
 		if (cache_key_invalid(key_tmp))
-			list_add(&key_tmp->list_node, delete_key_list);
+			list_add(&key_tmp->list_node, delete_key_list);  /* Add invalid key to the delete list */
 
-		parent = *new;
+		parent = *new;  /* Update the parent pointer */
 		if (key_tmp->off >= key->off) {
-			new = &((*new)->rb_left);
+			new = &((*new)->rb_left);  /* Traverse left if current key is greater than or equal to search key */
 		} else {
-			prev_node = *new;
-			new = &((*new)->rb_right);
+			prev_node = *new;  /* Update the previous node */
+			new = &((*new)->rb_right);  /* Traverse right otherwise */
 		}
 	}
 
 	if (!prev_node)
-		prev_node = rb_first(&cache_tree->root);
+		prev_node = rb_first(&cache_tree->root);  /* Get the first node if no previous node was found */
 
 	if (parentp)
 		*parentp = parent;
@@ -428,11 +442,20 @@ struct rb_node *cache_tree_search(struct cbd_cache_tree *cache_tree, struct cbd_
 	return prev_node;
 }
 
-/* cache insert fixup, which will walk the cache_tree and do some fixup for key insert
- * if the new key has overlap with existing keys in cache_tree
+/**
+ * fixup_overlap_tail - Adjust the key when it overlaps at the tail.
+ * @key: Pointer to the new cache key being inserted.
+ * @key_tmp: Pointer to the existing key that overlaps.
+ * @ctx: Pointer to the context for walking the cache tree.
+ *
+ * This function modifies the existing key (key_tmp) when there is an
+ * overlap at the tail with the new key. If the modified key becomes
+ * empty, it is deleted. Returns 0 on success, or -EAGAIN if the key
+ * needs to be reinserted.
  */
-static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
-		struct cbd_cache_tree_walk_ctx *ctx)
+static int fixup_overlap_tail(struct cbd_cache_key *key,
+			       struct cbd_cache_key *key_tmp,
+			       struct cbd_cache_tree_walk_ctx *ctx)
 {
 	int ret;
 
@@ -442,30 +465,62 @@ static int fixup_overlap_tail(struct cbd_cache_key *key, struct cbd_cache_key *k
 	 */
 	cache_key_cutfront(key_tmp, cache_key_lend(key) - cache_key_lstart(key_tmp));
 	if (key_tmp->len == 0) {
-		cache_key_delete(key_tmp);
-		ret = -EAGAIN;
+		cache_key_delete(key_tmp);  /* Delete the key if it becomes empty */
+		ret = -EAGAIN;  /* Indicate that a reinsert is needed */
+
+		/*
+		 * Deleting key_tmp may change the structure of the
+		 * entire cache tree, so we need to re-search the tree
+		 * to determine the new insertion point for the key.
+		 */
 		goto out;
 	}
 
-	return 0;
+	return 0;  /* Return success */
 out:
-	return ret;
+	return ret;  /* Return error code */
 }
 
-static int fixup_overlap_contain(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
-		struct cbd_cache_tree_walk_ctx *ctx)
+/**
+ * fixup_overlap_contain - Handle case where new key completely contains an existing key.
+ * @key: Pointer to the new cache key being inserted.
+ * @key_tmp: Pointer to the existing key that is being contained.
+ * @ctx: Pointer to the context for walking the cache tree.
+ *
+ * This function deletes the existing key (key_tmp) when the new key
+ * completely contains it. It returns -EAGAIN to indicate that the
+ * tree structure may have changed, necessitating a re-insertion of
+ * the new key.
+ */
+static int fixup_overlap_contain(struct cbd_cache_key *key,
+				  struct cbd_cache_key *key_tmp,
+				  struct cbd_cache_tree_walk_ctx *ctx)
 {
 	/*
 	 *    |----|			key_tmp
 	 * |==========|			key
 	 */
-	cache_key_delete(key_tmp);
+	cache_key_delete(key_tmp);  /* Delete the contained key */
 
-	return -EAGAIN;
+	return -EAGAIN;  /* Indicate that a re-insert is needed */
 }
 
-static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
-		struct cbd_cache_tree_walk_ctx *ctx)
+/**
+ * fixup_overlap_contained - Handle overlap when a new key is contained in an existing key.
+ * @key: The new cache key being inserted.
+ * @key_tmp: The existing cache key that overlaps with the new key.
+ * @ctx: Context for the cache tree walk.
+ *
+ * This function adjusts the existing key if the new key is contained
+ * within it. If the existing key is empty, it indicates a placeholder key
+ * that was inserted during a miss read. This placeholder will later be
+ * updated with real data from the backend, making it no longer an empty key.
+ *
+ * If we delete key or insert a key, the structure of the entire cache tree may change,
+ * requiring a full research of the tree to find a new insertion point.
+ */
+static int fixup_overlap_contained(struct cbd_cache_key *key,
+	struct cbd_cache_key *key_tmp, struct cbd_cache_tree_walk_ctx *ctx)
 {
 	struct cbd_cache *cache = ctx->cache;
 	int ret;
@@ -475,43 +530,49 @@ static int fixup_overlap_contained(struct cbd_cache_key *key, struct cbd_cache_k
 	 *   |====|			key
 	 */
 	if (cache_key_empty(key_tmp)) {
-		/* if key_tmp is empty, dont split key_tmp */
+		/* If key_tmp is empty, don't split it;
+		 * it's a placeholder key for miss reads that will be updated later.
+		 */
 		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
 		if (key_tmp->len == 0) {
 			cache_key_delete(key_tmp);
-			ret = -EAGAIN;
+			ret = -EAGAIN;  /* Need to research the tree after deletion */
 			goto out;
 		}
 	} else {
 		struct cbd_cache_key *key_fixup;
 		bool need_research = false;
 
+		/* Allocate a new cache key for splitting key_tmp */
 		key_fixup = cache_key_alloc(cache);
 		if (!key_fixup) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
-		cache_key_copy(key_fixup, key_tmp);
+		cache_key_copy(key_fixup, key_tmp);  /* Copy key_tmp to key_fixup for modifications */
 
+		/* Split key_tmp based on the new key's range */
 		cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
 		if (key_tmp->len == 0) {
 			cache_key_delete(key_tmp);
-			need_research = true;
+			need_research = true;  /* Key deleted, need to research tree */
 		}
 
+		/* Create a new portion for key_fixup */
 		cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
 		if (key_fixup->len == 0) {
-			cache_key_put(key_fixup);
+			cache_key_put(key_fixup);  /* If the new portion is empty, release it */
 		} else {
+			/* Insert the new key into the cache */
 			ret = cache_key_insert(cache, key_fixup, false);
 			if (ret)
 				goto out;
-			need_research = true;
+			need_research = true;  /* Key inserted, may need to research */
 		}
 
 		if (need_research) {
-			ret = -EAGAIN;
+			ret = -EAGAIN;  /* Need to research the tree */
 			goto out;
 		}
 	}
@@ -521,127 +582,180 @@ out:
 	return ret;
 }
 
-static int fixup_overlap_head(struct cbd_cache_key *key, struct cbd_cache_key *key_tmp,
-		struct cbd_cache_tree_walk_ctx *ctx)
+/**
+ * fixup_overlap_head - Handle overlap when a new key overlaps with the head of an existing key.
+ * @key: The new cache key being inserted.
+ * @key_tmp: The existing cache key that overlaps with the new key.
+ * @ctx: Context for the cache tree walk.
+ *
+ * This function adjusts the existing key if the new key overlaps
+ * with the beginning of it. If the resulting key length is zero
+ * after the adjustment, the key is deleted. This indicates that
+ * the key no longer holds valid data and requires the tree to be
+ * re-researched for a new insertion point.
+ */
+static int fixup_overlap_head(struct cbd_cache_key *key,
+	struct cbd_cache_key *key_tmp, struct cbd_cache_tree_walk_ctx *ctx)
 {
 	/*
 	 * |--------|		key_tmp
 	 *   |==========|	key
 	 */
+	/* Adjust key_tmp by cutting back based on the new key's start */
 	cache_key_cutback(key_tmp, cache_key_lend(key_tmp) - cache_key_lstart(key));
 	if (key_tmp->len == 0) {
+		/* If the adjusted key_tmp length is zero, delete it */
 		cache_key_delete(key_tmp);
-		return -EAGAIN;
+		return -EAGAIN;  /* Indicates that tree research is needed */
 	}
 
-	return 0;
+	return 0;  /* Successful adjustment */
 }
 
-static int cache_insert_fixup(struct cbd_cache *cache, struct cbd_cache_key *key, struct rb_node *prev_node)
+/**
+ * cache_insert_fixup - Fix up overlaps when inserting a new key.
+ * @cache: Pointer to the cache structure.
+ * @key: The new cache key to insert.
+ * @prev_node: The last visited node during the search.
+ *
+ * This function initializes a walking context and calls the
+ * cache_tree_walk function to handle potential overlaps between
+ * the new key and existing keys in the cache tree. Various
+ * fixup functions are provided to manage different overlap scenarios.
+ */
+static int cache_insert_fixup(struct cbd_cache *cache,
+	struct cbd_cache_key *key, struct rb_node *prev_node)
 {
-	struct cbd_cache_tree_walk_ctx walk_ctx = { 0 };
+	struct cbd_cache_tree_walk_ctx walk_ctx = { 0 };  /* Initialize the walk context */
 
+	/* Set up the context with the cache, start node, and new key */
 	walk_ctx.cache = cache;
 	walk_ctx.start_node = prev_node;
 	walk_ctx.key = key;
 
+	/* Assign overlap handling functions for different scenarios */
 	walk_ctx.overlap_tail = fixup_overlap_tail;
 	walk_ctx.overlap_head = fixup_overlap_head;
 	walk_ctx.overlap_contain = fixup_overlap_contain;
 	walk_ctx.overlap_contained = fixup_overlap_contained;
 
+	/* Begin walking the cache tree to fix overlaps */
 	return cache_tree_walk(cache, &walk_ctx);
 }
 
-int cache_key_insert(struct cbd_cache *cache, struct cbd_cache_key *key, bool new_key)
+/**
+ * cache_key_insert - Insert a new cache key into the cache tree.
+ * @cache: Pointer to the cache structure.
+ * @key: The cache key to insert.
+ * @new_key: Indicates if this is a new key being inserted.
+ *
+ * This function searches for the appropriate location to insert
+ * a new cache key into the cache tree. It handles key overlaps
+ * and ensures any invalid keys are removed before insertion.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int cache_key_insert(struct cbd_cache *cache, struct cbd_cache_key *key,
+	bool new_key)
 {
-	struct rb_node **new, *parent = NULL;
-	struct cbd_cache_tree *cache_tree;
-	struct cbd_cache_key *key_tmp = NULL, *key_next;
-	struct rb_node	*prev_node = NULL;
-	LIST_HEAD(delete_key_list);
-	int ret;
+	struct rb_node **new, *parent = NULL;  /* Pointers for the new node and parent */
+	struct cbd_cache_tree *cache_tree;  /* Pointer to the cache tree */
+	struct cbd_cache_key *key_tmp = NULL, *key_next;  /* Temporary keys for deletion */
+	struct rb_node *prev_node = NULL;  /* Previous node during search */
+	LIST_HEAD(delete_key_list);  /* List for keys marked for deletion */
+	int ret;  /* Return value */
 
-	cache_tree = get_cache_tree(cache, key->off);
+	cache_tree = get_cache_tree(cache, key->off);  /* Get the cache tree based on key offset */
 
 	if (new_key)
-		key->cache_tree = cache_tree;
+		key->cache_tree = cache_tree;  /* Associate the key with the cache tree */
 
 search:
-	prev_node = cache_tree_search(cache_tree, key, &parent, &new, &delete_key_list);
+	prev_node = cache_tree_search(cache_tree, key, &parent, &new, &delete_key_list);  /* Search for the position to insert */
 
 	if (!list_empty(&delete_key_list)) {
+		/* Remove invalid keys from the delete list */
 		list_for_each_entry_safe(key_tmp, key_next, &delete_key_list, list_node) {
 			list_del_init(&key_tmp->list_node);
-			cache_key_delete(key_tmp);
+			cache_key_delete(key_tmp);  /* Delete the invalid key */
 		}
-		goto search;
+		goto search;  /* Restart search after deletions */
 	}
 
 	if (new_key) {
-		ret = cache_insert_fixup(cache, key, prev_node);
+		ret = cache_insert_fixup(cache, key, prev_node);  /* Handle potential overlaps */
 		if (ret == -EAGAIN)
-			goto search;
+			goto search;  /* Retry if cache tree was changed in fixup */
 		if (ret)
-			goto out;
+			goto out;  /* Handle other errors */
 	}
 
+	/* Link and insert the new key into the red-black tree */
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_tree->root);
 
-	return 0;
+	return 0;  /* Success */
 out:
-	return ret;
+	return ret;  /* Return error code */
 }
 
-/* function to clean_work, clean work would be queued after a cache_segment to be invalidated
- * in cache gc, then it will clean up the invalid keys from cache_tree in backgroud.
+/**
+ * clean_fn - Cleanup function to remove invalid keys from the cache tree.
+ * @work: Pointer to the work_struct associated with the cleanup.
  *
- * As this clean need to spin_lock(&cache_tree->tree_lock), we unlock after
- * CBD_CLEAN_KEYS_MAX keys deleted and start another round for clean.
+ * This function cleans up invalid keys from the cache tree in the background
+ * after a cache segment has been invalidated during cache garbage collection.
+ * It processes a maximum of CBD_CLEAN_KEYS_MAX keys per iteration and holds
+ * the tree lock to ensure thread safety.
  */
 void clean_fn(struct work_struct *work)
 {
 	struct cbd_cache *cache = container_of(work, struct cbd_cache, clean_work);
-	struct cbd_cache_tree *cache_tree;
-	struct rb_node *node;
-	struct cbd_cache_key *key;
-	int i, count;
+	struct cbd_cache_tree *cache_tree;  /* Pointer to the cache tree */
+	struct rb_node *node;  /* Current node in the red-black tree */
+	struct cbd_cache_key *key;  /* Pointer to the cache key */
+	int i, count;  /* Loop index and count of deleted keys */
 
 	for (i = 0; i < cache->n_trees; i++) {
-		cache_tree = &cache->cache_trees[i];
+		cache_tree = &cache->cache_trees[i];  /* Access the current cache tree */
 
 again:
 		if (cache->state == cbd_cache_state_stopping)
-			return;
+			return;  /* Exit if cache is stopping */
 
-		/* delete at most CBD_CLEAN_KEYS_MAX a round */
-		count = 0;
-		spin_lock(&cache_tree->tree_lock);
-		node = rb_first(&cache_tree->root);
+		/* Delete up to CBD_CLEAN_KEYS_MAX keys in one iteration */
+		count = 0;  /* Initialize deletion count */
+		spin_lock(&cache_tree->tree_lock);  /* Acquire lock for thread safety */
+		node = rb_first(&cache_tree->root);  /* Get the first node in the tree */
 		while (node) {
-			key = CACHE_KEY(node);
-			node = rb_next(node);
+			key = CACHE_KEY(node);  /* Get the cache key from the node */
+			node = rb_next(node);  /* Move to the next node */
 			if (cache_key_invalid(key)) {
-				count++;
-				cache_key_delete(key);
+				count++;  /* Increment count for each invalid key */
+				cache_key_delete(key);  /* Delete the invalid key */
 			}
 
 			if (count >= CBD_CLEAN_KEYS_MAX) {
+				/* Unlock and pause before continuing cleanup */
 				spin_unlock(&cache_tree->tree_lock);
-				usleep_range(1000, 2000);
-				goto again;
+				usleep_range(1000, 2000);  /* Sleep for a short duration */
+				goto again;  /* Restart cleanup process */
 			}
 		}
-		spin_unlock(&cache_tree->tree_lock);
-
+		spin_unlock(&cache_tree->tree_lock);  /* Release the lock */
 	}
 }
 
 /*
- * function for flush_work, flush_work is queued in cache_key_append(). When key append
- * to kset, if this kset is full, then the kset will be closed immediately, if this kset
- * is not full, cache_key_append() will queue a kset->flush_work to close this kset later.
+ * kset_flush_fn - Flush work for a cache kset.
+ *
+ * This function is called when a kset flush work is queued from
+ * cache_key_append(). If the kset is full, it will be closed
+ * immediately. If not, the flush work will be queued for later closure.
+ *
+ * If cache_kset_close detects that a new segment is required to store
+ * the kset and there are no available segments, it will return an error.
+ * In this scenario, a retry will be attempted.
  */
 void kset_flush_fn(struct work_struct *work)
 {
@@ -654,7 +768,7 @@ void kset_flush_fn(struct work_struct *work)
 	spin_unlock(&kset->kset_lock);
 
 	if (ret) {
-		/* Failed to flush kset, retry it. */
+		/* Failed to flush kset, schedule a retry. */
 		queue_delayed_work(cache->cache_wq, &kset->flush_work, 0);
 	}
 }
