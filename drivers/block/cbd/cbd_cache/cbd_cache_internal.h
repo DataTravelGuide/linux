@@ -438,7 +438,6 @@ static inline u32 cache_pos_onmedia_crc(struct cbd_cache_pos_onmedia *pos_om)
  * @cache: Pointer to the cbd_cache structure.
  * @pos_onmedia: Pointer to the on-media position structure to update.
  * @pos: Pointer to the current cache position.
- * @debug: Debug message for logging.
  *
  * Encodes the cache position by finding the oldest entry, updating its
  * sequence and segment information, and calculating its CRC. The cache
@@ -446,8 +445,7 @@ static inline u32 cache_pos_onmedia_crc(struct cbd_cache_pos_onmedia *pos_om)
  */
 static inline void cache_pos_encode(struct cbd_cache *cache,
 			     struct cbd_cache_pos_onmedia *pos_onmedia,
-			     struct cbd_cache_pos *pos,
-			     char *debug)
+			     struct cbd_cache_pos *pos)
 {
 	struct cbd_cache_pos_onmedia *oldest;
 
@@ -499,7 +497,7 @@ static inline int cache_pos_decode(struct cbd_cache *cache,
 static inline void cache_encode_key_tail(struct cbd_cache *cache)
 {
 	mutex_lock(&cache->key_tail_lock);
-	cache_pos_encode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail, "key_tail");
+	cache_pos_encode(cache, cache->cache_ctrl->key_tail_pos, &cache->key_tail);
 	mutex_unlock(&cache->key_tail_lock);
 }
 
@@ -531,7 +529,7 @@ static inline int cache_decode_key_tail(struct cbd_cache *cache)
 static inline void cache_encode_dirty_tail(struct cbd_cache *cache)
 {
 	mutex_lock(&cache->dirty_tail_lock);
-	cache_pos_encode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail, "dirty tail");
+	cache_pos_encode(cache, cache->cache_ctrl->dirty_tail_pos, &cache->dirty_tail);
 	mutex_unlock(&cache->dirty_tail_lock);
 }
 
