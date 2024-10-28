@@ -408,12 +408,8 @@ err:
 struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 				  struct cbd_cache_opts *opts)
 {
-	struct cbd_segment_info *prev_seg_info = NULL;
 	struct cbd_cache *cache;
-	u32 seg_id;
-	u32 backend_id;
 	int ret;
-	int i;
 
 	/* options validate */
 	ret = cache_validate(cbdt, opts);
@@ -472,8 +468,6 @@ free_cache:
 
 void cbd_cache_destroy(struct cbd_cache *cache)
 {
-	int i;
-
 	cache->state = cbd_cache_state_stopping;
 
 	flush_work(&cache->miss_read_end_work);
