@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/blk_types.h>
 
-#include "../cbd_internal.h"
-#include "../cbd_transport.h"
-#include "cbd_cache_internal.h"
 #include "../cbd_backend.h"
-
+#include "cbd_cache_internal.h"
 
 /* sysfs for cache */
 static ssize_t cache_segs_show(struct device *dev,
@@ -127,16 +124,14 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 				goto segments_destroy;
 			}
 
-			if (prev_cache_seg) {
+			if (prev_cache_seg)
 				cache_seg_set_next_seg(prev_cache_seg, seg_id);
-			} else {
+			else
 				cache_info_set_seg_id(cache, seg_id);
-			}
 
 		} else {
 			if (prev_cache_seg) {
 				if (!(prev_cache_seg->cache_seg_info.segment_info.flags & CBD_SEG_INFO_FLAGS_HAS_NEXT)) {
-					cbd_cache_err(cache, "flags: %llu, !prev_seg_info->flags & CBD_SEG_INFO_FLAGS_HAS_NEXT\n", prev_cache_seg->cache_seg_info.segment_info.flags);
 					ret = -EFAULT;
 					goto segments_destroy;
 				}
@@ -166,7 +161,6 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 		cache_encode_dirty_tail(cache);
 		cache_encode_key_tail(cache);
 	} else {
-		pr_err("read key_tail \n");
 		if (cache_decode_key_tail(cache) || cache_decode_dirty_tail(cache)) {
 			cbd_cache_err(cache, "Corrupted key tail or dirty tail.\n");
 			ret = -EIO;
@@ -177,59 +171,67 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 	return 0;
 
 segments_destroy:
-	cbd_cache_err(cache, "segments_destroy\n");
 	cache_segs_destroy(cache);
 
 	return ret;
 }
 
+/**
+ * cache_alloc - Allocates and initializes a cbd_cache structure with necessary resources
+ * @cbdt: The transport structure associated with the cache
+ * @cache_info: Information about the cache, such as the number of segments
+ *
+ * This function sets up the cache structure by allocating memory for
+ * its segments and associated data, initializing workqueues, and setting up
+ * synchronization primitives. On failure, resources are released in the
+ * appropriate order before returning NULL.
+ *
+ * Return: Pointer to the initialized cache structure, or NULL on failure.
+ */
 static struct cbd_cache *cache_alloc(struct cbd_transport *cbdt, struct cbd_cache_info *cache_info)
 {
 	struct cbd_cache *cache;
 
+	/* Allocate memory for the cache structure with space for segments */
 	cache = kzalloc(struct_size(cache, segments, cache_info->n_segs), GFP_KERNEL);
-	if (!cache) {
-		cbdt_err(cbdt, "failed to alloc cache\n");
+	if (!cache)
 		goto err;
-	}
 
+	/* Allocate memory for the segment bitmap */
 	cache->seg_map = bitmap_zalloc(cache_info->n_segs, GFP_KERNEL);
-	if (!cache->seg_map) {
-		cbdt_err(cbdt, "failed to alloc bitmap\n");
+	if (!cache->seg_map)
 		goto free_cache;
-	}
 
+	/* Allocate slab cache for cbd_cache_key objects */
 	cache->key_cache = KMEM_CACHE(cbd_cache_key, 0);
-	if (!cache->key_cache) {
-		cbdt_err(cbdt, "failed to alloc key_cache\n");
+	if (!cache->key_cache)
 		goto free_bitmap;
-	}
 
+	/* Allocate slab cache for cbd_request objects */
 	cache->req_cache = KMEM_CACHE(cbd_request, 0);
-	if (!cache->req_cache) {
-		cbdt_err(cbdt, "failed to alloc req_cache\n");
+	if (!cache->req_cache)
 		goto free_key_cache;
-	}
 
+	/* Create an unbound workqueue for handling cache-related tasks */
 	cache->cache_wq = alloc_workqueue("cbdt%d-c%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
 					0, cbdt->id, cache->cache_id);
-	if (!cache->cache_wq) {
-		cbdt_err(cbdt, "failed to alloc cache_wq\n");
+	if (!cache->cache_wq)
 		goto free_req_cache;
-	}
 
+	/* Initialize the cache structure fields */
 	cache->cbdt = cbdt;
 	cache->cache_info = cache_info;
 	cache->n_segs = cache_info->n_segs;
 	spin_lock_init(&cache->seg_map_lock);
-
 	spin_lock_init(&cache->key_head_lock);
 	spin_lock_init(&cache->miss_read_reqs_lock);
 	INIT_LIST_HEAD(&cache->miss_read_reqs);
 
+	/* Initialize mutexes for managing cache keys and dirty tail */
 	mutex_init(&cache->key_tail_lock);
 	mutex_init(&cache->dirty_tail_lock);
 
+	/* Initialize delayed work and workqueue tasks */
 	INIT_DELAYED_WORK(&cache->writeback_work, cache_writeback_fn);
 	INIT_DELAYED_WORK(&cache->gc_work, cbd_cache_gc_fn);
 	INIT_WORK(&cache->clean_work, clean_fn);
@@ -237,6 +239,7 @@ static struct cbd_cache *cache_alloc(struct cbd_transport *cbdt, struct cbd_cach
 
 	return cache;
 
+	/* Error handling - clean up allocated resources on failure */
 free_req_cache:
 	kmem_cache_destroy(cache->req_cache);
 free_key_cache:
@@ -458,13 +461,10 @@ struct cbd_cache *cbd_cache_alloc(struct cbd_transport *cbdt,
 	return cache;
 
 destroy_keys:
-	cbd_cache_err(cache, "destroy_keys\n");
 	cache_destroy_keys(cache);
 segs_destroy:
-	cbd_cache_err(cache, "destroy_segs\n");
 	cache_segs_destroy(cache);
 free_cache:
-	cbd_cache_err(cache, "error \n");
 	cache_free(cache);
 
 	return NULL;
