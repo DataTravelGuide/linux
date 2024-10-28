@@ -773,6 +773,18 @@ void kset_flush_fn(struct work_struct *work)
 	}
 }
 
+/*
+ * kset_replay - Replay a kset from on-media structure.
+ *
+ * This function iterates over the keys in the provided kset_onmedia,
+ * allocating and decoding each key. It checks for data integrity using
+ * a CRC, and if the key's segment generation is valid, it inserts
+ * the key into the cache. Keys with invalid CRCs or insufficient
+ * segment generation are logged and discarded.
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
+ */
 static int kset_replay(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *kset_onmedia)
 {
 	struct cbd_cache_key_onmedia *key_onmedia;
@@ -791,6 +803,7 @@ static int kset_replay(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *k
 
 		cache_key_decode(key_onmedia, key);
 #ifdef CONFIG_CBD_CRC
+		/* Validate the key's data CRC against the calculated CRC. */
 		if (key->data_crc != cache_key_data_crc(key)) {
 			cbd_cache_debug(cache, "key: %llu:%u seg %u:%u data_crc error: %x, expected: %x\n",
 					key->off, key->len, key->cache_pos.cache_seg->cache_seg_id,
@@ -800,8 +813,10 @@ static int kset_replay(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *k
 			goto err;
 		}
 #endif
+		/* Mark the segment as used in the segment map. */
 		set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
+		/* Check if the segment generation is valid for insertion. */
 		if (key->seg_gen < key->cache_pos.cache_seg->gen) {
 			cache_key_put(key);
 		} else {
@@ -820,6 +835,18 @@ err:
 	return ret;
 }
 
+/*
+ * cache_replay - Replay the cache from the on-media structure.
+ *
+ * This function begins replaying ksets from the cache until it
+ * encounters a kset with an invalid magic number or CRC. It also
+ * advances the cache position after each kset is replayed. The
+ * last kset flag is checked to determine if further processing
+ * is required.
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
+ */
 int cache_replay(struct cbd_cache *cache)
 {
 	struct cbd_cache_pos pos_tail;
@@ -831,6 +858,7 @@ int cache_replay(struct cbd_cache *cache)
 	cache_pos_copy(&pos_tail, &cache->key_tail);
 	pos = &pos_tail;
 
+	/* Mark the segment as used in the segment map. */
 	set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
 
 	while (true) {
@@ -845,6 +873,7 @@ int cache_replay(struct cbd_cache *cache)
 		if (kset_onmedia->crc != cache_kset_crc(kset_onmedia))
 			break;
 
+		/* Process the last kset and prepare for the next segment. */
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
 			struct cbd_cache_segment *next_seg;
 
@@ -859,14 +888,16 @@ int cache_replay(struct cbd_cache *cache)
 			continue;
 		}
 
+		/* Replay the kset and check for errors. */
 		ret = kset_replay(cache, kset_onmedia);
 		if (ret)
 			goto out;
 
+		/* Advance the position after processing the kset. */
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
 	}
 
-	/* pos is the latest position of key_head after replay */
+	/* Update the key_head position after replaying. */
 	spin_lock(&cache->key_head_lock);
 	cache_pos_copy(&cache->key_head, pos);
 	spin_unlock(&cache->key_head_lock);
@@ -874,4 +905,3 @@ int cache_replay(struct cbd_cache *cache)
 out:
 	return ret;
 }
-
