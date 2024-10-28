@@ -1,154 +1,238 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "cbd_cache_internal.h"
 
+/**
+ * cache_key_init - Initialize a cache key structure.
+ * @cache: Pointer to the associated cbd_cache structure.
+ * @key: Pointer to the cbd_cache_key structure to be initialized.
+ *
+ * This function initializes the reference count, sets the cache pointer,
+ * and initializes the list and red-black tree nodes for the cache key.
+ */
 void cache_key_init(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
-	kref_init(&key->ref);
-	key->cache = cache;
-	INIT_LIST_HEAD(&key->list_node);
-	RB_CLEAR_NODE(&key->rb_node);
+	kref_init(&key->ref);                   /* Initialize reference count */
+	key->cache = cache;                     /* Set the associated cache */
+	INIT_LIST_HEAD(&key->list_node);        /* Initialize the list head */
+	RB_CLEAR_NODE(&key->rb_node);           /* Clear the red-black tree node */
 }
 
+/**
+ * cache_key_alloc - Allocate and initialize a cache key structure.
+ * @cache: Pointer to the associated cbd_cache structure.
+ *
+ * This function allocates memory for a new cache key using a slab cache,
+ * initializes it, and returns a pointer to the allocated key.
+ * Returns NULL if allocation fails.
+ */
 struct cbd_cache_key *cache_key_alloc(struct cbd_cache *cache)
 {
 	struct cbd_cache_key *key;
 
+	/* Allocate a cache key from the slab cache, zeroed on allocation */
 	key = kmem_cache_zalloc(cache->key_cache, GFP_NOWAIT);
 	if (!key)
-		return NULL;
+		return NULL;  /* Return NULL if allocation fails */
 
-	cache_key_init(cache, key);
+	cache_key_init(cache, key);  /* Initialize the allocated key */
 
-	return key;
+	return key;  /* Return the allocated and initialized key */
 }
 
+/**
+ * cache_key_get - Increment the reference count of a cache key.
+ * @key: Pointer to the cbd_cache_key structure.
+ *
+ * This function increments the reference count of the specified cache key,
+ * ensuring that it is not freed while still in use.
+ */
 void cache_key_get(struct cbd_cache_key *key)
 {
-	kref_get(&key->ref);
+	kref_get(&key->ref);  /* Increment the reference count */
 }
 
+/**
+ * cache_key_destroy - Free a cache key structure when its reference count drops to zero.
+ * @ref: Pointer to the kref structure.
+ *
+ * This function is called when the reference count of the cache key reaches zero.
+ * It frees the allocated cache key back to the slab cache.
+ */
 static void cache_key_destroy(struct kref *ref)
 {
 	struct cbd_cache_key *key = container_of(ref, struct cbd_cache_key, ref);
 	struct cbd_cache *cache = key->cache;
 
-	kmem_cache_free(cache->key_cache, key);
+	kmem_cache_free(cache->key_cache, key);  /* Free the cache key */
 }
 
+/**
+ * cache_key_put - Decrement the reference count of a cache key.
+ * @key: Pointer to the cbd_cache_key structure.
+ *
+ * This function decrements the reference count of the specified cache key.
+ * If the reference count drops to zero, the key is destroyed.
+ */
 void cache_key_put(struct cbd_cache_key *key)
 {
-	kref_put(&key->ref, cache_key_destroy);
+	kref_put(&key->ref, cache_key_destroy);  /* Decrement ref count and free if zero */
 }
 
+/**
+ * cache_pos_advance - Advance the position in the cache.
+ * @pos: Pointer to the cache position structure.
+ * @len: Length to advance the position by.
+ *
+ * This function advances the position by the specified length.
+ * It checks that there is enough remaining space in the current segment.
+ * If not, it triggers a BUG.
+ */
 void cache_pos_advance(struct cbd_cache_pos *pos, u32 len)
 {
-	/* currently, key for data is splitted into different cache_seg */
+	/* Ensure enough space remains in the current segment */
 	BUG_ON(cache_seg_remain(pos) < len);
 
-	pos->seg_off += len;
+	pos->seg_off += len;  /* Advance the segment offset by the specified length */
 }
 
+/**
+ * cache_key_encode - Encode a cache key for storage.
+ * @key_onmedia: Pointer to the cache key structure to encode into.
+ * @key: Pointer to the cache key structure to encode from.
+ *
+ * This function populates the on-media representation of a cache key
+ * from its in-memory representation.
+ */
 static void cache_key_encode(struct cbd_cache_key_onmedia *key_onmedia,
 			     struct cbd_cache_key *key)
 {
-	key_onmedia->off = key->off;
-	key_onmedia->len = key->len;
+	key_onmedia->off = key->off;  /* Set the offset */
+	key_onmedia->len = key->len;  /* Set the length */
 
-	key_onmedia->cache_seg_id = key->cache_pos.cache_seg->cache_seg_id;
-	key_onmedia->cache_seg_off = key->cache_pos.seg_off;
+	key_onmedia->cache_seg_id = key->cache_pos.cache_seg->cache_seg_id;  /* Set segment ID */
+	key_onmedia->cache_seg_off = key->cache_pos.seg_off;  /* Set segment offset */
 
-	key_onmedia->seg_gen = key->seg_gen;
-	key_onmedia->flags = key->flags;
+	key_onmedia->seg_gen = key->seg_gen;  /* Set segment generation */
+	key_onmedia->flags = key->flags;  /* Set flags */
 
 #ifdef CONFIG_CBD_CRC
-	key_onmedia->data_crc = key->data_crc;
+	key_onmedia->data_crc = key->data_crc;  /* Set data CRC if configured */
 #endif
 }
 
+/**
+ * cache_key_decode - Decode a cache key from storage.
+ * @key_onmedia: Pointer to the cache key structure to decode from.
+ * @key: Pointer to the cache key structure to decode into.
+ *
+ * This function populates the in-memory representation of a cache key
+ * from its on-media representation.
+ */
 void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct cbd_cache_key *key)
 {
 	struct cbd_cache *cache = key->cache;
 
-	key->off = key_onmedia->off;
-	key->len = key_onmedia->len;
+	key->off = key_onmedia->off;  /* Set the offset */
+	key->len = key_onmedia->len;  /* Set the length */
 
-	key->cache_pos.cache_seg = &cache->segments[key_onmedia->cache_seg_id];
-	key->cache_pos.seg_off = key_onmedia->cache_seg_off;
+	key->cache_pos.cache_seg = &cache->segments[key_onmedia->cache_seg_id];  /* Set segment pointer */
+	key->cache_pos.seg_off = key_onmedia->cache_seg_off;  /* Set segment offset */
 
-	key->seg_gen = key_onmedia->seg_gen;
-	key->flags = key_onmedia->flags;
+	key->seg_gen = key_onmedia->seg_gen;  /* Set segment generation */
+	key->flags = key_onmedia->flags;  /* Set flags */
 
 #ifdef CONFIG_CBD_CRC
-	key->data_crc = key_onmedia->data_crc;
+	key->data_crc = key_onmedia->data_crc;  /* Set data CRC if configured */
 #endif
 }
 
-/* cache_kset */
+/**
+ * append_last_kset - Append the last kset to the cache.
+ * @cache: Pointer to the cbd_cache structure.
+ * @next_seg: ID of the next cache segment.
+ *
+ * This function appends the last kset to the cache, updating its flags,
+ * segment ID, magic number, and CRC. It also advances the key head position.
+ */
 static void append_last_kset(struct cbd_cache *cache, u32 next_seg)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
 
 	kset_onmedia = get_key_head_addr(cache);
-	kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;
-	kset_onmedia->next_cache_seg_id = next_seg;
-	kset_onmedia->magic = CBD_KSET_MAGIC;
-	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
-	cbd_cache_err(cache, "append last kset: flags: %llu %u/%u next: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, next_seg);
-	cache_pos_advance(&cache->key_head, sizeof(struct cbd_cache_kset_onmedia));
+	kset_onmedia->flags |= CBD_KSET_FLAGS_LAST;  /* Mark as the last kset */
+	kset_onmedia->next_cache_seg_id = next_seg;  /* Set the next segment ID */
+	kset_onmedia->magic = CBD_KSET_MAGIC;  /* Set magic number */
+	kset_onmedia->crc = cache_kset_crc(kset_onmedia);  /* Compute and set CRC */
+	cache_pos_advance(&cache->key_head, sizeof(struct cbd_cache_kset_onmedia));  /* Advance key head position */
 }
+
+/**
+ * cache_kset_close - Close and flush a kset to the cache.
+ * @cache: Pointer to the cbd_cache structure.
+ * @kset: Pointer to the cache kset structure to close.
+ *
+ * This function reserves space for the kset on media and flushes it to the
+ * storage. It handles segment overflow by obtaining new segments if necessary.
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cache_kset_close(struct cbd_cache *cache, struct cbd_cache_kset *kset)
 {
 	struct cbd_cache_kset_onmedia *kset_onmedia;
 	u32 kset_onmedia_size;
 	int ret;
 
-	kset_onmedia = &kset->kset_onmedia;
+	kset_onmedia = &kset->kset_onmedia;  /* Get the on-media kset structure */
 
-	if (!kset_onmedia->key_num)
+	if (!kset_onmedia->key_num)  /* No keys to close */
 		return 0;
 
-	kset_onmedia_size = struct_size(kset_onmedia, data, kset_onmedia->key_num);
+	kset_onmedia_size = struct_size(kset_onmedia, data, kset_onmedia->key_num);  /* Calculate size */
 
-	spin_lock(&cache->key_head_lock);
+	spin_lock(&cache->key_head_lock);  /* Lock for safe access */
 again:
-	/* reserve a kset_onmedia for last kset */
+	/* Reserve space for the last kset */
 	if (cache_seg_remain(&cache->key_head) < kset_onmedia_size + sizeof(struct cbd_cache_kset_onmedia)) {
 		struct cbd_cache_segment *next_seg;
 
-		next_seg = get_cache_segment(cache);
+		next_seg = get_cache_segment(cache);  /* Obtain a new cache segment */
 		if (!next_seg) {
-			//cbd_cache_err(cache, "no segment for kset\n");
-			ret = -EBUSY;
-			goto out;
+			ret = -EBUSY;  /* No segment available */
+			goto out;  /* Exit the function */
 		}
 
-		append_last_kset(cache, next_seg->cache_seg_id);
+		append_last_kset(cache, next_seg->cache_seg_id);  /* Append the last kset */
 
-		cache->key_head.cache_seg = next_seg;
-		cache->key_head.seg_off = 0;
-		goto again;
+		cache->key_head.cache_seg = next_seg;  /* Update the key head to the new segment */
+		cache->key_head.seg_off = 0;  /* Reset segment offset */
+		goto again;  /* Retry to reserve space */
 	}
 
-	kset_onmedia->magic = CBD_KSET_MAGIC;
-	kset_onmedia->crc = cache_kset_crc(kset_onmedia);
+	kset_onmedia->magic = CBD_KSET_MAGIC;  /* Set magic number */
+	kset_onmedia->crc = cache_kset_crc(kset_onmedia);  /* Compute CRC */
 
-	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
-	cbdt_flush(cache->cbdt, get_key_head_addr(cache), kset_onmedia_size);
-	//dax_flush(cache->cbdt->dax_dev, get_key_head_addr(cache), kset_onmedia_size);
-	cbd_cache_err(cache, "flush kset: flags: %llu %u/%u size: %u\n", kset_onmedia->flags, cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off, kset_onmedia_size);
-	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));
+	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);  /* Copy the kset to the cache */
+	cbdt_flush(cache->cbdt, get_key_head_addr(cache), kset_onmedia_size);  /* Flush the kset to storage */
+	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));  /* Clear the kset structure */
 
-	cache_pos_advance(&cache->key_head, kset_onmedia_size);
+	cache_pos_advance(&cache->key_head, kset_onmedia_size);  /* Advance the key head position */
 
-	ret = 0;
+	ret = 0;  /* Success */
 out:
-	spin_unlock(&cache->key_head_lock);
+	spin_unlock(&cache->key_head_lock);  /* Unlock after operation */
 
-	return ret;
+	return ret;  /* Return result */
 }
 
-/* append a cache_key into related kset, if this kset full, close this kset,
- * else queue a flush_work to do kset writting.
+/**
+ * cache_key_append - Append a cache key to the related kset.
+ * @cache: Pointer to the cbd_cache structure.
+ * @key: Pointer to the cache key structure to append.
+ *
+ * This function appends a cache key to the appropriate kset. If the kset
+ * is full, it closes the kset. If not, it queues a flush work to write
+ * the kset to storage.
+ *
+ * Returns 0 on success, or a negative error code on failure.
  */
 int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
@@ -167,15 +251,17 @@ int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 	key->data_crc = cache_key_data_crc(key);
 #endif
 	cache_key_encode(key_onmedia, key);
-	//cbd_cache_err(cache, "key_num: %u\n", kset_onmedia->key_num);
+
+	/* Check if the current kset has reached the maximum number of keys */
 	if (++kset_onmedia->key_num == CBD_KSET_KEYS_MAX) {
+		/* If full, close the kset */
 		ret = cache_kset_close(cache, kset);
 		if (ret) {
-			/* return ocuppied key back */
 			kset_onmedia->key_num--;
 			goto out;
 		}
 	} else {
+		/* If not full, queue a delayed work to flush the kset */
 		queue_delayed_work(cache->cache_wq, &kset->flush_work, 1 * HZ);
 	}
 out:
@@ -184,7 +270,17 @@ out:
 	return ret;
 }
 
-/* cache_tree walk */
+/**
+ * cache_tree_walk - Traverse the cache tree.
+ * @cache: Pointer to the cbd_cache structure.
+ * @ctx: Pointer to the context structure for traversal.
+ *
+ * This function traverses the cache tree starting from the specified node.
+ * It calls the appropriate callback functions based on the relationships
+ * between the keys in the cache tree.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx)
 {
 	struct cbd_cache_key *key_tmp, *key;
@@ -200,8 +296,9 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 
 		key_tmp = CACHE_KEY(node_tmp);
 		/*
+		 * If key_tmp ends before the start of key, continue to the next node.
 		 * |----------|
-		 *		|=====|
+		 *              |=====|
 		 */
 		if (cache_key_lend(key_tmp) <= cache_key_lstart(key)) {
 			if (ctx->after) {
@@ -213,6 +310,7 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 		}
 
 		/*
+		 * If key_tmp starts after the end of key, stop traversing.
 		 *	  |--------|
 		 * |====|
 		 */
@@ -225,9 +323,10 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 			break;
 		}
 
-		/* overlap */
+		/* Handle overlapping keys */
 		if (cache_key_lstart(key_tmp) >= cache_key_lstart(key)) {
 			/*
+			 * If key_tmp encompasses key.
 			 *     |----------------|	key_tmp
 			 * |===========|		key
 			 */
@@ -241,6 +340,7 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 			}
 
 			/*
+			 * If key_tmp is contained within key.
 			 *    |----|		key_tmp
 			 * |==========|		key
 			 */
@@ -254,6 +354,7 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 		}
 
 		/*
+		 * If key_tmp starts before key ends but ends after key.
 		 * |-----------|	key_tmp
 		 *   |====|		key
 		 */
@@ -267,6 +368,7 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 		}
 
 		/*
+		 * If key_tmp starts before key and ends within key.
 		 * |--------|		key_tmp
 		 *   |==========|	key
 		 */
@@ -276,7 +378,7 @@ int cache_tree_walk(struct cbd_cache *cache, struct cbd_cache_tree_walk_ctx *ctx
 				goto out;
 		}
 next:
-		node_tmp = rb_next(node_tmp);
+		node_tmp = rb_next(node_tmp);  /* Move to the next node in the red-black tree */
 	}
 
 	if (ctx->walk_finally) {
@@ -285,9 +387,9 @@ next:
 			goto out;
 	}
 
-	return 0;
+	return 0;  /* Return success */
 out:
-	return ret;
+	return ret;  /* Return error code */
 }
 
 /* cache_tree_search, search in a cache_tree */
