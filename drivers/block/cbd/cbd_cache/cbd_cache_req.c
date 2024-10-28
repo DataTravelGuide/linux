@@ -100,6 +100,17 @@ out:
 	return ret;
 }
 
+/*
+ * cache_copy_from_req_bio - Copy data from the bio to the cache key.
+ * @cache: Pointer to the cache structure.
+ * @key: Pointer to the cache key.
+ * @cbd_req: Pointer to the cbd_request structure containing the bio.
+ * @bio_off: Offset in the bio from which to copy the data.
+ *
+ * This function copies data from the specified offset in the bio into the
+ * cache key's corresponding segment, using the current cache position
+ * defined in the key.
+ */
 static void cache_copy_from_req_bio(struct cbd_cache *cache, struct cbd_cache_key *key,
 				struct cbd_request *cbd_req, u32 bio_off)
 {
@@ -111,6 +122,21 @@ static void cache_copy_from_req_bio(struct cbd_cache *cache, struct cbd_cache_ke
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, cbd_req->bio, bio_off);
 }
 
+/*
+ * cache_copy_to_req_bio - Copy data from the cache key to the bio.
+ * @cache: Pointer to the cache structure.
+ * @cbd_req: Pointer to the cbd_request structure containing the bio.
+ * @bio_off: Offset in the bio where data will be copied.
+ * @len: Length of data to copy.
+ * @pos: Pointer to the cache position from which to read the data.
+ * @key_gen: Generation number of the key to validate against the segment.
+ *
+ * This function copies data from the cache segment defined by the cache
+ * position into the specified offset of the bio. It validates the key's
+ * generation against the segment's generation to ensure consistency.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cbd_req,
 			    u32 bio_off, u32 len, struct cbd_cache_pos *pos, u64 key_gen)
 {
@@ -120,7 +146,7 @@ static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cb
 	spin_lock(&cache_seg->gen_lock);
 	if (key_gen < cache_seg->gen) {
 		spin_unlock(&cache_seg->gen_lock);
-		return -EINVAL;
+		return -EINVAL;  /* Invalid key generation; return error. */
 	}
 
 	spin_lock(&cbd_req->lock);
@@ -131,6 +157,19 @@ static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cb
 	return 0;
 }
 
+/*
+ * cache_copy_from_req_channel - Copy data from the request's channel to the cache position.
+ * @cache: Pointer to the cache structure.
+ * @cbd_req: Pointer to the cbd_request structure containing the channel data.
+ * @pos: Pointer to the cache position where data will be copied to.
+ * @off: Offset in the destination where copying starts.
+ * @len: Length of data to copy.
+ *
+ * This function copies data from the specified offset in the cbd_request's
+ * channel to the corresponding cache position. It adjusts the source and
+ * destination offsets based on the provided offset before performing the
+ * copy operation.
+ */
 static void cache_copy_from_req_channel(struct cbd_cache *cache, struct cbd_request *cbd_req,
 				struct cbd_cache_pos *pos, u32 off, u32 len)
 {
@@ -143,17 +182,25 @@ static void cache_copy_from_req_channel(struct cbd_cache *cache, struct cbd_requ
 	dst_pos.off = pos->seg_off;
 
 	if (off) {
-		cbds_pos_advance(&dst_pos, off);
-		cbds_pos_advance(&src_pos, off);
+		cbds_pos_advance(&dst_pos, off);  /* Advance destination position by offset. */
+		cbds_pos_advance(&src_pos, off);   /* Advance source position by offset. */
 	}
 
-	cbds_copy_data(&dst_pos, &src_pos, len);
+	cbds_copy_data(&dst_pos, &src_pos, len);  /* Copy data from source to destination. */
 }
 
-/* cache miss: when a read miss happen on cbd_cache, it will submit a backing request
- * to read from backend, and when this backing request done, it will copy the data
- * read from backend into cache, then next user can read the same data immediately from
- * cache
+/**
+ * miss_read_end_req - Handle the end of a miss read request.
+ * @cache: Pointer to the cache structure.
+ * @cbd_req: Pointer to the request structure.
+ *
+ * This function is called when a backing request to read data from
+ * the backend is completed. If the key associated with the request
+ * is empty (a placeholder), it allocates cache space for the key,
+ * copies the data read from the backend into the cache, and updates
+ * the key's status. If the key has been overwritten by a write
+ * request during this process, it will be deleted from the cache
+ * tree and no further action will be taken.
  */
 static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_req)
 {
@@ -169,11 +216,13 @@ static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_r
 
 		spin_lock(&cache_tree->tree_lock);
 		if (key->flags & CBD_CACHE_KEY_FLAGS_EMPTY) {
+			/* Check if the backing request was successful. */
 			if (cbd_req->ret) {
 				cache_key_delete(key);
 				goto unlock;
 			}
 
+			/* Allocate cache space for the key and copy data from the backend. */
 			ret = cache_data_alloc(cache, key, cbd_req->cbdq->index);
 			if (ret) {
 				cache_key_delete(key);
@@ -181,9 +230,10 @@ static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_r
 			}
 			cache_copy_from_req_channel(cache, cbd_req, &key->cache_pos,
 						    key->off - cbd_req->off, key->len);
-			key->flags &= ~CBD_CACHE_KEY_FLAGS_EMPTY;
-			key->flags |= CBD_CACHE_KEY_FLAGS_CLEAN;
+			key->flags &= ~CBD_CACHE_KEY_FLAGS_EMPTY; /* Mark key as not empty. */
+			key->flags |= CBD_CACHE_KEY_FLAGS_CLEAN; /* Mark key as clean. */
 
+			/* Append the key to the cache. */
 			ret = cache_key_append(cache, key);
 			if (ret) {
 				cache_seg_put(key->cache_pos.cache_seg);
