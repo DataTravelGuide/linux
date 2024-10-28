@@ -659,20 +659,63 @@ void kset_flush_fn(struct work_struct *work)
 	}
 }
 
+static int kset_replay(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *kset_onmedia)
+{
+	struct cbd_cache_key_onmedia *key_onmedia;
+	struct cbd_cache_key *key;
+	int ret;
+	int i;
+
+	for (i = 0; i < kset_onmedia->key_num; i++) {
+		key_onmedia = &kset_onmedia->data[i];
+
+		key = cache_key_alloc(cache);
+		if (!key) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		cache_key_decode(key_onmedia, key);
+#ifdef CONFIG_CBD_CRC
+		if (key->data_crc != cache_key_data_crc(key)) {
+			cbd_cache_debug(cache, "key: %llu:%u seg %u:%u data_crc error: %x, expected: %x\n",
+					key->off, key->len, key->cache_pos.cache_seg->cache_seg_id,
+					key->cache_pos.seg_off, cache_key_data_crc(key), key->data_crc);
+			ret = -EIO;
+			cache_key_put(key);
+			goto err;
+		}
+#endif
+		set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
+
+		if (key->seg_gen < key->cache_pos.cache_seg->gen) {
+			cache_key_put(key);
+		} else {
+			ret = cache_key_insert(cache, key, true);
+			if (ret) {
+				cache_key_put(key);
+				goto err;
+			}
+		}
+
+		cache_seg_get(key->cache_pos.cache_seg);
+	}
+
+	return 0;
+err:
+	return ret;
+}
+
 int cache_replay(struct cbd_cache *cache)
 {
 	struct cbd_cache_pos pos_tail;
 	struct cbd_cache_pos *pos;
 	struct cbd_cache_kset_onmedia *kset_onmedia;
-	struct cbd_cache_key_onmedia *key_onmedia;
-	struct cbd_cache_key *key = NULL;
 	int ret = 0;
 	void *addr;
-	int i;
 
 	cache_pos_copy(&pos_tail, &cache->key_tail);
 	pos = &pos_tail;
-	//pr_err("into replay : %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 
 	set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
 
@@ -682,67 +725,36 @@ int cache_replay(struct cbd_cache *cache)
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)addr;
 		if (kset_onmedia->magic != CBD_KSET_MAGIC ||
 				kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-			pr_err("magic not expected, break;\n");
 			break;
 		}
 
-		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
-			struct cbd_cache_segment *cur_seg, *next_seg;
+		if (kset_onmedia->crc != cache_kset_crc(kset_onmedia))
+			break;
 
-			//cbd_cache_err(cache, "last kset\n");
-			cur_seg = pos->cache_seg;
+		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
+			struct cbd_cache_segment *next_seg;
+
+			cbd_cache_debug(cache, "last kset replay, next: %u\n", kset_onmedia->next_cache_seg_id);
+
 			next_seg = &cache->segments[kset_onmedia->next_cache_seg_id];
+
 			pos->cache_seg = next_seg;
 			pos->seg_off = 0;
+
 			set_bit(pos->cache_seg->cache_seg_id, cache->seg_map);
-			//cbd_cache_err(cache, "nest seg: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 			continue;
 		}
 
-		//pr_err("replay kset: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
-		for (i = 0; i < kset_onmedia->key_num; i++) {
-			key_onmedia = &kset_onmedia->data[i];
-
-			key = cache_key_alloc(cache);
-			if (!key) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			cache_key_decode(key_onmedia, key);
-#ifdef CONFIG_CBD_CRC
-			if (key->data_crc != cache_key_data_crc(key)) {
-				cbd_cache_debug(cache, "key: %llu:%u seg %u:%u data_crc error: %x, expected: %x\n",
-						key->off, key->len, key->cache_pos.cache_seg->cache_seg_id,
-						key->cache_pos.seg_off, cache_key_data_crc(key), key->data_crc);
-				ret = -EIO;
-				cache_key_put(key);
-				goto out;
-			}
-#endif
-			set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
-
-			if (key->seg_gen < key->cache_pos.cache_seg->gen) {
-				cache_key_put(key);
-			} else {
-				ret = cache_key_insert(cache, key, true);
-				if (ret) {
-					cache_key_put(key);
-					goto out;
-				}
-			}
-
-			cache_seg_get(key->cache_pos.cache_seg);
-		}
+		ret = kset_replay(cache, kset_onmedia);
+		if (ret)
+			goto out;
 
 		cache_pos_advance(pos, get_kset_onmedia_size(kset_onmedia));
-		//cbd_cache_err(cache, "after advance: %u:%u\n", pos->cache_seg->cache_seg_id, pos->seg_off);
 	}
 
+	/* pos is the latest position of key_head after replay */
 	spin_lock(&cache->key_head_lock);
 	cache_pos_copy(&cache->key_head, pos);
-	//cache_seg_get(cache->key_head.cache_seg);
-	//cbd_cache_err(cache, "after reply key_head: %u:%u\n", cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off);
 	spin_unlock(&cache->key_head_lock);
 
 out:

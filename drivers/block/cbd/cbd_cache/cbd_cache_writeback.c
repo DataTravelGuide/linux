@@ -223,7 +223,7 @@ static int cache_kset_writeback(struct cbd_cache *cache,
 }
 
 /**
- * last_kset_handle - Handle the final kset of a cache key segment.
+ * last_kset_writeback - Handle the final kset of a cache key segment.
  * @cache: Pointer to the cbd_cache structure containing cache state.
  * @last_kset_onmedia: Pointer to the last kset in a segment, which stores metadata
  *                     for the next segment.
@@ -236,7 +236,7 @@ static int cache_kset_writeback(struct cbd_cache *cache,
  * The function updates the dirty tail position to the start of the next segment,
  * ensuring that writeback can resume from the appropriate location in the cache.
  */
-static void last_kset_handle(struct cbd_cache *cache,
+static void last_kset_writeback(struct cbd_cache *cache,
 		struct cbd_cache_kset_onmedia *last_kset_onmedia)
 {
 	struct cbd_cache_segment *next_seg;
@@ -344,7 +344,7 @@ void cache_writeback_fn(struct work_struct *work)
 
 		/* Handle the last kset, which indicates the end of a segment */
 		if (kset_onmedia->flags & CBD_KSET_FLAGS_LAST) {
-			last_kset_handle(cache, kset_onmedia);
+			last_kset_writeback(cache, kset_onmedia);
 			continue;
 		}
 
