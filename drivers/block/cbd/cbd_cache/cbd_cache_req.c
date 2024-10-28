@@ -3,6 +3,17 @@
 #include "cbd_cache_internal.h"
 #include "../cbd_queue.h"
 
+/*
+ * cache_data_head_init - Initialize the data head for a specific cache segment.
+ * @cache: Pointer to the cache structure.
+ * @head_index: Index of the data head to initialize.
+ *
+ * This function retrieves the data head structure associated with the given
+ * index `head_index` and assigns it to the next available cache segment.
+ * If no segment is available, it returns -EBUSY.
+ *
+ * Return: 0 on success, or -EBUSY if no segment is available.
+ */
 static int cache_data_head_init(struct cbd_cache *cache, u32 head_index)
 {
 	struct cbd_cache_segment *next_seg;
@@ -20,6 +31,20 @@ static int cache_data_head_init(struct cbd_cache *cache, u32 head_index)
 	return 0;
 }
 
+/*
+ * cache_data_alloc - Allocate data for a cache key.
+ * @cache: Pointer to the cache structure.
+ * @key: Pointer to the cache key to allocate data for.
+ * @head_index: Index of the data head to use for allocation.
+ *
+ * This function tries to allocate space from the cache segment specified by the
+ * data head. If the remaining space in the segment is insufficient to allocate
+ * the requested length for the cache key, it will allocate whatever is available
+ * and adjust the key's length accordingly. This function does not allocate
+ * space that crosses segment boundaries.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 static int cache_data_alloc(struct cbd_cache *cache, struct cbd_cache_key *key, u32 head_index)
 {
 	struct cbd_cache_data_head *data_head;
@@ -46,22 +71,27 @@ again:
 	}
 
 	if (seg_remain > to_alloc) {
+		/* If remaining space in segment is sufficient for the cache key, allocate it. */
 		cache_pos_advance(head_pos, to_alloc);
 		allocated += to_alloc;
 		cache_seg_get(cache_seg);
 	} else if (seg_remain) {
+		/* If remaining space is not enough, allocate the remaining space and adjust the cache key length. */
 		cache_pos_advance(head_pos, seg_remain);
 		key->len = seg_remain;
-		cache_seg_get(cache_seg); /* get for key */
 
-		cache_seg_put(head_pos->cache_seg); /* put for head_pos->cache_seg */
+		/* Get for key: obtain a reference to the cache segment for the key. */
+		cache_seg_get(cache_seg);
+		/* Put for head_pos->cache_seg: release the reference for the current head's segment. */
+		cache_seg_put(head_pos->cache_seg);
 		head_pos->cache_seg = NULL;
 	} else {
+		/* Initialize a new data head if no segment is available. */
 		ret = cache_data_head_init(cache, head_index);
 		if (ret)
 			goto out;
 
-		goto again;
+		goto again;  /* Retry allocation with the new segment. */
 	}
 
 out:
@@ -78,17 +108,14 @@ static void cache_copy_from_req_bio(struct cbd_cache *cache, struct cbd_cache_ke
 
 	segment = &pos->cache_seg->segment;
 
-	//cbd_cache_err(cache, "copy_from_req_bio: %u:%u %u, bio_off: %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, key->len, bio_off);
 	cbds_copy_from_bio(segment, pos->seg_off, key->len, cbd_req->bio, bio_off);
 }
 
 static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cbd_req,
-			    u32 off, u32 len, struct cbd_cache_pos *pos, u64 key_gen)
+			    u32 bio_off, u32 len, struct cbd_cache_pos *pos, u64 key_gen)
 {
 	struct cbd_cache_segment *cache_seg = pos->cache_seg;
 	struct cbd_segment *segment = &cache_seg->segment;
-
-	//cbd_cache_err(cache, "copy_to_req_bio: %u:%u %u, bio_off: %u\n", pos->cache_seg->cache_seg_id, pos->seg_off, len, off);
 
 	spin_lock(&cache_seg->gen_lock);
 	if (key_gen < cache_seg->gen) {
@@ -97,7 +124,7 @@ static int cache_copy_to_req_bio(struct cbd_cache *cache, struct cbd_request *cb
 	}
 
 	spin_lock(&cbd_req->lock);
-	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, off);
+	cbds_copy_to_bio(segment, pos->seg_off, len, cbd_req->bio, bio_off);
 	spin_unlock(&cbd_req->lock);
 	spin_unlock(&cache_seg->gen_lock);
 
