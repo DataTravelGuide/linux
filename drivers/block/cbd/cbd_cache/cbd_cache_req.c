@@ -214,8 +214,11 @@ static void miss_read_end_req(struct cbd_cache *cache, struct cbd_request *cbd_r
 		key = (struct cbd_cache_key *)priv_data;
 		cache_tree = key->cache_tree;
 
+		/* if this key was deleted from cache_tree by a write, key->flags should be cleared,
+		 * so if cache_key_empty() return true, this key is still in cache_tree
+		 */
 		spin_lock(&cache_tree->tree_lock);
-		if (key->flags & CBD_CACHE_KEY_FLAGS_EMPTY) {
+		if (cache_key_empty(key)) {
 			/* Check if the backing request was successful. */
 			if (cbd_req->ret) {
 				cache_key_delete(key);
