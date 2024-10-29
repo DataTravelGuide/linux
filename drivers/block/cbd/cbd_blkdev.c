@@ -147,29 +147,51 @@ static void cbd_blkdev_destroy_queues(struct cbd_blkdev *cbd_blkdev)
 	kfree(cbd_blkdev->queues);
 }
 
+/**
+ * cbd_blkdev_create_queues - Create and initialize queues for the block device
+ * @cbd_blkdev: Pointer to the block device structure
+ * @channels: Array of channel identifiers for each queue
+ *
+ * This function allocates memory for the specified number of queues, initializes
+ * each queue, and starts them using the provided channel identifiers. If any
+ * allocation or initialization fails, it cleans up the previously created queues
+ * and returns an error code.
+ *
+ * Returns: 0 on success, or a negative error code on failure.
+ *
+ * Note: The cbd_blkdev_destroy_queues function checks the state of each queue.
+ *       Only queues that have been started will be stopped in the error path.
+ *       Therefore, any queues that were not started will not be affected.
+ */
 static int cbd_blkdev_create_queues(struct cbd_blkdev *cbd_blkdev, u32 *channels)
 {
 	int i;
 	int ret;
 	struct cbd_queue *cbdq;
 
+	/* Allocate memory for the queues associated with the block device */
 	cbd_blkdev->queues = kcalloc(cbd_blkdev->num_queues, sizeof(struct cbd_queue), GFP_KERNEL);
 	if (!cbd_blkdev->queues)
 		return -ENOMEM;
 
+	/* Initialize each queue */
 	for (i = 0; i < cbd_blkdev->num_queues; i++) {
 		cbdq = &cbd_blkdev->queues[i];
 		cbdq->cbd_blkdev = cbd_blkdev;
 		cbdq->index = i;
+
+		/* Start the queue with the specified channel */
 		ret = cbd_queue_start(cbdq, channels[i]);
 		if (ret)
-			goto err;
+			goto err;  /* If starting the queue fails, clean up */
 	}
 
-	return 0;
+	return 0;  /* Success */
+
 err:
+	/* Clean up by destroying the queues if initialization fails */
 	cbd_blkdev_destroy_queues(cbd_blkdev);
-	return ret;
+	return ret;  /* Return the error code */
 }
 
 /**
