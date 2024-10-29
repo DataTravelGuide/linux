@@ -207,6 +207,8 @@ static int create_handlers(struct cbd_backend *cbdb, bool new_backend)
 				cbdb_err(cbdb, "failed find available channel_id.\n");
 				goto destroy_handlers;
 			}
+			/* clear all channel segment before using it */
+			cbd_segment_clear(cbdb->cbdt, channel_id);
 			backend_info->handler_channels[i] = channel_id;
 		} else {
 			channel_id = backend_info->handler_channels[i];

@@ -180,6 +180,9 @@ static int cache_segs_init(struct cbd_cache *cache, bool new_cache)
 				goto segments_destroy;
 			}
 
+			/* clear the whole segment before using */
+			cbd_segment_clear(cbdt, seg_id);
+
 			/* Link segments in sequence */
 			if (prev_cache_seg)
 				cache_seg_set_next_seg(prev_cache_seg, seg_id);
