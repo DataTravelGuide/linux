@@ -5,20 +5,12 @@
 #include <linux/blk-mq.h>
 
 #include "cbd_internal.h"
-
 #include "cbd_transport.h"
-
-#include "cbd_host.h"
-#include "cbd_segment.h"
 #include "cbd_channel.h"
-
 #include "cbd_cache/cbd_cache.h"
-
 #include "cbd_handler.h"
 #include "cbd_backend.h"
-
 #include "cbd_queue.h"
-#include "cbd_blkdev.h"
 
 #define cbd_blk_err(dev, fmt, ...)						\
 	cbdt_err(dev->cbdt, "cbd%d: " fmt,					\
