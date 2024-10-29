@@ -2,32 +2,6 @@
 
 #include "cbd_queue.h"
 
-static inline struct cbd_se *get_submit_entry(struct cbd_queue *cbdq)
-{
-	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_ctrl->submr_head);
-}
-
-static inline struct cbd_se *get_oldest_se(struct cbd_queue *cbdq)
-{
-	if (cbdq->channel_ctrl->submr_tail == cbdq->channel_ctrl->submr_head)
-		return NULL;
-
-	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_ctrl->submr_tail);
-}
-
-static inline bool queue_subm_ring_empty(struct cbd_queue *cbdq)
-{
-	return (cbdq->channel_ctrl->submr_tail == cbdq->channel_ctrl->submr_head);
-}
-
-static inline struct cbd_ce *get_complete_entry(struct cbd_queue *cbdq)
-{
-	if (cbdq->channel_ctrl->compr_tail == cbdq->channel_ctrl->compr_head)
-		return NULL;
-
-	return (struct cbd_ce *)(cbdq->channel.compr + cbdq->channel_ctrl->compr_tail);
-}
-
 static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request *rq)
 {
 	struct cbd_request *cbd_req = blk_mq_rq_to_pdu(rq);
