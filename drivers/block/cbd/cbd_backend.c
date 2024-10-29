@@ -96,7 +96,7 @@ int cbdb_add_handler(struct cbd_backend *cbdb, struct cbd_handler *handler)
 	int ret = 0;
 
 	spin_lock(&cbdb->lock);
-	if (cbdb->backend_info.state == cbd_backend_state_removing) {
+	if (cbdb->backend_info.state == cbd_backend_state_stopping) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -503,12 +503,12 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	}
 
 	spin_lock(&cbdb->lock);
-	if (cbdb->backend_info.state == cbd_backend_state_removing) {
+	if (cbdb->backend_info.state == cbd_backend_state_stopping) {
 		spin_unlock(&cbdb->lock);
 		return -EBUSY;
 	}
 
-	cbdb->backend_info.state = cbd_backend_state_removing;
+	cbdb->backend_info.state = cbd_backend_state_stopping;
 	spin_unlock(&cbdb->lock);
 
 	cbdt_del_backend(cbdt, cbdb);

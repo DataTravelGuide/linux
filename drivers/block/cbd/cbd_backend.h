@@ -27,7 +27,7 @@ CBD_DEVICE(backend);
 enum cbd_backend_state {
 	cbd_backend_state_none	= 0,
 	cbd_backend_state_running,
-	cbd_backend_state_removing
+	cbd_backend_state_stopping
 };
 
 #define CBDB_BLKDEV_COUNT_MAX	1
