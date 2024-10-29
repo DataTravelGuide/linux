@@ -697,6 +697,17 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	return 0;
 }
 
+/**
+ * backend_segs_clear - Clear segments associated with a specific backend.
+ * @cbdt: Pointer to the cbd_transport structure.
+ * @backend_id: ID of the backend whose segments are to be cleared.
+ *
+ * This function iterates through all segment information entries in the
+ * cbd_transport. For each segment, it checks its type. If the segment is
+ * of type channel and is associated with the specified backend, it calls
+ * cbd_segment_clear to release it. Similarly, if the segment is of type
+ * cache and is associated with the backend, it also clears that segment.
+ */
 static void backend_segs_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_segment_info *seg_info;
@@ -726,6 +737,26 @@ static void backend_segs_clear(struct cbd_transport *cbdt, u32 backend_id)
 	}
 }
 
+/**
+ * cbd_backend_clear - Clear a backend's resources.
+ * @cbdt: Pointer to the cbd_transport structure.
+ * @backend_id: ID of the backend to be cleared.
+ *
+ * This function handles the clearing of a backend that cannot be recovered.
+ * This function checks if the backend's metadata can be read. If the
+ * metadata is corrupted, it means this backend was cleared.
+ *
+ * It then verifies if the backend is still alive; if so, it returns an
+ * error indicating that the backend is busy. If the backend's state is none,
+ * it indicates there are no resources to clear, and the function returns success.
+ *
+ * Before clearing the backend, it checks if all block devices
+ * associated with the backend have stopped. If any are still running,
+ * it returns an error indicating the backend is busy.
+ *
+ * Finally, it clears the segments associated with the backend and
+ * removes the backend's metadata from the transport.
+ */
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
