@@ -104,8 +104,7 @@ static void channel_info_write(struct cbd_channel *channel)
  *
  * For new channels, it initializes channel-specific information and writes this data
  * to persist the channel state. For existing channels, it loads previously saved
- * channel information to restore its configuration. This approach supports reuse of
- * channel resources in multi-threaded environments across both backend and block device contexts.
+ * channel information to restore its configuration.
  *
  * Returns 0 on successful initialization, or a negative error code if loading
  * existing channel information fails.

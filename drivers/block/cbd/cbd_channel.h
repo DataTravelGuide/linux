@@ -103,6 +103,9 @@ struct cbd_channel_ctrl {
 	u32	compr_tail;
 };
 
+#define CBDC_FLAGS_POLLING		(1 << 0)
+#define CBDC_FLAGS_NEED_RESET		(1 << 1)
+
 struct cbd_channel_init_options {
 	struct cbd_transport *cbdt;
 	bool	new_channel;
