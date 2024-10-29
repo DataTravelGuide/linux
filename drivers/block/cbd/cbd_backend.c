@@ -14,7 +14,7 @@ static ssize_t backend_host_id_show(struct device *dev,
 			       char *buf)
 {
 	struct cbd_backend_device *backend;
-	struct cbd_backend_info *backend_info, *latest_info;
+	struct cbd_backend_info *latest_info;
 
 	backend = container_of(dev, struct cbd_backend_device, dev);
 
@@ -31,7 +31,7 @@ static ssize_t backend_path_show(struct device *dev,
 			       char *buf)
 {
 	struct cbd_backend_device *backend;
-	struct cbd_backend_info *backend_info, *latest_info;
+	struct cbd_backend_info *latest_info;
 
 	backend = container_of(dev, struct cbd_backend_device, dev);
 
@@ -473,8 +473,6 @@ static void cbd_backend_destroy(struct cbd_backend *cbdb)
  */
 void cbd_backend_info_write(struct cbd_backend *cbdb)
 {
-	struct cbd_backend_info *backend_info;
-
 	mutex_lock(&cbdb->info_lock);
 	cbdb->backend_info.alive_ts = ktime_get_real();
 	cbdt_backend_info_write(cbdb->cbdt, &cbdb->backend_info, sizeof(struct cbd_backend_info),
@@ -513,7 +511,7 @@ static int cbd_backend_info_load(struct cbd_backend *cbdb, u32 backend_id)
 	}
 
 	if (cbd_backend_info_is_alive(backend_info)) {
-		cbdt_err(cbdb->cbdt, "backend %u is alive\n");
+		cbdt_err(cbdb->cbdt, "backend %u is alive\n", backend_id);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -604,9 +602,6 @@ int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
 		      u32 handlers, u32 cache_segs)
 {
 	struct cbd_backend *cbdb;
-	struct cbd_backend_info *backend_info;
-	struct cbd_cache_info *cache_info;
-	bool new_backend = false;
 	int ret;
 
 	cbdb = cbd_backend_alloc(cbdt);
@@ -628,6 +623,28 @@ destroy_cbdb:
 	return ret;
 }
 
+static bool backend_blkdevs_stopped(struct cbd_transport *cbdt, u32 backend_id)
+{
+	struct cbd_blkdev_info *blkdev_info;
+	int i;
+
+	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (!blkdev_info)
+			continue;
+
+		if (blkdev_info->state != cbd_blkdev_state_running)
+			continue;
+
+		if (blkdev_info->backend_id == backend_id) {
+			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n",
+					i, backend_id);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
  * cbd_backend_stop - Main function to stop a backend.
  * @cbdt: Pointer to the cbd_transport structure associated with the backend.
@@ -643,27 +660,14 @@ destroy_cbdb:
  */
 int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 {
-	struct cbd_backend_info *backend_info;
-	struct cbd_blkdev_info *blkdev_info;
 	struct cbd_backend *cbdb;
-	int i;
 
 	cbdb = cbdt_get_backend(cbdt, backend_id);
 	if (!cbdb)
 		return -ENOENT;
 
-	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
-		if (!blkdev_info)
-			continue;
-
-		if (blkdev_info->state != cbd_blkdev_state_running)
-			continue;
-
-		if (blkdev_info->backend_id == backend_id) {
-			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
-			return -EBUSY;
-		}
-	}
+	if (!backend_blkdevs_stopped(cbdt, backend_id))
+		return -EBUSY;
 
 	spin_lock(&cbdb->lock);
 	if (cbdb->backend_info.state == cbd_backend_state_stopping) {
@@ -703,7 +707,6 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
-	struct cbd_blkdev_info *blkdev_info;
 	int i;
 
 	backend_info = cbdt_backend_info_read(cbdt, backend_id, NULL);
@@ -720,15 +723,8 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 	if (backend_info->state == cbd_backend_state_none)
 		return 0;
 
-	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
-		if (blkdev_info->state != cbd_blkdev_state_running)
-			continue;
-
-		if (blkdev_info->backend_id == backend_id) {
-			cbdt_err(cbdt, "blkdev %u is connected to backend %u\n", i, backend_id);
-			return -EBUSY;
-		}
-	}
+	if (!backend_blkdevs_stopped(cbdt, backend_id))
+		return -EBUSY;
 
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
 		struct cbd_segment_info *seg_info;
