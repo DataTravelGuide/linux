@@ -3,13 +3,6 @@
 #include "cbd_transport.h"
 #include "cbd_channel.h"
 
-static void channel_format(struct cbd_transport *cbdt, u32 id)
-{
-	void *channel = cbdt_get_segment_info(cbdt, id);
-
-	cbdt_zero_range(cbdt, channel, CBDC_META_SIZE);
-}
-
 int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)
 {
 	int ret;
@@ -17,8 +10,6 @@ int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)
 	ret = cbdt_get_empty_segment_id(cbdt, id);
 	if (ret)
 		return ret;
-
-	channel_format(cbdt, *id);
 
 	return 0;
 }
@@ -39,7 +30,6 @@ u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len)
 {
 	return cbd_seg_crc(&channel->segment, data_off, data_len);
 }
-
 
 int cbdc_map_pages(struct cbd_channel *channel, struct bio *bio, u32 off, u32 size)
 {
@@ -91,8 +81,6 @@ out:
 
 static void channel_info_write(struct cbd_channel *channel)
 {
-	struct cbd_channel_seg_info *channel_info;
-
 	mutex_lock(&channel->info_lock);
 	cbdt_segment_info_write(channel->cbdt, &channel->channel_info, sizeof(struct cbd_channel_seg_info),
 				channel->seg_id, channel->info_index);
@@ -148,12 +136,5 @@ out:
 
 void cbd_channel_destroy(struct cbd_channel *channel)
 {
-	channel_format(channel->cbdt, channel->seg_id);
-}
-
-void cbd_channel_write(struct cbd_channel *channel)
-{
-	mutex_lock(&channel->info_lock);
-
-	mutex_unlock(&channel->info_lock);
+	cbdt_segment_info_clear(channel->cbdt, channel->seg_id);
 }

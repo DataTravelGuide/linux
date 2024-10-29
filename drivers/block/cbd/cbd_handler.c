@@ -155,6 +155,29 @@ static void handler_reset(struct cbd_handler *handler)
 	smp_mb();
 }
 
+#ifdef CONFIG_CBD_CRC
+static int channel_se_verify(struct cbd_handler *handler, struct cbd_se *se)
+{
+	if (se->se_crc != cbd_se_crc(se)) {
+		cbd_handler_err(handler, "se crc(0x%x) is not expected(0x%x)",
+				cbd_se_crc(se), se->se_crc);
+		return -EIO;
+	}
+
+	if (se->op == CBD_OP_WRITE &&
+		se->data_crc != cbd_channel_crc(&handler->channel,
+						se->data_off,
+						se->data_len)) {
+		cbd_handler_err(handler, "data crc(0x%x) is not expected(0x%x)",
+				cbd_channel_crc(&handler->channel, se->data_off, se->data_len),
+				se->data_crc);
+		return -EIO;
+	}
+
+	return 0;
+}
+#endif
+
 static void handle_work_fn(struct work_struct *work)
 {
 	struct cbd_handler *handler = container_of(work, struct cbd_handler,
@@ -185,24 +208,12 @@ again:
 	}
 
 #ifdef CONFIG_CBD_CRC
-	if (se->se_crc != cbd_se_crc(se)) {
-		cbd_handler_err(handler, "se crc(0x%x) is not expected(0x%x)",
-				cbd_se_crc(se), se->se_crc);
+	ret = channel_se_verify(handler, se);
+	if (ret)
 		goto miss;
-	}
-
-	if (se->op == CBD_OP_WRITE &&
-		se->data_crc != cbd_channel_crc(&handler->channel,
-						se->data_off,
-						se->data_len)) {
-		cbd_handler_err(handler, "data crc(0x%x) is not expected(0x%x)",
-				cbd_channel_crc(&handler->channel, se->data_off, se->data_len),
-				se->data_crc);
-		goto miss;
-	}
 #endif
-
 	cbdwc_hit(&handler->handle_worker_cfg);
+
 	ret = handle_backend_cmd(handler, se);
 	if (!ret) {
 		/* this se is handled */
@@ -258,26 +269,26 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channe
 	if (!handler)
 		return -ENOMEM;
 
-	atomic_set(&handler->inflight_cmds, 0);
-
 	ret = bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
 	if (ret)
-		goto err;
+		goto free_handler;
 
 	handler->cbdb = cbdb;
 	handler_channel_init(handler, channel_id, new_channel);
 
 	handler->se_to_handle = handler->channel_ctrl->submr_tail;
 	handler->req_tid_expected = U64_MAX;
-
+	atomic_set(&handler->inflight_cmds, 0);
 	spin_lock_init(&handler->compr_lock);
 	INIT_DELAYED_WORK(&handler->handle_work, handle_work_fn);
 	cbdwc_init(&handler->handle_worker_cfg);
+
 	cbdb_add_handler(cbdb, handler);
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 
 	return 0;
-err:
+
+free_handler:
 	kfree(handler);
 	return ret;
 };
