@@ -3,17 +3,6 @@
 #include "cbd_transport.h"
 #include "cbd_channel.h"
 
-int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id)
-{
-	int ret;
-
-	ret = cbdt_get_empty_segment_id(cbdt, id);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 void cbdc_copy_to_bio(struct cbd_channel *channel,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {

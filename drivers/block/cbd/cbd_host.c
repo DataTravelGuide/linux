@@ -59,8 +59,6 @@ const struct device_type cbd_hosts_type = {
 
 static void host_info_write(struct cbd_host *host)
 {
-	struct cbd_host_info *host_info;
-
 	mutex_lock(&host->info_lock);
 	host->host_info.alive_ts = ktime_get_real();
 	cbdt_host_info_write(host->cbdt, &host->host_info, sizeof(struct cbd_host_info),
@@ -124,7 +122,6 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 int cbd_host_unregister(struct cbd_transport *cbdt)
 {
 	struct cbd_host *host = cbdt->host;
-	struct cbd_host_info *host_info;
 
 	if (!host) {
 		cbd_err("This host is not registered.");

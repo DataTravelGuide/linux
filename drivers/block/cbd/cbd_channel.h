@@ -156,6 +156,5 @@ void cbdc_copy_to_bio(struct cbd_channel *channel,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
 int cbdc_map_pages(struct cbd_channel *channel, struct bio *bio, u32 off, u32 size);
-int cbd_get_empty_channel_id(struct cbd_transport *cbdt, u32 *id);
 
 #endif /* _CBD_CHANNEL_H */

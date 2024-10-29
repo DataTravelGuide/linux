@@ -202,7 +202,7 @@ static int create_handlers(struct cbd_backend *cbdb, bool new_backend)
 
 	for (i = 0; i < backend_info->n_handlers; i++) {
 		if (new_backend) {
-			ret = cbd_get_empty_channel_id(cbdb->cbdt, &channel_id);
+			ret = cbdt_get_empty_segment_id(cbdb->cbdt, &channel_id);
 			if (ret < 0) {
 				cbdb_err(cbdb, "failed find available channel_id.\n");
 				goto destroy_handlers;
