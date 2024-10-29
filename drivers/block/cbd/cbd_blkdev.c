@@ -62,7 +62,17 @@ static ssize_t blkdev_mapped_id_show(struct device *dev,
 
 static DEVICE_ATTR(mapped_id, 0400, blkdev_mapped_id_show, NULL);
 
-static void blkdev_info_write(struct cbd_blkdev *blkdev);
+static void blkdev_info_write(struct cbd_blkdev *blkdev)
+{
+	mutex_lock(&blkdev->info_lock);
+	blkdev->blkdev_info.alive_ts = ktime_get_real();
+	cbdt_blkdev_info_write(blkdev->cbdt, &blkdev->blkdev_info,
+			       sizeof(struct cbd_blkdev_info),
+			       blkdev->blkdev_id, blkdev->info_index);
+	blkdev->info_index = (blkdev->info_index + 1) % CBDT_META_INDEX_MAX;
+	mutex_unlock(&blkdev->info_lock);
+}
+
 static void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
 {
 	blkdev_info_write(blkdev);
@@ -137,13 +147,27 @@ static const struct block_device_operations cbd_bd_ops = {
 	.release		= cbd_release,
 };
 
+/**
+ * cbd_blkdev_destroy_queues - Stop and free the queues associated with the block device
+ * @cbd_blkdev: Pointer to the block device structure
+ *
+ * This function iterates through all queues associated with the specified block device
+ * and stops each queue. After stopping the queues, it frees the allocated memory for
+ * the queue array.
+ *
+ * Note: The cbd_queue_stop function checks the state of each queue before attempting
+ *       to stop it. If a queue's state is not running, it will return immediately,
+ *       ensuring that only running queues are affected by this operation.
+ */
 static void cbd_blkdev_destroy_queues(struct cbd_blkdev *cbd_blkdev)
 {
 	int i;
 
+	/* Stop each queue associated with the block device */
 	for (i = 0; i < cbd_blkdev->num_queues; i++)
 		cbd_queue_stop(&cbd_blkdev->queues[i]);
 
+	/* Free the memory allocated for the queues */
 	kfree(cbd_blkdev->queues);
 }
 
@@ -304,17 +328,24 @@ static void disk_stop(struct cbd_blkdev *cbd_blkdev)
 	blk_mq_free_tag_set(&cbd_blkdev->tag_set);
 }
 
-static void blkdev_info_write(struct cbd_blkdev *blkdev)
-{
-	mutex_lock(&blkdev->info_lock);
-	blkdev->blkdev_info.alive_ts = ktime_get_real();
-	cbdt_blkdev_info_write(blkdev->cbdt, &blkdev->blkdev_info,
-			       sizeof(struct cbd_blkdev_info),
-			       blkdev->blkdev_id, blkdev->info_index);
-	blkdev->info_index = (blkdev->info_index + 1) % CBDT_META_INDEX_MAX;
-	mutex_unlock(&blkdev->info_lock);
-}
-
+/**
+ * blkdev_start_validate - Validate the parameters for starting a block device
+ * @cbdt: Pointer to the CBD transport structure
+ * @backend_info: Pointer to the backend information structure
+ * @backend_id: ID of the backend to validate against
+ * @queues: Number of queues to be used
+ *
+ * This function checks the validity of the parameters provided for starting
+ * a block device associated with the specified backend. It verifies that the
+ * backend is alive, counts the number of currently running block devices
+ * connected to the backend, and ensures that the number of requested queues
+ * does not exceed the number of available handlers for the backend.
+ *
+ * Returns:
+ * 0 on success, or a negative error code on failure:
+ * -EINVAL if the backend is not alive or if the number of queues is invalid
+ * -EBUSY if the maximum number of block devices connected to the backend has been reached
+ */
 static int blkdev_start_validate(struct cbd_transport *cbdt, struct cbd_backend_info *backend_info,
 			     u32 backend_id, u32 queues)
 {
@@ -328,10 +359,7 @@ static int blkdev_start_validate(struct cbd_transport *cbdt, struct cbd_backend_
 	}
 
 	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
-		if (!blkdev_info)
-			continue;
-
-		if (blkdev_info->state != cbd_blkdev_state_running)
+		if (!blkdev_info || blkdev_info->state != cbd_blkdev_state_running)
 			continue;
 
 		if (blkdev_info->backend_id == backend_id)
@@ -352,6 +380,19 @@ static int blkdev_start_validate(struct cbd_transport *cbdt, struct cbd_backend_
 	return 0;
 }
 
+/**
+ * blkdev_alloc - Allocate and initialize a block device structure
+ * @cbdt: Pointer to the CBD transport structure
+ *
+ * This function allocates memory for a new block device structure and initializes
+ * its members, including acquiring an ID and creating a workqueue for handling
+ * heartbeats. It performs necessary checks to ensure successful allocation of resources.
+ *
+ * Returns:
+ * A pointer to the allocated and initialized block device structure on success,
+ * or NULL on failure. In case of failure, resources allocated prior to the error
+ * will be freed appropriately.
+ */
 static struct cbd_blkdev *blkdev_alloc(struct cbd_transport *cbdt)
 {
 	struct cbd_blkdev *cbd_blkdev;
@@ -359,40 +400,41 @@ static struct cbd_blkdev *blkdev_alloc(struct cbd_transport *cbdt)
 
 	cbd_blkdev = kzalloc(sizeof(struct cbd_blkdev), GFP_KERNEL);
 	if (!cbd_blkdev)
-		return NULL;
+		return NULL; /* Memory allocation failed */
 
-	cbd_blkdev->cbdt = cbdt;
-	mutex_init(&cbd_blkdev->lock);
-	mutex_init(&cbd_blkdev->info_lock);
-	INIT_LIST_HEAD(&cbd_blkdev->node);
-	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
+	cbd_blkdev->cbdt = cbdt; /* Set the transport pointer */
+	mutex_init(&cbd_blkdev->lock); /* Initialize the lock for the block device */
+	mutex_init(&cbd_blkdev->info_lock); /* Initialize the info lock */
+	INIT_LIST_HEAD(&cbd_blkdev->node); /* Initialize the list head for linking */
+	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn); /* Initialize heartbeat work */
 
 	ret = cbdt_get_empty_blkdev_id(cbdt, &cbd_blkdev->blkdev_id);
 	if (ret < 0)
-		goto blkdev_free;
+		goto blkdev_free; /* Failed to get an empty block device ID */
 
 	cbd_blkdev->mapped_id = ida_simple_get(&cbd_mapped_id_ida, 0,
 					 minor_to_cbd_mapped_id(1 << MINORBITS),
 					 GFP_KERNEL);
 	if (cbd_blkdev->mapped_id < 0) {
-		ret = -ENOENT;
+		ret = -ENOENT; /* Failed to get a mapped ID */
 		goto blkdev_free;
 	}
 
 	cbd_blkdev->task_wq = alloc_workqueue("cbdt%d-d%u",  WQ_UNBOUND | WQ_MEM_RECLAIM,
 					0, cbdt->id, cbd_blkdev->mapped_id);
 	if (!cbd_blkdev->task_wq) {
-		ret = -ENOMEM;
-		goto ida_remove;
+		ret = -ENOMEM; /* Workqueue allocation failed */
+		goto ida_remove; /* Clean up the allocated mapped ID */
 	}
 
-	return cbd_blkdev;
-ida_remove:
-	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
-blkdev_free:
-	kfree(cbd_blkdev);
+	return cbd_blkdev; /* Successfully allocated and initialized */
 
-	return NULL;
+ida_remove:
+	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id); /* Remove the mapped ID */
+blkdev_free:
+	kfree(cbd_blkdev); /* Free the allocated block device structure */
+
+	return NULL; /* Return NULL on failure */
 }
 
 static void blkdev_free(struct cbd_blkdev *cbd_blkdev)
@@ -403,6 +445,16 @@ static void blkdev_free(struct cbd_blkdev *cbd_blkdev)
 	kfree(cbd_blkdev);
 }
 
+/**
+ * blkdev_cache_init - Initialize the cache for a block device.
+ * @cbd_blkdev: Pointer to the block device structure.
+ *
+ * This function initializes the cache associated with the block device.
+ * The cache allocation is already done during the backend startup, so
+ * during initialization, the new_cache option is set to false.
+ *
+ * Returns 0 on success, or -ENOMEM if memory allocation fails.
+ */
 static int blkdev_cache_init(struct cbd_blkdev *cbd_blkdev)
 {
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
@@ -411,7 +463,7 @@ static int blkdev_cache_init(struct cbd_blkdev *cbd_blkdev)
 	cache_opts.cache_info = &cbd_blkdev->cache_info;
 	cache_opts.cache_id = cbd_blkdev->backend_id;
 	cache_opts.owner = NULL;
-	cache_opts.new_cache = false;
+	cache_opts.new_cache = false;  /* Cache already allocated during backend startup */
 	cache_opts.start_writeback = false;
 	cache_opts.start_gc = true;
 	cache_opts.init_keys = true;
@@ -431,35 +483,54 @@ static void blkdev_cache_destroy(struct cbd_blkdev *cbd_blkdev)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 }
 
+/**
+ * blkdev_init - Initialize a block device.
+ * @cbd_blkdev: Pointer to the cbd_blkdev structure representing the block device.
+ * @backend_info: Pointer to the backend information structure associated with the device.
+ * @backend_id: ID of the backend associated with the block device.
+ * @queues: Number of queues to be created for the block device.
+ *
+ * This function initializes the block device by setting its properties such as
+ * backend ID, number of queues, and device size. It also creates the necessary
+ * queues and initializes the cache if applicable. If any step fails, it performs
+ * cleanup and returns an error code.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 static int blkdev_init(struct cbd_blkdev *cbd_blkdev, struct cbd_backend_info *backend_info,
 			u32 backend_id, u32 queues)
 {
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
 	int ret;
 
-	cbd_blkdev->backend_id = backend_id;
-	cbd_blkdev->num_queues = queues;
-	cbd_blkdev->dev_size = backend_info->dev_size;
+	cbd_blkdev->backend_id = backend_id; /* Set the backend ID */
+	cbd_blkdev->num_queues = queues; /* Set the number of queues */
+	cbd_blkdev->dev_size = backend_info->dev_size; /* Set the device size */
 	cbd_blkdev->blkdev_dev = &cbdt->cbd_blkdevs_dev->blkdev_devs[cbd_blkdev->blkdev_id];
+
+	/* Get the backend if it is hosted on the same machine */
 	if (backend_info->host_id == cbdt->host->host_id)
 		cbd_blkdev->backend = cbdt_get_backend(cbdt, backend_id);
 
+	/* Initialize block device information */
 	cbd_blkdev->blkdev_info.backend_id = backend_id;
 	cbd_blkdev->blkdev_info.host_id = cbdt->host->host_id;
-	cbd_blkdev->blkdev_info.state = cbd_blkdev_state_running;
+	cbd_blkdev->blkdev_info.state = cbd_blkdev_state_running; /* Set the state to running */
 
+	/* Create queues for the block device */
 	ret = cbd_blkdev_create_queues(cbd_blkdev, backend_info->handler_channels);
 	if (ret < 0)
-		goto err;
+		goto err; /* Jump to error handling if queue creation fails */
 
+	/* Initialize cache if the backend has caching enabled */
 	if (cbd_backend_cache_on(backend_info)) {
 		ret = blkdev_cache_init(cbd_blkdev);
 		if (ret)
-			goto destroy_queues;
+			goto destroy_queues; /* Clean up queues if cache initialization fails */
 	}
 
-	blkdev_info_write(cbd_blkdev);
-	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0);
+	blkdev_info_write(cbd_blkdev); /* Write block device information */
+	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0); /* Schedule the heartbeat work */
 
 	return 0;
 destroy_queues:
@@ -475,6 +546,23 @@ static void blkdev_destroy(struct cbd_blkdev *cbd_blkdev)
 	cbd_blkdev_destroy_queues(cbd_blkdev);
 }
 
+/**
+ * cbd_blkdev_start - Start a block device and its associated backend.
+ * @cbdt: Pointer to the transport structure.
+ * @backend_id: ID of the backend associated with the block device.
+ * @queues: Number of queues to be used by the block device.
+ *
+ * This function responds to the "dev-start" sysfs command by initializing
+ * the block device, validating its parameters, and starting the device.
+ * It performs the following steps:
+ * 1. Reads the backend information for the specified backend_id.
+ * 2. Validates the block device parameters using blkdev_start_validate.
+ * 3. Allocates memory for the block device structure.
+ * 4. Initializes the block device with the provided backend information.
+ * 5. Starts the disk.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 {
 	struct cbd_blkdev *cbd_blkdev;
@@ -497,6 +585,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	ret = disk_start(cbd_blkdev);
 	if (ret < 0)
 		goto blkdev_destroy;
+
 	return 0;
 
 blkdev_destroy:
@@ -506,6 +595,24 @@ blkdev_free:
 	return ret;
 }
 
+/**
+ * cbd_blkdev_stop - Stop a block device and its associated backend.
+ * @cbdt: Pointer to the transport structure.
+ * @devid: ID of the block device to be stopped.
+ * @force: Boolean indicating whether to force the stop if the device is open.
+ *
+ * This function responds to the "dev-stop" sysfs command by stopping
+ * the specified block device. It performs the following steps:
+ * 1. Retrieves the block device structure associated with the given devid.
+ * 2. Locks the block device for thread safety.
+ * 3. Checks if the block device is currently open; if it is and force is not set,
+ *    it unlocks and returns -EBUSY.
+ * 4. If the device is not open or force is set, it removes the block device from the transport.
+ * 5. Stops the disk and frees the block device resources.
+ * 6. Clears the block device info from the transport structure.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 {
 	struct cbd_blkdev *cbd_blkdev;
@@ -531,6 +638,21 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	return 0;
 }
 
+/**
+ * cbd_blkdev_clear - Clear the specified block device and its info.
+ * @cbdt: Pointer to the transport structure.
+ * @devid: ID of the block device to be cleared.
+ *
+ * This function responds to the "dev-clear" sysfs command by performing
+ * the following operations:
+ * 1. Reads the block device information associated with the given devid.
+ * 2. If the block device info is corrupted, it logs an error and returns -EINVAL.
+ * 3. Checks if the block device is still alive; if it is, logs an error and returns -EBUSY.
+ * 4. If the block device state is "none," it returns 0 without further action.
+ * 5. Clears the block device information from the transport structure.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 {
 	struct cbd_blkdev_info *blkdev_info;
@@ -554,6 +676,18 @@ int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid)
 	return 0;
 }
 
+/**
+ * cbd_blkdev_init - Initialize the block device subsystem.
+ *
+ * This function is called during the loading of the CBD module to register
+ * the block device major number. It performs the following operations:
+ * 1. Attempts to register a block device with a dynamic major number
+ *    using the name "cbd".
+ * 2. If the registration is successful, it returns 0.
+ * 3. If the registration fails, it returns the negative error code.
+ *
+ * Returns: 0 on success, or a negative error code on failure.
+ */
 int cbd_blkdev_init(void)
 {
 	cbd_major = register_blkdev(0, "cbd");
