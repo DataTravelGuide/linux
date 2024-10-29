@@ -216,12 +216,10 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 	disk->major = cbd_major;
 	disk->first_minor = cbd_blkdev->mapped_id << CBD_PART_SHIFT;
 	disk->minors = (1 << CBD_PART_SHIFT);
-
 	disk->fops = &cbd_bd_ops;
 	disk->private_data = cbd_blkdev;
 
 	cbd_blkdev->disk = disk;
-
 	cbdt_add_blkdev(cbd_blkdev->cbdt, cbd_blkdev);
 	cbd_blkdev->blkdev_info.mapped_id = cbd_blkdev->blkdev_id;
 
@@ -249,10 +247,16 @@ err:
 	return ret;
 }
 
+static void disk_stop(struct cbd_blkdev *cbd_blkdev)
+{
+	sysfs_remove_link(&disk_to_dev(cbd_blkdev->disk)->kobj, "cbd_blkdev");
+	del_gendisk(cbd_blkdev->disk);
+	put_disk(cbd_blkdev->disk);
+	blk_mq_free_tag_set(&cbd_blkdev->tag_set);
+}
+
 static void blkdev_info_write(struct cbd_blkdev *blkdev)
 {
-	struct cbd_blkdev_info *blkdev_info;
-
 	mutex_lock(&blkdev->info_lock);
 	blkdev->blkdev_info.alive_ts = ktime_get_real();
 	cbdt_blkdev_info_write(blkdev->cbdt, &blkdev->blkdev_info,
@@ -361,7 +365,6 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		}
 	}
 
-	pr_err("before create queues\n");
 	ret = cbd_blkdev_create_queues(cbd_blkdev, backend_info->handler_channels);
 	if (ret < 0)
 		goto destroy_cache;
@@ -370,9 +373,7 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
 	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0);
 
-	pr_err("before disk_start\n");
 	ret = disk_start(cbd_blkdev);
-	pr_err("after disk_start\n");
 	if (ret < 0)
 		goto destroy_queues;
 	return 0;
@@ -392,14 +393,6 @@ blkdev_free:
 	return ret;
 }
 
-static void disk_stop(struct cbd_blkdev *cbd_blkdev)
-{
-	sysfs_remove_link(&disk_to_dev(cbd_blkdev->disk)->kobj, "cbd_blkdev");
-	del_gendisk(cbd_blkdev->disk);
-	put_disk(cbd_blkdev->disk);
-	blk_mq_free_tag_set(&cbd_blkdev->tag_set);
-}
-
 int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 {
 	struct cbd_blkdev *cbd_blkdev;
@@ -417,16 +410,12 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	cbdt_del_blkdev(cbdt, cbd_blkdev);
 	mutex_unlock(&cbd_blkdev->lock);
 
-	pr_err("before stop queues\n");
 	cbd_blkdev_stop_queues(cbd_blkdev);
-	pr_err("after stop queues\n");
 	disk_stop(cbd_blkdev);
 	kfree(cbd_blkdev->queues);
 
-	pr_err("before cancel hb_work\n");
 	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
 
-	pr_err("before drain workqueue\n");
 	drain_workqueue(cbd_blkdev->task_wq);
 	destroy_workqueue(cbd_blkdev->task_wq);
 	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
@@ -434,9 +423,7 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	if (cbd_blkdev->cbd_cache)
 		cbd_cache_destroy(cbd_blkdev->cbd_cache);
 
-	pr_err("before blkdev_info_clear\n");
 	cbdt_blkdev_info_clear(cbdt, devid);
-	pr_err("after blkdev_clear\n");
 	kfree(cbd_blkdev);
 
 	return 0;
