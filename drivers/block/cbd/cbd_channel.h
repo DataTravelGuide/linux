@@ -3,9 +3,7 @@
 #define _CBD_CHANNEL_H
 
 #include "cbd_internal.h"
-
 #include "cbd_segment.h"
-
 #include "cbd_cache/cbd_cache.h"
 
 #define cbd_channel_err(channel, fmt, ...)					\
@@ -89,16 +87,6 @@ static inline u32 cbd_ce_crc(struct cbd_ce *ce)
 #define CBDC_UPDATE_COMPR_TAIL(tail, used, size)    (tail = ((tail % size) + used) % size)
 
 /* cbd_channel */
-enum cbdc_blkdev_state {
-	cbdc_blkdev_state_none		= 0,
-	cbdc_blkdev_state_running,
-};
-
-enum cbdc_backend_state {
-	cbdc_backend_state_none		= 0,
-	cbdc_backend_state_running,
-};
-
 struct cbd_channel_seg_info {
 	struct cbd_segment_info seg_info;	/* must be the first member */
 	u32	backend_id;
