@@ -137,17 +137,13 @@ static const struct block_device_operations cbd_bd_ops = {
 	.release		= cbd_release,
 };
 
-static void cbd_blkdev_stop_queues(struct cbd_blkdev *cbd_blkdev)
+static void cbd_blkdev_destroy_queues(struct cbd_blkdev *cbd_blkdev)
 {
 	int i;
 
 	for (i = 0; i < cbd_blkdev->num_queues; i++)
 		cbd_queue_stop(&cbd_blkdev->queues[i]);
-}
 
-static void cbd_blkdev_destroy_queues(struct cbd_blkdev *cbd_blkdev)
-{
-	cbd_blkdev_stop_queues(cbd_blkdev);
 	kfree(cbd_blkdev->queues);
 }
 
