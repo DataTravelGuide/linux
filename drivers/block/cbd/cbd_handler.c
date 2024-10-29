@@ -29,6 +29,7 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 	memset(ce, 0, sizeof(*ce));
 	ce->req_tid = se->req_tid;
 	ce->result = ret;
+
 #ifdef CONFIG_CBD_CRC
 	if (se->op == CBD_OP_READ)
 		ce->data_crc = cbd_channel_crc(&handler->channel, se->data_off, se->data_len);
@@ -64,7 +65,6 @@ static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 	if (!backend_io)
 		return NULL;
 	backend_io->se = se;
-
 	backend_io->handler = handler;
 	backend_io->bio = bio_alloc_bioset(cbdb->bdev,
 				DIV_ROUND_UP(se->len, PAGE_SIZE),
@@ -225,11 +225,11 @@ again:
 	goto again;
 
 miss:
+	/* miss means there is no new se need to handle,in this round */
 	if (cbdwc_need_retry(&handler->handle_worker_cfg))
 		goto again;
 
 	cbdwc_miss(&handler->handle_worker_cfg);
-
 out:
 	if (handler->channel_ctrl->polling)
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
@@ -300,7 +300,7 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 	cancel_delayed_work_sync(&handler->handle_work);
 
 	while (atomic_read(&handler->inflight_cmds))
-		fsleep(100000);
+		schedule_timeout(HZ);
 
 	cbd_channel_destroy(&handler->channel);
 
