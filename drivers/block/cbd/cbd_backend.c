@@ -688,7 +688,7 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	cbdb->backend_info.state = cbd_backend_state_stopping;
 	spin_unlock(&cbdb->lock);
 
-	cbdt = cbdb->cbdt;
+	cancel_delayed_work_sync(&cbdb->hb_work);
 	cbd_backend_destroy(cbdb);
 	cbd_backend_free(cbdb);
 
