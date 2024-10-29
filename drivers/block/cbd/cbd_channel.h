@@ -93,8 +93,7 @@ struct cbd_channel_seg_info {
 };
 
 struct cbd_channel_ctrl {
-	u64	polling:1;
-	u64	need_reset:1;
+	u64	flags;
 
 	u32	submr_head;
 	u32	submr_tail;
@@ -148,4 +147,24 @@ void cbdc_copy_to_bio(struct cbd_channel *channel,
 u32 cbd_channel_crc(struct cbd_channel *channel, u32 data_off, u32 data_len);
 int cbdc_map_pages(struct cbd_channel *channel, struct bio *bio, u32 off, u32 size);
 
+static inline u64 cbd_channel_flags_get(struct cbd_channel_ctrl *channel_ctrl)
+{
+	return smp_load_acquire(&channel_ctrl->flags);
+}
+
+static inline void cbd_channel_flags_set_bit(struct cbd_channel_ctrl *channel_ctrl, u64 set)
+{
+	u64 flags = cbd_channel_flags_get(channel_ctrl);
+
+	flags |= set;
+	smp_store_release(&channel_ctrl->flags, flags);
+}
+
+static inline void cbd_channel_flags_clear_bit(struct cbd_channel_ctrl *channel_ctrl, u64 clear)
+{
+	u64 flags = cbd_channel_flags_get(channel_ctrl);
+
+	flags &= ~clear;
+	smp_store_release(&channel_ctrl->flags, flags);
+}
 #endif /* _CBD_CHANNEL_H */

@@ -365,12 +365,19 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 
 static void queue_reset_channel(struct cbd_queue *cbdq)
 {
-	smp_mb();
-	cbdq->channel_ctrl->need_reset = 1;
+	cbd_channel_flags_set_bit(cbdq->channel_ctrl, CBDC_FLAGS_NEED_RESET);
 
-	smp_mb();
-	while (cbdq->channel_ctrl->need_reset || !queue_subm_ring_empty(cbdq))
-		fsleep(100000);
+	while (true) {
+		schedule_timeout(HZ);
+
+		if (cbd_channel_flags_get(cbdq->channel_ctrl) & CBDC_FLAGS_NEED_RESET)
+			continue;
+
+		if (!queue_subm_ring_empty(cbdq))
+			continue;
+
+		break;
+	}
 }
 
 static void complete_work_fn(struct work_struct *work)
@@ -515,7 +522,8 @@ static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	cbdq->channel_ctrl = cbdq->channel.ctrl;
 
 	if (!cbd_blkdev->backend)
-		cbdq->channel_ctrl->polling = true;
+		cbd_channel_flags_set_bit(cbdq->channel_ctrl, CBDC_FLAGS_POLLING);
+
 	return 0;
 }
 

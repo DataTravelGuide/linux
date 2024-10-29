@@ -234,8 +234,7 @@ static void handler_reset(struct cbd_handler *handler)
 	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
 	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
-	/* Clear reset flag using release semantics */
-	smp_store_release(&handler->channel_ctrl->need_reset, 0);
+	cbd_channel_flags_clear_bit(handler->channel_ctrl, CBDC_FLAGS_NEED_RESET);
 }
 
 #ifdef CONFIG_CBD_CRC
@@ -284,7 +283,7 @@ static void handle_work_fn(struct work_struct *work)
 	u64 req_tid;
 	int ret;
 
-	if (handler->channel_ctrl->need_reset) {
+	if (cbd_channel_flags_get(handler->channel_ctrl) & CBDC_FLAGS_NEED_RESET) {
 		if (atomic_read(&handler->inflight_cmds))
 			goto out;
 
@@ -330,7 +329,7 @@ miss:
 
 out:
 	/* Queue next work based on polling status */
-	if (handler->channel_ctrl->polling)
+	if (cbd_channel_flags_get(handler->channel_ctrl) & CBDC_FLAGS_POLLING)
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 	else
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 1);
@@ -355,8 +354,7 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bo
 	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
 	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
-	handler->channel_ctrl->need_reset = 0;
-	handler->channel_ctrl->polling = 0;
+	cbd_channel_flags_clear_bit(handler->channel_ctrl, ~0ULL);
 }
 
 int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channel)
