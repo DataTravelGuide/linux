@@ -62,7 +62,11 @@ static ssize_t blkdev_mapped_id_show(struct device *dev,
 
 static DEVICE_ATTR(mapped_id, 0400, blkdev_mapped_id_show, NULL);
 
-static void cbd_blkdev_hb(struct cbd_blkdev *blkdev);
+static void blkdev_info_write(struct cbd_blkdev *blkdev);
+static void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
+{
+	blkdev_info_write(blkdev);
+}
 CBD_OBJ_HEARTBEAT(blkdev);
 
 static struct attribute *cbd_blkdev_attrs[] = {
@@ -172,6 +176,27 @@ err:
 	return ret;
 }
 
+/**
+ * disk_start - Initialize and start a block device.
+ * @cbd_blkdev: Pointer to the cbd_blkdev structure representing the block device.
+ *
+ * This function sets up the block device's tag set for I/O operations,
+ * allocates the gendisk structure, and initializes the device parameters.
+ * It sets various limits for the device's I/O operations and prepares the
+ * block device for use.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ *
+ * - Allocates a tag set for managing request queues.
+ * - Allocates a gendisk structure for the block device.
+ * - Sets device properties such as name, major and minor numbers.
+ * - Adds the device to the block layer.
+ * - Creates a symlink in sysfs to the device.
+ *
+ * On failure, cleans up previously allocated resources:
+ * - Frees the tag set.
+ * - Deletes the gendisk structure.
+ */
 static int disk_start(struct cbd_blkdev *cbd_blkdev)
 {
 	struct gendisk *disk;
@@ -197,12 +222,14 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 	cbd_blkdev->tag_set.timeout = 0;
 	cbd_blkdev->tag_set.driver_data = cbd_blkdev;
 
+	/* Allocate the tag set for block management */
 	ret = blk_mq_alloc_tag_set(&cbd_blkdev->tag_set);
 	if (ret) {
 		cbd_blk_err(cbd_blkdev, "failed to alloc tag set %d", ret);
 		goto err;
 	}
 
+	/* Allocate the disk structure for this block device */
 	disk = blk_mq_alloc_disk(&cbd_blkdev->tag_set, &lim, cbd_blkdev);
 	if (IS_ERR(disk)) {
 		ret = PTR_ERR(disk);
@@ -210,6 +237,7 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 		goto out_tag_set;
 	}
 
+	/* Set the disk name and properties */
 	snprintf(disk->disk_name, sizeof(disk->disk_name), "cbd%d",
 		 cbd_blkdev->mapped_id);
 
@@ -223,13 +251,16 @@ static int disk_start(struct cbd_blkdev *cbd_blkdev)
 	cbdt_add_blkdev(cbd_blkdev->cbdt, cbd_blkdev);
 	cbd_blkdev->blkdev_info.mapped_id = cbd_blkdev->blkdev_id;
 
+	/* Set the capacity of the block device */
 	set_capacity(cbd_blkdev->disk, cbd_blkdev->dev_size);
 	set_disk_ro(cbd_blkdev->disk, false);
 
+	/* Register the disk with the system */
 	ret = add_disk(cbd_blkdev->disk);
 	if (ret)
 		goto put_disk;
 
+	/* Create a symlink to the block device */
 	ret = sysfs_create_link(&disk_to_dev(cbd_blkdev->disk)->kobj,
 				&cbd_blkdev->blkdev_dev->dev.kobj, "cbd_blkdev");
 	if (ret)
@@ -266,17 +297,13 @@ static void blkdev_info_write(struct cbd_blkdev *blkdev)
 	mutex_unlock(&blkdev->info_lock);
 }
 
-int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
+static int blkdev_start_validate(struct cbd_transport *cbdt, struct cbd_backend_info *backend_info,
+			     u32 backend_id, u32 queues)
 {
-	struct cbd_blkdev *cbd_blkdev;
-	struct cbd_backend_info *backend_info;
 	struct cbd_blkdev_info *blkdev_info;
-	u32 backend_blkdevs = 0;
-	u64 dev_size;
-	int ret;
-	int i;
+	u32 backend_blkdevs = 0; /* count how many blkdevs connected to backend of backend_id */
+	u32 i;
 
-	backend_info = cbdt_backend_info_read(cbdt, backend_id, NULL);
 	if (!backend_info || !cbd_backend_info_is_alive(backend_info)) {
 		cbdt_err(cbdt, "backend %u is not alive\n", backend_id);
 		return -EINVAL;
@@ -304,17 +331,23 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		return -EINVAL;
 	}
 
-	dev_size = backend_info->dev_size;
+	return 0;
+}
+
+static struct cbd_blkdev *blkdev_alloc(struct cbd_transport *cbdt)
+{
+	struct cbd_blkdev *cbd_blkdev;
+	int ret;
 
 	cbd_blkdev = kzalloc(sizeof(struct cbd_blkdev), GFP_KERNEL);
 	if (!cbd_blkdev)
-		return -ENOMEM;
+		return NULL;
 
+	cbd_blkdev->cbdt = cbdt;
 	mutex_init(&cbd_blkdev->lock);
 	mutex_init(&cbd_blkdev->info_lock);
-
-	if (backend_info->host_id == cbdt->host->host_id)
-		cbd_blkdev->backend = cbdt_get_backend(cbdt, backend_id);
+	INIT_LIST_HEAD(&cbd_blkdev->node);
+	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
 
 	ret = cbdt_get_empty_blkdev_id(cbdt, &cbd_blkdev->blkdev_id);
 	if (ret < 0)
@@ -335,61 +368,123 @@ int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
 		goto ida_remove;
 	}
 
-	INIT_LIST_HEAD(&cbd_blkdev->node);
-	cbd_blkdev->cbdt = cbdt;
+	return cbd_blkdev;
+ida_remove:
+	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
+blkdev_free:
+	kfree(cbd_blkdev);
+
+	return NULL;
+}
+
+static void blkdev_free(struct cbd_blkdev *cbd_blkdev)
+{
+	drain_workqueue(cbd_blkdev->task_wq);
+	destroy_workqueue(cbd_blkdev->task_wq);
+	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
+	kfree(cbd_blkdev);
+}
+
+static int blkdev_cache_init(struct cbd_blkdev *cbd_blkdev)
+{
+	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
+	struct cbd_cache_opts cache_opts = { 0 };
+
+	cache_opts.cache_info = &cbd_blkdev->cache_info;
+	cache_opts.cache_id = cbd_blkdev->backend_id;
+	cache_opts.owner = NULL;
+	cache_opts.new_cache = false;
+	cache_opts.start_writeback = false;
+	cache_opts.start_gc = true;
+	cache_opts.init_keys = true;
+	cache_opts.dev_size = cbd_blkdev->dev_size;
+	cache_opts.n_paral = cbd_blkdev->num_queues;
+
+	cbd_blkdev->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
+	if (!cbd_blkdev->cbd_cache)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void blkdev_cache_destroy(struct cbd_blkdev *cbd_blkdev)
+{
+	if (cbd_blkdev->cbd_cache)
+		cbd_cache_destroy(cbd_blkdev->cbd_cache);
+}
+
+static int blkdev_init(struct cbd_blkdev *cbd_blkdev, struct cbd_backend_info *backend_info,
+			u32 backend_id, u32 queues)
+{
+	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
+	int ret;
+
 	cbd_blkdev->backend_id = backend_id;
 	cbd_blkdev->num_queues = queues;
-	cbd_blkdev->dev_size = dev_size;
+	cbd_blkdev->dev_size = backend_info->dev_size;
 	cbd_blkdev->blkdev_dev = &cbdt->cbd_blkdevs_dev->blkdev_devs[cbd_blkdev->blkdev_id];
+	if (backend_info->host_id == cbdt->host->host_id)
+		cbd_blkdev->backend = cbdt_get_backend(cbdt, backend_id);
 
 	cbd_blkdev->blkdev_info.backend_id = backend_id;
 	cbd_blkdev->blkdev_info.host_id = cbdt->host->host_id;
 	cbd_blkdev->blkdev_info.state = cbd_blkdev_state_running;
 
-	if (cbd_backend_cache_on(backend_info)) {
-		struct cbd_cache_opts cache_opts = { 0 };
-
-		cache_opts.cache_info = &cbd_blkdev->cache_info;
-		cache_opts.cache_id = backend_id;
-		cache_opts.owner = NULL;
-		cache_opts.new_cache = false;
-		cache_opts.start_writeback = false;
-		cache_opts.start_gc = true;
-		cache_opts.init_keys = true;
-		cache_opts.dev_size = dev_size;
-		cache_opts.n_paral = cbd_blkdev->num_queues;
-		cbd_blkdev->cbd_cache = cbd_cache_alloc(cbdt, &cache_opts);
-		if (!cbd_blkdev->cbd_cache) {
-			ret = -ENOMEM;
-			goto destroy_wq;
-		}
-	}
-
 	ret = cbd_blkdev_create_queues(cbd_blkdev, backend_info->handler_channels);
 	if (ret < 0)
-		goto destroy_cache;
+		goto err;
+
+	if (cbd_backend_cache_on(backend_info)) {
+		ret = blkdev_cache_init(cbd_blkdev);
+		if (ret)
+			goto destroy_queues;
+	}
 
 	blkdev_info_write(cbd_blkdev);
-	INIT_DELAYED_WORK(&cbd_blkdev->hb_work, blkdev_hb_workfn);
 	queue_delayed_work(cbd_wq, &cbd_blkdev->hb_work, 0);
+
+	return 0;
+destroy_queues:
+	cbd_blkdev_destroy_queues(cbd_blkdev);
+err:
+	return ret;
+}
+
+static void blkdev_destroy(struct cbd_blkdev *cbd_blkdev)
+{
+	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
+	blkdev_cache_destroy(cbd_blkdev);
+	cbd_blkdev_destroy_queues(cbd_blkdev);
+}
+
+int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues)
+{
+	struct cbd_blkdev *cbd_blkdev;
+	struct cbd_backend_info *backend_info;
+	int ret;
+
+	backend_info = cbdt_backend_info_read(cbdt, backend_id, NULL);
+	ret = blkdev_start_validate(cbdt, backend_info, backend_id, queues);
+	if (ret)
+		return ret;
+
+	cbd_blkdev = blkdev_alloc(cbdt);
+	if (!cbd_blkdev)
+		return -ENOMEM;
+
+	ret = blkdev_init(cbd_blkdev, backend_info, backend_id, queues);
+	if (ret)
+		goto blkdev_free;
 
 	ret = disk_start(cbd_blkdev);
 	if (ret < 0)
-		goto destroy_queues;
+		goto blkdev_destroy;
 	return 0;
 
-destroy_queues:
-	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
-	cbd_blkdev_destroy_queues(cbd_blkdev);
-destroy_cache:
-	if (cbd_blkdev->cbd_cache)
-		cbd_cache_destroy(cbd_blkdev->cbd_cache);
-destroy_wq:
-	destroy_workqueue(cbd_blkdev->task_wq);
-ida_remove:
-	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
+blkdev_destroy:
+	blkdev_destroy(cbd_blkdev);
 blkdev_free:
-	kfree(cbd_blkdev);
+	blkdev_free(cbd_blkdev);
 	return ret;
 }
 
@@ -410,21 +505,10 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 	cbdt_del_blkdev(cbdt, cbd_blkdev);
 	mutex_unlock(&cbd_blkdev->lock);
 
-	cbd_blkdev_stop_queues(cbd_blkdev);
 	disk_stop(cbd_blkdev);
-	kfree(cbd_blkdev->queues);
-
-	cancel_delayed_work_sync(&cbd_blkdev->hb_work);
-
-	drain_workqueue(cbd_blkdev->task_wq);
-	destroy_workqueue(cbd_blkdev->task_wq);
-	ida_simple_remove(&cbd_mapped_id_ida, cbd_blkdev->mapped_id);
-
-	if (cbd_blkdev->cbd_cache)
-		cbd_cache_destroy(cbd_blkdev->cbd_cache);
-
+	blkdev_destroy(cbd_blkdev);
+	blkdev_free(cbd_blkdev);
 	cbdt_blkdev_info_clear(cbdt, devid);
-	kfree(cbd_blkdev);
 
 	return 0;
 }
@@ -464,9 +548,4 @@ int cbd_blkdev_init(void)
 void cbd_blkdev_exit(void)
 {
 	unregister_blkdev(cbd_major, "cbd");
-}
-
-static void cbd_blkdev_hb(struct cbd_blkdev *blkdev)
-{
-	blkdev_info_write(blkdev);
 }
