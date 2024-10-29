@@ -623,6 +623,16 @@ destroy_cbdb:
 	return ret;
 }
 
+/**
+ * backend_blkdevs_stopped - Check if all block devices are stopped for a given backend.
+ * @cbdt: Pointer to the cbd_transport structure.
+ * @backend_id: ID of the backend to check.
+ *
+ * This function iterates through all block device information entries
+ * associated with the given backend ID. If any block device is found
+ * to be in the running state, it logs an error message and returns false.
+ * If all block devices are stopped, it returns true.
+ */
 static bool backend_blkdevs_stopped(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_blkdev_info *blkdev_info;
@@ -687,50 +697,14 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	return 0;
 }
 
-/**
- * cbd_backend_clear - Clear the specified backend.
- * @cbdt: Pointer to the cbd_transport structure associated with the backend.
- * @backend_id: Identifier for the backend to be cleared.
- *
- * This function handles the clearing of a backend that cannot be recovered.
- * It first checks if the backend info is corrupted or if the backend is still alive,
- * returning -EINVAL or -EBUSY, respectively. Then, it verifies that no block devices
- * are currently connected to the backend. If the backend's state is already set to
- * none, it simply returns 0.
- *
- * The function iterates through the segments associated with the transport to release
- * any channels or cache segments that are using the specified backend. Finally, it clears
- * the backend info from the transport.
- *
- * Returns 0 on success, or a negative error code on failure.
- */
-int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
+static void backend_segs_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
-	struct cbd_backend_info *backend_info;
-	int i;
-
-	backend_info = cbdt_backend_info_read(cbdt, backend_id, NULL);
-	if (!backend_info) {
-		cbdt_err(cbdt, "all backend_info in backend_id: %u are corrupted.\n", backend_id);
-		return -EINVAL;
-	}
-
-	if (cbd_backend_info_is_alive(backend_info)) {
-		cbdt_err(cbdt, "backend %u is still alive\n", backend_id);
-		return -EBUSY;
-	}
-
-	if (backend_info->state == cbd_backend_state_none)
-		return 0;
-
-	if (!backend_blkdevs_stopped(cbdt, backend_id))
-		return -EBUSY;
+	struct cbd_segment_info *seg_info;
+	struct cbd_channel_seg_info *channel_info;
+	struct cbd_cache_seg_info *cache_seg_info;
+	u32 i;
 
 	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
-		struct cbd_segment_info *seg_info;
-		struct cbd_channel_seg_info *channel_info;
-		struct cbd_cache_seg_info *cache_seg_info;
-
 		seg_info = cbdt_segment_info_read(cbdt, i, NULL);
 		if (!seg_info)
 			continue;
@@ -750,7 +724,30 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 				cbd_segment_clear(cbdt, i);
 		}
 	}
+}
 
+int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
+{
+	struct cbd_backend_info *backend_info;
+
+	backend_info = cbdt_backend_info_read(cbdt, backend_id, NULL);
+	if (!backend_info) {
+		cbdt_err(cbdt, "all backend_info in backend_id: %u are corrupted.\n", backend_id);
+		return -EINVAL;
+	}
+
+	if (cbd_backend_info_is_alive(backend_info)) {
+		cbdt_err(cbdt, "backend %u is still alive\n", backend_id);
+		return -EBUSY;
+	}
+
+	if (backend_info->state == cbd_backend_state_none)
+		return 0;
+
+	if (!backend_blkdevs_stopped(cbdt, backend_id))
+		return -EBUSY;
+
+	backend_segs_clear(cbdt, backend_id);
 	cbdt_backend_info_clear(cbdt, backend_id);
 
 	return 0;
