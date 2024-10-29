@@ -43,7 +43,19 @@ static ssize_t backend_path_show(struct device *dev,
 }
 static DEVICE_ATTR(path, 0400, backend_path_show, NULL);
 
-static void cbd_backend_hb(struct cbd_backend *cbdb);
+/**
+ * cbd_backend_hb - Update the backend information as part of the heartbeat.
+ * @cbdb: Pointer to the cbd_backend structure.
+ *
+ * This function is invoked as part of the heartbeat work (hb_work).
+ * It updates the backend information, specifically the alive timestamp
+ * (alive_ts), ensuring that the backend is marked as alive and responsive.
+ */
+static void cbd_backend_hb(struct cbd_backend *cbdb)
+{
+	cbd_backend_info_write(cbdb);
+}
+
 CBD_OBJ_HEARTBEAT(backend);
 
 static struct attribute *cbd_backend_attrs[] = {
@@ -573,6 +585,21 @@ static void cbd_backend_free(struct cbd_backend *cbdb)
 	kfree(cbdb);
 }
 
+/**
+ * cbd_backend_start - Main function to start a backend.
+ * @cbdt: Pointer to the cbd_transport structure associated with the backend.
+ * @path: Path to the backend storage.
+ * @backend_id: Identifier for the backend.
+ * @handlers: Number of handler instances to create.
+ * @cache_segs: Number of cache segments to allocate.
+ *
+ * This function orchestrates the entire process of starting a backend. It allocates
+ * the backend structure, initializes it with the provided parameters, writes the
+ * backend info, and starts the heartbeat work. If any step fails, it cleans up
+ * and frees the allocated resources before returning an error code.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cbd_backend_start(struct cbd_transport *cbdt, char *path, u32 backend_id,
 		      u32 handlers, u32 cache_segs)
 {
@@ -601,6 +628,19 @@ destroy_cbdb:
 	return ret;
 }
 
+/**
+ * cbd_backend_stop - Main function to stop a backend.
+ * @cbdt: Pointer to the cbd_transport structure associated with the backend.
+ * @backend_id: Identifier for the backend to be stopped.
+ *
+ * This function handles the process of stopping a backend. It first checks if the
+ * specified backend is valid and ensures that no block devices are currently
+ * connected to it. If the backend is already in the process of stopping, it returns
+ * -EBUSY. Otherwise, it sets the backend state to stopping, cleans up associated
+ * resources, and updates the backend info.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
@@ -643,6 +683,23 @@ int cbd_backend_stop(struct cbd_transport *cbdt, u32 backend_id)
 	return 0;
 }
 
+/**
+ * cbd_backend_clear - Clear the specified backend.
+ * @cbdt: Pointer to the cbd_transport structure associated with the backend.
+ * @backend_id: Identifier for the backend to be cleared.
+ *
+ * This function handles the clearing of a backend that cannot be recovered.
+ * It first checks if the backend info is corrupted or if the backend is still alive,
+ * returning -EINVAL or -EBUSY, respectively. Then, it verifies that no block devices
+ * are currently connected to the backend. If the backend's state is already set to
+ * none, it simply returns 0.
+ *
+ * The function iterates through the segments associated with the transport to release
+ * any channels or cache segments that are using the specified backend. Finally, it clears
+ * the backend info from the transport.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
 int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 {
 	struct cbd_backend_info *backend_info;
@@ -703,11 +760,34 @@ int cbd_backend_clear(struct cbd_transport *cbdt, u32 backend_id)
 	return 0;
 }
 
+/**
+ * cbd_backend_cache_on - Check if the backend has an active cache.
+ * @backend_info: Pointer to the cbd_backend_info structure of the backend.
+ *
+ * This function determines if the specified backend has an active cache
+ * by checking the number of cache segments. In a single-host scenario,
+ * this is useful for block devices to ascertain if the corresponding
+ * backend utilizes caching.
+ *
+ * Returns true if the backend has one or more cache segments, false otherwise.
+ */
 bool cbd_backend_cache_on(struct cbd_backend_info *backend_info)
 {
 	return (backend_info->cache_info.n_segs != 0);
 }
 
+/**
+ * cbd_backend_notify - Notify the backend to handle an I/O request.
+ * @cbdb: Pointer to the cbd_backend structure.
+ * @seg_id: Segment ID associated with the request.
+ *
+ * This function is called in a single-host scenario after a block device
+ * sends an I/O request. It retrieves the corresponding handler for the
+ * given segment ID and, if the handler is ready, notifies it to proceed
+ * with handling the request. If the handler is not ready, the function
+ * returns immediately, allowing the handler to queue the handle_work
+ * while being created.
+ */
 void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id)
 {
 	struct cbd_handler *handler;
@@ -715,15 +795,10 @@ void cbd_backend_notify(struct cbd_backend *cbdb, u32 seg_id)
 	handler = cbdb_get_handler(cbdb, seg_id);
 	/*
 	 * If the handler is not ready, return directly and
-	 * wait handler to queue the handle_work in creating
+	 * wait for the handler to queue the handle_work during creation.
 	 */
 	if (!handler)
 		return;
+
 	cbd_handler_notify(handler);
 }
-
-static void cbd_backend_hb(struct cbd_backend *cbdb)
-{
-	cbd_backend_info_write(cbdb);
-}
-
