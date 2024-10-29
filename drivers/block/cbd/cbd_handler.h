@@ -39,4 +39,19 @@ void cbd_handler_destroy(struct cbd_handler *handler);
 int cbd_handler_create(struct cbd_backend *cbdb, u32 seg_id, bool init_channel);
 void cbd_handler_notify(struct cbd_handler *handler);
 
+static inline struct cbd_se *get_se_head(struct cbd_handler *handler)
+{
+	return (struct cbd_se *)(handler->channel.submr + handler->channel_ctrl->submr_head);
+}
+
+static inline struct cbd_se *get_se_to_handle(struct cbd_handler *handler)
+{
+	return (struct cbd_se *)(handler->channel.submr + handler->se_to_handle);
+}
+
+static inline struct cbd_ce *get_compr_head(struct cbd_handler *handler)
+{
+	return (struct cbd_ce *)(handler->channel.compr + handler->channel_ctrl->compr_head);
+}
+
 #endif /* _CBD_HANDLER_H */
