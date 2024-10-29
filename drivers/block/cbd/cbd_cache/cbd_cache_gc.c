@@ -37,7 +37,7 @@ static bool need_gc(struct cbd_cache *cache)
 	/* Refresh dirty_tail position; it may be updated by writeback on the block device side */
 	ret = cache_decode_dirty_tail(cache);
 	if (ret) {
-		cbd_cache_err(cache, "failed to decode dirty_tail\n");
+		cbd_cache_debug(cache, "failed to decode dirty_tail\n");
 		return false;
 	}
 
@@ -45,14 +45,14 @@ static bool need_gc(struct cbd_cache *cache)
 	dirty_addr = cache_pos_addr(&cache->dirty_tail);
 	key_addr = cache_pos_addr(&cache->key_tail);
 	if (dirty_addr == key_addr) {
-		cbd_cache_err(cache, "key tail is equal to dirty tail.\n");
+		cbd_cache_debug(cache, "key tail is equal to dirty tail.\n");
 		return false;
 	}
 
 	/* Check if kset_onmedia is corrupted */
 	kset_onmedia = (struct cbd_cache_kset_onmedia *)key_addr;
 	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
-		cbd_cache_err(cache, "gc error: magic is not as expected. key_tail: %u:%u magic: %llx, expected: %llx\n",
+		cbd_cache_debug(cache, "gc error: magic is not as expected. key_tail: %u:%u magic: %llx, expected: %llx\n",
 					cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off,
 					kset_onmedia->magic, CBD_KSET_MAGIC);
 		return false;
@@ -60,7 +60,7 @@ static bool need_gc(struct cbd_cache *cache)
 
 	/* Verify the CRC of the kset_onmedia */
 	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-		cbd_cache_err(cache, "gc error: crc is not as expected. crc: %x, expected: %x\n",
+		cbd_cache_debug(cache, "gc error: crc is not as expected. crc: %x, expected: %x\n",
 					cache_kset_crc(kset_onmedia), kset_onmedia->crc);
 		return false;
 	}
@@ -73,7 +73,7 @@ static bool need_gc(struct cbd_cache *cache)
 	segs_used = bitmap_weight(cache->seg_map, cache->n_segs);
 	segs_gc_threshold = cache->n_segs * cache->cache_info->gc_percent / 100;
 	if (segs_used < segs_gc_threshold) {
-		cbd_cache_err(cache, "segs_used: %u, segs_gc_threshold: %u\n", segs_used, segs_gc_threshold);
+		cbd_cache_debug(cache, "segs_used: %u, segs_gc_threshold: %u\n", segs_used, segs_gc_threshold);
 		return false;
 	}
 
@@ -135,13 +135,10 @@ void cbd_cache_gc_fn(struct work_struct *work)
 	int i;
 
 	while (true) {
-		cbd_cache_err(cache, "into gc %u:%u\n", cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off);
-
 		/* Check if garbage collection is needed */
 		if (!need_gc(cache))
 			break;
 
-		cbd_cache_err(cache, "need gc\n");
 		kset_onmedia = (struct cbd_cache_kset_onmedia *)cache_pos_addr(&cache->key_tail);
 
 		/* Handle the last kset differently */

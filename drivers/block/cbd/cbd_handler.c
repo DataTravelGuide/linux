@@ -144,7 +144,6 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
 static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool new_channel);
 static void handler_reset(struct cbd_handler *handler)
 {
-	pr_err("channel_reset\n");
 	handler->req_tid_expected = U64_MAX;
 	handler->se_to_handle = 0;
 
@@ -166,7 +165,6 @@ static void handle_work_fn(struct work_struct *work)
 
 	smp_mb();
 	if (handler->channel_ctrl->need_reset) {
-		pr_err("need_reset\n");
 		if (atomic_read(&handler->inflight_cmds))
 			goto out;
 
@@ -253,7 +251,6 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bo
 
 int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channel)
 {
-	struct cbd_transport *cbdt = cbdb->cbdt;
 	struct cbd_handler *handler;
 	int ret;
 
@@ -291,10 +288,8 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 
 	cancel_delayed_work_sync(&handler->handle_work);
 
-	pr_err("before inflith\n");
 	while (atomic_read(&handler->inflight_cmds))
 		fsleep(100000);
-	pr_err("after inflight\n");
 
 	cbd_channel_destroy(&handler->channel);
 

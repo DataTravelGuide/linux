@@ -29,17 +29,17 @@ static inline bool is_cache_clean(struct cbd_cache *cache)
 
 	/* Check if the magic number matches the expected value */
 	if (kset_onmedia->magic != CBD_KSET_MAGIC) {
-		cbd_cache_err(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
-			      pos->cache_seg->cache_seg_id, pos->seg_off,
-			      kset_onmedia->magic, CBD_KSET_MAGIC);
+		cbd_cache_debug(cache, "dirty_tail: %u:%u magic: %llx, not expected: %llx\n",
+				pos->cache_seg->cache_seg_id, pos->seg_off,
+				kset_onmedia->magic, CBD_KSET_MAGIC);
 		return true; /* Incomplete dirty tail, cache is clean */
 	}
 
 	/* Verify the CRC checksum for data integrity */
 	if (kset_onmedia->crc != cache_kset_crc(kset_onmedia)) {
-		cbd_cache_err(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
-			      pos->cache_seg->cache_seg_id, pos->seg_off,
-			      cache_kset_crc(kset_onmedia), kset_onmedia->crc);
+		cbd_cache_debug(cache, "dirty_tail: %u:%u crc: %x, not expected: %x\n",
+				pos->cache_seg->cache_seg_id, pos->seg_off,
+				cache_kset_crc(kset_onmedia), kset_onmedia->crc);
 		return true; /* Incomplete dirty tail, cache is clean */
 	}
 

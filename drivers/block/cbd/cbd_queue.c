@@ -539,9 +539,7 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 		goto out;
 	}
 
-	pr_err("before reset\n");
 	queue_reset_channel(cbdq);
-	pr_err("after reset\n");
 
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 
