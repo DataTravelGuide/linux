@@ -166,6 +166,16 @@ static void append_last_kset(struct cbd_cache *cache, u32 next_seg)
 	cache_pos_advance(&cache->key_head, sizeof(struct cbd_cache_kset_onmedia));  /* Advance key head position */
 }
 
+/**
+ * key_data_flush - Flush the data of a cache key to persistent media.
+ * @cache: Pointer to the cache structure.
+ * @key: Pointer to the cache key whose data is to be flushed.
+ *
+ * This function flushes the data associated with the specified cache key
+ * to ensure that it is persisted in the underlying media. It retrieves the
+ * address of the data using the cache position and then calls the appropriate
+ * flush function to perform the operation.
+ */
 static void key_data_flush(struct cbd_cache *cache, struct cbd_cache_key *key)
 {
 	void *pos;
@@ -174,6 +184,20 @@ static void key_data_flush(struct cbd_cache *cache, struct cbd_cache_key *key)
 	cbdt_flush(cache->cbdt, pos, key->len);
 }
 
+/**
+ * kset_data_flush - Flush the data of all keys in a kset to persistent media.
+ * @cache: Pointer to the cache structure.
+ * @kset_onmedia: Pointer to the kset on media containing keys to be flushed.
+ *
+ * This function iterates through all the keys in the specified kset and
+ * flushes their data to ensure that it is persisted in the underlying media
+ * before the kset is closed. It initializes a temporary cache key structure,
+ * decodes the key information from the on-media format, and calls the
+ * key_data_flush function for each key.
+ *
+ * This function should be called during the kset_close process to guarantee
+ * that all key data is safely stored before finalizing the kset.
+ */
 static void kset_data_flush(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *kset_onmedia)
 {
 	struct cbd_cache_key_onmedia *key_onmedia;
@@ -183,11 +207,9 @@ static void kset_data_flush(struct cbd_cache *cache, struct cbd_cache_kset_onmed
 	for (i = 0; i < kset_onmedia->key_num; i++) {
 		struct cbd_cache_key key_tmp = { 0 };
 
-		key_onmedia = &kset_onmedia->data[i];
-
 		key = &key_tmp;
+		key_onmedia = &kset_onmedia->data[i];
 		cache_key_init(cache, key);
-
 		cache_key_decode(key_onmedia, key);
 
 		key_data_flush(cache, key);
@@ -238,6 +260,13 @@ again:
 	kset_onmedia->magic = CBD_KSET_MAGIC;  /* Set magic number */
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);  /* Compute CRC */
 
+	/*
+	 * Before writing kset_onmedia to the key head address,
+	 * we need to ensure that all the data corresponding to
+	 * the keys in the kset have been flushed to persistent media.
+	 * This guarantees that the key data is safely stored before
+	 * the kset itself is persisted.
+	 */
 	kset_data_flush(cache, kset_onmedia);
 
 	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
