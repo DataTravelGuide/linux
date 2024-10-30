@@ -151,7 +151,7 @@ out:										\
 }										\
 										\
 struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,	\
-	       					u32 id,				\
+						u32 id,				\
 						u32 *info_index)		\
 {										\
 	struct cbd_##OBJ##_info *info, *latest = NULL;				\
@@ -421,6 +421,25 @@ out:
 	return ret;
 }
 
+/**
+ * cbdt_flush - Flush a specified range of data to persistent storage.
+ * @cbdt: Pointer to the CBD transport structure.
+ * @pos: Pointer to the starting address of the data range to flush.
+ * @size: Size of the data range to flush.
+ *
+ * This function ensures that the data in the specified address range
+ * is persisted to storage. It handles the following scenarios:
+ *
+ * - If using NVDIMM in a single-host scenario with ADR support,
+ *   then after calling dax_flush, the data will be persistent.
+ *   For more information on ADR, refer to:
+ *   https://pmem.io/glossary/#adr
+ *
+ * - If using CXL persistent memory, the function should comply with
+ *   Global Persistent Flush (GPF) as described in section 9.8 of
+ *   the CXL SPEC 3.1. In this case, dax_flush is also sufficient
+ *   to ensure data persistence.
+ */
 void cbdt_flush(struct cbd_transport *cbdt, void *pos, u32 size)
 {
 	dax_flush(cbdt->dax_dev, pos, size);
