@@ -15,8 +15,6 @@
 	cbd_blk_debug(queue->cbd_blkdev, "queue%d: " fmt,			\
 		     queue->channel.seg_id, ##__VA_ARGS__)
 
-/* cbd_queue */
-
 struct cbd_request {
 	struct cbd_queue	*cbdq;
 

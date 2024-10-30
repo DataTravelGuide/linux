@@ -141,6 +141,7 @@ int cbdc_map_pages(struct cbd_channel *channel, struct bio *bio, u32 off, u32 si
 
 static inline u64 cbd_channel_flags_get(struct cbd_channel_ctrl *channel_ctrl)
 {
+	/* get value written by the writter */
 	return smp_load_acquire(&channel_ctrl->flags);
 }
 
@@ -149,6 +150,7 @@ static inline void cbd_channel_flags_set_bit(struct cbd_channel_ctrl *channel_ct
 	u64 flags = cbd_channel_flags_get(channel_ctrl);
 
 	flags |= set;
+	/* order the update of flags */
 	smp_store_release(&channel_ctrl->flags, flags);
 }
 
@@ -157,13 +159,31 @@ static inline void cbd_channel_flags_clear_bit(struct cbd_channel_ctrl *channel_
 	u64 flags = cbd_channel_flags_get(channel_ctrl);
 
 	flags &= ~clear;
+	/* order the update of flags */
 	smp_store_release(&channel_ctrl->flags, flags);
 }
 
+/**
+ * CBDC_CTRL_ACCESSOR - Create accessor functions for channel control members
+ * @MEMBER: The name of the member in the control structure.
+ * @SIZE: The size of the corresponding ring buffer.
+ *
+ * This macro defines two inline functions for accessing and updating the
+ * specified member of the control structure for a given channel.
+ *
+ * For submr_head, submr_tail, and compr_tail:
+ * (1) They have a unique writer on the blkdev side, while the backend
+ *     acts only as a reader.
+ *
+ * For compr_head:
+ * (2) The unique writer is on the backend side, with the blkdev acting
+ *     only as a reader.
+ */
 #define CBDC_CTRL_ACCESSOR(MEMBER, SIZE)						\
 static inline u32 cbdc_##MEMBER##_get(struct cbd_channel *channel)			\
 {											\
-	return (smp_load_acquire(&channel->ctrl->MEMBER));				\
+	/* order the ring update */							\
+	return smp_load_acquire(&channel->ctrl->MEMBER);				\
 }											\
 											\
 static inline void cbdc_## MEMBER ##_advance(struct cbd_channel *channel, u32 len)	\
@@ -171,6 +191,7 @@ static inline void cbdc_## MEMBER ##_advance(struct cbd_channel *channel, u32 le
 	u32 val = cbdc_## MEMBER ##_get(channel);					\
 											\
 	val = (val + len) % channel->SIZE;						\
+	/* order the ring update */							\
 	smp_store_release(&channel->ctrl->MEMBER, val);					\
 }
 
