@@ -78,13 +78,13 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 static bool submit_ring_full(struct cbd_queue *cbdq)
 {
 	u32 space_available = cbdq->channel.submr_size;
-	struct cbd_channel_ctrl *ctrl = cbdq->channel_ctrl;
+	struct cbd_channel *channel = &cbdq->channel;
 
-	if (ctrl->submr_head > ctrl->submr_tail) {
-		space_available = cbdq->channel.submr_size - ctrl->submr_head;
-		space_available += ctrl->submr_tail;
-	} else if (ctrl->submr_head < ctrl->submr_tail) {
-		space_available = ctrl->submr_tail - ctrl->submr_head;
+	if (cbdc_submr_head_get(channel) > cbdc_submr_tail_get(channel)) {
+		space_available = cbdq->channel.submr_size - cbdc_submr_head_get(channel);
+		space_available += cbdc_submr_tail_get(channel);
+	} else if (cbdc_submr_head_get(channel) < cbdc_submr_tail_get(channel)) {
+		space_available = cbdc_submr_tail_get(channel) - cbdc_submr_head_get(channel);
 	}
 
 	/* There is a SUBMR_RESERVED we dont use to prevent the ring to be used up */
@@ -208,9 +208,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
 #endif
-	CBDC_UPDATE_SUBMR_HEAD(cbdq->channel_ctrl->submr_head,
-			sizeof(struct cbd_se),
-			cbdq->channel.submr_size);
+	cbdc_submr_head_advance(&cbdq->channel, sizeof(struct cbd_se));
 	spin_unlock(&cbdq->channel.submr_lock);
 
 	if (cbdq->cbd_blkdev->backend)
@@ -249,9 +247,7 @@ again:
 		goto out;
 
 	if (cbd_se_flags_test(se, CBD_SE_FLAGS_DONE)) {
-		CBDC_UPDATE_SUBMR_TAIL(cbdq->channel_ctrl->submr_tail,
-				sizeof(struct cbd_se),
-				cbdq->channel.submr_size);
+		cbdc_submr_tail_advance(&cbdq->channel, sizeof(struct cbd_se));
 		goto again;
 	}
 out:
@@ -397,9 +393,7 @@ again:
 #endif
 
 	cbdwc_hit(&cbdq->complete_worker_cfg);
-	CBDC_UPDATE_COMPR_TAIL(cbdq->channel_ctrl->compr_tail,
-			       sizeof(struct cbd_ce),
-			       cbdq->channel.compr_size);
+	cbdc_compr_tail_advance(&cbdq->channel, sizeof(struct cbd_ce));
 
 	if (cbd_req->op == CBD_OP_READ) {
 		spin_lock(&cbdq->channel.submr_lock);

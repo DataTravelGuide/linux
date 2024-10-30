@@ -99,28 +99,28 @@ void cbd_queue_advance(struct cbd_queue *cbdq, struct cbd_request *cbd_req);
 
 static inline struct cbd_se *get_submit_entry(struct cbd_queue *cbdq)
 {
-	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_ctrl->submr_head);
+	return (struct cbd_se *)(cbdq->channel.submr + cbdc_submr_head_get(&cbdq->channel));
 }
 
 static inline struct cbd_se *get_oldest_se(struct cbd_queue *cbdq)
 {
-	if (cbdq->channel_ctrl->submr_tail == cbdq->channel_ctrl->submr_head)
+	if (cbdc_submr_tail_get(&cbdq->channel) == cbdc_submr_head_get(&cbdq->channel))
 		return NULL;
 
-	return (struct cbd_se *)(cbdq->channel.submr + cbdq->channel_ctrl->submr_tail);
+	return (struct cbd_se *)(cbdq->channel.submr + cbdc_submr_tail_get(&cbdq->channel));
 }
 
 static inline bool queue_subm_ring_empty(struct cbd_queue *cbdq)
 {
-	return (cbdq->channel_ctrl->submr_tail == cbdq->channel_ctrl->submr_head);
+	return (cbdc_submr_tail_get(&cbdq->channel) == cbdc_submr_head_get(&cbdq->channel));
 }
 
 static inline struct cbd_ce *get_complete_entry(struct cbd_queue *cbdq)
 {
-	if (cbdq->channel_ctrl->compr_tail == cbdq->channel_ctrl->compr_head)
+	if (cbdc_compr_tail_get(&cbdq->channel) == cbdc_compr_head_get(&cbdq->channel))
 		return NULL;
 
-	return (struct cbd_ce *)(cbdq->channel.compr + cbdq->channel_ctrl->compr_tail);
+	return (struct cbd_ce *)(cbdq->channel.compr + cbdc_compr_tail_get(&cbdq->channel));
 }
 
 #endif /* _CBD_QUEUE_H */

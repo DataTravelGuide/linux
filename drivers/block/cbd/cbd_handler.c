@@ -35,9 +35,7 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 		ce->data_crc = cbd_channel_crc(&handler->channel, se->data_off, se->data_len);
 	ce->ce_crc = cbd_ce_crc(ce);
 #endif
-	CBDC_UPDATE_COMPR_HEAD(handler->channel_ctrl->compr_head,
-			       sizeof(struct cbd_ce),
-			       handler->channel.compr_size);
+	cbdc_compr_head_advance(&handler->channel, sizeof(struct cbd_ce));
 	spin_unlock_irqrestore(&handler->compr_lock, flags);
 }
 
@@ -373,7 +371,7 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channe
 	handler->cbdb = cbdb;
 	handler_channel_init(handler, channel_id, new_channel);
 
-	handler->se_to_handle = handler->channel_ctrl->submr_tail;
+	handler->se_to_handle = cbdc_submr_tail_get(&handler->channel);
 	handler->req_tid_expected = U64_MAX;
 	atomic_set(&handler->inflight_cmds, 0);
 	spin_lock_init(&handler->compr_lock);

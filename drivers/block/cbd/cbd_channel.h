@@ -78,14 +78,6 @@ static inline u32 cbd_ce_crc(struct cbd_ce *ce)
 #define CBDC_DATA_OFF           CBDC_META_SIZE                      /* Offset for data storage following metadata */
 #define CBDC_DATA_SIZE          (CBDT_SEG_SIZE - CBDC_META_SIZE)    /* Size of data storage in a segment */
 
-/* Update macros for SUBMR head and tail pointers */
-#define CBDC_UPDATE_SUBMR_HEAD(head, used, size)    (head = ((head % size) + used) % size)
-#define CBDC_UPDATE_SUBMR_TAIL(tail, used, size)    (tail = ((tail % size) + used) % size)
-
-/* Update macros for COMPR head and tail pointers */
-#define CBDC_UPDATE_COMPR_HEAD(head, used, size)    (head = ((head % size) + used) % size)
-#define CBDC_UPDATE_COMPR_TAIL(tail, used, size)    (tail = ((tail % size) + used) % size)
-
 /* cbd_channel */
 struct cbd_channel_seg_info {
 	struct cbd_segment_info seg_info;	/* must be the first member */
@@ -167,4 +159,24 @@ static inline void cbd_channel_flags_clear_bit(struct cbd_channel_ctrl *channel_
 	flags &= ~clear;
 	smp_store_release(&channel_ctrl->flags, flags);
 }
+
+#define CBDC_CTRL_ACCESSOR(MEMBER, SIZE)						\
+static inline u32 cbdc_##MEMBER##_get(struct cbd_channel *channel)			\
+{											\
+	return (smp_load_acquire(&channel->ctrl->MEMBER));				\
+}											\
+											\
+static inline void cbdc_## MEMBER ##_advance(struct cbd_channel *channel, u32 len)	\
+{											\
+	u32 val = cbdc_## MEMBER ##_get(channel);					\
+											\
+	val = (val + len) % channel->SIZE;						\
+	smp_store_release(&channel->ctrl->MEMBER, val);					\
+}
+
+CBDC_CTRL_ACCESSOR(submr_head, submr_size)
+CBDC_CTRL_ACCESSOR(submr_tail, submr_size)
+CBDC_CTRL_ACCESSOR(compr_head, compr_size)
+CBDC_CTRL_ACCESSOR(compr_tail, compr_size)
+
 #endif /* _CBD_CHANNEL_H */

@@ -41,7 +41,7 @@ void cbd_handler_notify(struct cbd_handler *handler);
 
 static inline struct cbd_se *get_se_head(struct cbd_handler *handler)
 {
-	return (struct cbd_se *)(handler->channel.submr + handler->channel_ctrl->submr_head);
+	return (struct cbd_se *)(handler->channel.submr + cbdc_submr_head_get(&handler->channel));
 }
 
 static inline struct cbd_se *get_se_to_handle(struct cbd_handler *handler)
@@ -51,7 +51,7 @@ static inline struct cbd_se *get_se_to_handle(struct cbd_handler *handler)
 
 static inline struct cbd_ce *get_compr_head(struct cbd_handler *handler)
 {
-	return (struct cbd_ce *)(handler->channel.compr + handler->channel_ctrl->compr_head);
+	return (struct cbd_ce *)(handler->channel.compr + cbdc_compr_head_get(&handler->channel));
 }
 
 #endif /* _CBD_HANDLER_H */
