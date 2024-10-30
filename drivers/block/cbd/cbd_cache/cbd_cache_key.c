@@ -166,6 +166,34 @@ static void append_last_kset(struct cbd_cache *cache, u32 next_seg)
 	cache_pos_advance(&cache->key_head, sizeof(struct cbd_cache_kset_onmedia));  /* Advance key head position */
 }
 
+static void key_data_flush(struct cbd_cache *cache, struct cbd_cache_key *key)
+{
+	void *pos;
+
+	pos = cache_pos_addr(&key->cache_pos);
+	cbdt_flush(cache->cbdt, pos, key->len);
+}
+
+static void kset_data_flush(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *kset_onmedia)
+{
+	struct cbd_cache_key_onmedia *key_onmedia;
+	struct cbd_cache_key *key;
+	u32 i;
+
+	for (i = 0; i < kset_onmedia->key_num; i++) {
+		struct cbd_cache_key key_tmp = { 0 };
+
+		key_onmedia = &kset_onmedia->data[i];
+
+		key = &key_tmp;
+		cache_key_init(cache, key);
+
+		cache_key_decode(key_onmedia, key);
+
+		key_data_flush(cache, key);
+	}
+}
+
 /**
  * cache_kset_close - Close and flush a kset to the cache.
  * @cache: Pointer to the cbd_cache structure.
@@ -210,10 +238,12 @@ again:
 	kset_onmedia->magic = CBD_KSET_MAGIC;  /* Set magic number */
 	kset_onmedia->crc = cache_kset_crc(kset_onmedia);  /* Compute CRC */
 
-	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);  /* Copy the kset to the cache */
-	cbdt_flush(cache->cbdt, get_key_head_addr(cache), kset_onmedia_size);  /* Flush the kset to storage */
-	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));  /* Clear the kset structure */
+	kset_data_flush(cache, kset_onmedia);
 
+	memcpy(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
+	cbdt_flush(cache->cbdt, get_key_head_addr(cache), kset_onmedia_size);  /* Flush the kset to storage */
+
+	memset(kset_onmedia, 0, sizeof(struct cbd_cache_kset_onmedia));
 	cache_pos_advance(&cache->key_head, kset_onmedia_size);  /* Advance the key head position */
 
 	ret = 0;  /* Success */
