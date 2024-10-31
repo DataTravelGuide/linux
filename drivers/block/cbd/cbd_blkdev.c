@@ -599,21 +599,19 @@ blkdev_free:
  * cbd_blkdev_stop - Stop a block device and its associated backend.
  * @cbdt: Pointer to the transport structure.
  * @devid: ID of the block device to be stopped.
- * @force: Boolean indicating whether to force the stop if the device is open.
  *
  * This function responds to the "dev-stop" sysfs command by stopping
  * the specified block device. It performs the following steps:
  * 1. Retrieves the block device structure associated with the given devid.
  * 2. Locks the block device for thread safety.
- * 3. Checks if the block device is currently open; if it is and force is not set,
- *    it unlocks and returns -EBUSY.
- * 4. If the device is not open or force is set, it removes the block device from the transport.
+ * 3. Checks if the block device is currently open; if it is it unlocks and returns -EBUSY.
+ * 4. If the device is not open, it removes the block device from the transport.
  * 5. Stops the disk and frees the block device resources.
  * 6. Clears the block device info from the transport structure.
  *
  * Returns 0 on success, or a negative error code on failure.
  */
-int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
+int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid)
 {
 	struct cbd_blkdev *cbd_blkdev;
 
@@ -622,7 +620,7 @@ int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force)
 		return -EINVAL;
 
 	mutex_lock(&cbd_blkdev->lock);
-	if (cbd_blkdev->open_count > 0 && !force) {
+	if (cbd_blkdev->open_count > 0) {
 		mutex_unlock(&cbd_blkdev->lock);
 		return -EBUSY;
 	}

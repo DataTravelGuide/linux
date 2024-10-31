@@ -80,7 +80,7 @@ struct cbd_blkdev {
 int cbd_blkdev_init(void);
 void cbd_blkdev_exit(void);
 int cbd_blkdev_start(struct cbd_transport *cbdt, u32 backend_id, u32 queues);
-int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid, bool force);
+int cbd_blkdev_stop(struct cbd_transport *cbdt, u32 devid);
 int cbd_blkdev_clear(struct cbd_transport *cbdt, u32 devid);
 bool cbd_blkdev_info_is_alive(struct cbd_blkdev_info *info);
 

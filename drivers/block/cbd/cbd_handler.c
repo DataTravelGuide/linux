@@ -9,7 +9,7 @@
  * @se: Submission element (SE) representing the command to complete.
  * @ret: Result code indicating the success or failure of the command.
  *
- * This function creates a completion entry (CE) that stores the command's result
+ * This function get a completion entry (CE) that stores the command's result
  * and request transaction ID. For read operations, if CRC is enabled, it calculates
  * a CRC checksum for the data and the CE. It then advances the completion queue head
  * to ensure the entry is accessible.

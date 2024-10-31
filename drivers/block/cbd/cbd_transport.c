@@ -612,7 +612,7 @@ static ssize_t adm_store(struct device *dev,
 		ret = cbd_blkdev_start(cbdt, opts.backend_id, opts.blkdev.queues);
 		break;
 	case CBDT_ADM_OP_DEV_STOP:
-		ret = cbd_blkdev_stop(cbdt, opts.blkdev.devid, opts.force);
+		ret = cbd_blkdev_stop(cbdt, opts.blkdev.devid);
 		break;
 	case CBDT_ADM_OP_DEV_CLEAR:
 		ret = cbd_blkdev_clear(cbdt, opts.blkdev.devid);
