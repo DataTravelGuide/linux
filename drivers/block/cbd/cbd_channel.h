@@ -84,8 +84,37 @@ struct cbd_channel_seg_info {
 	u32	backend_id;
 };
 
+struct cbdc_mgmt_cmd {
+	struct cbd_meta_header	header;
+	u8	cmd_seq;
+	u8	cmd_op;
+	u16	res;
+	u32	res1;
+};
+
+enum cbdc_mgmt_cmd_op {
+	cbdc_mgmt_cmd_none	= 0,
+	cbdc_mgmt_cmd_reset,
+};
+
+struct cbdc_mgmt_ret {
+	struct cbd_meta_header	header;
+	u8	cmd_seq;
+	u8	cmd_ret;
+	u16	res;
+	u32	res1;
+};
+
+enum cbdc_mgmt_cmd_ret {
+	cbdc_mgmt_cmd_ret_ok	= 0,
+	cbdc_mgmt_cmd_ret_error
+};
+
 struct cbd_channel_ctrl {
 	u64	flags;
+
+	struct cbdc_mgmt_cmd	mgmt_cmd[CBDT_META_INDEX_MAX];
+	struct cbdc_mgmt_ret	mgmt_ret[CBDT_META_INDEX_MAX];
 
 	u32	submr_head;
 	u32	submr_tail;
@@ -96,6 +125,144 @@ struct cbd_channel_ctrl {
 
 #define CBDC_FLAGS_POLLING		(1 << 0)
 #define CBDC_FLAGS_NEED_RESET		(1 << 1)
+
+static inline struct cbdc_mgmt_cmd *__mgmt_latest_cmd(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbd_meta_header *meta_latest;
+
+	meta_latest = cbd_meta_find_latest(&channel_ctrl->mgmt_cmd->header,
+					   sizeof(struct cbdc_mgmt_cmd), NULL);
+	if (!meta_latest)
+		return NULL;
+
+	return (struct cbdc_mgmt_cmd *)meta_latest;
+}
+
+static inline struct cbdc_mgmt_cmd *__mgmt_oldest_cmd(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbd_meta_header *meta_oldest;
+
+	meta_oldest = cbd_meta_find_oldest(&channel_ctrl->mgmt_cmd->header,
+					   sizeof(struct cbdc_mgmt_cmd));
+
+	return (struct cbdc_mgmt_cmd *)meta_oldest;
+}
+
+static inline struct cbdc_mgmt_ret *__mgmt_latest_ret(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbd_meta_header *meta_latest;
+
+	meta_latest = cbd_meta_find_latest(&channel_ctrl->mgmt_ret->header,
+					   sizeof(struct cbdc_mgmt_ret), NULL);
+	if (!meta_latest)
+		return NULL;
+
+	return (struct cbdc_mgmt_ret *)meta_latest;
+}
+
+static inline struct cbdc_mgmt_ret *__mgmt_oldest_ret(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbd_meta_header *meta_oldest;
+
+	meta_oldest = cbd_meta_find_oldest(&channel_ctrl->mgmt_ret->header,
+					   sizeof(struct cbdc_mgmt_ret));
+
+	return (struct cbdc_mgmt_ret *)meta_oldest;
+}
+
+static inline u8 cbdc_mgmt_latest_cmd_seq(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbdc_mgmt_cmd *cmd_latest;
+
+	cmd_latest = __mgmt_latest_cmd(channel_ctrl);
+	if (!cmd_latest)
+		return 0;
+
+	return cmd_latest->cmd_seq;
+}
+
+static inline u8 cbdc_mgmt_latest_ret_seq(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbdc_mgmt_ret *ret_latest;
+
+	ret_latest = __mgmt_latest_ret(channel_ctrl);
+	if (!ret_latest)
+		return 0;
+
+	return ret_latest->cmd_seq;
+}
+
+static inline bool cbdc_mgmt_busy(struct cbd_channel_ctrl *channel_ctrl)
+{
+	u8 cmd_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
+	u8 ret_seq = cbdc_mgmt_latest_ret_seq(channel_ctrl);
+
+	return (cmd_seq != ret_seq);
+}
+
+static inline enum cbdc_mgmt_cmd_op cbdc_mgmt_cmd_op_get(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbdc_mgmt_cmd *cmd_latest;
+
+	cmd_latest = __mgmt_latest_cmd(channel_ctrl);
+	if (!cmd_latest)
+		return cbdc_mgmt_cmd_none;
+
+	return cmd_latest->cmd_op;
+}
+
+static inline int cbdc_mgmt_cmd_op_send(struct cbd_channel_ctrl *channel_ctrl, enum cbdc_mgmt_cmd_op op)
+{
+	struct cbdc_mgmt_cmd *cmd_oldest;
+	u32 latest_seq;
+
+	if (cbdc_mgmt_busy(channel_ctrl))
+		return -EBUSY;
+
+	latest_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
+
+	cmd_oldest = __mgmt_oldest_cmd(channel_ctrl);
+	cmd_oldest->cmd_seq = (latest_seq + 1);
+	cmd_oldest->cmd_op = op;
+
+	cmd_oldest->header.seq = cbd_meta_get_next_seq(&channel_ctrl->mgmt_cmd->header,
+						       sizeof(struct cbdc_mgmt_cmd));
+	cmd_oldest->header.crc = cbd_meta_crc(&cmd_oldest->header, sizeof(struct cbdc_mgmt_cmd));
+
+	return 0;
+}
+
+static inline enum cbdc_mgmt_cmd_ret cbdc_mgmt_cmd_ret_get(struct cbd_channel_ctrl *channel_ctrl)
+{
+	struct cbdc_mgmt_ret *ret_latest;
+
+	ret_latest = __mgmt_latest_ret(channel_ctrl);
+	if (!ret_latest)
+		return cbdc_mgmt_cmd_ret_ok;
+
+	return ret_latest->cmd_ret;
+}
+
+static inline int cbdc_mgmt_cmd_ret_send(struct cbd_channel_ctrl *channel_ctrl, enum cbdc_mgmt_cmd_ret ret)
+{
+	struct cbdc_mgmt_ret *ret_oldest;
+	u32 latest_seq;
+
+	if (!cbdc_mgmt_busy(channel_ctrl))
+		return -EINVAL;
+
+	latest_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
+
+	ret_oldest = __mgmt_oldest_ret(channel_ctrl);
+	ret_oldest->cmd_seq = latest_seq;
+	ret_oldest->cmd_ret = ret;
+
+	ret_oldest->header.seq = cbd_meta_get_next_seq(&channel_ctrl->mgmt_ret->header,
+						       sizeof(struct cbdc_mgmt_ret));
+	ret_oldest->header.crc = cbd_meta_crc(&ret_oldest->header, sizeof(struct cbdc_mgmt_ret));
+
+	return 0;
+}
 
 struct cbd_channel_init_options {
 	struct cbd_transport *cbdt;
