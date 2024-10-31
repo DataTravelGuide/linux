@@ -333,21 +333,35 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 	spin_unlock(&cbd_req->lock);
 }
 
-static void queue_reset_channel(struct cbd_queue *cbdq)
+#define CBDQ_RESET_CHANNEL_WAIT_INTERVAL	HZ
+#define CBDQ_RESET_CHANNEL_WAIT_COUNT		10
+
+static int queue_reset_channel(struct cbd_queue *cbdq)
 {
-	cbd_channel_flags_set_bit(cbdq->channel_ctrl, CBDC_FLAGS_NEED_RESET);
+	enum cbdc_mgmt_cmd_ret cmd_ret;
+	u16 count = 0;
+	int ret;
+
+	ret = cbdc_mgmt_cmd_op_send(cbdq->channel_ctrl, cbdc_mgmt_cmd_reset);
+	if (ret)
+		return ret;
 
 	while (true) {
-		schedule_timeout(HZ);
+		if (cbdc_mgmt_completed(cbdq->channel_ctrl))
+			break;
 
-		if (cbd_channel_flags_get(cbdq->channel_ctrl) & CBDC_FLAGS_NEED_RESET)
-			continue;
+		if (count++ > CBDQ_RESET_CHANNEL_WAIT_COUNT) {
+			ret = -ETIMEDOUT;
+			goto err;
+		}
 
-		if (!queue_subm_ring_empty(cbdq))
-			continue;
-
-		break;
+		schedule_timeout(CBDQ_RESET_CHANNEL_WAIT_INTERVAL);
 	}
+
+	cmd_ret = cbdc_mgmt_cmd_ret_get(cbdq->channel_ctrl);
+	return cbdc_mgmt_cmd_ret_to_errno(cmd_ret);
+err:
+	return ret;
 }
 
 static void complete_work_fn(struct work_struct *work)
@@ -515,7 +529,9 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 		goto out;
 	}
 
-	queue_reset_channel(cbdq);
+	ret = queue_reset_channel(cbdq);
+	if (ret)
+		goto free_extents;
 
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 
@@ -523,6 +539,8 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 
 	return 0;
 
+free_extents:
+	kfree(cbdq->released_extents);
 out:
 	return ret;
 }

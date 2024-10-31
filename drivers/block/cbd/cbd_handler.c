@@ -223,8 +223,11 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
  * After the reset is complete, the `need_reset` flag is cleared, signaling to the
  * blkdev that it can begin using the channel for data requests.
  */
-static void handler_reset(struct cbd_handler *handler)
+static int handler_reset(struct cbd_handler *handler)
 {
+	if (atomic_read(&handler->inflight_cmds))
+		return -EBUSY;
+
 	handler->req_tid_expected = U64_MAX;
 	handler->se_to_handle = 0;
 
@@ -232,7 +235,7 @@ static void handler_reset(struct cbd_handler *handler)
 	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
 	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
-	cbd_channel_flags_clear_bit(handler->channel_ctrl, CBDC_FLAGS_NEED_RESET);
+	return cbdc_mgmt_cmd_ret_send(handler->channel_ctrl, cbdc_mgmt_cmd_ret_ok);
 }
 
 #ifdef CONFIG_CBD_CRC
@@ -258,6 +261,26 @@ static int channel_se_verify(struct cbd_handler *handler, struct cbd_se *se)
 }
 #endif
 
+static int handle_mgmt_cmd(struct cbd_handler *handler)
+{
+	enum cbdc_mgmt_cmd_op cmd_op;
+	int ret;
+
+	cmd_op = cbdc_mgmt_cmd_op_get(handler->channel_ctrl);
+	switch (cmd_op) {
+	case cbdc_mgmt_cmd_none:
+		ret = 0;
+		break;
+	case cbdc_mgmt_cmd_reset:
+		ret = handler_reset(handler);
+		break;
+	default:
+		ret = -EIO;
+	}
+
+	return ret;
+}
+
 /**
  * handle_work_fn - Main handler function to process SEs in the channel.
  * @work: pointer to the work_struct associated with the handler.
@@ -282,11 +305,10 @@ static void handle_work_fn(struct work_struct *work)
 	u64 req_tid;
 	int ret;
 
-	if (cbd_channel_flags_get(handler->channel_ctrl) & CBDC_FLAGS_NEED_RESET) {
-		if (atomic_read(&handler->inflight_cmds))
+	if (!cbdc_mgmt_completed(handler->channel_ctrl)) {
+		ret = handle_mgmt_cmd(handler);
+		if (ret)
 			goto out;
-
-		handler_reset(handler);
 	}
 
 again:

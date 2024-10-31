@@ -107,8 +107,26 @@ struct cbdc_mgmt_ret {
 
 enum cbdc_mgmt_cmd_ret {
 	cbdc_mgmt_cmd_ret_ok	= 0,
-	cbdc_mgmt_cmd_ret_error
+	cbdc_mgmt_cmd_ret_eio
 };
+
+static inline int cbdc_mgmt_cmd_ret_to_errno(enum cbdc_mgmt_cmd_ret cmd_ret)
+{
+	int ret;
+
+	switch (cmd_ret) {
+	case cbdc_mgmt_cmd_ret_ok:
+		ret = 0;
+		break;
+	case cbdc_mgmt_cmd_ret_eio:
+		ret = -EIO;
+		break;
+	default:
+		ret = -EFAULT;
+	}
+
+	return ret;
+}
 
 struct cbd_channel_ctrl {
 	u64	flags;
@@ -192,12 +210,12 @@ static inline u8 cbdc_mgmt_latest_ret_seq(struct cbd_channel_ctrl *channel_ctrl)
 	return ret_latest->cmd_seq;
 }
 
-static inline bool cbdc_mgmt_busy(struct cbd_channel_ctrl *channel_ctrl)
+static inline bool cbdc_mgmt_completed(struct cbd_channel_ctrl *channel_ctrl)
 {
 	u8 cmd_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
 	u8 ret_seq = cbdc_mgmt_latest_ret_seq(channel_ctrl);
 
-	return (cmd_seq != ret_seq);
+	return (cmd_seq == ret_seq);
 }
 
 static inline enum cbdc_mgmt_cmd_op cbdc_mgmt_cmd_op_get(struct cbd_channel_ctrl *channel_ctrl)
@@ -216,7 +234,7 @@ static inline int cbdc_mgmt_cmd_op_send(struct cbd_channel_ctrl *channel_ctrl, e
 	struct cbdc_mgmt_cmd *cmd_oldest;
 	u32 latest_seq;
 
-	if (cbdc_mgmt_busy(channel_ctrl))
+	if (!cbdc_mgmt_completed(channel_ctrl))
 		return -EBUSY;
 
 	latest_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
@@ -248,7 +266,7 @@ static inline int cbdc_mgmt_cmd_ret_send(struct cbd_channel_ctrl *channel_ctrl, 
 	struct cbdc_mgmt_ret *ret_oldest;
 	u32 latest_seq;
 
-	if (!cbdc_mgmt_busy(channel_ctrl))
+	if (cbdc_mgmt_completed(channel_ctrl))
 		return -EINVAL;
 
 	latest_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
