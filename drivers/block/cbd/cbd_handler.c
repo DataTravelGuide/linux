@@ -277,6 +277,7 @@ static void handle_work_fn(struct work_struct *work)
 {
 	struct cbd_handler *handler = container_of(work, struct cbd_handler,
 						   handle_work.work);
+	struct cbd_se *se_head;
 	struct cbd_se *se;
 	u64 req_tid;
 	int ret;
@@ -290,8 +291,12 @@ static void handle_work_fn(struct work_struct *work)
 
 again:
 	/* Retrieve new SE from channel control */
+	se_head = get_se_head(handler);
+	if (!se_head)
+		goto miss;
+
 	se = get_se_to_handle(handler);
-	if (se == get_se_head(handler))
+	if (se == se_head)
 		goto miss;
 
 	req_tid = se->req_tid;

@@ -115,6 +115,11 @@ static inline bool queue_subm_ring_empty(struct cbd_queue *cbdq)
 
 static inline struct cbd_ce *get_complete_entry(struct cbd_queue *cbdq)
 {
+	u32 ce_head = cbdc_compr_head_get(&cbdq->channel);
+
+	if (unlikely(ce_head > (cbdq->channel.compr_size - sizeof(struct cbd_ce))))
+		return NULL;
+
 	if (cbdc_compr_tail_get(&cbdq->channel) == cbdc_compr_head_get(&cbdq->channel))
 		return NULL;
 

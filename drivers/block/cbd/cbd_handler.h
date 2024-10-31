@@ -41,7 +41,12 @@ void cbd_handler_notify(struct cbd_handler *handler);
 
 static inline struct cbd_se *get_se_head(struct cbd_handler *handler)
 {
-	return (struct cbd_se *)(handler->channel.submr + cbdc_submr_head_get(&handler->channel));
+	u32 se_head = cbdc_submr_head_get(&handler->channel);
+
+	if (unlikely(se_head > (handler->channel.submr_size - sizeof(struct cbd_se))))
+		return NULL;
+
+	return (struct cbd_se *)(handler->channel.submr + se_head);
 }
 
 static inline struct cbd_se *get_se_to_handle(struct cbd_handler *handler)
