@@ -334,7 +334,7 @@ static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
 }
 
 #define CBDQ_RESET_CHANNEL_WAIT_INTERVAL	HZ
-#define CBDQ_RESET_CHANNEL_WAIT_COUNT		10
+#define CBDQ_RESET_CHANNEL_WAIT_COUNT		30
 
 static int queue_reset_channel(struct cbd_queue *cbdq)
 {
