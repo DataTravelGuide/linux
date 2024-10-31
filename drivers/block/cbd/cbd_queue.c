@@ -355,7 +355,7 @@ static int queue_reset_channel(struct cbd_queue *cbdq)
 			goto err;
 		}
 
-		schedule_timeout(CBDQ_RESET_CHANNEL_WAIT_INTERVAL);
+		schedule_timeout_uninterruptible(CBDQ_RESET_CHANNEL_WAIT_INTERVAL);
 	}
 
 	cmd_ret = cbdc_mgmt_cmd_ret_get(cbdq->channel_ctrl);

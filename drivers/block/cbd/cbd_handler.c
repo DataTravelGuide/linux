@@ -215,16 +215,18 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
  *    scenario, the state of the channel is reset to ensure it can handle requests
  *    from the new blkdev.
  *
- * In both cases, the blkdev sets the `need_reset` flag in `channel->ctrl` to
+ * In both cases, the blkdev send a mgmt_cmd of reset into channel_ctrl->mgmt_cmd to
  * indicate that it requires a channel reset. This function clears all the channel
  * counters and control pointers, including `submr` and `compr` heads and tails,
  * resetting them to zero.
  *
- * After the reset is complete, the `need_reset` flag is cleared, signaling to the
+ * After the reset is complete, handler send a cmd_ret of the reset cmd, signaling to the
  * blkdev that it can begin using the channel for data requests.
  */
 static int handler_reset(struct cbd_handler *handler)
 {
+	int ret;
+
 	if (atomic_read(&handler->inflight_cmds))
 		return -EBUSY;
 
@@ -235,7 +237,13 @@ static int handler_reset(struct cbd_handler *handler)
 	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
 	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
-	return cbdc_mgmt_cmd_ret_send(handler->channel_ctrl, cbdc_mgmt_cmd_ret_ok);
+	ret = cbdc_mgmt_cmd_ret_send(handler->channel_ctrl, cbdc_mgmt_cmd_ret_ok);
+	if (ret)
+		return ret;
+
+	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
+
+	return 0;
 }
 
 #ifdef CONFIG_CBD_CRC
@@ -281,20 +289,33 @@ static int handle_mgmt_cmd(struct cbd_handler *handler)
 	return ret;
 }
 
+static void handle_mgmt_work_fn(struct work_struct *work)
+{
+	struct cbd_handler *handler = container_of(work, struct cbd_handler,
+						   handle_mgmt_work.work);
+	int ret;
+again:
+	if (!cbdc_mgmt_completed(handler->channel_ctrl)) {
+		ret = handle_mgmt_cmd(handler);
+		if (ret)
+			goto out;
+		goto again;
+	}
+out:
+	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_mgmt_work, HZ);
+}
+
+
 /**
  * handle_work_fn - Main handler function to process SEs in the channel.
  * @work: pointer to the work_struct associated with the handler.
  *
  * This function is repeatedly called to handle incoming SEs (Submission Entries)
- * from the channel's control structure. It checks the channel's control flags,
- * such as `need_reset`, to handle any required reset operations if a
- * blkdev connection has changed.
+ * from the channel's control structure.
  *
  * In a multi-host environment, this function operates in a polling mode
  * to retrieve new SEs. For single-host cases, it mainly waits for
- * blkdev notifications. However, even in single-host setups, this function
- * will requeue itself with a 1-second delay, allowing it to monitor any
- * control status changes, such as a `need_reset` request.
+ * blkdev notifications.
  */
 static void handle_work_fn(struct work_struct *work)
 {
@@ -304,12 +325,6 @@ static void handle_work_fn(struct work_struct *work)
 	struct cbd_se *se;
 	u64 req_tid;
 	int ret;
-
-	if (!cbdc_mgmt_completed(handler->channel_ctrl)) {
-		ret = handle_mgmt_cmd(handler);
-		if (ret)
-			goto out;
-	}
 
 again:
 	/* Retrieve new SE from channel control */
@@ -352,12 +367,9 @@ miss:
 
 	cbdwc_miss(&handler->handle_worker_cfg);
 
-out:
 	/* Queue next work based on polling status */
 	if (cbd_channel_flags_get(handler->channel_ctrl) & CBDC_FLAGS_POLLING)
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
-	else
-		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 1);
 }
 
 static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool new_channel)
@@ -403,10 +415,12 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channe
 	atomic_set(&handler->inflight_cmds, 0);
 	spin_lock_init(&handler->compr_lock);
 	INIT_DELAYED_WORK(&handler->handle_work, handle_work_fn);
+	INIT_DELAYED_WORK(&handler->handle_mgmt_work, handle_mgmt_work_fn);
 	cbdwc_init(&handler->handle_worker_cfg);
 
 	cbdb_add_handler(cbdb, handler);
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
+	queue_delayed_work(cbdb->task_wq, &handler->handle_mgmt_work, 0);
 
 	return 0;
 
@@ -419,6 +433,7 @@ void cbd_handler_destroy(struct cbd_handler *handler)
 {
 	cbdb_del_handler(handler->cbdb, handler);
 
+	cancel_delayed_work_sync(&handler->handle_mgmt_work);
 	cancel_delayed_work_sync(&handler->handle_work);
 
 	while (atomic_read(&handler->inflight_cmds))

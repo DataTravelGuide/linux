@@ -29,6 +29,8 @@ struct cbd_handler {
 	struct delayed_work	handle_work;
 	struct cbd_worker_cfg	handle_worker_cfg;
 
+	struct delayed_work	handle_mgmt_work;
+
 	atomic_t		inflight_cmds;
 
 	struct hlist_node	hash_node;
