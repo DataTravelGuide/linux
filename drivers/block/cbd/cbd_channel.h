@@ -78,18 +78,35 @@ static inline u32 cbd_ce_crc(struct cbd_ce *ce)
 #define CBDC_DATA_OFF           CBDC_META_SIZE                      /* Offset for data storage following metadata */
 #define CBDC_DATA_SIZE          (CBDT_SEG_SIZE - CBDC_META_SIZE)    /* Size of data storage in a segment */
 
-/* cbd_channel */
 struct cbd_channel_seg_info {
 	struct cbd_segment_info seg_info;	/* must be the first member */
 	u32	backend_id;
 };
 
+/**
+ * struct cbdc_mgmt_cmd - Management command structure for CBD channel
+ * @header:        Metadata header for data integrity protection
+ * @cmd_seq:      Command sequence number
+ * @cmd_op:       Command operation type
+ * @res:          Reserved field
+ * @res1:         Additional reserved field
+ *
+ * This structure is used for data transfer of management commands
+ * within a CBD channel. Note that a CBD channel can only handle
+ * one mgmt_cmd at a time. If there is a management plane request
+ * on the blkdev side, it will be written into channel_ctrl->mgmt_cmd.
+ * The mgmt_cmd is protected by the meta_header for data integrity
+ * and is double updated. When the handler's mgmt_worker detects
+ * a new mgmt_cmd, it processes it and writes the result into
+ * channel_ctrl->mgmt_ret, where mgmt_ret->cmd_seq equals the
+ * corresponding mgmt_cmd->cmd_seq.
+ */
 struct cbdc_mgmt_cmd {
-	struct cbd_meta_header	header;
-	u8	cmd_seq;
-	u8	cmd_op;
-	u16	res;
-	u32	res1;
+	struct cbd_meta_header header;  /**< Metadata header */
+	u8 cmd_seq;                     /**< Command sequence number */
+	u8 cmd_op;                      /**< Command operation type */
+	u16 res;                        /**< Reserved field */
+	u32 res1;                       /**< Additional reserved field */
 };
 
 enum cbdc_mgmt_cmd_op {
@@ -97,12 +114,25 @@ enum cbdc_mgmt_cmd_op {
 	cbdc_mgmt_cmd_reset,
 };
 
+/**
+ * struct cbdc_mgmt_ret - Management command result structure for CBD channel
+ * @header:        Metadata header for data integrity protection
+ * @cmd_seq:      Command sequence number corresponding to the mgmt_cmd
+ * @cmd_ret:      Command return value
+ * @res:          Reserved field
+ * @res1:         Additional reserved field
+ *
+ * This structure contains the result after the handler processes
+ * the management command (mgmt_cmd). The result is written into
+ * channel_ctrl->mgmt_ret, where cmd_seq equals the corresponding
+ * mgmt_cmd->cmd_seq.
+ */
 struct cbdc_mgmt_ret {
-	struct cbd_meta_header	header;
-	u8	cmd_seq;
-	u8	cmd_ret;
-	u16	res;
-	u32	res1;
+	struct cbd_meta_header header;  /**< Metadata header */
+	u8 cmd_seq;                     /**< Command sequence number */
+	u8 cmd_ret;                     /**< Command return value */
+	u16 res;                        /**< Reserved field */
+	u32 res1;                       /**< Additional reserved field */
 };
 
 enum cbdc_mgmt_cmd_ret {
@@ -131,9 +161,11 @@ static inline int cbdc_mgmt_cmd_ret_to_errno(enum cbdc_mgmt_cmd_ret cmd_ret)
 struct cbd_channel_ctrl {
 	u64	flags;
 
+	/* management plane */
 	struct cbdc_mgmt_cmd	mgmt_cmd[CBDT_META_INDEX_MAX];
 	struct cbdc_mgmt_ret	mgmt_ret[CBDT_META_INDEX_MAX];
 
+	/* data plane */
 	u32	submr_head;
 	u32	submr_tail;
 
@@ -142,7 +174,6 @@ struct cbd_channel_ctrl {
 };
 
 #define CBDC_FLAGS_POLLING		(1 << 0)
-#define CBDC_FLAGS_NEED_RESET		(1 << 1)
 
 static inline struct cbdc_mgmt_cmd *__mgmt_latest_cmd(struct cbd_channel_ctrl *channel_ctrl)
 {
@@ -210,6 +241,21 @@ static inline u8 cbdc_mgmt_latest_ret_seq(struct cbd_channel_ctrl *channel_ctrl)
 	return ret_latest->cmd_seq;
 }
 
+/**
+ * cbdc_mgmt_completed - Check if the management command has been processed
+ * @channel_ctrl: Pointer to the CBD channel control structure
+ *
+ * This function is important for the management plane of the CBD channel.
+ * It indicates whether the current mgmt_cmd has been processed.
+ *
+ * (1) If processing is complete, the latest mgmt_ret can be retrieved as the
+ * result, and a new mgmt_cmd can be sent.
+ * (2) If processing is not complete, it indicates that the management plane
+ * is busy and a new mgmt_cmd cannot be sent. The CBD channel management
+ * plane can only handle one mgmt_cmd at a time.
+ *
+ * Return: true if the mgmt_cmd has been processed, false otherwise.
+ */
 static inline bool cbdc_mgmt_completed(struct cbd_channel_ctrl *channel_ctrl)
 {
 	u8 cmd_seq = cbdc_mgmt_latest_cmd_seq(channel_ctrl);
