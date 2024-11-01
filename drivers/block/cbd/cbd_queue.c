@@ -402,6 +402,24 @@ static int queue_ce_verify(struct cbd_queue *cbdq, struct cbd_request *cbd_req,
 }
 #endif
 
+static int complete_miss(struct cbd_queue *cbdq)
+{
+	if (cbdwc_need_retry(&cbdq->complete_worker_cfg))
+		return -EAGAIN;
+
+	if (inflight_reqs_empty(cbdq)) {
+		cbdwc_init(&cbdq->complete_worker_cfg);
+		goto out;
+	}
+
+	cbdwc_miss(&cbdq->complete_worker_cfg);
+
+	cpu_relax();
+	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
+out:
+	return 0;
+}
+
 static void complete_work_fn(struct work_struct *work)
 {
 	struct cbd_queue *cbdq = container_of(work, struct cbd_queue, complete_work.work);
@@ -433,17 +451,10 @@ again:
 	complete_inflight_req(cbdq, cbd_req, ce->result);
 	goto again;
 miss:
-	if (cbdwc_need_retry(&cbdq->complete_worker_cfg))
+	ret = complete_miss(cbdq);
+	/* -EAGAIN means we need retry according to the complete_worker_cfg */
+	if (ret == -EAGAIN)
 		goto again;
-
-	if (inflight_reqs_empty(cbdq)) {
-		cbdwc_init(&cbdq->complete_worker_cfg);
-		return;
-	}
-
-	cbdwc_miss(&cbdq->complete_worker_cfg);
-	cpu_relax();
-	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 }
 
 static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,

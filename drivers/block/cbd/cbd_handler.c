@@ -404,8 +404,10 @@ miss:
 	cbdwc_miss(&handler->handle_worker_cfg);
 
 	/* Queue next work based on polling status */
-	if (cbd_channel_flags_get(handler->channel_ctrl) & CBDC_FLAGS_POLLING)
+	if (cbd_channel_flags_get(handler->channel_ctrl) & CBDC_FLAGS_POLLING) {
+		cpu_relax();
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
+	}
 }
 
 static struct cbd_handler *handler_alloc(struct cbd_backend *cbdb)
