@@ -67,7 +67,7 @@ static void host_info_write(struct cbd_host *host)
 	mutex_unlock(&host->info_lock);
 }
 
-static int host_register_verify(struct cbd_transport *cbdt, char *hostname, u32 *host_id)
+static int host_register_validate(struct cbd_transport *cbdt, char *hostname, u32 *host_id)
 {
 	struct cbd_host_info *host_info;
 	int ret;
@@ -107,7 +107,7 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 	struct cbd_host_info *host_info;
 	int ret;
 
-	ret = host_register_verify(cbdt, hostname, &host_id);
+	ret = host_register_validate(cbdt, hostname, &host_id);
 	if (ret)
 		return ret;
 
