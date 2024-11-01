@@ -104,4 +104,10 @@ static inline u32 cbd_backend_info_crc(struct cbd_backend_info *backend_info)
 	return crc32(0, (void *)backend_info + 4, sizeof(*backend_info) - 4);
 }
 
+#define cbd_for_each_backend_info(cbdt, i, backend_info)				\
+	for (i = 0;									\
+	     i < cbdt->transport_info->backend_num &&					\
+	     (backend_info = cbdt_backend_info_read(cbdt, i, NULL));			\
+	     i++)
+
 #endif /* _CBD_BACKEND_H */

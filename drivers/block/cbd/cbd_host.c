@@ -67,9 +67,8 @@ static void host_info_write(struct cbd_host *host)
 	mutex_unlock(&host->info_lock);
 }
 
-int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
+static int host_register_verify(struct cbd_transport *cbdt, char *hostname, u32 *host_id)
 {
-	struct cbd_host *host;
 	struct cbd_host_info *host_info;
 	int ret;
 
@@ -79,12 +78,12 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 	if (strlen(hostname) == 0)
 		return -EINVAL;
 
-	if (host_id == UINT_MAX) {
+	if (*host_id == UINT_MAX) {
 		/* In single-host case, set the host_id to 0 */
 		if (cbdt->transport_info->host_num == 1) {
-			host_id = 0;
+			*host_id = 0;
 		} else {
-			ret = cbdt_get_empty_host_id(cbdt, &host_id);
+			ret = cbdt_get_empty_host_id(cbdt, host_id);
 			if (ret) {
 				cbdt_err(cbdt, "no available host id found.\n");
 				return -EBUSY;
@@ -92,11 +91,25 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 		}
 	}
 
-	host_info = cbdt_host_info_read(cbdt, host_id, NULL);
+	host_info = cbdt_host_info_read(cbdt, *host_id, NULL);
 	if (host_info && cbd_host_info_is_alive(host_info)) {
-		pr_err("host id %u is still alive\n", host_id);
+		pr_err("host id %u is still alive\n", *host_id);
 		return -EBUSY;
 	}
+
+	return 0;
+}
+
+
+int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
+{
+	struct cbd_host *host;
+	struct cbd_host_info *host_info;
+	int ret;
+
+	ret = host_register_verify(cbdt, hostname, &host_id);
+	if (ret)
+		return ret;
 
 	host = kzalloc(sizeof(struct cbd_host), GFP_KERNEL);
 	if (!host)
@@ -104,6 +117,7 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 
 	host->host_id = host_id;
 	host->cbdt = cbdt;
+	host->info_index = 0;
 	mutex_init(&host->info_lock);
 	INIT_DELAYED_WORK(&host->hb_work, host_hb_workfn);
 
@@ -119,6 +133,47 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 	return 0;
 }
 
+static bool host_backends_stopped(struct cbd_transport *cbdt, u32 host_id)
+{
+	struct cbd_backend_info *backend_info;
+	u32 i;
+
+	cbd_for_each_backend_info(cbdt, i, backend_info) {
+		if (!backend_info)
+			continue;
+
+		if (backend_info->state != cbd_backend_state_running)
+			continue;
+
+		if (backend_info->host_id == host_id) {
+			cbdt_err(cbdt, "backend %u is still on host %u\n", i, host_id);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool host_blkdevs_stopped(struct cbd_transport *cbdt, u32 host_id)
+{
+	struct cbd_blkdev_info *blkdev_info;
+	int i;
+
+	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
+		if (!blkdev_info)
+			continue;
+
+		if (blkdev_info->state != cbd_blkdev_state_running)
+			continue;
+
+		if (blkdev_info->host_id == host_id) {
+			cbdt_err(cbdt, "blkdev %u is still on host %u\n", i, host_id);
+			return false;
+		}
+	}
+
+	return true;
+}
 int cbd_host_unregister(struct cbd_transport *cbdt)
 {
 	struct cbd_host *host = cbdt->host;
@@ -128,10 +183,12 @@ int cbd_host_unregister(struct cbd_transport *cbdt)
 		return 0;
 	}
 
+	if (!host_blkdevs_stopped(cbdt, host->host_id) ||
+			!host_backends_stopped(cbdt, host->host_id))
+		return -EBUSY;
+
 	cancel_delayed_work_sync(&host->hb_work);
-
 	cbdt_host_info_clear(cbdt, host->host_id);
-
 	cbdt->host = NULL;
 	kfree(cbdt->host);
 
@@ -141,7 +198,6 @@ int cbd_host_unregister(struct cbd_transport *cbdt)
 int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 {
 	struct cbd_host_info *host_info;
-	u32 i;
 
 	host_info = cbdt_get_host_info(cbdt, host_id);
 	if (cbd_host_info_is_alive(host_info)) {
@@ -152,37 +208,11 @@ int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 	if (host_info->state == cbd_host_state_none)
 		return 0;
 
-	for (i = 0; i < cbdt->transport_info->backend_num; i++) {
-		struct cbd_backend_info *backend_info;
-
-		backend_info = cbdt_get_backend_info(cbdt, i);
-
-		if (backend_info->state == cbd_backend_state_none)
-			continue;
-
-		if (backend_info->host_id != host_id)
-			continue;
-
-		cbdt_err(cbdt, "backend %u is still on host %u\n", i, host_id);
+	if (!host_blkdevs_stopped(cbdt, host_id) ||
+			!host_backends_stopped(cbdt, host_id))
 		return -EBUSY;
-	}
 
-	for (i = 0; i < cbdt->transport_info->blkdev_num; i++) {
-		struct cbd_blkdev_info *blkdev_info;
-
-		blkdev_info = cbdt_get_blkdev_info(cbdt, i);
-
-		if (blkdev_info->state == cbd_blkdev_state_none)
-			continue;
-
-		if (blkdev_info->host_id != host_id)
-			continue;
-
-		cbdt_err(cbdt, "blkdev %u is still on host %u\n", i, host_id);
-		return -EBUSY;
-	}
-
-	host_info->state = cbd_host_state_none;
+	cbdt_host_info_clear(cbdt, host_id);
 
 	return 0;
 }

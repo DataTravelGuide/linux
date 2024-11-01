@@ -86,7 +86,6 @@ bool cbd_blkdev_info_is_alive(struct cbd_blkdev_info *info);
 
 extern struct workqueue_struct	*cbd_wq;
 
-/* cbd_for_each functions to traverse object info */
 #define cbd_for_each_blkdev_info(cbdt, i, blkdev_info)					\
 	for (i = 0;									\
 	     i < cbdt->transport_info->blkdev_num &&					\
