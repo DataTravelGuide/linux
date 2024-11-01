@@ -3,24 +3,8 @@
  * Copyright(C) 2024, Dongsheng Yang <dongsheng.yang@linux.dev>
  */
 
-#include <linux/module.h>
-#include <linux/io.h>
-#include <linux/blk-mq.h>
-#include <linux/blkdev.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/bio.h>
-#include <linux/module.h>
-#include <linux/blk-mq.h>
-#include <linux/fs.h>
-#include <linux/blkdev.h>
-#include <linux/slab.h>
-#include <linux/idr.h>
-#include <linux/workqueue.h>
-#include <linux/delay.h>
 #include <linux/parser.h>
-#include <linux/types.h>
-#include <net/genetlink.h>
 
 #include "cbd_internal.h"
 #include "cbd_blkdev.h"
