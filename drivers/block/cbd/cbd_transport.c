@@ -11,8 +11,8 @@
 #include "cbd_blkdev.h"
 
 #define CBDT_OBJ(OBJ, OBJ_SIZE, OBJ_STRIDE)					\
-extern struct device_type cbd_##OBJ##_type;					\
-extern struct device_type cbd_##OBJ##s_type;					\
+extern const struct device_type cbd_##OBJ##_type;				\
+extern const struct device_type cbd_##OBJ##s_type;				\
 										\
 static int cbd_##OBJ##s_init(struct cbd_transport *cbdt)			\
 {										\
@@ -211,7 +211,7 @@ static DEFINE_MUTEX(cbd_transport_mutex);
 extern struct bus_type cbd_bus_type;
 extern struct device cbd_root_dev;
 
-static ssize_t cbd_myhost_show(struct device *dev,
+static ssize_t cbdt_host_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
@@ -227,7 +227,7 @@ static ssize_t cbd_myhost_show(struct device *dev,
 	return sprintf(buf, "%d\n", host->host_id);
 }
 
-static DEVICE_ATTR(host_id, 0400, cbd_myhost_show, NULL);
+static DEVICE_ATTR(host_id, 0400, cbdt_host_show, NULL);
 
 enum {
 	CBDT_ADM_OPT_ERR		= 0,
@@ -501,7 +501,7 @@ static void format_transport_info(struct cbd_transport *cbdt)
 	info->magic = cpu_to_le64(CBD_TRANSPORT_MAGIC);
 	info->version = cpu_to_le16(CBD_TRANSPORT_VERSION);
 
-#if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
+#if defined(__BYTE_ORDER) ? (__BIG_ENDIAN == __BYTE_ORDER) : defined(__BIG_ENDIAN)
 	flags |= CBDT_INFO_F_BIGENDIAN;
 #endif
 
@@ -781,7 +781,7 @@ static int transport_info_validate(struct cbd_transport *cbdt)
 	flags = le16_to_cpu(cbdt->transport_info->flags);
 	flags = le16_to_cpu(cbdt->transport_info->flags);
 
-#if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
+#if defined(__BYTE_ORDER) ? (__BIG_ENDIAN == __BYTE_ORDER) : defined(__BIG_ENDIAN)
 	/* Ensure transport matches the system's endianness */
 	if (!(flags & CBDT_INFO_F_BIGENDIAN)) {
 		cbdt_err(cbdt, "transport is not big endian\n");
