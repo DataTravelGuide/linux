@@ -2,22 +2,38 @@
 
 #include "cbd_queue.h"
 
+/**
+ * end_req - Finalize a CBD request and handle its completion.
+ * @ref: Pointer to the kref structure that manages the reference count of the CBD request.
+ *
+ * This function is called when the reference count of the cbd_request reaches zero. It
+ * contains two key operations:
+ *
+ * (1) If the end_req callback is set in the cbd_request, this callback will be invoked.
+ *     This allows different cbd_requests to perform specific operations upon completion.
+ *     For example, in the case of a backend request sent to the cache, it may require
+ *     cache-related operations, such as storing data retrieved during a miss read.
+ *
+ * (2) If cbd_req->req is not NULL, it indicates that this cbd_request corresponds to a
+ *     block layer request. The function will finalize the block layer request accordingly.
+ */
 static void end_req(struct kref *ref)
 {
 	struct cbd_request *cbd_req = container_of(ref, struct cbd_request, ref);
 	struct request *req = cbd_req->req;
 	int ret = cbd_req->ret;
 
+	/* Call the end_req callback if it is set */
 	if (cbd_req->end_req)
 		cbd_req->end_req(cbd_req, cbd_req->priv_data);
 
 	if (req) {
+		/* Complete the block layer request based on the return status */
 		if (ret == -ENOMEM || ret == -EBUSY)
 			blk_mq_requeue_request(req, true);
 		else
 			blk_mq_end_request(req, errno_to_blk_status(ret));
 	}
-
 }
 
 void cbd_req_get(struct cbd_request *cbd_req)
@@ -25,82 +41,51 @@ void cbd_req_get(struct cbd_request *cbd_req)
 	kref_get(&cbd_req->ref);
 }
 
+/**
+ * cbd_req_put - Decrease the reference count of a CBD request and handle its finalization.
+ * @cbd_req: Pointer to the cbd_request to be released.
+ * @ret: Return status to be set in the cbd_request if it is not already set.
+ *
+ * This function decreases the reference count of the specified cbd_request. If the
+ * reference count reaches zero, the end_req function is called to finalize the request.
+ * Additionally, if the cbd_request has a parent and if the current request is being
+ * finalized (i.e., the reference count reaches zero), the parent request will also
+ * be put, potentially propagating the return status up the hierarchy.
+ *
+ * The function checks if a return status is provided and if the cbd_request does not
+ * already have a return status set. If both conditions are met, it updates the
+ * cbd_request's return status with the provided value.
+ */
 void cbd_req_put(struct cbd_request *cbd_req, int ret)
 {
 	struct cbd_request *parent = cbd_req->parent;
 
+	/* Set the return status if it is not already set */
 	if (ret && !cbd_req->ret)
 		cbd_req->ret = ret;
 
+	/* Decrease the reference count and finalize the request if it reaches zero */
 	if (kref_put(&cbd_req->ref, end_req) && parent)
-		cbd_req_put(parent, ret);
+		cbd_req_put(parent, ret); /* Propagate the return status to the parent */
 }
 
-
-static void copy_data_from_cbdreq(struct cbd_request *cbd_req)
-{
-	struct bio *bio = cbd_req->bio;
-	struct cbd_queue *cbdq = cbd_req->cbdq;
-
-	spin_lock(&cbd_req->lock);
-	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
-	spin_unlock(&cbd_req->lock);
-}
-
-static inline bool inflight_reqs_empty(struct cbd_queue *cbdq)
-{
-	bool empty;
-
-	spin_lock(&cbdq->inflight_reqs_lock);
-	empty = list_empty(&cbdq->inflight_reqs);
-	spin_unlock(&cbdq->inflight_reqs_lock);
-
-	return empty;
-}
-
-static inline void inflight_add_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
-{
-	spin_lock(&cbdq->inflight_reqs_lock);
-	list_add_tail(&cbd_req->inflight_reqs_node, &cbdq->inflight_reqs);
-	spin_unlock(&cbdq->inflight_reqs_lock);
-}
-
-static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret)
-{
-	if (cbd_req->op == CBD_OP_READ) {
-		spin_lock(&cbdq->channel.submr_lock);
-		copy_data_from_cbdreq(cbd_req);
-		spin_unlock(&cbdq->channel.submr_lock);
-	}
-
-	spin_lock(&cbdq->inflight_reqs_lock);
-	list_del_init(&cbd_req->inflight_reqs_node);
-	spin_unlock(&cbdq->inflight_reqs_lock);
-
-	cbd_se_flags_set(cbd_req->se, CBD_SE_FLAGS_DONE);
-	cbd_req_put(cbd_req, ret);
-}
-
-static inline struct cbd_request *find_inflight_req(struct cbd_queue *cbdq, u64 req_tid)
-{
-	struct cbd_request *req;
-	bool found = false;
-
-	spin_lock(&cbdq->inflight_reqs_lock);
-	list_for_each_entry(req, &cbdq->inflight_reqs, inflight_reqs_node) {
-		if (req->req_tid == req_tid) {
-			found = true;
-			break;
-		}
-	}
-	spin_unlock(&cbdq->inflight_reqs_lock);
-
-	if (found)
-		return req;
-
-	return NULL;
-}
-
+/**
+ * advance_subm_ring - Advance the tail of the submission ring for a CBD queue.
+ * @cbdq: Pointer to the cbd_queue structure representing the queue.
+ *
+ * This function is called when a submission entry (se) completes. Since the completion
+ * of submission entries does not necessarily occur in the order they were sent, this
+ * function checks the status of the oldest submission entry.
+ *
+ * When a submission entry is completed, it is marked with the CBD_SE_FLAGS_DONE flag.
+ * If the entry is the oldest one in the submission queue, the tail of the submission ring
+ * can be advanced. If it is not the oldest, the function will wait until all previous
+ * entries have been completed before advancing the tail.
+ *
+ * The function repeatedly checks for the oldest submission entry using get_oldest_se.
+ * If it finds an entry marked as done, it advances the tail using cbdc_submr_tail_advance
+ * and continues checking for additional completed entries until no more are found.
+ */
 static void advance_subm_ring(struct cbd_queue *cbdq)
 {
 	struct cbd_se *se;
@@ -117,70 +102,91 @@ out:
 	return;
 }
 
+/**
+ * __advance_data_tail - Attempt to advance the data tail of a CBD queue.
+ * @cbdq: Pointer to the cbd_queue structure representing the queue.
+ * @data_off: Offset of the data to be advanced.
+ * @data_len: Length of the data to be advanced.
+ *
+ * This function checks if the specified data offset corresponds to the current
+ * data tail. If it does, the function releases the corresponding extent by
+ * setting the value in the released_extents array to zero and advances the
+ * data tail by the specified length. The data tail is wrapped around if it
+ * exceeds the channel's data size.
+ *
+ * Returns true if the data tail was successfully advanced, false otherwise.
+ */
 static bool __advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
 	if (data_off == cbdq->channel.data_tail) {
 		cbdq->released_extents[data_off / PAGE_SIZE] = 0;
-		cbdq->channel.data_tail += data_len;
-		cbdq->channel.data_tail %= cbdq->channel.data_size;
+		cbdq->channel.data_tail += data_len; /* Advance data tail */
+		cbdq->channel.data_tail %= cbdq->channel.data_size; /* Wrap around if needed */
 		return true;
 	}
 
-	return false;
+	return false; // No advancement made
 }
 
+/**
+ * advance_data_tail - Advance the data tail of a CBD queue based on released extents.
+ * @cbdq: Pointer to the cbd_queue structure representing the queue.
+ * @data_off: Offset of the data to be advanced.
+ * @data_len: Length of the data to be advanced.
+ *
+ * This function attempts to advance the data tail in the CBD queue by processing
+ * the released extents. It first normalizes the data offset with respect to the
+ * channel's data size. It then marks the released extent and attempts to advance
+ * the data tail by repeatedly checking if the next extent can be released.
+ *
+ * The function continues advancing the data tail until it encounters an extent
+ * that is not yet released or until there are no more extents to advance.
+ */
 static void advance_data_tail(struct cbd_queue *cbdq, u32 data_off, u32 data_len)
 {
-	data_off %= cbdq->channel.data_size;
-	cbdq->released_extents[data_off / PAGE_SIZE] = data_len;
+	data_off %= cbdq->channel.data_size; /* Normalize data offset */
+	cbdq->released_extents[data_off / PAGE_SIZE] = data_len; /* Mark extent as released */
 
 	while (__advance_data_tail(cbdq, data_off, data_len)) {
-		data_off += data_len;
+		data_off += data_len; /* move to next extent */
 		data_off %= cbdq->channel.data_size;
 		data_len = cbdq->released_extents[data_off / PAGE_SIZE];
+		/*
+		 * if data_len in released_extents is zero, means this extent is not released,
+		 * break and wait it to be released.
+		 */
 		if (!data_len)
 			break;
 	}
 }
 
+/**
+ * cbd_queue_advance - Advance the submission ring and data tail for a CBD queue.
+ * @cbdq: Pointer to the cbd_queue structure representing the queue.
+ * @cbd_req: Pointer to the cbd_request structure associated with the request.
+ *
+ * This function is responsible for advancing the submission ring of the CBD
+ * queue and, if applicable, advancing the data tail based on the provided
+ * cbd_request. It ensures that access to the submission ring is thread-safe
+ * by using a spin lock.
+ *
+ * The function performs the following steps:
+ * 1. Acquires the spin lock to protect the submission ring.
+ * 2. Advances the submission ring by calling advance_subm_ring.
+ * 3. If the request has data (i.e., it is not a "no data" request) and has a
+ *    valid data length, it calls advance_data_tail to update the data tail
+ *    with the specified data offset and length, rounded up to the nearest
+ *    PAGE_SIZE.
+ * 4. Releases the spin lock after the operations are completed.
+ */
 void cbd_queue_advance(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 {
 	spin_lock(&cbdq->channel.submr_lock);
 	advance_subm_ring(cbdq);
+
 	if (!cbd_req_nodata(cbd_req) && cbd_req->data_len)
 		advance_data_tail(cbdq, cbd_req->data_off, round_up(cbd_req->data_len, PAGE_SIZE));
 	spin_unlock(&cbdq->channel.submr_lock);
-}
-
-#define CBDQ_RESET_CHANNEL_WAIT_INTERVAL	HZ
-#define CBDQ_RESET_CHANNEL_WAIT_COUNT		30
-
-static int queue_reset_channel(struct cbd_queue *cbdq)
-{
-	enum cbdc_mgmt_cmd_ret cmd_ret;
-	u16 count = 0;
-	int ret;
-
-	ret = cbdc_mgmt_cmd_op_send(cbdq->channel_ctrl, cbdc_mgmt_cmd_reset);
-	if (ret)
-		return ret;
-
-	while (true) {
-		if (cbdc_mgmt_completed(cbdq->channel_ctrl))
-			break;
-
-		if (count++ > CBDQ_RESET_CHANNEL_WAIT_COUNT) {
-			ret = -ETIMEDOUT;
-			goto err;
-		}
-
-		schedule_timeout_uninterruptible(CBDQ_RESET_CHANNEL_WAIT_INTERVAL);
-	}
-
-	cmd_ret = cbdc_mgmt_cmd_ret_get(cbdq->channel_ctrl);
-	return cbdc_mgmt_cmd_ret_to_errno(cmd_ret);
-err:
-	return ret;
 }
 
 #ifdef CONFIG_CBD_CRC
@@ -209,6 +215,21 @@ static int queue_ce_verify(struct cbd_queue *cbdq, struct cbd_request *cbd_req,
 }
 #endif
 
+/**
+ * complete_miss - Handle the situation when no completion events (CEs) are available.
+ *
+ * This function is called when `complete_work` detects that there are no CEs to process.
+ * It evaluates the current state of `complete_worker_cfg` to determine if a busy wait and retry
+ * mechanism is needed. When many CEs need processing, `complete_worker_cfg` will adjust its state
+ * to favor busy waiting and retrying. If consecutive misses occur, the configuration will gradually
+ * shift towards terminating the current work and re-queuing it.
+ *
+ * Additionally, if `inflight_reqs` is empty, it indicates that no CEs are pending, allowing the function
+ * to conclude `complete_work` immediately.
+ *
+ * Returns:
+ *     0 on success, or -EAGAIN if a retry is needed.
+ */
 static int complete_miss(struct cbd_queue *cbdq)
 {
 	if (cbdwc_need_retry(&cbdq->complete_worker_cfg))
@@ -227,6 +248,25 @@ out:
 	return 0;
 }
 
+/**
+ * complete_work_fn - Main function for processing completion work.
+ *
+ * This function is called to handle the completion of requests. It is queued after a submission
+ * entry (SE) is submitted to the submission ring and waits for the backend to return the corresponding
+ * completion entry (CE).
+ *
+ * The function performs the following steps:
+ * 1. Acquires the lock on the compression lock to safely retrieve a CE.
+ * 2. If no CE is available, it invokes `complete_miss` to handle the absence.
+ * 3. If it finds the corresponding inflight request using the CE's request ID.
+ * 4. If the inflight request is not found, an error is logged, and it goes to handle the miss.
+ * 5. If enabled, it verifies the CE against the request using CRC checks.
+ * 6. Advances the completion tail and marks the inflight request as completed.
+ * 7. It loops again to process any further available CEs.
+ *
+ * If a miss is encountered and a retry is needed (indicated by -EAGAIN), it will continue to loop
+ * until there are no more CEs to process.
+ */
 static void complete_work_fn(struct work_struct *work)
 {
 	struct cbd_queue *cbdq = container_of(work, struct cbd_queue, complete_work.work);
@@ -264,6 +304,20 @@ miss:
 		goto again;
 }
 
+/**
+ * cbd_req_init - Initialize a CBD request structure.
+ * @cbdq: Pointer to the CBD queue associated with the request.
+ * @op: The operation type (read, write, etc.) for the request.
+ * @rq: Pointer to the block layer request structure.
+ *
+ * This function initializes the cbd_request structure associated with the given
+ * block layer request. It sets up the necessary fields in the cbd_request, including
+ * the request pointer, operation type, data length, and bio. The data length is determined
+ * based on whether the request is a read or write operation.
+ *
+ * Note that this function does not allocate data space for the cbd_request. If data space
+ * is required, it will be allocated later in the queue_req_channel_init function.
+ */
 static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request *rq)
 {
 	struct cbd_request *cbd_req = blk_mq_rq_to_pdu(rq);
@@ -272,7 +326,7 @@ static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request 
 	cbd_req->cbdq = cbdq;
 	cbd_req->op = op;
 
-	if (req_op(rq) == REQ_OP_READ || req_op(rq) == REQ_OP_WRITE)
+	if (!cbd_req_nodata(cbd_req))
 		cbd_req->data_len = blk_rq_bytes(rq);
 	else
 		cbd_req->data_len = 0;
@@ -281,6 +335,18 @@ static void cbd_req_init(struct cbd_queue *cbdq, enum cbd_op op, struct request 
 	cbd_req->off = (u64)blk_rq_pos(rq) << SECTOR_SHIFT;
 }
 
+/**
+ * queue_req_se_init - Initialize a submit entry (SE) for a CBD request.
+ * @cbd_req: Pointer to the CBD request structure that requires an SE.
+ *
+ * This function retrieves a submit entry (SE) from the CBD queue and initializes
+ * it based on the information in the provided cbd_request. The SE is set up with the
+ * operation type, request ID, offset, and length. If the cbd_req need data,
+ * the corresponding data offset and length are also set in the SE.
+ *
+ * This function is part of the queue_req_channel_init() process, where the SE is
+ * prepared for submission to the backend.
+ */
 static void queue_req_se_init(struct cbd_request *cbd_req)
 {
 	struct cbd_se	*se;
@@ -289,17 +355,16 @@ static void queue_req_se_init(struct cbd_request *cbd_req)
 
 	se = get_submit_entry(cbd_req->cbdq);
 	memset(se, 0, sizeof(struct cbd_se));
-	se->op = cbd_req->op;
 
+	se->op = cbd_req->op;
 	se->req_tid = cbd_req->req_tid;
 	se->offset = offset;
 	se->len = length;
 
-	if (cbd_req->op == CBD_OP_READ || cbd_req->op == CBD_OP_WRITE) {
+	if (!cbd_req_nodata(cbd_req)) {
 		se->data_off = cbd_req->cbdq->channel.data_head;
 		se->data_len = length;
 	}
-
 	cbd_req->se = se;
 }
 
@@ -313,12 +378,31 @@ static void cbd_req_crc_init(struct cbd_request *cbd_req)
 		se->data_crc = cbd_channel_crc(&cbdq->channel,
 					       cbd_req->data_off,
 					       cbd_req->data_len);
-
 	se->se_crc = cbd_se_crc(se);
 }
 #endif
 
-static void queue_req_data_init(struct cbd_request *cbd_req)
+/**
+ * queue_req_channel_init - Initialize channel-related information for a cbd_request.
+ * @cbd_req: Pointer to the cbd_request structure to initialize.
+ *
+ * This function sets up the cbd_request with necessary information related to the
+ * channel, including the submission entry (se) and data management.
+ *
+ * The request ID (req_tid) is assigned from the cbd_queue, and the
+ * corresponding submission entry is initialized. If the cbd_request does not
+ * require data (e.g., for flush operations), the function will skip the data
+ * initialization steps and proceed to CRC initialization.
+ *
+ * If the request is a write operation (CBD_OP_WRITE), the function copies data
+ * from the associated bio into the channel's data space using cbdc_copy_from_bio.
+ *
+ * After potentially modifying the data_head to reflect the new write, the function
+ * ensures that data_head remains within the bounds of the channel's data size.
+ *
+ * Finally, if CRC configuration is enabled, it initializes the CRC for the request.
+ */
+static void queue_req_channel_init(struct cbd_request *cbd_req)
 {
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 	struct bio *bio = cbd_req->bio;
@@ -330,10 +414,9 @@ static void queue_req_data_init(struct cbd_request *cbd_req)
 		goto crc_init;
 
 	cbd_req->data_off = cbdq->channel.data_head;
-	if (cbd_req->op == CBD_OP_READ)
-		goto advance_data_head;
-	cbdc_copy_from_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
-
+	if (cbd_req->op == CBD_OP_WRITE)
+		cbdc_copy_from_bio(&cbdq->channel, cbd_req->data_off,
+				   cbd_req->data_len, bio, cbd_req->bio_off);
 advance_data_head:
 	cbdq->channel.data_head = round_up(cbdq->channel.data_head + cbd_req->data_len, PAGE_SIZE);
 	cbdq->channel.data_head %= cbdq->channel.data_size;
@@ -342,46 +425,6 @@ crc_init:
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
 #endif
-}
-
-static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
-{
-	struct cbd_channel *channel = &cbdq->channel;
-	u32 space_available = channel->data_size;
-	u32 space_needed;
-
-	if (channel->data_head > channel->data_tail) {
-		space_available = channel->data_size - channel->data_head;
-		space_available += channel->data_tail;
-	} else if (channel->data_head < channel->data_tail) {
-		space_available = channel->data_tail - channel->data_head;
-	}
-
-	space_needed = round_up(cbd_req->data_len, CBDC_DATA_ALIGN);
-
-	if (space_available - CBDC_DATA_RESERVED < space_needed)
-		return false;
-
-	return true;
-}
-
-static bool submit_ring_full(struct cbd_queue *cbdq)
-{
-	u32 space_available = cbdq->channel.submr_size;
-	struct cbd_channel *channel = &cbdq->channel;
-
-	if (cbdc_submr_head_get(channel) > cbdc_submr_tail_get(channel)) {
-		space_available = cbdq->channel.submr_size - cbdc_submr_head_get(channel);
-		space_available += cbdc_submr_tail_get(channel);
-	} else if (cbdc_submr_head_get(channel) < cbdc_submr_tail_get(channel)) {
-		space_available = cbdc_submr_tail_get(channel) - cbdc_submr_head_get(channel);
-	}
-
-	/* There is a SUBMR_RESERVED we dont use to prevent the ring to be used up */
-	if (space_available - CBDC_SUBMR_RESERVED < sizeof(struct cbd_se))
-		return true;
-
-	return false;
 }
 
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
@@ -403,7 +446,7 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 
 	inflight_add_req(cbdq, cbd_req);
 
-	queue_req_data_init(cbd_req);
+	queue_req_channel_init(cbd_req);
 
 	cbd_req_get(cbd_req);
 	cbdc_submr_head_advance(&cbdq->channel, sizeof(struct cbd_se));
@@ -489,6 +532,37 @@ const struct blk_mq_ops cbd_mq_ops = {
 	.queue_rq	= cbd_queue_rq,
 	.init_hctx	= cbd_init_hctx,
 };
+
+#define CBDQ_RESET_CHANNEL_WAIT_INTERVAL	HZ
+#define CBDQ_RESET_CHANNEL_WAIT_COUNT		30
+
+static int queue_reset_channel(struct cbd_queue *cbdq)
+{
+	enum cbdc_mgmt_cmd_ret cmd_ret;
+	u16 count = 0;
+	int ret;
+
+	ret = cbdc_mgmt_cmd_op_send(cbdq->channel_ctrl, cbdc_mgmt_cmd_reset);
+	if (ret)
+		return ret;
+
+	while (true) {
+		if (cbdc_mgmt_completed(cbdq->channel_ctrl))
+			break;
+
+		if (count++ > CBDQ_RESET_CHANNEL_WAIT_COUNT) {
+			ret = -ETIMEDOUT;
+			goto err;
+		}
+
+		schedule_timeout_uninterruptible(CBDQ_RESET_CHANNEL_WAIT_INTERVAL);
+	}
+
+	cmd_ret = cbdc_mgmt_cmd_ret_get(cbdq->channel_ctrl);
+	return cbdc_mgmt_cmd_ret_to_errno(cmd_ret);
+err:
+	return ret;
+}
 
 static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 {

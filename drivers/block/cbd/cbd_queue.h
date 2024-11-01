@@ -131,4 +131,108 @@ static inline bool cbd_req_nodata(struct cbd_request *cbd_req)
 	}
 }
 
+static inline void copy_data_from_cbdreq(struct cbd_request *cbd_req)
+{
+	struct bio *bio = cbd_req->bio;
+	struct cbd_queue *cbdq = cbd_req->cbdq;
+
+	spin_lock(&cbd_req->lock);
+	cbdc_copy_to_bio(&cbdq->channel, cbd_req->data_off, cbd_req->data_len, bio, cbd_req->bio_off);
+	spin_unlock(&cbd_req->lock);
+}
+
+static inline bool inflight_reqs_empty(struct cbd_queue *cbdq)
+{
+	bool empty;
+
+	spin_lock(&cbdq->inflight_reqs_lock);
+	empty = list_empty(&cbdq->inflight_reqs);
+	spin_unlock(&cbdq->inflight_reqs_lock);
+
+	return empty;
+}
+
+static inline void inflight_add_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
+{
+	spin_lock(&cbdq->inflight_reqs_lock);
+	list_add_tail(&cbd_req->inflight_reqs_node, &cbdq->inflight_reqs);
+	spin_unlock(&cbdq->inflight_reqs_lock);
+}
+
+static inline void complete_inflight_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req, int ret)
+{
+	if (cbd_req->op == CBD_OP_READ) {
+		spin_lock(&cbdq->channel.submr_lock);
+		copy_data_from_cbdreq(cbd_req);
+		spin_unlock(&cbdq->channel.submr_lock);
+	}
+
+	spin_lock(&cbdq->inflight_reqs_lock);
+	list_del_init(&cbd_req->inflight_reqs_node);
+	spin_unlock(&cbdq->inflight_reqs_lock);
+
+	cbd_se_flags_set(cbd_req->se, CBD_SE_FLAGS_DONE);
+	cbd_req_put(cbd_req, ret);
+}
+
+static inline struct cbd_request *find_inflight_req(struct cbd_queue *cbdq, u64 req_tid)
+{
+	struct cbd_request *req;
+	bool found = false;
+
+	spin_lock(&cbdq->inflight_reqs_lock);
+	list_for_each_entry(req, &cbdq->inflight_reqs, inflight_reqs_node) {
+		if (req->req_tid == req_tid) {
+			found = true;
+			break;
+		}
+	}
+	spin_unlock(&cbdq->inflight_reqs_lock);
+
+	if (found)
+		return req;
+
+	return NULL;
+}
+
+static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
+{
+	struct cbd_channel *channel = &cbdq->channel;
+	u32 space_available = channel->data_size;
+	u32 space_needed;
+
+	if (channel->data_head > channel->data_tail) {
+		space_available = channel->data_size - channel->data_head;
+		space_available += channel->data_tail;
+	} else if (channel->data_head < channel->data_tail) {
+		space_available = channel->data_tail - channel->data_head;
+	}
+
+	space_needed = round_up(cbd_req->data_len, CBDC_DATA_ALIGN);
+
+	if (space_available - CBDC_DATA_RESERVED < space_needed)
+		return false;
+
+	return true;
+}
+
+static bool submit_ring_full(struct cbd_queue *cbdq)
+{
+	u32 space_available = cbdq->channel.submr_size;
+	struct cbd_channel *channel = &cbdq->channel;
+
+	if (cbdc_submr_head_get(channel) > cbdc_submr_tail_get(channel)) {
+		space_available = cbdq->channel.submr_size - cbdc_submr_head_get(channel);
+		space_available += cbdc_submr_tail_get(channel);
+	} else if (cbdc_submr_head_get(channel) < cbdc_submr_tail_get(channel)) {
+		space_available = cbdc_submr_tail_get(channel) - cbdc_submr_head_get(channel);
+	}
+
+	/* There is a SUBMR_RESERVED we dont use to prevent the ring to be used up */
+	if (space_available - CBDC_SUBMR_RESERVED < sizeof(struct cbd_se))
+		return true;
+
+	return false;
+}
+
 #endif /* _CBD_QUEUE_H */
