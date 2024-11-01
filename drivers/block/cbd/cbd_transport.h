@@ -141,4 +141,9 @@ struct page *cbdt_page(struct cbd_transport *cbdt, u64 transport_off, u32 *page_
 void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size);
 void cbdt_flush(struct cbd_transport *cbdt, void *pos, u32 size);
 
+static inline cbdt_is_single_host(struct cbd_transport *cbdt)
+{
+	return (cbdt->host_num == 1);
+}
+
 #endif /* _CBD_TRANSPORT_H */

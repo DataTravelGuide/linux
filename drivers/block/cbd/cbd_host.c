@@ -24,7 +24,11 @@ static ssize_t cbd_host_name_show(struct device *dev,
 
 static DEVICE_ATTR(hostname, 0400, cbd_host_name_show, NULL);
 
-static void cbd_host_hb(struct cbd_host *host);
+static void host_info_write(struct cbd_host *host);
+static void cbd_host_hb(struct cbd_host *host)
+{
+	host_info_write(host);
+}
 CBD_OBJ_HEARTBEAT(host);
 
 static struct attribute *cbd_host_attrs[] = {
@@ -67,6 +71,34 @@ static void host_info_write(struct cbd_host *host)
 	mutex_unlock(&host->info_lock);
 }
 
+/**
+ * host_register_validate - Validate host registration parameters
+ * @cbdt: Pointer to the CBD transport structure
+ * @hostname: Pointer to the hostname string
+ * @host_id: Pointer to the host ID to be validated and potentially updated
+ *
+ * This function validates if a host can be registered based on the
+ * provided parameters. If the host has already been registered (cbdt->host
+ * is non-NULL), it returns -EEXIST. It also checks the validity of
+ * @hostname and ensures it is non-empty, returning -EINVAL if invalid.
+ *
+ * If *host_id is set to UINT_MAX, it assigns a new host ID based on the
+ * transport's configuration. For single-host cases, the host ID is set to 0.
+ * In multi-host setups, it attempts to find an available host ID with
+ * cbdt_get_empty_host_id(). If no ID is available, it logs an error and
+ * returns -EBUSY.
+ *
+ * After determining a host ID, the function verifies that no active host
+ * exists with that ID by reading the host info with cbdt_host_info_read()
+ * and checking its state with cbd_host_info_is_alive(). If an active host
+ * exists, it logs the error and returns -EBUSY.
+ *
+ * Return:
+ * * 0 on successful validation and ID assignment
+ * * -EEXIST if the host is already registered
+ * * -EINVAL if the hostname is empty
+ * * -EBUSY if no available ID is found or if the host ID is in use
+ */
 static int host_register_validate(struct cbd_transport *cbdt, char *hostname, u32 *host_id)
 {
 	struct cbd_host_info *host_info;
@@ -80,7 +112,7 @@ static int host_register_validate(struct cbd_transport *cbdt, char *hostname, u3
 
 	if (*host_id == UINT_MAX) {
 		/* In single-host case, set the host_id to 0 */
-		if (cbdt->transport_info->host_num == 1) {
+		if (cbdt_is_single_host(cbdt)) {
 			*host_id = 0;
 		} else {
 			ret = cbdt_get_empty_host_id(cbdt, host_id);
@@ -100,11 +132,36 @@ static int host_register_validate(struct cbd_transport *cbdt, char *hostname, u3
 	return 0;
 }
 
-
+/**
+ * cbd_host_register - Register a new host with the specified host ID
+ * @cbdt: Pointer to the CBD transport structure
+ * @hostname: Pointer to the hostname string for the new host
+ * @host_id: Host ID to be assigned to the new host
+ *
+ * This function registers a new host with the specified host ID by
+ * performing a validation check using host_register_validate(). If the
+ * validation is successful, memory is allocated for the new host structure
+ * and initialized with the given parameters. This includes setting the
+ * CBD transport pointer, host ID, and initializing synchronization primitives.
+ *
+ * The hostname is stored in the host_info structure to help identify the
+ * host. This allows for quick identification of the physical server
+ * associated with the `host_id`, streamlining maintenance and data tracking.
+ *
+ * The host is marked as running, and the host information is then saved
+ * with host_info_write(). A delayed heartbeat work item is also queued to
+ * monitor the host's state.
+ *
+ * Return:
+ * * 0 on successful registration
+ * * -EEXIST if the host has already been registered
+ * * -EINVAL if the hostname is empty
+ * * -EBUSY if the host ID is already in use
+ * * -ENOMEM if memory allocation for the host structure fails
+ */
 int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 {
 	struct cbd_host *host;
-	struct cbd_host_info *host_info;
 	int ret;
 
 	ret = host_register_validate(cbdt, hostname, &host_id);
@@ -115,15 +172,14 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 	if (!host)
 		return -ENOMEM;
 
-	host->host_id = host_id;
 	host->cbdt = cbdt;
+	host->host_id = host_id;
 	host->info_index = 0;
 	mutex_init(&host->info_lock);
 	INIT_DELAYED_WORK(&host->hb_work, host_hb_workfn);
 
-	host_info = &host->host_info;
-	host_info->state = cbd_host_state_running;
-	memcpy(host_info->hostname, hostname, CBD_NAME_LEN);
+	host->host_info.state = cbd_host_state_running;
+	memcpy(host->host_info.hostname, hostname, CBD_NAME_LEN);
 
 	cbdt->host = host;
 
@@ -139,10 +195,7 @@ static bool host_backends_stopped(struct cbd_transport *cbdt, u32 host_id)
 	u32 i;
 
 	cbd_for_each_backend_info(cbdt, i, backend_info) {
-		if (!backend_info)
-			continue;
-
-		if (backend_info->state != cbd_backend_state_running)
+		if (!backend_info || backend_info->state != cbd_backend_state_running)
 			continue;
 
 		if (backend_info->host_id == host_id) {
@@ -160,10 +213,7 @@ static bool host_blkdevs_stopped(struct cbd_transport *cbdt, u32 host_id)
 	int i;
 
 	cbd_for_each_blkdev_info(cbdt, i, blkdev_info) {
-		if (!blkdev_info)
-			continue;
-
-		if (blkdev_info->state != cbd_blkdev_state_running)
+		if (!blkdev_info || blkdev_info->state != cbd_blkdev_state_running)
 			continue;
 
 		if (blkdev_info->host_id == host_id) {
@@ -174,6 +224,27 @@ static bool host_blkdevs_stopped(struct cbd_transport *cbdt, u32 host_id)
 
 	return true;
 }
+
+/**
+ * cbd_host_unregister - Unregister the host from the CBD transport
+ * @cbdt: Pointer to the CBD transport structure
+ *
+ * This function unregisters a host that has been registered to the given
+ * CBD transport. It first checks if a host is currently registered. If not,
+ * it logs an error message and returns 0.
+ *
+ * If a host is registered, it verifies that all block devices and backends
+ * associated with the host ID are stopped. If either are still active,
+ * it returns -EBUSY to indicate the host cannot be unregistered at this time.
+ *
+ * If all checks pass, the function proceeds to cancel the heartbeat
+ * delayed work and clear the host's info from the CBD transport. It then
+ * frees the memory associated with the host structure.
+ *
+ * Return:
+ * * 0 on successful unregistration or if no host is registered
+ * * -EBUSY if block devices or backends are still active
+ */
 int cbd_host_unregister(struct cbd_transport *cbdt)
 {
 	struct cbd_host *host = cbdt->host;
@@ -215,9 +286,4 @@ int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id)
 	cbdt_host_info_clear(cbdt, host_id);
 
 	return 0;
-}
-
-static void cbd_host_hb(struct cbd_host *host)
-{
-	host_info_write(host);
 }
