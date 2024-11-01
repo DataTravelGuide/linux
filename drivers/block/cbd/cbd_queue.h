@@ -118,4 +118,17 @@ static inline struct cbd_ce *get_complete_entry(struct cbd_queue *cbdq)
 	return (struct cbd_ce *)(cbdq->channel.compr + cbdc_compr_tail_get(&cbdq->channel));
 }
 
+static inline bool cbd_req_nodata(struct cbd_request *cbd_req)
+{
+	switch (cbd_req->op) {
+	case CBD_OP_WRITE:
+	case CBD_OP_READ:
+		return false;
+	case CBD_OP_FLUSH:
+		return true;
+	default:
+		BUG();
+	}
+}
+
 #endif /* _CBD_QUEUE_H */
