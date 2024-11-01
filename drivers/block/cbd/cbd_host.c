@@ -261,7 +261,7 @@ int cbd_host_unregister(struct cbd_transport *cbdt)
 	cancel_delayed_work_sync(&host->hb_work);
 	cbdt_host_info_clear(cbdt, host->host_id);
 	cbdt->host = NULL;
-	kfree(cbdt->host);
+	kfree(host);
 
 	return 0;
 }
