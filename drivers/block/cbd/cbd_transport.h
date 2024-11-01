@@ -41,20 +41,21 @@
 #define CBD_TRASNPORT_SIZE_MIN          (512 * 1024 * 1024)     /* Minimum size for CBD transport (512 MB) */
 
 /*
- * CBD transport flags indicating configuration requirements set during formatting
+ * CBD transport flags configured during formatting
  *
- * The CBDT_INFO_F_xxx flags are defined when the transport is formatted. To
- * register a transport:
- * - If formatted as big-endian (CBDT_INFO_F_BIGENDIAN), only big-endian machines
- *   can register it.
- * - If formatted with CRC checks (CBDT_INFO_F_CRC), the CBD_CRC configuration
- *   must be enabled to register.
- * - If multihost support was enabled at formatting (CBDT_INFO_F_MULTIHOST),
- *   CBD_MULTIHOST must be enabled for registration.
+ * The CBDT_INFO_F_xxx flags define registration requirements based on transport
+ * formatting. For a machine to register a transport:
+ * - CBDT_INFO_F_BIGENDIAN: Requires a big-endian machine.
+ * - CBDT_INFO_F_CHANNEL_CRC: Requires CBD_CHANNEL_CRC enabled.
+ * - CBDT_INFO_F_CHANNEL_DATA_CRC: Requires CBD_CHANNEL_DATA_CRC enabled.
+ * - CBDT_INFO_F_CACHE_DATA_CRC: Requires CBD_CACHE_DATA_CRC enabled.
+ * - CBDT_INFO_F_MULTIHOST: Requires CBD_MULTIHOST enabled for multi-host access.
  */
-#define CBDT_INFO_F_BIGENDIAN           (1 << 0)  /* Data is stored in big-endian format */
-#define CBDT_INFO_F_CRC                 (1 << 1)  /* CRC checks are enabled for data integrity */
-#define CBDT_INFO_F_MULTIHOST           (1 << 2)  /* Supports multiple hosts */
+#define CBDT_INFO_F_BIGENDIAN			(1 << 0)
+#define CBDT_INFO_F_CHANNEL_CRC			(1 << 1)
+#define CBDT_INFO_F_CHANNEL_DATA_CRC		(1 << 2)
+#define CBDT_INFO_F_CACHE_DATA_CRC		(1 << 3)
+#define CBDT_INFO_F_MULTIHOST			(1 << 4)  /* Supports multiple hosts */
 
 /*
  * Maximum number of hosts supported in the transport.
@@ -155,9 +156,9 @@ struct page *cbdt_page(struct cbd_transport *cbdt, u64 transport_off, u32 *page_
 void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size);
 void cbdt_flush(struct cbd_transport *cbdt, void *pos, u32 size);
 
-static inline cbdt_is_single_host(struct cbd_transport *cbdt)
+static inline bool cbdt_is_single_host(struct cbd_transport *cbdt)
 {
-	return (cbdt->host_num == 1);
+	return (cbdt->transport_info->host_num == 1);
 }
 
 #endif /* _CBD_TRANSPORT_H */

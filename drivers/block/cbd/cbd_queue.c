@@ -189,16 +189,18 @@ void cbd_queue_advance(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 	spin_unlock(&cbdq->channel.submr_lock);
 }
 
-#ifdef CONFIG_CBD_CRC
 static int queue_ce_verify(struct cbd_queue *cbdq, struct cbd_request *cbd_req,
 			   struct cbd_ce *ce)
 {
+#ifdef CONFIG_CBD_CHANNEL_CRC
 	if (ce->ce_crc != cbd_ce_crc(ce)) {
 		cbd_queue_err(cbdq, "ce crc bad 0x%x != 0x%x(expected)",
 				cbd_ce_crc(ce), ce->ce_crc);
 		return -EIO;
 	}
+#endif
 
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
 	if (cbd_req->op == CBD_OP_READ &&
 		ce->data_crc != cbd_channel_crc(&cbdq->channel,
 					       cbd_req->data_off,
@@ -210,10 +212,9 @@ static int queue_ce_verify(struct cbd_queue *cbdq, struct cbd_request *cbd_req,
 				ce->data_crc);
 		return -EIO;
 	}
-
+#endif
 	return 0;
 }
-#endif
 
 /**
  * complete_miss - Handle the situation when no completion events (CEs) are available.
@@ -287,11 +288,9 @@ again:
 		goto miss;
 	}
 
-#ifdef CONFIG_CBD_CRC
 	ret = queue_ce_verify(cbdq, cbd_req, ce);
 	if (ret)
 		goto miss;
-#endif
 
 	cbdwc_hit(&cbdq->complete_worker_cfg);
 	cbdc_compr_tail_advance(&cbdq->channel, sizeof(struct cbd_ce));
@@ -368,19 +367,21 @@ static void queue_req_se_init(struct cbd_request *cbd_req)
 	cbd_req->se = se;
 }
 
-#ifdef CONFIG_CBD_CRC
 static void cbd_req_crc_init(struct cbd_request *cbd_req)
 {
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
 	struct cbd_queue *cbdq = cbd_req->cbdq;
-	struct cbd_se *se = cbd_req->se;
 
 	if (cbd_req->op == CBD_OP_WRITE)
-		se->data_crc = cbd_channel_crc(&cbdq->channel,
+		cbd_req->se->data_crc = cbd_channel_crc(&cbdq->channel,
 					       cbd_req->data_off,
 					       cbd_req->data_len);
-	se->se_crc = cbd_se_crc(se);
-}
 #endif
+
+#ifdef CONFIG_CBD_CHANNEL_CRC
+	cbd_req->se->se_crc = cbd_se_crc(cbd_req->se);
+#endif
+}
 
 /**
  * queue_req_channel_init - Initialize channel-related information for a cbd_request.
@@ -421,9 +422,7 @@ static void queue_req_channel_init(struct cbd_request *cbd_req)
 	cbdq->channel.data_head = round_up(cbdq->channel.data_head + cbd_req->data_len, PAGE_SIZE);
 	cbdq->channel.data_head %= cbdq->channel.data_size;
 crc_init:
-#ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
-#endif
 }
 
 /**

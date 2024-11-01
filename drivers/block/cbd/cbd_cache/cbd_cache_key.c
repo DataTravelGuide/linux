@@ -115,7 +115,7 @@ static void cache_key_encode(struct cbd_cache_key_onmedia *key_onmedia,
 	key_onmedia->seg_gen = key->seg_gen;  /* Set segment generation */
 	key_onmedia->flags = key->flags;  /* Set flags */
 
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
 	key_onmedia->data_crc = key->data_crc;  /* Set data CRC if configured */
 #endif
 }
@@ -141,7 +141,7 @@ void cache_key_decode(struct cbd_cache_key_onmedia *key_onmedia, struct cbd_cach
 	key->seg_gen = key_onmedia->seg_gen;  /* Set segment generation */
 	key->flags = key_onmedia->flags;  /* Set flags */
 
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
 	key->data_crc = key_onmedia->data_crc;  /* Set data CRC if configured */
 #endif
 }
@@ -306,7 +306,7 @@ int cache_key_append(struct cbd_cache *cache, struct cbd_cache_key *key)
 
 	spin_lock(&kset->kset_lock);
 	key_onmedia = &kset_onmedia->data[kset_onmedia->key_num];
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
 	key->data_crc = cache_key_data_crc(key);
 #endif
 	cache_key_encode(key_onmedia, key);
@@ -861,7 +861,7 @@ static int kset_replay(struct cbd_cache *cache, struct cbd_cache_kset_onmedia *k
 		}
 
 		cache_key_decode(key_onmedia, key);
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
 		/* Validate the key's data CRC against the calculated CRC. */
 		if (key->data_crc != cache_key_data_crc(key)) {
 			cbd_cache_debug(cache, "key: %llu:%u seg %u:%u data_crc error: %x, expected: %x\n",

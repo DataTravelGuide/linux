@@ -30,9 +30,12 @@ static inline void complete_cmd(struct cbd_handler *handler, struct cbd_se *se, 
 	ce->req_tid = se->req_tid;
 	ce->result = ret;
 
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
 	if (se->op == CBD_OP_READ)
 		ce->data_crc = cbd_channel_crc(&handler->channel, se->data_off, se->data_len);
+#endif
+
+#ifdef CONFIG_CBD_CHANNEL_CRC
 	ce->ce_crc = cbd_ce_crc(ce);
 #endif
 	cbdc_compr_head_advance(&handler->channel, sizeof(struct cbd_ce));
@@ -261,15 +264,17 @@ static int handler_reset(struct cbd_handler *handler)
 	return 0;
 }
 
-#ifdef CONFIG_CBD_CRC
-static int channel_se_verify(struct cbd_handler *handler, struct cbd_se *se)
+static inline int channel_se_verify(struct cbd_handler *handler, struct cbd_se *se)
 {
+#ifdef CONFIG_CBD_CHANNEL_CRC
 	if (se->se_crc != cbd_se_crc(se)) {
 		cbd_handler_err(handler, "se crc(0x%x) is not expected(0x%x)",
 				cbd_se_crc(se), se->se_crc);
 		return -EIO;
 	}
+#endif
 
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
 	if (se->op == CBD_OP_WRITE &&
 		se->data_crc != cbd_channel_crc(&handler->channel,
 						se->data_off,
@@ -279,10 +284,9 @@ static int channel_se_verify(struct cbd_handler *handler, struct cbd_se *se)
 				se->data_crc);
 		return -EIO;
 	}
-
+#endif
 	return 0;
 }
-#endif
 
 static int handle_mgmt_cmd(struct cbd_handler *handler)
 {
@@ -379,11 +383,10 @@ again:
 		goto miss;
 	}
 
-#ifdef CONFIG_CBD_CRC
 	ret = channel_se_verify(handler, se);
 	if (ret)
 		goto miss;
-#endif
+
 	cbdwc_hit(&handler->handle_worker_cfg);
 
 	ret = handle_backend_cmd(handler, se);

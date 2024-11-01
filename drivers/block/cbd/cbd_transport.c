@@ -496,17 +496,27 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 
 	info->magic = cpu_to_le64(CBD_TRANSPORT_MAGIC);
 	info->version = cpu_to_le16(CBD_TRANSPORT_VERSION);
+
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
 	flags |= CBDT_INFO_F_BIGENDIAN;
 #endif
 
-#ifdef CONFIG_CBD_CRC
-	flags |= CBDT_INFO_F_CRC;
+#ifdef CONFIG_CBD_CHANNEL_CRC
+	flags |= CBDT_INFO_F_CHANNEL_CRC;
+#endif
+
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
+	flags |= CBDT_INFO_F_CHANNEL_DATA_CRC;
+#endif
+
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
+	flags |= CBDT_INFO_F_CACHE_DATA_CRC;
 #endif
 
 #ifdef CONFIG_CBD_MULTIHOST
 	flags |= CBDT_INFO_F_MULTIHOST;
 #endif
+
 	info->flags = cpu_to_le16(flags);
 	/*
 	 * Try to fully utilize all available space,
@@ -855,7 +865,10 @@ static int cbdt_validate(struct cbd_transport *cbdt)
 	}
 
 	flags = le16_to_cpu(cbdt->transport_info->flags);
+	flags = le16_to_cpu(cbdt->transport_info->flags);
+
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
+	/* Ensure transport matches the system's endianness */
 	if (!(flags & CBDT_INFO_F_BIGENDIAN)) {
 		cbdt_err(cbdt, "transport is not big endian\n");
 		return -EINVAL;
@@ -867,9 +880,23 @@ static int cbdt_validate(struct cbd_transport *cbdt)
 	}
 #endif
 
-#ifndef CONFIG_CBD_CRC
-	if (flags & CBDT_INFO_F_CRC) {
-		cbdt_err(cbdt, "transport expects CBD_CRC enabled.\n");
+#ifndef CONFIG_CBD_CHANNEL_CRC
+	if (flags & CBDT_INFO_F_CHANNEL_CRC) {
+		cbdt_err(cbdt, "transport expects CBD_CHANNEL_CRC enabled.\n");
+		return -EOPNOTSUPP;
+	}
+#endif
+
+#ifndef CONFIG_CBD_CHANNEL_DATA_CRC
+	if (flags & CBDT_INFO_F_CHANNEL_DATA_CRC) {
+		cbdt_err(cbdt, "transport expects CBD_CHANNEL_DATA_CRC enabled.\n");
+		return -EOPNOTSUPP;
+	}
+#endif
+
+#ifndef CONFIG_CBD_CACHE_DATA_CRC
+	if (flags & CBDT_INFO_F_CACHE_DATA_CRC) {
+		cbdt_err(cbdt, "transport expects CBD_CACHE_DATA_CRC enabled.\n");
 		return -EOPNOTSUPP;
 	}
 #endif
@@ -880,7 +907,6 @@ static int cbdt_validate(struct cbd_transport *cbdt)
 		return -EOPNOTSUPP;
 	}
 #endif
-
 	return 0;
 }
 

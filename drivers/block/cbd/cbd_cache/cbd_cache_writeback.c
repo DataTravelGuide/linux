@@ -256,7 +256,7 @@ static void last_kset_writeback(struct cbd_cache *cache,
 }
 
 
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
 /**
  * kset_data_verify - Verify the integrity of each key in a kset before writeback.
  * @cache: Pointer to the cbd_cache structure, which provides context for the cache.
@@ -348,7 +348,7 @@ void cache_writeback_fn(struct work_struct *work)
 			continue;
 		}
 
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CACHE_DATA_CRC
 		/* Verify the data integrity of the kset using CRC */
 		ret = kset_data_verify(cache, kset_onmedia);
 		if (ret)

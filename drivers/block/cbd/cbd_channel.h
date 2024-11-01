@@ -23,8 +23,10 @@ enum cbd_op {
 };
 
 struct cbd_se {
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CHANNEL_CRC
 	u32			se_crc;		/* should be the first member */
+#endif
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
 	u32			data_crc;
 #endif
 	u32			op;
@@ -39,8 +41,10 @@ struct cbd_se {
 };
 
 struct cbd_ce {
-#ifdef CONFIG_CBD_CRC
+#ifdef CONFIG_CBD_CHANNEL_CRC
 	u32		ce_crc;		/* should be the first member */
+#endif
+#ifdef CONFIG_CBD_CHANNEL_DATA_CRC
 	u32		data_crc;
 #endif
 	u64		req_tid;
@@ -48,7 +52,6 @@ struct cbd_ce {
 	u32		flags;
 };
 
-#ifdef CONFIG_CBD_CRC
 static inline u32 cbd_se_crc(struct cbd_se *se)
 {
 	return crc32(0, (void *)se + 4, sizeof(*se) - 4);
@@ -58,7 +61,6 @@ static inline u32 cbd_ce_crc(struct cbd_ce *ce)
 {
 	return crc32(0, (void *)ce + 4, sizeof(*ce) - 4);
 }
-#endif
 
 /* cbd channel segment metadata */
 #define CBDC_META_SIZE          (4 * 1024 * 1024)                   /* Metadata size for each CBD channel segment (4 MB) */
