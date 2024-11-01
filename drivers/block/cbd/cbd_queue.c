@@ -533,8 +533,6 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 	if (ret)
 		goto free_extents;
 
-	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
-
 	atomic_set(&cbdq->state, cbd_queue_state_running);
 
 	return 0;

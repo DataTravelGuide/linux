@@ -415,7 +415,7 @@ static struct cbd_handler *handler_alloc(struct cbd_backend *cbdb)
 
 	handler = kzalloc(sizeof(struct cbd_handler), GFP_KERNEL);
 	if (!handler)
-		return -ENOMEM;
+		return NULL;
 
 	ret = bioset_init(&handler->bioset, 256, 0, BIOSET_NEED_BVECS);
 	if (ret)
@@ -475,6 +475,8 @@ static void handler_channel_destroy(struct cbd_handler *handler)
 /* handler start and stop */
 static void handler_start(struct cbd_handler *handler)
 {
+	struct cbd_backend *cbdb = handler->cbdb;
+
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 	queue_delayed_work(cbdb->task_wq, &handler->handle_mgmt_work, 0);
 }
@@ -491,7 +493,6 @@ static void handler_stop(struct cbd_handler *handler)
 int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channel)
 {
 	struct cbd_handler *handler;
-	int ret;
 
 	handler = handler_alloc(cbdb);
 	if (!handler)
@@ -501,10 +502,6 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channe
 	handler_start(handler);
 
 	return 0;
-
-free_handler:
-	kfree(handler);
-	return ret;
 };
 
 void cbd_handler_destroy(struct cbd_handler *handler)
