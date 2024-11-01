@@ -166,11 +166,6 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 	int ret;
 
 	spin_lock(&cbdq->inflight_reqs_lock);
-	if (atomic_read(&cbdq->state) == cbd_queue_state_removing) {
-		spin_unlock(&cbdq->inflight_reqs_lock);
-		ret = -EIO;
-		goto err;
-	}
 	list_add_tail(&cbd_req->inflight_reqs_node, &cbdq->inflight_reqs);
 	spin_unlock(&cbdq->inflight_reqs_lock);
 
@@ -533,8 +528,6 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 	if (ret)
 		goto free_extents;
 
-	atomic_set(&cbdq->state, cbd_queue_state_running);
-
 	return 0;
 
 free_extents:
@@ -545,26 +538,7 @@ out:
 
 void cbd_queue_stop(struct cbd_queue *cbdq)
 {
-	LIST_HEAD(tmp_list);
-	struct cbd_request *cbd_req;
-
-	if (atomic_read(&cbdq->state) != cbd_queue_state_running)
-		return;
-
-	atomic_set(&cbdq->state, cbd_queue_state_removing);
 	cancel_delayed_work_sync(&cbdq->complete_work);
-
-	spin_lock(&cbdq->inflight_reqs_lock);
-	list_splice_init(&cbdq->inflight_reqs, &tmp_list);
-	spin_unlock(&cbdq->inflight_reqs_lock);
-
-	while (!list_empty(&tmp_list)) {
-		cbd_req = list_first_entry(&tmp_list,
-				struct cbd_request, inflight_reqs_node);
-		list_del_init(&cbd_req->inflight_reqs_node);
-		cancel_work_sync(&cbd_req->work);
-		cbd_req_put(cbd_req, -EIO);
-	}
 
 	kfree(cbdq->released_extents);
 }

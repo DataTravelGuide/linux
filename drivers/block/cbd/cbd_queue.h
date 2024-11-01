@@ -62,12 +62,6 @@ static inline void cbd_se_flags_set(struct cbd_se *se, u32 bit)
 	se->flags |= bit;
 }
 
-enum cbd_queue_state {
-	cbd_queue_state_none	= 0,
-	cbd_queue_state_running,
-	cbd_queue_state_removing
-};
-
 struct cbd_queue {
 	struct cbd_blkdev	*cbd_blkdev;
 	u32			index;
@@ -80,8 +74,6 @@ struct cbd_queue {
 	struct cbd_channel_seg_info	*channel_info;
 	struct cbd_channel	channel;
 	struct cbd_channel_ctrl	*channel_ctrl;
-
-	atomic_t		state;
 
 	struct delayed_work	complete_work;
 	struct cbd_worker_cfg	complete_worker_cfg;
