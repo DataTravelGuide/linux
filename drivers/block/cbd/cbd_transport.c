@@ -11,9 +11,6 @@
 #include "cbd_blkdev.h"
 
 #define CBDT_OBJ(OBJ, OBJ_SIZE, OBJ_STRIDE)					\
-extern const struct device_type cbd_##OBJ##_type;				\
-extern const struct device_type cbd_##OBJ##s_type;				\
-										\
 static int cbd_##OBJ##s_init(struct cbd_transport *cbdt)			\
 {										\
 	struct cbd_##OBJ##s_device *devs;					\
@@ -207,9 +204,6 @@ CBDT_OBJ(segment, CBDT_SEG_INFO_SIZE, CBDT_SEG_INFO_STRIDE);
 static struct cbd_transport *cbd_transports[CBD_TRANSPORT_MAX];
 static DEFINE_IDA(cbd_transport_id_ida);
 static DEFINE_MUTEX(cbd_transport_mutex);
-
-extern struct bus_type cbd_bus_type;
-extern struct device cbd_root_dev;
 
 static ssize_t cbdt_host_show(struct device *dev,
 			       struct device_attribute *attr,

@@ -128,6 +128,8 @@ int cbdt_register(struct cbdt_register_options *opts);
 int cbdt_unregister(u32 transport_id);
 
 #define CBDT_OBJ_DECLARE(OBJ)								\
+extern const struct device_type cbd_##OBJ##_type;					\
+extern const struct device_type cbd_##OBJ##s_type;					\
 struct cbd_##OBJ##_info	*cbdt_get_##OBJ##_info(struct cbd_transport *cbdt, u32 id);	\
 int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id);			\
 struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,		\
@@ -144,6 +146,9 @@ CBDT_OBJ_DECLARE(host);
 CBDT_OBJ_DECLARE(backend);
 CBDT_OBJ_DECLARE(blkdev);
 CBDT_OBJ_DECLARE(segment);
+
+extern const struct bus_type cbd_bus_type;
+extern struct device cbd_root_dev;
 
 void cbdt_add_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
 void cbdt_del_backend(struct cbd_transport *cbdt, struct cbd_backend *cbdb);
