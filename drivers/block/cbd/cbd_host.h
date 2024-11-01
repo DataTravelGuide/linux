@@ -43,4 +43,10 @@ int cbd_host_unregister(struct cbd_transport *cbdt);
 int cbd_host_clear(struct cbd_transport *cbdt, u32 host_id);
 bool cbd_host_info_is_alive(struct cbd_host_info *info);
 
+#define cbd_for_each_host_info(cbdt, i, host_info)				\
+	for (i = 0;								\
+	     i < cbdt->transport_info->host_num &&				\
+	     (host_info = cbdt_host_info_read(cbdt, i, NULL));			\
+	     i++)
+
 #endif /* _CBD_HOST_H */

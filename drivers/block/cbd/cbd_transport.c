@@ -10,7 +10,6 @@
 #include "cbd_backend.h"
 #include "cbd_blkdev.h"
 
-
 #define CBDT_OBJ(OBJ, OBJ_SIZE, OBJ_STRIDE)					\
 extern struct device_type cbd_##OBJ##_type;					\
 extern struct device_type cbd_##OBJ##s_type;					\
@@ -451,39 +450,33 @@ void cbdt_zero_range(struct cbd_transport *cbdt, void *pos, u32 size)
 	cbdt_flush(cbdt, pos, size);
 }
 
-static void segments_format(struct cbd_transport *cbdt)
+static bool hosts_stopped(struct cbd_transport *cbdt)
 {
+	struct cbd_host_info *host_info;
 	u32 i;
-	struct cbd_segment_info *seg_info;
 
-	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
-		seg_info = cbdt_get_segment_info(cbdt, i);
-		cbdt_zero_range(cbdt, seg_info, CBDT_SEG_INFO_SIZE * CBDT_META_INDEX_MAX);
+	cbd_for_each_host_info(cbdt, i, host_info) {
+		if (cbd_host_info_is_alive(host_info)) {
+			cbdt_err(cbdt, "host %u is still alive\n", i);
+			return false;
+		}
 	}
+
+	return true;
 }
 
-static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
+static int format_validate(struct cbd_transport *cbdt, bool force)
 {
 	struct cbd_transport_info *info = cbdt->transport_info;
 	u64 transport_dev_size;
-	u32 seg_size;
-	u32 nr_segs;
 	u64 magic;
-	u16 flags = 0;
-	u32 i;
 
 	magic = le64_to_cpu(info->magic);
 	if (magic && !force)
 		return -EEXIST;
 
-	if (magic == CBD_TRANSPORT_MAGIC) {
-		for (i = 0; i < info->host_num; i++) {
-			if (cbd_host_info_is_alive(cbdt_get_host_info(cbdt, i))) {
-				cbdt_err(cbdt, "host %u is still alive\n", i);
-				return -EBUSY;
-			}
-		}
-	}
+	if (magic == CBD_TRANSPORT_MAGIC && !hosts_stopped(cbdt))
+		return -EBUSY;
 
 	transport_dev_size = bdev_nr_bytes(file_bdev(cbdt->bdev_file));
 	if (transport_dev_size < CBD_TRASNPORT_SIZE_MIN) {
@@ -492,7 +485,18 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 		return -ENOSPC;
 	}
 
-	memset(info, 0, sizeof(*info));
+	return 0;
+}
+
+static void format_transport_info(struct cbd_transport *cbdt)
+{
+	struct cbd_transport_info *info = cbdt->transport_info;
+	u64 transport_dev_size;
+	u32 seg_size;
+	u32 nr_segs;
+	u16 flags = 0;
+
+	cbdt_zero_range(cbdt, info, sizeof(struct cbd_transport_info));
 
 	info->magic = cpu_to_le64(CBD_TRANSPORT_MAGIC);
 	info->version = cpu_to_le16(CBD_TRANSPORT_VERSION);
@@ -524,6 +528,7 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	 */
 	seg_size = (CBDT_HOST_INFO_STRIDE + CBDT_BACKEND_INFO_STRIDE +
 			CBDT_BLKDEV_INFO_STRIDE + CBDT_SEG_SIZE);
+	transport_dev_size = bdev_nr_bytes(file_bdev(cbdt->bdev_file));
 	nr_segs = (transport_dev_size - CBDT_INFO_STRIDE) / seg_size;
 
 	info->host_area_off = CBDT_INFO_OFF + CBDT_INFO_STRIDE;
@@ -541,6 +546,26 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 	info->segment_area_off = info->blkdev_area_off + (CBDT_BLKDEV_INFO_STRIDE * info->blkdev_num);
 	info->segment_size = CBDT_SEG_SIZE;
 	info->segment_num = nr_segs;
+}
+
+static void segments_format(struct cbd_transport *cbdt)
+{
+	u32 i;
+
+	for (i = 0; i < cbdt->transport_info->segment_num; i++)
+		cbdt_segment_info_clear(cbdt, i);
+}
+
+static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
+{
+	struct cbd_transport_info *info = cbdt->transport_info;
+	int ret;
+
+	ret = format_validate(cbdt, force);
+	if (ret)
+		return ret;
+
+	format_transport_info(cbdt);
 
 	cbdt_zero_range(cbdt, (void *)info + info->host_area_off,
 			     info->segment_area_off - info->host_area_off);
@@ -743,118 +768,7 @@ const struct dax_holder_operations cbd_dax_holder_ops = {
 	.notify_failure		= cbd_dax_notify_failure,
 };
 
-static struct cbd_transport *cbdt_alloc(void)
-{
-	struct cbd_transport *cbdt;
-	int ret;
-
-	cbdt = kzalloc(sizeof(struct cbd_transport), GFP_KERNEL);
-	if (!cbdt)
-		return NULL;
-
-	mutex_init(&cbdt->lock);
-	mutex_init(&cbdt->adm_lock);
-	INIT_LIST_HEAD(&cbdt->backends);
-	INIT_LIST_HEAD(&cbdt->devices);
-
-	ret = ida_simple_get(&cbd_transport_id_ida, 0, CBD_TRANSPORT_MAX,
-				GFP_KERNEL);
-	if (ret < 0)
-		goto cbdt_free;
-
-	cbdt->id = ret;
-	cbd_transports[cbdt->id] = cbdt;
-
-	return cbdt;
-
-cbdt_free:
-	kfree(cbdt);
-	return NULL;
-}
-
-static void cbdt_destroy(struct cbd_transport *cbdt)
-{
-	cbd_transports[cbdt->id] = NULL;
-	ida_simple_remove(&cbd_transport_id_ida, cbdt->id);
-	kfree(cbdt);
-}
-
-static int cbdt_dax_init(struct cbd_transport *cbdt, char *path)
-{
-	struct dax_device *dax_dev = NULL;
-	struct file *bdev_file = NULL;
-	long access_size;
-	void *kaddr;
-	u64 start_off = 0;
-	int ret;
-	int id;
-
-	bdev_file = bdev_file_open_by_path(path, BLK_OPEN_READ | BLK_OPEN_WRITE, cbdt, NULL);
-	if (IS_ERR(bdev_file)) {
-		cbdt_err(cbdt, "%s: failed blkdev_get_by_path(%s)\n", __func__, path);
-		ret = PTR_ERR(bdev_file);
-		goto err;
-	}
-
-	dax_dev = fs_dax_get_by_bdev(file_bdev(bdev_file), &start_off,
-				     cbdt,
-				     &cbd_dax_holder_ops);
-	if (IS_ERR(dax_dev)) {
-		cbdt_err(cbdt, "%s: unable to get daxdev from bdev_file\n", __func__);
-		ret = -ENODEV;
-		goto fput;
-	}
-
-	id = dax_read_lock();
-	access_size = dax_direct_access(dax_dev, 0, 1, DAX_ACCESS, &kaddr, NULL);
-	if (access_size != 1) {
-		dax_read_unlock(id);
-		ret = -EINVAL;
-		goto dax_put;
-	}
-
-	cbdt->bdev_file = bdev_file;
-	cbdt->dax_dev = dax_dev;
-	cbdt->transport_info = (struct cbd_transport_info *)kaddr;
-	dax_read_unlock(id);
-
-	return 0;
-
-dax_put:
-	fs_put_dax(dax_dev, cbdt);
-fput:
-	fput(bdev_file);
-err:
-	return ret;
-}
-
-static void cbdt_dax_release(struct cbd_transport *cbdt)
-{
-	if (cbdt->dax_dev)
-		fs_put_dax(cbdt->dax_dev, cbdt);
-
-	if (cbdt->bdev_file)
-		fput(cbdt->bdev_file);
-}
-
-static int cbd_transport_init(struct cbd_transport *cbdt)
-{
-	struct device *dev;
-
-	dev = &cbdt->device;
-	device_initialize(dev);
-	device_set_pm_not_required(dev);
-	dev->bus = &cbd_bus_type;
-	dev->type = &cbd_transport_type;
-	dev->parent = &cbd_root_dev;
-
-	dev_set_name(&cbdt->device, "transport%d", cbdt->id);
-
-	return device_add(&cbdt->device);
-}
-
-
-static int cbdt_validate(struct cbd_transport *cbdt)
+static int transport_info_validate(struct cbd_transport *cbdt)
 {
 	u16 flags;
 
@@ -910,76 +824,120 @@ static int cbdt_validate(struct cbd_transport *cbdt)
 	return 0;
 }
 
-int cbdt_unregister(u32 tid)
-{
-	struct cbd_transport *cbdt;
-
-	cbdt = cbd_transports[tid];
-	if (!cbdt) {
-		pr_err("tid: %u, is not registered\n", tid);
-		return -EINVAL;
-	}
-
-	mutex_lock(&cbdt->lock);
-	if (!list_empty(&cbdt->backends) || !list_empty(&cbdt->devices)) {
-		mutex_unlock(&cbdt->lock);
-		return -EBUSY;
-	}
-	mutex_unlock(&cbdt->lock);
-
-	cbd_blkdevs_exit(cbdt);
-	cbd_segments_exit(cbdt);
-	cbd_backends_exit(cbdt);
-	cbd_hosts_exit(cbdt);
-
-	cbd_host_unregister(cbdt);
-
-	device_unregister(&cbdt->device);
-	cbdt_dax_release(cbdt);
-	cbdt_destroy(cbdt);
-	module_put(THIS_MODULE);
-
-	return 0;
-}
-
-int cbdt_register(struct cbdt_register_options *opts)
+static struct cbd_transport *transport_alloc(void)
 {
 	struct cbd_transport *cbdt;
 	int ret;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+	cbdt = kzalloc(sizeof(struct cbd_transport), GFP_KERNEL);
+	if (!cbdt)
+		return NULL;
 
-	if (!strstr(opts->path, "/dev/pmem")) {
-		pr_err("%s: path (%s) is not pmem\n",
-		       __func__, opts->path);
+	mutex_init(&cbdt->lock);
+	mutex_init(&cbdt->adm_lock);
+	INIT_LIST_HEAD(&cbdt->backends);
+	INIT_LIST_HEAD(&cbdt->devices);
+
+	ret = ida_simple_get(&cbd_transport_id_ida, 0, CBD_TRANSPORT_MAX,
+				GFP_KERNEL);
+	if (ret < 0)
+		goto transport_free;
+
+	cbdt->id = ret;
+	cbd_transports[cbdt->id] = cbdt;
+
+	return cbdt;
+
+transport_free:
+	kfree(cbdt);
+	return NULL;
+}
+
+static void transport_free(struct cbd_transport *cbdt)
+{
+	cbd_transports[cbdt->id] = NULL;
+	ida_simple_remove(&cbd_transport_id_ida, cbdt->id);
+	kfree(cbdt);
+}
+
+static int transport_dax_init(struct cbd_transport *cbdt, char *path)
+{
+	struct dax_device *dax_dev = NULL;
+	struct file *bdev_file = NULL;
+	long access_size;
+	void *kaddr;
+	u64 start_off = 0;
+	int ret;
+	int id;
+
+	bdev_file = bdev_file_open_by_path(path, BLK_OPEN_READ | BLK_OPEN_WRITE, cbdt, NULL);
+	if (IS_ERR(bdev_file)) {
+		cbdt_err(cbdt, "%s: failed blkdev_get_by_path(%s)\n", __func__, path);
+		ret = PTR_ERR(bdev_file);
+		goto err;
+	}
+
+	dax_dev = fs_dax_get_by_bdev(file_bdev(bdev_file), &start_off,
+				     cbdt,
+				     &cbd_dax_holder_ops);
+	if (IS_ERR(dax_dev)) {
+		cbdt_err(cbdt, "%s: unable to get daxdev from bdev_file\n", __func__);
+		ret = -ENODEV;
+		goto fput;
+	}
+
+	id = dax_read_lock();
+	access_size = dax_direct_access(dax_dev, 0, 1, DAX_ACCESS, &kaddr, NULL);
+	if (access_size != 1) {
+		dax_read_unlock(id);
 		ret = -EINVAL;
-		goto module_put;
+		goto dax_put;
 	}
 
-	cbdt = cbdt_alloc();
-	if (!cbdt) {
-		ret = -ENOMEM;
-		goto module_put;
-	}
+	cbdt->bdev_file = bdev_file;
+	cbdt->dax_dev = dax_dev;
+	cbdt->transport_info = (struct cbd_transport_info *)kaddr;
+	dax_read_unlock(id);
 
-	ret = cbdt_dax_init(cbdt, opts->path);
+	return 0;
+
+dax_put:
+	fs_put_dax(dax_dev, cbdt);
+fput:
+	fput(bdev_file);
+err:
+	return ret;
+}
+
+static void transport_dax_exit(struct cbd_transport *cbdt)
+{
+	if (cbdt->dax_dev)
+		fs_put_dax(cbdt->dax_dev, cbdt);
+
+	if (cbdt->bdev_file)
+		fput(cbdt->bdev_file);
+}
+
+static int transport_init(struct cbd_transport *cbdt,
+			  struct cbdt_register_options *opts)
+{
+	struct device *dev;
+	int ret;
+
+	ret = transport_info_validate(cbdt);
 	if (ret)
-		goto cbdt_destroy;
+		goto err;
 
-	if (opts->format) {
-		ret = cbd_transport_format(cbdt, opts->force);
-		if (ret < 0)
-			goto dax_release;
-	}
-
-	ret = cbdt_validate(cbdt);
+	dev = &cbdt->device;
+	device_initialize(dev);
+	device_set_pm_not_required(dev);
+	dev->bus = &cbd_bus_type;
+	dev->type = &cbd_transport_type;
+	dev->parent = &cbd_root_dev;
+	dev_set_name(&cbdt->device, "transport%d", cbdt->id);
+	ret = device_add(&cbdt->device);
 	if (ret)
-		goto dax_release;
-
-	ret = cbd_transport_init(cbdt);
-	if (ret)
-		goto dax_release;
+		goto err;
 
 	ret = cbd_host_register(cbdt, opts->hostname, opts->host_id);
 	if (ret)
@@ -1002,10 +960,86 @@ devs_exit:
 	cbd_host_unregister(cbdt);
 dev_unregister:
 	device_unregister(&cbdt->device);
+err:
+	return ret;
+}
+
+static void transport_exit(struct cbd_transport *cbdt)
+{
+	cbd_blkdevs_exit(cbdt);
+	cbd_segments_exit(cbdt);
+	cbd_backends_exit(cbdt);
+	cbd_hosts_exit(cbdt);
+
+	cbd_host_unregister(cbdt);
+	device_unregister(&cbdt->device);
+}
+
+int cbdt_unregister(u32 tid)
+{
+	struct cbd_transport *cbdt;
+
+	cbdt = cbd_transports[tid];
+	if (!cbdt) {
+		pr_err("tid: %u, is not registered\n", tid);
+		return -EINVAL;
+	}
+
+	mutex_lock(&cbdt->lock);
+	if (!list_empty(&cbdt->backends) || !list_empty(&cbdt->devices)) {
+		mutex_unlock(&cbdt->lock);
+		return -EBUSY;
+	}
+	mutex_unlock(&cbdt->lock);
+
+	transport_exit(cbdt);
+	transport_dax_exit(cbdt);
+	transport_free(cbdt);
+	module_put(THIS_MODULE);
+
+	return 0;
+}
+
+int cbdt_register(struct cbdt_register_options *opts)
+{
+	struct cbd_transport *cbdt;
+	int ret;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	if (!strstr(opts->path, "/dev/pmem")) {
+		pr_err("%s: path (%s) is not pmem\n",
+		       __func__, opts->path);
+		ret = -EINVAL;
+		goto module_put;
+	}
+
+	cbdt = transport_alloc();
+	if (!cbdt) {
+		ret = -ENOMEM;
+		goto module_put;
+	}
+
+	ret = transport_dax_init(cbdt, opts->path);
+	if (ret)
+		goto transport_free;
+
+	if (opts->format) {
+		ret = cbd_transport_format(cbdt, opts->force);
+		if (ret < 0)
+			goto dax_release;
+	}
+
+	ret = transport_init(cbdt, opts);
+	if (ret)
+		goto dax_release;
+
+	return 0;
 dax_release:
-	cbdt_dax_release(cbdt);
-cbdt_destroy:
-	cbdt_destroy(cbdt);
+	transport_dax_exit(cbdt);
+transport_free:
+	transport_free(cbdt);
 module_put:
 	module_put(THIS_MODULE);
 

@@ -717,8 +717,7 @@ static void backend_segs_clear(struct cbd_transport *cbdt, u32 backend_id)
 	struct cbd_cache_seg_info *cache_seg_info;
 	u32 i;
 
-	for (i = 0; i < cbdt->transport_info->segment_num; i++) {
-		seg_info = cbdt_segment_info_read(cbdt, i, NULL);
+	cbd_for_each_segment_info(cbdt, i, seg_info) {
 		if (!seg_info)
 			continue;
 

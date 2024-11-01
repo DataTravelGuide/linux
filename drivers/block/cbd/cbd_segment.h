@@ -131,4 +131,10 @@ int cbds_pos_advance(struct cbd_seg_pos *seg_pos, u32 len);
 void cbds_copy_data(struct cbd_seg_pos *dst_pos,
 		    struct cbd_seg_pos *src_pos, u32 len);
 
+#define cbd_for_each_segment_info(cbdt, i, segment_info)			\
+	for (i = 0;								\
+	     i < cbdt->transport_info->segment_num &&				\
+	     (segment_info = cbdt_segment_info_read(cbdt, i, NULL));		\
+	     i++)
+
 #endif /* _CBD_SEGMENT_H */
