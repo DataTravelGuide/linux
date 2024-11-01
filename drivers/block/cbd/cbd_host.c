@@ -111,9 +111,9 @@ int cbd_host_register(struct cbd_transport *cbdt, char *hostname, u32 host_id)
 	host_info->state = cbd_host_state_running;
 	memcpy(host_info->hostname, hostname, CBD_NAME_LEN);
 
-	host_info_write(host);
 	cbdt->host = host;
 
+	host_info_write(host);
 	queue_delayed_work(cbd_wq, &host->hb_work, 0);
 
 	return 0;

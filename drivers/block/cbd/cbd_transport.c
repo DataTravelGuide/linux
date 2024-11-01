@@ -228,7 +228,7 @@ static ssize_t cbd_myhost_show(struct device *dev,
 	return sprintf(buf, "%d\n", host->host_id);
 }
 
-static DEVICE_ATTR(my_host_id, 0400, cbd_myhost_show, NULL);
+static DEVICE_ATTR(host_id, 0400, cbd_myhost_show, NULL);
 
 enum {
 	CBDT_ADM_OPT_ERR		= 0,
@@ -693,7 +693,7 @@ static DEVICE_ATTR(info, 0400, cbd_info_show, NULL);
 static struct attribute *cbd_transport_attrs[] = {
 	&dev_attr_adm.attr,
 	&dev_attr_info.attr,
-	&dev_attr_my_host_id.attr,
+	&dev_attr_host_id.attr,
 	NULL
 };
 
