@@ -501,16 +501,16 @@ static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 	if (!cbd_blkdev->backend)
 		cbd_channel_flags_set_bit(cbdq->channel_ctrl, CBDC_FLAGS_POLLING);
 
+	ret = queue_reset_channel(cbdq);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
-int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
+static int queue_init(struct cbd_queue *cbdq, u32 channel_id)
 {
 	int ret;
-
-	ret = cbd_queue_channel_init(cbdq, channel_id);
-	if (ret)
-		return ret;
 
 	INIT_LIST_HEAD(&cbdq->inflight_reqs);
 	spin_lock_init(&cbdq->inflight_reqs_lock);
@@ -518,13 +518,24 @@ int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
 	INIT_DELAYED_WORK(&cbdq->complete_work, complete_work_fn);
 	cbdwc_init(&cbdq->complete_worker_cfg);
 
+	ret = cbd_queue_channel_init(cbdq, channel_id);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int cbd_queue_start(struct cbd_queue *cbdq, u32 channel_id)
+{
+	int ret;
+
 	cbdq->released_extents = kzalloc(sizeof(u64) * (CBDC_DATA_SIZE >> PAGE_SHIFT), GFP_KERNEL);
 	if (!cbdq->released_extents) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = queue_reset_channel(cbdq);
+	ret = queue_init(cbdq, channel_id);
 	if (ret)
 		goto free_extents;
 
