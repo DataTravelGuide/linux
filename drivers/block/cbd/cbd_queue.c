@@ -417,10 +417,9 @@ static void queue_req_channel_init(struct cbd_request *cbd_req)
 	if (cbd_req->op == CBD_OP_WRITE)
 		cbdc_copy_from_bio(&cbdq->channel, cbd_req->data_off,
 				   cbd_req->data_len, bio, cbd_req->bio_off);
-advance_data_head:
+
 	cbdq->channel.data_head = round_up(cbdq->channel.data_head + cbd_req->data_len, PAGE_SIZE);
 	cbdq->channel.data_head %= cbdq->channel.data_size;
-
 crc_init:
 #ifdef CONFIG_CBD_CRC
 	cbd_req_crc_init(cbd_req);
@@ -436,19 +435,18 @@ int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 	if (submit_ring_full(cbdq) ||
 			!data_space_enough(cbdq, cbd_req)) {
 		spin_unlock(&cbdq->channel.submr_lock);
-
 		/* return ocuppied space */
 		cbd_req->data_len = 0;
-
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	inflight_add_req(cbdq, cbd_req);
+	/* get a reference before submittion, it will be put in cbd_req completion */
+	cbd_req_get(cbd_req);
 
+	inflight_add_req(cbdq, cbd_req);
 	queue_req_channel_init(cbd_req);
 
-	cbd_req_get(cbd_req);
 	cbdc_submr_head_advance(&cbdq->channel, sizeof(struct cbd_se));
 	spin_unlock(&cbdq->channel.submr_lock);
 

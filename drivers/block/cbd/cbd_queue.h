@@ -195,7 +195,24 @@ static inline struct cbd_request *find_inflight_req(struct cbd_queue *cbdq, u64 
 	return NULL;
 }
 
-static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
+/**
+ * data_space_enough - Check if there is sufficient data space available in the cbd_queue.
+ * @cbdq: Pointer to the cbd_queue structure to check space in.
+ * @cbd_req: Pointer to the cbd_request structure for which space is needed.
+ *
+ * This function evaluates whether the cbd_queue has enough available data space
+ * to accommodate the data length required by the given cbd_request.
+ *
+ * The available space is calculated based on the current positions of the data_head
+ * and data_tail. If data_head is ahead of data_tail, it indicates that the space
+ * wraps around; otherwise, it calculates the space linearly.
+ *
+ * The space needed is rounded up according to the defined data alignment.
+ *
+ * If the available space minus the reserved space is less than the required space,
+ * the function returns false, indicating insufficient space. Otherwise, it returns true.
+ */
+static inline bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 {
 	struct cbd_channel *channel = &cbdq->channel;
 	u32 space_available = channel->data_size;
@@ -216,7 +233,25 @@ static bool data_space_enough(struct cbd_queue *cbdq, struct cbd_request *cbd_re
 	return true;
 }
 
-static bool submit_ring_full(struct cbd_queue *cbdq)
+/**
+ * submit_ring_full - Check if the submission ring is full.
+ * @cbdq: Pointer to the cbd_queue structure representing the submission queue.
+ *
+ * This function determines whether the submission ring buffer for the cbd_queue
+ * has enough available space to accept new entries.
+ *
+ * The available space is calculated based on the current positions of the
+ * submission ring head and tail. If the head is ahead of the tail, it indicates
+ * that the ring wraps around; otherwise, the available space is calculated
+ * linearly.
+ *
+ * A reserved space is maintained at the end of the ring to prevent it from
+ * becoming completely filled, ensuring that there is always some space available
+ * for processing. If the available space minus the reserved space is less than
+ * the size of a submission entry (cbd_se), the function returns true, indicating
+ * the ring is full. Otherwise, it returns false.
+ */
+static inline bool submit_ring_full(struct cbd_queue *cbdq)
 {
 	u32 space_available = cbdq->channel.submr_size;
 	struct cbd_channel *channel = &cbdq->channel;
