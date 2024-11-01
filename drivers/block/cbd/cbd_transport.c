@@ -10,6 +10,14 @@
 #include "cbd_backend.h"
 #include "cbd_blkdev.h"
 
+/*
+ * This macro defines and manages four types of objects within the CBD transport:
+ * host, backend, blkdev, and segment. Each object type is associated with its own
+ * information structure (`cbd_<OBJ>_info`), which includes a meta header. The meta
+ * header incorporates a sequence number and CRC, ensuring data integrity. This
+ * integrity mechanism allows consistent and reliable access to object information
+ * within the CBD transport.
+ */
 #define CBDT_OBJ(OBJ, OBJ_SIZE, OBJ_STRIDE)					\
 static int cbd_##OBJ##s_init(struct cbd_transport *cbdt)			\
 {										\
@@ -459,6 +467,23 @@ static bool hosts_stopped(struct cbd_transport *cbdt)
 	return true;
 }
 
+/*
+ * format_validate - Validate the transport device format for CBD transport
+ * @cbdt: Pointer to the CBD transport structure containing transport info
+ * @force: Boolean flag to force format validation
+ *
+ * This function checks the following conditions:
+ * 1. If the magic number indicates that the transport format already exists,
+ *    return -EEXIST if it does and force is not set.
+ * 2. If the transport is currently in use (if the magic number matches and
+ *    hosts are not stopped), return -EBUSY if it is.
+ * 3. Validate the size of the device, ensuring it meets the minimum size
+ *    requirement. If the size is below the minimum, log an error and
+ *    return -ENOSPC.
+ *
+ * Return: 0 on success, negative error codes on failure indicating specific
+ *         validation issues.
+ */
 static int format_validate(struct cbd_transport *cbdt, bool force)
 {
 	struct cbd_transport_info *info = cbdt->transport_info;
@@ -482,6 +507,23 @@ static int format_validate(struct cbd_transport *cbdt, bool force)
 	return 0;
 }
 
+/*
+ * format_transport_info - Initialize the transport info structure for CBD transport
+ * @cbdt: Pointer to the CBD transport structure
+ *
+ * This function initializes the cbd_transport_info structure with relevant
+ * metadata for the transport. It sets the magic number and version, and
+ * determines the flags.
+ *
+ * The magic, version, and flags fields are stored in little-endian format to
+ * ensure compatibility across different platforms. This allows for correct
+ * identification of transport information and helps determine if it is suitable
+ * for registration on the local machine.
+ *
+ * The function calculates the size and offsets for various sections within
+ * the transport device based on the available device size, assuming a
+ * 1:1 mapping of hosts, block devices, backends, and segments.
+ */
 static void format_transport_info(struct cbd_transport *cbdt)
 {
 	struct cbd_transport_info *info = cbdt->transport_info;
@@ -550,6 +592,30 @@ static void segments_format(struct cbd_transport *cbdt)
 		cbdt_segment_info_clear(cbdt, i);
 }
 
+/*
+ * cbd_transport_format - Format the CBD transport structure
+ * @cbdt: Pointer to the CBD transport structure
+ * @force: Flag to force formatting even if the transport is already initialized
+ *
+ * This function formats the CBD transport by validating the current state,
+ * initializing the transport information structure, and preparing the transport
+ * for use. It ensures that all necessary space is allocated and initialized
+ * before the transport can be registered or used.
+ *
+ * Steps:
+ * 1. Validate the format by calling `format_validate()`, which checks if the
+ *    transport is already initialized and if the size is sufficient. If the
+ *    validation fails, an error code is returned.
+ * 2. Initialize the transport info structure using `format_transport_info()`,
+ *    which sets up the magic number, version, flags, and calculates offsets
+ *    and sizes for various sections of the transport.
+ * 3. Zero out all area of objects infos in transport info to ensure no stale data remains.
+ * 4. Call `segments_format()` to format the segment structures, which
+ *    initializes the segments based on the previously computed parameters.
+ *
+ * The function returns 0 on success or a negative error code if an error
+ * occurred during validation or formatting.
+ */
 static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 {
 	struct cbd_transport_info *info = cbdt->transport_info;
@@ -570,18 +636,27 @@ static int cbd_transport_format(struct cbd_transport *cbdt, bool force)
 }
 
 /*
- * Any transport metadata allocation or reclaim should be in the
- * control operation rutine
+ * This function handles administrative operations for the CBD transport device.
+ * It processes various commands related to backend management, device control,
+ * and host operations. All transport metadata allocation or reclamation
+ * should occur within this function to ensure proper control flow and exclusivity.
  *
- * All transport space allocation and deallocation should occur within the control flow,
- * specifically within `adm_store()`, so that all transport space allocation
- * and deallocation are managed within this function. This prevents other processes
- * from involving transport space allocation and deallocation. By making `adm_store`
- * exclusive, we can manage space effectively. For a single-host scenario, `adm_lock`
- * can ensure mutual exclusion of `adm_store`. However, in a multi-host scenario,
- * we need a distributed lock to guarantee that all `adm_store` calls are mutually exclusive.
+ * The function performs the following tasks:
+ * 1. Checks for administrative permissions.
+ * 2. Duplicates the input buffer containing administrative options.
+ * 3. Parses the administrative options from the buffer.
+ * 4. Acquires a mutex lock to ensure mutual exclusion while performing
+ *    operations related to the CBD transport.
+ * 5. Switches based on the specified operation, executing corresponding
+ *    backend or device management functions.
+ * 6. Releases the mutex lock after completing the operation.
  *
- * TODO: Is there a way to lock the CXL shared memory device?
+ * Note: For single-host scenarios, the `adm_lock` mutex is sufficient
+ * to manage mutual exclusion. However, in multi-host scenarios,
+ * a distributed locking mechanism is necessary to guarantee
+ * exclusivity across all `adm_store` calls.
+ *
+ * TODO: Investigate potential locking mechanisms for the CXL shared memory device.
  */
 static ssize_t adm_store(struct device *dev,
 			struct device_attribute *attr,
@@ -745,16 +820,12 @@ const struct device_type cbd_transport_type = {
 	.release	= cbd_transport_release,
 };
 
-static int
-cbd_dax_notify_failure(
-	struct dax_device	*dax_devp,
-	u64			offset,
-	u64			len,
-	int			mf_flags)
+static int cbd_dax_notify_failure(struct dax_device *dax_dev, u64 offset,
+				  u64 len, int mf_flags)
 {
 
-	pr_err("%s: dax_devp %llx offset %llx len %lld mf_flags %x\n",
-	       __func__, (u64)dax_devp, (u64)offset, (u64)len, mf_flags);
+	pr_err("%s: dax_dev %llx offset %llx len %lld mf_flags %x\n",
+	       __func__, (u64)dax_dev, (u64)offset, (u64)len, mf_flags);
 	return -EOPNOTSUPP;
 }
 
@@ -762,6 +833,40 @@ const struct dax_holder_operations cbd_dax_holder_ops = {
 	.notify_failure		= cbd_dax_notify_failure,
 };
 
+/*
+ * transport_info_validate - Validate the transport information structure
+ * @cbdt: Pointer to the CBD transport structure
+ *
+ * This function validates the transport information contained within the
+ * cbd_transport structure. It checks for the correctness of the magic number,
+ * endianness, and various feature flags specified in the transport info.
+ *
+ * Steps:
+ * 1. Check the magic number to ensure it matches the expected value,
+ *    CBD_TRANSPORT_MAGIC. If it does not match, an error is logged, and
+ *    -EINVAL is returned.
+ * 2. Retrieve and convert the flags field from the transport info to
+ *    host-endian format.
+ * 3. Verify the endianness of the transport matches the system's endianness:
+ *    - If the system is big-endian, the transport should indicate it is
+ *      big-endian (CBDT_INFO_F_BIGENDIAN).
+ *    - If the system is little-endian, the transport should not indicate
+ *      big-endian. If there is a mismatch, an error is logged, and
+ *      -EINVAL is returned.
+ * 4. Check if the necessary CRC features are enabled in the kernel
+ *    configuration based on the flags:
+ *    - If CBDT_INFO_F_CHANNEL_CRC is set and CONFIG_CBD_CHANNEL_CRC is not
+ *      defined, an error is logged, and -EOPNOTSUPP is returned.
+ *    - If CBDT_INFO_F_CHANNEL_DATA_CRC is set and CONFIG_CBD_CHANNEL_DATA_CRC
+ *      is not defined, an error is logged, and -EOPNOTSUPP is returned.
+ *    - If CBDT_INFO_F_CACHE_DATA_CRC is set and CONFIG_CBD_CACHE_DATA_CRC is
+ *      not defined, an error is logged, and -EOPNOTSUPP is returned.
+ * 5. If CBDT_INFO_F_MULTIHOST is set and CONFIG_CBD_MULTIHOST is not
+ *      defined, an error is logged, and -EOPNOTSUPP is returned.
+ *
+ * The function returns 0 on success or a negative error code if any
+ * validation fails.
+ */
 static int transport_info_validate(struct cbd_transport *cbdt)
 {
 	u16 flags;
@@ -854,6 +959,34 @@ static void transport_free(struct cbd_transport *cbdt)
 	kfree(cbdt);
 }
 
+/*
+ * transport_dax_init - Initialize the DAX transport
+ * @cbdt: Pointer to the CBD transport structure
+ * @path: Path to the block device file
+ *
+ * This function initializes the DAX (Direct Access) transport for the
+ * specified block device. It opens the block device, obtains a DAX device
+ * associated with it, and sets up the transport structure with the necessary
+ * information for direct access.
+ *
+ * Steps:
+ * 1. Open the block device specified by the given path with read and write
+ *    access. If the operation fails, log the error and clean up.
+ * 2. Get the DAX device associated with the opened block device. If this
+ *    operation fails, log the error and clean up the opened file.
+ * 3. Acquire a read lock on the DAX device to ensure safe access to its
+ *    memory. It uses dax_direct_access to obtain the kaddr at offset 0,
+ *    which corresponds to the address of cbdt->transport_info for subsequent
+ *    transport information initialization.
+ * 4. If the direct access is successful, store the opened block device file
+ *    pointer, the DAX device pointer, and the address of the transport info
+ *    structure in the CBD transport structure.
+ * 5. Release the read lock after successful setup.
+ *
+ * Returns:
+ * - 0 on success.
+ * - Negative error code on failure.
+ */
 static int transport_dax_init(struct cbd_transport *cbdt, char *path)
 {
 	struct dax_device *dax_dev = NULL;
@@ -994,6 +1127,19 @@ int cbdt_unregister(u32 tid)
 	return 0;
 }
 
+/*
+ * cbdt_register - Register a new CBD transport instance
+ * @opts: Pointer to the registration options
+ *
+ * This function registers a new CBD transport instance based on the
+ * provided options. It ensures that the specified path corresponds to a
+ * persistent memory device, initializes the transport for direct access,
+ * and formats it if required.
+ *
+ * Returns:
+ * - 0 on success.
+ * - Negative error code on failure.
+ */
 int cbdt_register(struct cbdt_register_options *opts)
 {
 	struct cbd_transport *cbdt;
