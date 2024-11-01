@@ -62,14 +62,12 @@ static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 	backend_io = kmem_cache_zalloc(cbdb->backend_io_cache, GFP_KERNEL);
 	if (!backend_io)
 		return NULL;
+
 	backend_io->bio = bio_alloc_bioset(cbdb->bdev,
 				DIV_ROUND_UP(se->len, PAGE_SIZE),
 				opf, GFP_KERNEL, &handler->bioset);
-
-	if (!backend_io->bio) {
-		kmem_cache_free(cbdb->backend_io_cache, backend_io);
-		return NULL;
-	}
+	if (!backend_io->bio)
+		goto free_backend_io;
 
 	backend_io->se = se;
 	backend_io->handler = handler;
@@ -81,6 +79,11 @@ static struct cbd_backend_io *backend_prepare_io(struct cbd_handler *handler,
 	atomic_inc(&handler->inflight_cmds);
 
 	return backend_io;
+
+free_backend_io:
+	kmem_cache_free(cbdb->backend_io_cache, backend_io);
+
+	return NULL;
 }
 
 /**
@@ -215,32 +218,44 @@ static bool req_tid_valid(struct cbd_handler *handler, u64 req_tid)
  *    scenario, the state of the channel is reset to ensure it can handle requests
  *    from the new blkdev.
  *
- * In both cases, the blkdev send a mgmt_cmd of reset into channel_ctrl->mgmt_cmd to
+ * In both cases, the blkdev sends a mgmt_cmd of reset into channel_ctrl->mgmt_cmd to
  * indicate that it requires a channel reset. This function clears all the channel
  * counters and control pointers, including `submr` and `compr` heads and tails,
  * resetting them to zero.
  *
- * After the reset is complete, handler send a cmd_ret of the reset cmd, signaling to the
- * blkdev that it can begin using the channel for data requests.
+ * After the reset is complete, the handler sends a cmd_ret of the reset cmd, signaling
+ * to the blkdev that it can begin using the channel for data requests.
+ *
+ * Return: 0 on success, or a negative error code if the reset fails.
+ *         -EBUSY if there are inflight commands indicating the channel is busy.
  */
 static int handler_reset(struct cbd_handler *handler)
 {
 	int ret;
 
-	if (atomic_read(&handler->inflight_cmds))
+	/* Check if there are any inflight commands; if so, the channel is busy */
+	if (atomic_read(&handler->inflight_cmds)) {
+		cbd_handler_err(handler, "channel is busy, can't be reset\n");
 		return -EBUSY;
+	}
 
+	/* Reset expected request transaction ID and handle count */
 	handler->req_tid_expected = U64_MAX;
 	handler->se_to_handle = 0;
 
+	/* Reset channel data head and tail pointers */
 	handler->channel.data_head = handler->channel.data_tail = 0;
+
+	/* Reset submr and compr control pointers */
 	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
 	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
 
+	/* Send a success response for the reset command */
 	ret = cbdc_mgmt_cmd_ret_send(handler->channel_ctrl, cbdc_mgmt_cmd_ret_ok);
 	if (ret)
 		return ret;
 
+	/* Queue the handler work to process any subsequent operations */
 	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 
 	return 0;
@@ -289,22 +304,43 @@ static int handle_mgmt_cmd(struct cbd_handler *handler)
 	return ret;
 }
 
+/**
+ * handle_mgmt_work_fn - Handle management work for the CBD channel.
+ * @work: Pointer to the work_struct associated with this management work.
+ *
+ * This function is the main function for handling management work related to the
+ * CBD channel. It continuously checks if there are new management commands (mgmt_cmd)
+ * to be processed in the management plane of the CBD channel.
+ *
+ * If a new mgmt_cmd is detected, it will be processed; if none are available, the function
+ * will end this work iteration. The execution cycle of handle_mgmt_work is set to 1 second.
+ *
+ * The function follows a loop that:
+ * 1. Checks if the current mgmt_cmd has been processed using cbdc_mgmt_completed.
+ * 2. If not completed, it calls handle_mgmt_cmd to handle the mgmt_cmd.
+ * 3. If handling is successful, it checks again for more mgmt_cmds.
+ * 4. Once there are no new mgmt_cmds to process, it queues the work to run again
+ *    after 1 second.
+ */
 static void handle_mgmt_work_fn(struct work_struct *work)
 {
 	struct cbd_handler *handler = container_of(work, struct cbd_handler,
 						   handle_mgmt_work.work);
 	int ret;
 again:
+	/* Check if the current mgmt_cmd has been completed */
 	if (!cbdc_mgmt_completed(handler->channel_ctrl)) {
+		/* Process the management command */
 		ret = handle_mgmt_cmd(handler);
 		if (ret)
-			goto out;
-		goto again;
+			goto out; /* If an error occurs, exit the loop */
+		goto again; /* Check for more mgmt_cmds */
 	}
+
 out:
+	/* Re-queue the work to run again after 1 second */
 	queue_delayed_work(handler->cbdb->task_wq, &handler->handle_mgmt_work, HZ);
 }
-
 
 /**
  * handle_work_fn - Main handler function to process SEs in the channel.
@@ -372,29 +408,7 @@ miss:
 		queue_delayed_work(handler->cbdb->task_wq, &handler->handle_work, 0);
 }
 
-static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool new_channel)
-{
-	struct cbd_transport *cbdt = handler->cbdb->cbdt;
-	struct cbd_channel_init_options init_opts = { 0 };
-
-	init_opts.cbdt = cbdt;
-	init_opts.backend_id = handler->cbdb->backend_id;
-	init_opts.seg_id = channel_id;
-	init_opts.new_channel = new_channel;
-	cbd_channel_init(&handler->channel, &init_opts);
-	handler->channel_ctrl = handler->channel.ctrl;
-
-	if (!new_channel)
-		return;
-
-	handler->channel.data_head = handler->channel.data_tail = 0;
-	handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
-	handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
-
-	cbd_channel_flags_clear_bit(handler->channel_ctrl, ~0ULL);
-}
-
-int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channel)
+static struct cbd_handler *handler_alloc(struct cbd_backend *cbdb)
 {
 	struct cbd_handler *handler;
 	int ret;
@@ -408,9 +422,33 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channe
 		goto free_handler;
 
 	handler->cbdb = cbdb;
-	handler_channel_init(handler, channel_id, new_channel);
+	cbdb_add_handler(cbdb, handler);
 
-	handler->se_to_handle = cbdc_submr_tail_get(&handler->channel);
+	return handler;
+free_handler:
+	kfree(handler);
+	return NULL;
+}
+
+static void handler_free(struct cbd_handler *handler)
+{
+	cbdb_del_handler(handler->cbdb, handler);
+	bioset_exit(&handler->bioset);
+	kfree(handler);
+}
+
+static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bool new_channel)
+{
+	struct cbd_transport *cbdt = handler->cbdb->cbdt;
+	struct cbd_channel_init_options init_opts = { 0 };
+
+	init_opts.cbdt = cbdt;
+	init_opts.backend_id = handler->cbdb->backend_id;
+	init_opts.seg_id = channel_id;
+	init_opts.new_channel = new_channel;
+	cbd_channel_init(&handler->channel, &init_opts);
+
+	handler->channel_ctrl = handler->channel.ctrl;
 	handler->req_tid_expected = U64_MAX;
 	atomic_set(&handler->inflight_cmds, 0);
 	spin_lock_init(&handler->compr_lock);
@@ -418,9 +456,49 @@ int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channe
 	INIT_DELAYED_WORK(&handler->handle_mgmt_work, handle_mgmt_work_fn);
 	cbdwc_init(&handler->handle_worker_cfg);
 
-	cbdb_add_handler(cbdb, handler);
+	if (new_channel) {
+		handler->channel.data_head = handler->channel.data_tail = 0;
+		handler->channel_ctrl->submr_tail = handler->channel_ctrl->submr_head = 0;
+		handler->channel_ctrl->compr_tail = handler->channel_ctrl->compr_head = 0;
+
+		cbd_channel_flags_clear_bit(handler->channel_ctrl, ~0ULL);
+	}
+
+	handler->se_to_handle = cbdc_submr_tail_get(&handler->channel);
+}
+
+static void handler_channel_destroy(struct cbd_handler *handler)
+{
+	cbd_channel_destroy(&handler->channel);
+}
+
+/* handler start and stop */
+static void handler_start(struct cbd_handler *handler)
+{
 	queue_delayed_work(cbdb->task_wq, &handler->handle_work, 0);
 	queue_delayed_work(cbdb->task_wq, &handler->handle_mgmt_work, 0);
+}
+
+static void handler_stop(struct cbd_handler *handler)
+{
+	cancel_delayed_work_sync(&handler->handle_mgmt_work);
+	cancel_delayed_work_sync(&handler->handle_work);
+
+	while (atomic_read(&handler->inflight_cmds))
+		schedule_timeout(HZ);
+}
+
+int cbd_handler_create(struct cbd_backend *cbdb, u32 channel_id, bool new_channel)
+{
+	struct cbd_handler *handler;
+	int ret;
+
+	handler = handler_alloc(cbdb);
+	if (!handler)
+		return -ENOMEM;
+
+	handler_channel_init(handler, channel_id, new_channel);
+	handler_start(handler);
 
 	return 0;
 
@@ -431,16 +509,7 @@ free_handler:
 
 void cbd_handler_destroy(struct cbd_handler *handler)
 {
-	cbdb_del_handler(handler->cbdb, handler);
-
-	cancel_delayed_work_sync(&handler->handle_mgmt_work);
-	cancel_delayed_work_sync(&handler->handle_work);
-
-	while (atomic_read(&handler->inflight_cmds))
-		schedule_timeout(HZ);
-
-	cbd_channel_destroy(&handler->channel);
-
-	bioset_exit(&handler->bioset);
-	kfree(handler);
+	handler_stop(handler);
+	handler_channel_destroy(handler);
+	handler_free(handler);
 }
