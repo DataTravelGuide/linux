@@ -16,17 +16,6 @@
 	cbd_debug("cbd_transport%u: " fmt,					\
 		 transport->id, ##__VA_ARGS__)
 
-/* cbd_transport */
-#define CBDT_INFO_F_BIGENDIAN		(1 << 0)
-#define CBDT_INFO_F_CRC			(1 << 1)
-#define CBDT_INFO_F_MULTIHOST		(1 << 2)
-
-#ifdef CONFIG_CBD_MULTIHOST
-#define CBDT_HOSTS_MAX			16
-#else
-#define CBDT_HOSTS_MAX			1
-#endif /*CONFIG_CBD_MULTIHOST*/
-
 /* Info section offsets and sizes */
 #define CBDT_INFO_OFF                   0                       /* Offset for transport info */
 #define CBDT_INFO_SIZE                  PAGE_SIZE               /* Size of transport info section (1 page) */
@@ -51,6 +40,31 @@
 /* Minimum size for CBD transport layer */
 #define CBD_TRASNPORT_SIZE_MIN          (512 * 1024 * 1024)     /* Minimum size for CBD transport (512 MB) */
 
+/*
+ * CBD transport flags indicating configuration requirements set during formatting
+ *
+ * The CBDT_INFO_F_xxx flags are defined when the transport is formatted. To
+ * register a transport:
+ * - If formatted as big-endian (CBDT_INFO_F_BIGENDIAN), only big-endian machines
+ *   can register it.
+ * - If formatted with CRC checks (CBDT_INFO_F_CRC), the CBD_CRC configuration
+ *   must be enabled to register.
+ * - If multihost support was enabled at formatting (CBDT_INFO_F_MULTIHOST),
+ *   CBD_MULTIHOST must be enabled for registration.
+ */
+#define CBDT_INFO_F_BIGENDIAN           (1 << 0)  /* Data is stored in big-endian format */
+#define CBDT_INFO_F_CRC                 (1 << 1)  /* CRC checks are enabled for data integrity */
+#define CBDT_INFO_F_MULTIHOST           (1 << 2)  /* Supports multiple hosts */
+
+/*
+ * Maximum number of hosts supported in the transport.
+ * Limited to 1 if CONFIG_CBD_MULTIHOST is not enabled.
+ */
+#ifdef CONFIG_CBD_MULTIHOST
+#define CBDT_HOSTS_MAX                  16
+#else
+#define CBDT_HOSTS_MAX                  1
+#endif /* CONFIG_CBD_MULTIHOST */
 
 struct cbd_transport_info {
 	__le64 magic;
@@ -116,14 +130,14 @@ int cbdt_unregister(u32 transport_id);
 struct cbd_##OBJ##_info	*cbdt_get_##OBJ##_info(struct cbd_transport *cbdt, u32 id);	\
 int cbdt_get_empty_##OBJ##_id(struct cbd_transport *cbdt, u32 *id);			\
 struct cbd_##OBJ##_info *cbdt_##OBJ##_info_read(struct cbd_transport *cbdt,		\
-	       					u32 id,					\
+						u32 id,					\
 						u32 *info_index);			\
 void cbdt_##OBJ##_info_write(struct cbd_transport *cbdt,				\
 			     void *data,						\
 			     u32 data_size,						\
 			     u32 id,							\
 			     u32 info_index);						\
-void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id);
+void cbdt_##OBJ##_info_clear(struct cbd_transport *cbdt, u32 id)
 
 CBDT_OBJ_DECLARE(host);
 CBDT_OBJ_DECLARE(backend);
