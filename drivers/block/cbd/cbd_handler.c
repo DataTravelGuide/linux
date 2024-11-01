@@ -422,7 +422,6 @@ static struct cbd_handler *handler_alloc(struct cbd_backend *cbdb)
 		goto free_handler;
 
 	handler->cbdb = cbdb;
-	cbdb_add_handler(cbdb, handler);
 
 	return handler;
 free_handler:
@@ -432,7 +431,6 @@ free_handler:
 
 static void handler_free(struct cbd_handler *handler)
 {
-	cbdb_del_handler(handler->cbdb, handler);
 	bioset_exit(&handler->bioset);
 	kfree(handler);
 }
@@ -465,10 +463,14 @@ static void handler_channel_init(struct cbd_handler *handler, u32 channel_id, bo
 	}
 
 	handler->se_to_handle = cbdc_submr_tail_get(&handler->channel);
+
+	/* this should be after channel_init, as we need channel.seg_id in backend->handlers_hash */
+	cbdb_add_handler(handler->cbdb, handler);
 }
 
 static void handler_channel_destroy(struct cbd_handler *handler)
 {
+	cbdb_del_handler(handler->cbdb, handler);
 	cbd_channel_destroy(&handler->channel);
 }
 
