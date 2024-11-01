@@ -426,45 +426,88 @@ crc_init:
 #endif
 }
 
+/**
+ * cbd_queue_req_to_backend - Submit a request to the backend for processing.
+ * @cbd_req: Pointer to the cbd_request structure representing the request to be submitted.
+ *
+ * This function attempts to submit a cbd_request to the backend for processing.
+ * It first checks if there is sufficient space in the submission ring and the data
+ * space before proceeding. If either space is insufficient, the function will
+ * unlock the submission ring and return an error.
+ *
+ * If space is available, a reference to the cbd_request is obtained to manage
+ * its lifecycle properly during processing. The request is then added to the
+ * inflight requests and the relevant channel information is initialized.
+ *
+ * After updating the submission ring head to indicate a new request has been
+ * submitted, the function checks if it is single-host mode.
+ * If so, it notifies the backend to process the request.
+ *
+ * Finally, a delayed work item is queued to handle completion of the request
+ * once the backend has finished processing it. The function returns 0 on success
+ * and an error code on failure.
+ */
 int cbd_queue_req_to_backend(struct cbd_request *cbd_req)
 {
 	struct cbd_queue *cbdq = cbd_req->cbdq;
 	int ret;
 
 	spin_lock(&cbdq->channel.submr_lock);
+	/* Check if the submission ring is full or if there is enough data space */
 	if (submit_ring_full(cbdq) ||
 			!data_space_enough(cbdq, cbd_req)) {
 		spin_unlock(&cbdq->channel.submr_lock);
-		/* return ocuppied space */
 		cbd_req->data_len = 0;
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	/* get a reference before submittion, it will be put in cbd_req completion */
+	/* Get a reference before submission, it will be put in cbd_req completion */
 	cbd_req_get(cbd_req);
 
+	/* Add the request to the inflight list for tracking */
 	inflight_add_req(cbdq, cbd_req);
+	/* Initialize channel information for the request */
 	queue_req_channel_init(cbd_req);
 
+	/* Advance the submission ring head to indicate a new request */
 	cbdc_submr_head_advance(&cbdq->channel, sizeof(struct cbd_se));
 	spin_unlock(&cbdq->channel.submr_lock);
 
+	/* Notify the backend if it is available to process the request */
 	if (cbdq->cbd_blkdev->backend)
 		cbd_backend_notify(cbdq->cbd_blkdev->backend, cbdq->channel.seg_id);
+	/* Queue delayed work to handle the completion of the request */
 	queue_delayed_work(cbdq->cbd_blkdev->task_wq, &cbdq->complete_work, 0);
 
 	return 0;
-
 err:
 	return ret;
 }
 
+/**
+ * queue_req_end_req - Callback function to be called when a request is completed.
+ * @cbd_req: Pointer to the cbd_request structure representing the completed request.
+ * @priv_data: Private data for the callback (not used in this function).
+ *
+ * This function is called to advance the queue state after the request has been
+ * processed and completed. It updates the cbd queue to reflect the completion of
+ * the request.
+ */
 static void queue_req_end_req(struct cbd_request *cbd_req, void *priv_data)
 {
 	cbd_queue_advance(cbd_req->cbdq, cbd_req);
 }
 
+/**
+ * cbd_queue_req - Queue a request for processing by the backend.
+ * @cbdq: Pointer to the cbd_queue structure representing the queue.
+ * @cbd_req: Pointer to the cbd_request structure representing the request to be queued.
+ *
+ * This function checks if caching is enabled for the block device and handles the
+ * request accordingly. If caching is not enabled, it sets a callback for request
+ * completion and queues the request to the backend for processing.
+ */
 static void cbd_queue_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 {
 	int ret;
@@ -473,14 +516,25 @@ static void cbd_queue_req(struct cbd_queue *cbdq, struct cbd_request *cbd_req)
 		ret = cbd_cache_handle_req(cbdq->cbd_blkdev->cbd_cache, cbd_req);
 		goto end;
 	}
-
 	cbd_req->end_req = queue_req_end_req;
-
 	ret = cbd_queue_req_to_backend(cbd_req);
 end:
 	cbd_req_put(cbd_req, ret);
 }
 
+/**
+ * cbd_queue_rq - Main entry function for queuing a request in the blk-mq framework.
+ * @hctx: Pointer to the hardware context representing the queue.
+ * @bd: Pointer to the blk_mq_queue_data structure containing the request data.
+ *
+ * This function processes a block request by initializing a cbd_request structure,
+ * determining the operation type (flush, write, or read), and queuing the request
+ * for processing by the backend. It handles various request types and ensures
+ * proper initialization and state management of the request.
+ *
+ * Returns BLK_STS_OK if the request is successfully queued, or an error status
+ * (BLK_STS_IOERR) if the request type is unsupported.
+ */
 static blk_status_t cbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -534,6 +588,16 @@ const struct blk_mq_ops cbd_mq_ops = {
 #define CBDQ_RESET_CHANNEL_WAIT_INTERVAL	HZ
 #define CBDQ_RESET_CHANNEL_WAIT_COUNT		30
 
+/**
+ * queue_reset_channel - Sends a reset command to the management layer for a cbd_queue.
+ * @cbdq: Pointer to the cbd_queue structure to be reset.
+ *
+ * This function initiates a channel reset by sending a management command to the
+ * corresponding channel control structure. It waits for the reset operation to
+ * complete, polling the status and allowing for a timeout to avoid indefinite blocking.
+ *
+ * Returns 0 on success, or a negative error code on failure (e.g., -ETIMEDOUT).
+ */
 static int queue_reset_channel(struct cbd_queue *cbdq)
 {
 	enum cbdc_mgmt_cmd_ret cmd_ret;
@@ -552,17 +616,15 @@ static int queue_reset_channel(struct cbd_queue *cbdq)
 			ret = -ETIMEDOUT;
 			goto err;
 		}
-
 		schedule_timeout_uninterruptible(CBDQ_RESET_CHANNEL_WAIT_INTERVAL);
 	}
-
 	cmd_ret = cbdc_mgmt_cmd_ret_get(cbdq->channel_ctrl);
 	return cbdc_mgmt_cmd_ret_to_errno(cmd_ret);
 err:
 	return ret;
 }
 
-static int cbd_queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
+static int queue_channel_init(struct cbd_queue *cbdq, u32 channel_id)
 {
 	struct cbd_blkdev *cbd_blkdev = cbdq->cbd_blkdev;
 	struct cbd_transport *cbdt = cbd_blkdev->cbdt;
@@ -598,7 +660,7 @@ static int queue_init(struct cbd_queue *cbdq, u32 channel_id)
 	INIT_DELAYED_WORK(&cbdq->complete_work, complete_work_fn);
 	cbdwc_init(&cbdq->complete_worker_cfg);
 
-	ret = cbd_queue_channel_init(cbdq, channel_id);
+	ret = queue_channel_init(cbdq, channel_id);
 	if (ret)
 		return ret;
 
