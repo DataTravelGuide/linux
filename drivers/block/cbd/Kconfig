@@ -1,0 +1,89 @@
+config BLK_DEV_CBD
+	tristate "CXL Block Device (Experimental)"
+	depends on DEV_DAX && FS_DAX
+	help
+	  CBD (CXL Block Device) provides a mechanism to register a persistent
+	  memory device as a transport layer for block devices. By leveraging CBD,
+	  you can use persistent memory as a high-speed data cache, significantly
+	  enhancing the performance of block storage devices by reducing latency
+	  for frequent data access.
+
+	  When CBD_MULTIHOST is enabled, the module extends functionality to
+	  support shared access to block devices across multiple hosts. This
+	  enables you to access and manage block devices located on remote hosts
+	  as though they are local disks, a feature valuable in distributed
+	  environments where data accessibility and performance are critical.
+
+	  Usage options:
+	  - Select 'y' to build the CBD module directly into the kernel, making
+	    it immediately available at boot.
+	  - Select 'm' to build it as a loadable kernel module. The module will
+	    be called "cbd" and can be loaded or unloaded as needed.
+
+	  Note: This feature is experimental and should be tested thoroughly
+	  before use in production environments.
+
+	  If unsure, say 'N'.
+
+config CBD_CHANNEL_CRC
+	bool "Enable CBD channel checksum"
+	default n
+	depends on BLK_DEV_CBD
+	help
+	  Enabling CBD_CHANNEL_CRC adds a checksum (CRC) to control elements within
+	  the CBD transport, specifically in `cbd_se` (submit entry) and `cbd_ce`
+	  (completion entry) structures. This checksum is used to validate the
+	  integrity of `cbd_se` and `cbd_ce` control structures themselves, ensuring
+	  they remain uncorrupted during transmission. However, the CRC added by
+	  this option does not cover the actual data content associated with these
+	  entries.
+
+	  For complete data integrity, including the content managed by `cbd_se`
+	  and `cbd_ce`, consider enabling CBD_CHANNEL_DATA_CRC.
+
+config CBD_CHANNEL_DATA_CRC
+	bool "Enable CBD channel data checksum"
+	default n
+	depends on BLK_DEV_CBD
+	help
+	  Enabling CBD_CHANNEL_DATA_CRC adds an additional data-specific CRC
+	  within both the `cbd_se` and `cbd_ce` structures, dedicated to verifying
+	  the integrity of the actual data content transmitted alongside the entries.
+	  When both CBD_CHANNEL_CRC and CBD_CHANNEL_DATA_CRC are enabled, each
+	  control entry (`cbd_se` and `cbd_ce`) will contain a CRC for its structure
+	  and a separate data CRC, ensuring full integrity checks on both control
+	  and data elements.
+
+config CBD_CACHE_DATA_CRC
+	bool "Enable CBD cache data checksum"
+	default n
+	depends on BLK_DEV_CBD
+	help
+	  In the CBD cache system, all cache keys are stored within a kset. Each
+	  kset inherently includes a CRC to ensure the integrity of its stored
+	  data, meaning that basic data integrity for all cache keys is enabled
+	  by default.
+
+	  Enabling CBD_CACHE_DATA_CRC, however, adds an additional CRC specifically
+	  within each `cache_key`, providing a checksum for the actual data content
+	  associated with each cache entry. This option ensures full data integrity
+	  for both cache keys and the cached data itself, offering an additional
+	  layer of protection against data corruption within the cache.
+
+config CBD_MULTIHOST
+	bool "Multi-host CXL Block Device"
+	default n
+	depends on BLK_DEV_CBD
+	help
+	  Enabling CBD_MULTIHOST allows CBD to support a multi-host environment,
+	  where a shared memory device serves as a CBD transport across multiple
+	  hosts. In this configuration, block devices (blkdev) and backends can
+	  be accessed and managed across nodes, allowing for cross-host disk
+	  access through a shared memory interface.
+
+	  This mode is particularly useful in distributed storage setups where
+	  multiple hosts need concurrent, high-speed access to the same storage
+	  resources.
+
+	  IMPORTANT: This Require your shared memory device support Hardware-consistency
+	  as described in CXL 3.0.
