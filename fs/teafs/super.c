@@ -200,5 +200,3 @@ module_exit(teafs_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Your Name");
 MODULE_DESCRIPTION("TEAFS - Transparent Extensible Aggregated Filesystem");
-
-

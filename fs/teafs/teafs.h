@@ -45,6 +45,21 @@ static inline struct teafs_inode_info *teafs_i(struct inode *inode)
     return container_of(inode, struct teafs_inode_info, vfs_inode);
 }
 
+static struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
+{
+    struct teafs_inode_info *ti;
+
+    /* Get the teafs_inode_info from the inode */
+    ti = teafs_i(inode);
+
+    /* Check if the backing dentry exists */
+    if (!ti->__upperdentry)
+        return NULL;
+
+    /* Return the backing dentry found in the inode_info */
+    return ti->__upperdentry;
+}
+
 int teafs_get_backing_path(struct dentry *dentry, struct path *backing_path);
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);

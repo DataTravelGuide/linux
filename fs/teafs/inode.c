@@ -199,33 +199,32 @@ static int teafs_update_time(struct dentry *dentry, struct iattr *attr)
     return err;
 }
 
-/**
- * teafs_permission - Check access permissions for a file or directory
- * @mnt_userns: User namespace
- * @inode: Inode of the file or directory
- * @mask: Permission mask
- *
- * Returns:
- *   0 if access is allowed, or a negative error code on failure.
- */
-static int teafs_permission(struct user_namespace *mnt_userns,
-                            struct inode *inode, int mask)
+static struct dentry *teafs_lookup(struct inode *inode, struct dentry *dentry, unsigned int flags)
 {
-    struct teafs_inode_info *ti = teafs_i(inode);
-    struct path backing_path;
-    int err;
+    struct dentry *backing_dentry;
 
-    /* Retrieve the backing path */
-    err = teafs_get_backing_path(inode->i_dentry, &backing_path);
-    if (err)
-        return err;
+    /* 获取对应 inode 的 backing dentry */
+    backing_dentry = teafs_get_backing_dentry_i(inode);
+    if (!backing_dentry)
+        return ERR_PTR(-ENOENT);
 
-    /* Call VFS's permission check */
-    err = vfs_permission(mnt_userns, &backing_path, mask);
-
-    path_put(&backing_path);
-    return err;
+    /* 在 backing dentry 上执行 lookup 操作 */
+    return vfs_lookup(backing_dentry, dentry, flags);
 }
+
+static int teafs_permission(struct mnt_idmap *idmap, struct inode *inode, int mask)
+{
+    struct dentry *backing_dentry;
+
+    /* 获取对应 inode 的 backing dentry */
+    backing_dentry = teafs_get_backing_dentry_i(inode);
+    if (!backing_dentry)
+        return -ENOENT;
+
+    /* 在 backing dentry 上执行权限检查 */
+    return vfs_permission(backing_dentry, mask);
+}
+
 
 /* Define inode operations for files */
 const struct inode_operations teafs_file_inode_operations = {
