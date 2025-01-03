@@ -1,0 +1,7 @@
+# fs/capfs/Kconfig
+
+config CAPFS
+    tristate "CAPFS - Compress Any Path File System"
+    select FS_STACK
+    help
+      If unsure, say N.
