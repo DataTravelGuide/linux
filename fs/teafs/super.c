@@ -26,6 +26,7 @@ int teafs_get_backing_path(struct dentry *dentry, struct path *backing_path)
     return 0;
 }
 
+static struct kmem_cache *teafs_inode_cachep;
 
 /**
  * teafs_alloc_inode - Allocate memory for TEAFS inode
@@ -38,7 +39,7 @@ static struct inode *teafs_alloc_inode(struct super_block *sb)
 {
     struct teafs_inode_info *ti;
 
-    ti = kzalloc(sizeof(struct teafs_inode_info), GFP_KERNEL);
+    ti = alloc_inode_sb(sb, teafs_inode_cachep, GFP_KERNEL);
     if (!ti)
         return NULL;
 
@@ -222,27 +223,40 @@ static struct file_system_type teafs_fs_type = {
 	.kill_sb		= kill_anon_super,
 };
 
-/**
- * teafs_init - Initialize the TEAFS filesystem module
- *
- * Registers the filesystem type with the kernel.
- *
- * Returns:
- *   0 on success, or a negative error code on failure.
- */
-static int __init teafs_init(void)
+static void teafs_inode_init_once(void *foo)
 {
-    return register_filesystem(&teafs_fs_type);
+	struct teafs_inode_info *ti = foo;
+
+	inode_init_once(&ti->vfs_inode);
 }
 
-/**
- * teafs_exit - Exit the TEAFS filesystem module
- *
- * Unregisters the filesystem type from the kernel.
- */
+static int __init teafs_init(void)
+{
+	int err;
+
+	teafs_inode_cachep = kmem_cache_create("teafs_inode",
+					     sizeof(struct teafs_inode_info), 0,
+					     (SLAB_RECLAIM_ACCOUNT|
+					      SLAB_ACCOUNT),
+					     teafs_inode_init_once);
+	if (teafs_inode_cachep == NULL)
+		return -ENOMEM;
+
+	err = register_filesystem(&teafs_fs_type);
+	if (!err)
+		return 0;
+
+	kmem_cache_destroy(teafs_inode_cachep);
+
+	return err;
+}
+
 static void __exit teafs_exit(void)
 {
-    unregister_filesystem(&teafs_fs_type);
+	unregister_filesystem(&teafs_fs_type);
+
+	rcu_barrier();
+	kmem_cache_destroy(teafs_inode_cachep);
 }
 
 module_init(teafs_init);
