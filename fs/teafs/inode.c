@@ -31,6 +31,11 @@ struct inode *teafs_get_inode(struct super_block *sb, umode_t mode)
     ti->__upperdentry = NULL;
     ti->redirect = NULL;
 
+    if (S_ISDIR(mode)) {
+        inode->i_op = &teafs_dir_inode_operations;
+        inode->i_fop = &teafs_dir_operations;
+    }
+
     return inode;
     /*
     if (S_ISDIR(mode)) {
@@ -66,4 +71,3 @@ const struct inode_operations teafs_file_inode_operations = {
     .getattr        = NULL,
     .permission     = NULL,
 };
-

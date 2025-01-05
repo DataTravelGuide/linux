@@ -18,3 +18,12 @@ const struct inode_operations teafs_dir_inode_operations = {
     .update_time    = NULL,
 };
 
+
+const struct file_operations teafs_dir_operations = {
+	.read		= generic_read_dir,
+	.open		= NULL,
+	.iterate_shared	= NULL,
+	.llseek		= NULL,
+	.fsync		= NULL,
+	.release	= NULL,
+};

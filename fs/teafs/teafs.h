@@ -28,6 +28,7 @@ struct teafs_fs_info {
 
 /* Inode operation prototypes */
 extern const struct inode_operations teafs_dir_inode_operations;
+extern const struct file_operations teafs_dir_operations;
 extern const struct inode_operations teafs_file_inode_operations;
 extern const struct inode_operations teafs_symlink_inode_operations;
 extern const struct inode_operations teafs_special_inode_operations;

@@ -20,4 +20,3 @@ static int teafs_d_revalidate(struct dentry *dentry, unsigned int flags)
 const struct dentry_operations teafs_dentry_operations = {
     .d_revalidate   = teafs_d_revalidate,
 };
-
