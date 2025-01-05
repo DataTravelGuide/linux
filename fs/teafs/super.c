@@ -5,38 +5,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-
-/**
- * teafs_override_creds - Override current credentials
- * @sb: The superblock pointer
- *
- * Returns:
- *   A pointer to the old credentials on success, or an ERR_PTR on failure.
- */
-const struct cred *teafs_override_creds(const struct super_block *sb)
-{
-    struct cred *new_cred = prepare_creds();
-    if (!new_cred)
-        return ERR_PTR(-ENOMEM);
-
-    /* Modify the new credentials as needed, e.g., set to root */
-    new_cred->uid.val = GLOBAL_ROOT_UID;
-    new_cred->gid.val = GLOBAL_ROOT_GID;
-    new_cred->euid.val = GLOBAL_ROOT_UID;
-    new_cred->egid.val = GLOBAL_ROOT_GID;
-
-    override_creds(new_cred);
-    return new_cred;
-}
-
-/**
- * teafs_revert_creds - Revert to the original credentials
- * @old_cred: The original credentials pointer
- */
-void teafs_revert_creds(const struct cred *old_cred)
-{
-    revert_creds(old_cred);
-}
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 
 /**
  * teafs_get_backing_path - Retrieve the actual path in the backing directory
@@ -53,122 +23,203 @@ int teafs_get_backing_path(struct dentry *dentry, struct path *backing_path)
     if (!ti->__upperdentry)
         return -ENOENT;
 
-    /* Set the backing_path to the backing directory's mount and dentry */
-    backing_path->mnt = ti->__upperdentry->d_sb->s_root->mnt;
-    backing_path->dentry = ti->__upperdentry;
-
     return 0;
 }
 
+
 /**
- * teafs_fill_super - Fill the superblock structure
+ * teafs_alloc_inode - Allocate memory for TEAFS inode
  * @sb: Superblock pointer
- * @data: Mount options
- * @silent: Suppress error messages if non-zero
  *
  * Returns:
- *   0 on success, or a negative error code on failure.
+ *   A pointer to the new inode on success, or NULL on failure.
  */
-static int teafs_fill_super(struct super_block *sb, void *data, int silent)
+static struct inode *teafs_alloc_inode(struct super_block *sb)
 {
-    struct teafs_fs_info *fsi;
-    struct inode *root_inode;
-    struct dentry *root_dentry;
-    char backing_dir[PATH_MAX];
-    int err;
+    struct teafs_inode_info *ti;
 
-    fsi = kzalloc(sizeof(struct teafs_fs_info), GFP_KERNEL);
-    if (!fsi)
-        return -ENOMEM;
+    ti = kzalloc(sizeof(struct teafs_inode_info), GFP_KERNEL);
+    if (!ti)
+        return NULL;
 
-    sb->s_fs_info = fsi;
-    sb->s_maxbytes = MAX_LFS_FILESIZE;
-    sb->s_blocksize = PAGE_SIZE;
-    sb->s_blocksize_bits = PAGE_SHIFT;
-    sb->s_magic = 0x12345678; /* Placeholder magic number */
-    sb->s_op = &simple_super_operations;
-
-    /* Parse mount options to get backingdir */
-    if (!data) {
-        err = -EINVAL;
-        goto fail;
-    }
-
-    strncpy(backing_dir, (char *)data, PATH_MAX);
-    backing_dir[PATH_MAX - 1] = '\0';
-
-    /* Resolve the backing directory path */
-    err = kern_path(backing_dir, LOOKUP_FOLLOW, &fsi->backing_path);
-    if (err) {
-        printk(KERN_ERR "TEAFS: Failed to resolve backing directory path\n");
-        goto fail;
-    }
-
-    /* Create root inode */
-    root_inode = teafs_get_inode(sb, S_IFDIR | 0755);
-    if (IS_ERR(root_inode)) {
-        err = PTR_ERR(root_inode);
-        goto fail_put_path;
-    }
-
-    root_dentry = d_make_root(root_inode);
-    if (!root_dentry) {
-        iput(root_inode);
-        err = -ENOMEM;
-        goto fail_put_path;
-    }
-
-    sb->s_root = root_dentry;
-    return 0;
-
-fail_put_path:
-    path_put(&fsi->backing_path);
-fail:
-    kfree(fsi);
-    return err;
+    return &ti->vfs_inode;
 }
 
 /**
- * teafs_mount - Mount the TEAFS filesystem
- * @fs_type: Filesystem type
- * @flags: Mount flags
- * @dev_name: Device name (unused)
- * @data: Mount options (backingdir path)
+ * teafs_destroy_inode - Destroy a TEAFS inode
+ * @inode: Inode pointer
  *
- * Returns:
- *   A pointer to the root dentry on success, or ERR_PTR on failure.
+ * Frees the memory allocated for the inode.
  */
-struct dentry *teafs_mount(struct file_system_type *fs_type,
-                           int flags, const char *dev_name, void *data)
+static void teafs_destroy_inode(struct inode *inode)
 {
-    return mount_nodev(fs_type, flags, data, teafs_fill_super);
+    struct teafs_inode_info *ti = teafs_i(inode);
+
+    if (ti->__upperdentry)
+        dput(ti->__upperdentry);
+
+    kfree(ti);
 }
 
-/**
- * teafs_kill_sb - Unmount the TEAFS filesystem
- * @sb: Superblock pointer
- *
- * Frees all resources associated with the superblock.
- */
-static void teafs_kill_sb(struct super_block *sb)
-{
-    struct teafs_fs_info *fsi = sb->s_fs_info;
+/* Define superblock operations */
+static const struct super_operations teafs_super_ops = {
+    .alloc_inode    = teafs_alloc_inode,
+    .destroy_inode  = teafs_destroy_inode,
+};
 
-    if (fsi) {
-        path_put(&fsi->backing_path);
-        kfree(fsi);
-        sb->s_fs_info = NULL;
-    }
-    kill_litter_super(sb);
+int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
+{
+	struct teafs_info *tfs = sb->s_fs_info;
+	struct inode *root_inode;
+	struct dentry *root_dentry;
+	struct cred *cred;
+	int err;
+
+	err = -EIO;
+	if (WARN_ON(fc->user_ns != current_user_ns()))
+		goto out_err;
+
+	sb->s_d_op = &teafs_dentry_operations;
+	sb->s_op = &teafs_super_ops;
+
+	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
+	sb->s_fs_info = tfs;
+	sb->s_iflags |= SB_I_SKIP_SYNC;
+	/*
+	 * Ensure that umask handling is done by the filesystems used
+	 * for the the upper layer instead of overlayfs as that would
+	 * lead to unexpected results.
+	 */
+	sb->s_iflags |= SB_I_NOUMASK;
+	sb->s_iflags |= SB_I_EVM_HMAC_UNSUPPORTED;
+
+	err = -ENOMEM;
+	    /* Create root inode */
+	    root_inode = teafs_get_inode(sb, S_IFDIR | 0755);
+	    if (IS_ERR(root_inode)) {
+		err = PTR_ERR(root_inode);
+		goto out_err;
+	    }
+
+	    root_dentry = d_make_root(root_inode);
+	    if (!root_dentry) {
+		iput(root_inode);
+		err = -ENOMEM;
+		goto out_err;
+	    }
+
+	    sb->s_root = root_dentry;
+
+	return 0;
+
+out_err:
+	return err;
+}
+
+enum teafs_opt {
+	Opt_backingdir,
+};
+
+const struct fs_parameter_spec teafs_parameter_spec[] = {
+	fsparam_string("backingdir",          Opt_backingdir),
+	{}
+};
+
+static int teafs_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	int err = 0;
+	struct fs_parse_result result;
+	struct teafs_info *tfs_info = fc->s_fs_info;
+	int opt;
+
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		/*
+		 * On remount overlayfs has always ignored all mount
+		 * options no matter if malformed or not so for
+		 * backwards compatibility we do the same here.
+		 */
+		if (fc->oldapi)
+			return 0;
+
+		/*
+		 * Give us the freedom to allow changing mount options
+		 * with the new mount api in the future. So instead of
+		 * silently ignoring everything we report a proper
+		 * error. This is only visible for users of the new
+		 * mount api.
+		 */
+		return invalfc(fc, "No changes allowed in reconfigure");
+	}
+
+	opt = fs_parse(fc, teafs_parameter_spec, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_backingdir:
+		err = kern_path(param->string, LOOKUP_FOLLOW, &tfs_info->backing_path);
+		if (err)
+			pr_err("failed to resolve '%s': %i\n", param->string, err);
+		break;
+	default:
+		pr_err("unrecognized mount option \"%s\" or missing value\n",
+		       param->key);
+		return -EINVAL;
+	}
+
+	return err;
+}
+
+static int teafs_get_tree(struct fs_context *fc)
+{
+	return get_tree_nodev(fc, teafs_fill_super);
+}
+
+static void teafs_free(struct fs_context *fc)
+{
+	struct teafs_info *tfs_info = fc->s_fs_info;
+
+	/*
+	 * tfs_info is stored in the fs_context when it is initialized.
+	 * tfs_info is transferred to the superblock on a successful mount,
+	 * but if an error occurs before the transfer we have to free
+	 * it here.
+	 */
+	if (tfs_info)
+		kfree(tfs_info);
+}
+
+static const struct fs_context_operations tea_context_ops = {
+	.parse_param = teafs_parse_param,
+	.get_tree    = teafs_get_tree,
+	.free        = teafs_free,
+};
+
+int teafs_init_fs_context(struct fs_context *fc)
+{
+	struct teafs_info *tfs_info;
+
+	tfs_info = kzalloc(sizeof(struct teafs_info), GFP_KERNEL);
+	if (!tfs_info)
+		goto out;
+
+	fc->s_fs_info		= tfs_info;
+	fc->ops			= &tea_context_ops;
+
+	return 0;
+out:
+	return -ENOMEM;
+
 }
 
 /* Define the filesystem type structure */
 static struct file_system_type teafs_fs_type = {
-    .owner      = THIS_MODULE,
-    .name       = "teafs",
-    .mount      = teafs_mount,
-    .kill_sb    = teafs_kill_sb,
-    .fs_flags   = FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "teafs",
+	.init_fs_context	= teafs_init_fs_context,
+	.parameters		= teafs_parameter_spec,
+	.fs_flags		= FS_USERNS_MOUNT,
+	.kill_sb		= kill_anon_super,
 };
 
 /**

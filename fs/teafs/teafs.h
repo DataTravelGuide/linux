@@ -64,8 +64,14 @@ int teafs_get_backing_path(struct dentry *dentry, struct path *backing_path);
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);
 
+/* inode.c */
+struct inode *teafs_get_inode(struct super_block *sb, umode_t mode);
+
 /* Superblock functions */
 extern struct dentry *teafs_mount(struct file_system_type *fs_type,
                                   int flags, const char *dev_name, void *data);
 
+struct teafs_info {
+	struct path backing_path;
+};
 #endif /* _TEAFS_H */
