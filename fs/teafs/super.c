@@ -186,8 +186,10 @@ static void teafs_free(struct fs_context *fc)
 	 * but if an error occurs before the transfer we have to free
 	 * it here.
 	 */
-	if (tfs_info)
+	if (tfs_info) {
+		path_put(&tfs_info->backing_path);
 		kfree(tfs_info);
+	}
 }
 
 static const struct fs_context_operations tea_context_ops = {
