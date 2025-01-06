@@ -12,7 +12,7 @@
  * Returns:
  *   A pointer to the new inode on success, or ERR_PTR on failure.
  */
-struct inode *teafs_get_inode(struct super_block *sb, umode_t mode)
+struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode)
 {
     struct inode *inode;
     struct teafs_inode_info *ti;
@@ -27,9 +27,8 @@ struct inode *teafs_get_inode(struct super_block *sb, umode_t mode)
     inode->i_gid = current_fsgid();
 
     ti = teafs_i(inode);
-    ti->backing_inode = NULL;
-    ti->__upperdentry = NULL;
-    ti->redirect = NULL;
+    dget(backing_dentry);
+    ti->backing_dentry = backing_dentry;
 
     if (S_ISDIR(mode)) {
         inode->i_op = &teafs_dir_inode_operations;

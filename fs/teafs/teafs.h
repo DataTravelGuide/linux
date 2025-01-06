@@ -16,9 +16,7 @@
 /* TEAFS inode information structure */
 struct teafs_inode_info {
     struct inode        vfs_inode;
-    struct inode       *backing_inode;    /* Actual inode in backingdir */
-    struct dentry      *__upperdentry;    /* Actual dentry in backingdir */
-    const char         *redirect;         /* Redirect path for symlinks (optional) */
+    struct dentry	*backing_dentry;
 };
 
 /* TEAFS superblock information structure */
@@ -54,19 +52,18 @@ static struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
     ti = teafs_i(inode);
 
     /* Check if the backing dentry exists */
-    if (!ti->__upperdentry)
+    if (!ti->backing_dentry)
         return NULL;
 
     /* Return the backing dentry found in the inode_info */
-    return ti->__upperdentry;
+    return ti->backing_dentry;
 }
 
-int teafs_get_backing_path(struct dentry *dentry, struct path *backing_path);
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);
 
 /* inode.c */
-struct inode *teafs_get_inode(struct super_block *sb, umode_t mode);
+struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode);
 
 /* Superblock functions */
 extern struct dentry *teafs_mount(struct file_system_type *fs_type,

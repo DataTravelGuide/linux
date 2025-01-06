@@ -8,24 +8,6 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 
-/**
- * teafs_get_backing_path - Retrieve the actual path in the backing directory
- * @dentry: The TEAFS dentry
- * @backing_path: The path structure to be filled with the backing directory's path
- *
- * Returns:
- *   0 on success, or a negative error code on failure.
- */
-int teafs_get_backing_path(struct dentry *dentry, struct path *backing_path)
-{
-    struct teafs_inode_info *ti = teafs_i(d_inode(dentry));
-
-    if (!ti->__upperdentry)
-        return -ENOENT;
-
-    return 0;
-}
-
 static struct kmem_cache *teafs_inode_cachep;
 
 /**
@@ -56,8 +38,8 @@ static void teafs_destroy_inode(struct inode *inode)
 {
     struct teafs_inode_info *ti = teafs_i(inode);
 
-    if (ti->__upperdentry)
-        dput(ti->__upperdentry);
+    if (ti->backing_dentry)
+        dput(ti->backing_dentry);
 
     kfree(ti);
 }
@@ -96,7 +78,7 @@ int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	err = -ENOMEM;
 	    /* Create root inode */
-	    root_inode = teafs_get_inode(sb, S_IFDIR | 0755);
+	    root_inode = teafs_get_inode(sb, tfs->backing_path.dentry, S_IFDIR | 0755);
 	    if (IS_ERR(root_inode)) {
 		err = PTR_ERR(root_inode);
 		goto out_err;

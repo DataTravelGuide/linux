@@ -16,7 +16,7 @@ static const char *teafs_get_link(struct dentry *dentry, struct inode *inode,
                                   struct delayed_call *done)
 {
     struct teafs_inode_info *ti = teafs_i(inode);
-    return ti->redirect; /* Return the symlink target path */
+    return NULL; /* Return the symlink target path */
 }
 
 /* Define symlink inode operations */
