@@ -126,11 +126,30 @@ const struct inode_operations teafs_dir_inode_operations = {
     .update_time    = NULL,
 };
 
+static int teafs_dir_open(struct inode *inode, struct file *file)
+{
+	struct path backing_path;
+	struct teafs_inode *ti;
 
+	teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
+
+	file->private_data = dentry_open(&backing_path, O_RDONLY, current_cred());
+
+	return 0;
+}
+
+static int teafs_iterate(struct file *file, struct dir_context *ctx)
+{
+	struct file *realfile = file->private_data;
+
+	return iterate_dir(realfile, ctx);
+}
+
+WRAP_DIR_ITER(teafs_iterate) // FIXME!
 const struct file_operations teafs_dir_operations = {
 	.read		= generic_read_dir,
-	.open		= NULL,
-	.iterate_shared	= NULL,
+	.open		= teafs_dir_open,
+	.iterate_shared	= shared_teafs_iterate,
 	.llseek		= NULL,
 	.fsync		= NULL,
 	.release	= NULL,

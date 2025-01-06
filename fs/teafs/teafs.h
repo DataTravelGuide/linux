@@ -59,6 +59,18 @@ static struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
     return ti->backing_dentry;
 }
 
+static void teafs_backing_path(struct inode *inode, struct path *path)
+{
+	struct super_block *sb = inode->i_sb;
+    	struct teafs_fs_info *fs_info;
+
+	sb = inode->i_sb;
+	fs_info = sb->s_fs_info;
+
+	path->mnt = fs_info->backing_path.mnt;
+	path->dentry = teafs_i(inode)->backing_dentry;
+}
+
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);
 
