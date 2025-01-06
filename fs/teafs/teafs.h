@@ -83,5 +83,6 @@ extern struct dentry *teafs_mount(struct file_system_type *fs_type,
 
 struct teafs_info {
 	struct path backing_path;
+	const struct cred *creator_cred;
 };
 #endif /* _TEAFS_H */

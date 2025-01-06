@@ -135,6 +135,7 @@ static int teafs_dir_open(struct inode *inode, struct file *file)
 	teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
 
 	file->private_data = dentry_open(&backing_path, O_RDONLY, current_cred());
+	path_put(&backing_path);
 
 	return 0;
 }

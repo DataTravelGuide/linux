@@ -76,6 +76,7 @@ int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_iflags |= SB_I_NOUMASK;
 	sb->s_iflags |= SB_I_EVM_HMAC_UNSUPPORTED;
 
+	tfs->creator_cred = prepare_creds();
 	err = -ENOMEM;
 	    /* Create root inode */
 	    root_inode = teafs_get_inode(sb, tfs->backing_path.dentry, S_IFDIR | 0755);
@@ -170,6 +171,8 @@ static void teafs_free(struct fs_context *fc)
 	 */
 	if (tfs_info) {
 		path_put(&tfs_info->backing_path);
+		if (tfs_info->creator_cred)
+		       put_cred(tfs_info->creator_cred);
 		kfree(tfs_info);
 	}
 }

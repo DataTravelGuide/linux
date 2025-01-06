@@ -30,38 +30,28 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
     dget(backing_dentry);
     ti->backing_dentry = backing_dentry;
 
-    if (S_ISDIR(mode)) {
-        inode->i_op = &teafs_dir_inode_operations;
-        inode->i_fop = &teafs_dir_operations;
-    }
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+		inode->i_op = &teafs_file_inode_operations;
+		inode->i_fop = &teafs_file_operations;
+		break;
+
+	case S_IFDIR:
+		inode->i_op = &teafs_dir_inode_operations;
+		inode->i_fop = &teafs_dir_operations;
+		break;
+
+	case S_IFLNK:
+		inode->i_op = &teafs_symlink_inode_operations;
+		break;
+
+	default:
+		inode->i_op = &teafs_special_inode_operations;
+		init_special_inode(inode, mode, d_inode(backing_dentry)->i_rdev);
+		break;
+	}
 
     return inode;
-    /*
-    if (S_ISDIR(mode)) {
-        inode->i_op = &teafs_dir_inode_operations;
-        inode->i_fop = &teafs_dir_operations;
-    } else if (S_ISLNK(mode)) {
-        inode->i_op = &teafs_symlink_inode_operations;
-        inode->i_fop = &simple_symlink_operations;
-    } else if (S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode) || S_ISSOCK(mode)) {
-        inode->i_op = &teafs_special_inode_operations;
-        init_special_inode(inode, mode, 0);
-    } else {
-        inode->i_op = &teafs_file_inode_operations;
-        inode->i_fop = &teafs_file_operations;
-    }
-
-    if (ti->backing_inode) {
-        ti->__upperdentry = d_find_alias(ti->backing_inode);
-        if (!ti->__upperdentry) {
-            iput(inode);
-            return ERR_PTR(-ENOENT);
-        }
-        dget(ti->__upperdentry);
-    }
-
-    return inode;
-    */
 }
 
 /* Define inode operations for files */
