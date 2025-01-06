@@ -3,6 +3,7 @@
 #include "teafs.h"
 #include <linux/fs.h>
 #include <linux/namei.h>
+#include <linux/file.h>
 
 #include "teafs.h"
 #include <linux/fs.h>
@@ -145,6 +146,15 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
 	return iterate_dir(realfile, ctx);
 }
 
+static int teafs_dir_release(struct inode *inode, struct file *file)
+{
+	struct file *realfile = file->private_data;
+
+	fput(realfile);
+
+	return 0;
+}
+
 WRAP_DIR_ITER(teafs_iterate) // FIXME!
 const struct file_operations teafs_dir_operations = {
 	.read		= generic_read_dir,
@@ -152,5 +162,5 @@ const struct file_operations teafs_dir_operations = {
 	.iterate_shared	= shared_teafs_iterate,
 	.llseek		= NULL,
 	.fsync		= NULL,
-	.release	= NULL,
+	.release	= teafs_dir_release,
 };
