@@ -44,10 +44,32 @@ static void teafs_destroy_inode(struct inode *inode)
     kfree(ti);
 }
 
+static int teafs_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct path path;
+	int err;
+
+	teafs_backing_path(d_inode(dentry), &path);
+
+	err = vfs_statfs(&path, buf);
+	/*
+	if (false && !err) {
+		buf->f_namelen = ofs->namelen;
+		buf->f_type = OVERLAYFS_SUPER_MAGIC;
+		if (ovl_has_fsid(ofs))
+			buf->f_fsid = uuid_to_fsid(sb->s_uuid.b);
+	}
+	*/
+
+	return err;
+}
+
+
 /* Define superblock operations */
 static const struct super_operations teafs_super_ops = {
     .alloc_inode    = teafs_alloc_inode,
     .destroy_inode  = teafs_destroy_inode,
+    .statfs	     = teafs_statfs,
 };
 
 int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
