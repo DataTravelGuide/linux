@@ -41,7 +41,6 @@ static ssize_t teafs_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t ret;
 	struct backing_file_ctx ctx = {
 		.cred = tfs->creator_cred,
-		.user_file = file,
 	};
 
 	if (!iov_iter_count(iter))
@@ -62,7 +61,6 @@ static ssize_t teafs_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	int ifl = iocb->ki_flags;
 	struct backing_file_ctx ctx = {
 		.cred = tfs->creator_cred,
-		.user_file = file,
 	};
 
 	if (!iov_iter_count(iter))
