@@ -117,14 +117,18 @@ struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 /* Define inode operations for directories */
 const struct inode_operations teafs_dir_inode_operations = {
     .lookup         = teafs_lookup,
+    .create	    = NULL,
     .mkdir          = NULL,
-    .unlink         = NULL,
     .rmdir          = NULL,
+    .link	    = NULL,
+    .symlink	    = NULL,
+    .unlink         = NULL,
     .rename         = NULL,
     .setattr        = NULL,
-    .permission     = NULL,
     .getattr        = NULL,
+    .permission     = NULL,
     .update_time    = NULL,
+    .tmpfile	    = NULL,
 };
 
 static int teafs_dir_open(struct inode *inode, struct file *file)

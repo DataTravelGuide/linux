@@ -4,6 +4,17 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 
+static int teafs_inode_test(struct inode *inode, void *data)
+{
+	return inode->i_private == data;
+}
+
+static int teafs_inode_set(struct inode *inode, void *data)
+{
+	inode->i_private = data;
+	return 0;
+}
+
 /**
  * teafs_get_inode - Allocate and initialize a new inode
  * @sb: Superblock pointer
@@ -17,9 +28,15 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
     struct inode *inode;
     struct teafs_inode_info *ti;
 
-    inode = new_inode(sb);
+    inode = iget5_locked(sb, (unsigned long) d_inode(backing_dentry),
+		    teafs_inode_test, teafs_inode_set, d_inode(backing_dentry));
     if (!inode)
         return ERR_PTR(-ENOMEM);
+
+    if (!(inode->i_state & I_NEW)) {
+	    pr_err("found inode: %p\n", inode);
+	    return inode;
+    }
 
     inode->i_mode = mode;
     inode->i_ino = get_next_ino();
@@ -50,7 +67,10 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
 		init_special_inode(inode, mode, d_inode(backing_dentry)->i_rdev);
 		break;
 	}
+    if (inode->i_state & I_NEW)
+        unlock_new_inode(inode);
 
+    pr_err("new allocated inode: %p", inode);
     return inode;
 }
 
