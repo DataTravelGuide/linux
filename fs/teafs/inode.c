@@ -34,7 +34,9 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
         return ERR_PTR(-ENOMEM);
 
     if (!(inode->i_state & I_NEW)) {
+	    dump_stack();
 	    pr_err("found inode: %p\n", inode);
+    	    teafs_print_dentry(backing_dentry);
 	    return inode;
     }
 
@@ -71,6 +73,7 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
         unlock_new_inode(inode);
 
     pr_err("new allocated inode: %p", inode);
+    teafs_print_dentry(backing_dentry);
     return inode;
 }
 
