@@ -114,10 +114,36 @@ struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned i
     return result;
 }
 
+static int teafs_create(struct mnt_idmap *idmap, struct inode *dir,
+                      struct dentry *dentry, umode_t mode, bool excl)
+{
+	struct inode *backing_dir;
+	struct inode *inode;
+	struct dentry *backing_dir_dentry;
+	struct dentry *backing_dentry;
+
+	backing_dir_dentry = teafs_get_backing_dentry_i(dir);
+	if (!backing_dir_dentry) {
+		printk(KERN_ERR "teafs: backing_dir dentry is NULL\n");
+		return -ENOENT;
+	}
+
+	backing_dir = d_inode(backing_dir_dentry);
+
+	backing_dentry = lookup_one(teafs_backing_mnt_idmap(dir), dentry->d_name.name, backing_dir_dentry, dentry->d_name.len);
+
+	vfs_create(teafs_backing_mnt_idmap(dir), backing_dir, backing_dentry, mode, true);
+
+	inode = teafs_get_inode(dir->i_sb, backing_dentry, mode);
+	d_instantiate(dentry, inode);
+
+	return 0;
+}
+
 /* Define inode operations for directories */
 const struct inode_operations teafs_dir_inode_operations = {
     .lookup         = teafs_lookup,
-    .create	    = NULL,
+    .create	    = teafs_create,
     .mkdir          = NULL,
     .rmdir          = NULL,
     .link	    = NULL,
