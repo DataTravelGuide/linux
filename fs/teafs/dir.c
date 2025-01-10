@@ -339,8 +339,6 @@ struct teafs_getdents_callback {
     struct dir_context ctx;       // 自定义的 dir_context
     struct dir_context *caller;   // 原始的 dir_context
     struct teafs_info *tfs;        // TEAFS 信息
-    int entries_written;           // 已写入的目录项数
-    bool filldir_called;           // 是否调用过 filldir
 };
 
 #define TEAFS_FILE_PREFIX "teafs_file_"
@@ -351,9 +349,6 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner, const char *name, 
     struct teafs_getdents_callback *data = container_of(ctx_inner, struct teafs_getdents_callback, ctx);
     const char *prefix = TEAFS_FILE_PREFIX;
     int prefix_len = TEAFS_FILE_PREFIX_LEN;
-
-    // 标记已经调用过 filldir
-    data->filldir_called = true;
 
     // 检查名称是否以指定前缀开头
     if (namelen < prefix_len || strncmp(name, prefix, prefix_len) != 0) {
@@ -372,8 +367,6 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner, const char *name, 
 
     // 通过 dir_emit 将目录项信息填充到用户空间
     bool res = dir_emit(data->caller, stripped_name, stripped_namelen, ino, DT_REG);
-    if (res)
-        data->entries_written++;
 
     return res;
 }
@@ -411,8 +404,6 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
     data.ctx.actor = teafs_filldir_func;
     data.caller = ctx;
     data.tfs = tfs;
-    data.entries_written = 0;
-    data.filldir_called = false;
 
     // 4. 调用 iterate_dir，使用自定义的 filldir 回调函数
     ret = iterate_dir(realfile, &data.ctx);

@@ -41,7 +41,7 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
     }
 
     inode->i_mode = mode;
-    inode->i_ino = get_next_ino();
+    inode->i_ino = d_inode(backing_dentry)->i_ino;
     inode->i_uid = current_fsuid();
     inode->i_gid = current_fsgid();
 
