@@ -180,6 +180,23 @@ static int generate_backing_subdir_name(struct dentry *dentry, char *name, size_
     return 0;
 }
 
+// 生成 backing_subdir_name，使用前缀 "teafs_file_" 加上用户请求的文件名
+static int generate_backing_subdir_name_with_prefix(struct dentry *dentry, char *name, size_t size)
+{
+    const char *prefix = "teafs_file_";
+    size_t prefix_len = strlen(prefix);
+    size_t name_len = dentry->d_name.len;
+
+    // 确保用户文件名长度不会导致缓冲区溢出
+    if (prefix_len + name_len + 1 > size) { // +1 为 '\0'
+        return -EINVAL;
+    }
+
+    // 添加前缀 "teafs_file_" 并复制用户文件名
+    snprintf(name, size, "%s%.*s", prefix, (int)name_len, dentry->d_name.name);
+    return 0;
+}
+
 static int teafs_create(struct mnt_idmap *idmap,
                         struct inode *dir,
                         struct dentry *dentry,
@@ -206,13 +223,14 @@ static int teafs_create(struct mnt_idmap *idmap,
         return -ENOENT;
     }
 
-    // 2. 生成正式目录名称，使用前缀 "teafs_" 加上用户文件名
-    err = generate_backing_subdir_name(dentry, backing_subdir_name, sizeof(backing_subdir_name));
+    // 2. 生成正式目录名称，使用前缀 "teafs_file_" 加上用户文件名
+    err = generate_backing_subdir_name_with_prefix(dentry, backing_subdir_name, sizeof(backing_subdir_name));
     if (err) {
-        printk(KERN_ERR "teafs: Failed to generate backing_subdir_name\n");
+        printk(KERN_ERR "teafs: Failed to generate backing_subdir_name with prefix\n");
         return err;
     }
-    // 3. 查找或创建后端文件系统中的 backing_subdir_dentry
+
+    // 3. 查找后端文件系统中的 backing_subdir_dentry
     backing_subdir_dentry = lookup_one(teafs_info_mnt_idmap(teafs_info_i(dir)),
                                        backing_subdir_name,
                                        backing_dir_dentry,
@@ -225,6 +243,7 @@ static int teafs_create(struct mnt_idmap *idmap,
     }
 
     teafs_print_dentry(backing_subdir_dentry);
+
     // 检查目录是否已存在
     if (d_really_is_positive(backing_subdir_dentry)) {
         printk(KERN_ERR "teafs: backing_subdir '%s' already exists\n", backing_subdir_name);
@@ -241,13 +260,14 @@ static int teafs_create(struct mnt_idmap *idmap,
         return err;
     }
 
+    /* 
     // 5. 设置扩展属性
     err = teafs_set_xattr(teafs_info_i(dir), backing_subdir_dentry);
     if (err) {
         printk(KERN_ERR "teafs: Failed to set xattr on '%s' with err=%d\n",
                backing_subdir_name, err);
         // 清理已创建的目录
-        vfs_rmdir(teafs_info_mnt_idmap(teafs_info_i(dir)), backing_dir, backing_subdir_dentry);
+        vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
         return err;
     }
@@ -256,10 +276,11 @@ static int teafs_create(struct mnt_idmap *idmap,
     if (!teafs_check_xattr(teafs_info_i(dir), backing_subdir_dentry)) {
         printk(KERN_ERR "teafs: backing_subdir '%s' is not properly marked\n", backing_subdir_name);
         // 清理已创建的目录
-        vfs_rmdir(teafs_info_mnt_idmap(teafs_info_i(dir)), backing_dir, backing_subdir_dentry);
+        vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
         return -EINVAL;
     }
+    */
 
     // 7. 为这个目录创建 TEAFS 的 inode，并与前端 dentry 关联
     inode = teafs_get_inode(dir->i_sb, backing_subdir_dentry, mode);
@@ -269,7 +290,7 @@ static int teafs_create(struct mnt_idmap *idmap,
         printk(KERN_ERR "teafs: teafs_get_inode failed with err=%d, cleaning up subdir\n", err);
 
         // 移除已创建的目录
-        vfs_rmdir(teafs_info_mnt_idmap(teafs_info_i(dir)), backing_dir, backing_subdir_dentry);
+        vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
         return err;
     }
