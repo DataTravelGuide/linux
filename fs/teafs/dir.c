@@ -335,11 +335,94 @@ static int teafs_dir_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+struct teafs_getdents_callback {
+    struct dir_context ctx;       // 自定义的 dir_context
+    struct dir_context *caller;   // 原始的 dir_context
+    struct teafs_info *tfs;        // TEAFS 信息
+    int entries_written;           // 已写入的目录项数
+    bool filldir_called;           // 是否调用过 filldir
+};
+
+#define TEAFS_FILE_PREFIX "teafs_file_"
+#define TEAFS_FILE_PREFIX_LEN (sizeof(TEAFS_FILE_PREFIX) - 1) // 不包括终止符
+
+static bool teafs_filldir_func(struct dir_context *ctx_inner, const char *name, int namelen, loff_t offset, u64 ino, unsigned int d_type)
+{
+    struct teafs_getdents_callback *data = container_of(ctx_inner, struct teafs_getdents_callback, ctx);
+    const char *prefix = TEAFS_FILE_PREFIX;
+    int prefix_len = TEAFS_FILE_PREFIX_LEN;
+
+    // 标记已经调用过 filldir
+    data->filldir_called = true;
+
+    // 检查名称是否以指定前缀开头
+    if (namelen < prefix_len || strncmp(name, prefix, prefix_len) != 0) {
+        return true; // 跳过不符合条件的目录项
+    }
+
+    // 去掉前缀
+    const char *stripped_name = name + prefix_len;
+    int stripped_namelen = namelen - prefix_len;
+
+    // 可选：验证剩余名称是否符合预期（例如，非空）
+    if (stripped_namelen <= 0) {
+        printk(KERN_WARNING "teafs: Found directory with prefix but empty name\n");
+        return true; // 跳过
+    }
+
+    // 通过 dir_emit 将目录项信息填充到用户空间
+    bool res = dir_emit(data->caller, stripped_name, stripped_namelen, ino, DT_REG);
+    if (res)
+        data->entries_written++;
+
+    return res;
+}
+
 static int teafs_iterate(struct file *file, struct dir_context *ctx)
 {
-	struct file *realfile = file->private_data;
+    struct file *realfile = file->private_data;
+    struct inode *backing_dir;
+    struct dentry *backing_dir_dentry;
+    struct teafs_info *tfs;
+    struct teafs_getdents_callback data;
+    int ret;
 
-	return iterate_dir(realfile, ctx);
+    // 1. 获取后端目录 dentry
+    backing_dir_dentry = teafs_get_backing_dentry_i(file->f_inode);
+    if (!backing_dir_dentry) {
+        printk(KERN_ERR "teafs: backing_dir dentry is NULL\n");
+        return -ENOENT;
+    }
+
+    backing_dir = d_inode(backing_dir_dentry);
+    if (!backing_dir) {
+        printk(KERN_ERR "teafs: backing_dir inode is NULL\n");
+        return -ENOENT;
+    }
+
+    // 2. 获取 teafs_info
+    tfs = teafs_info_i(file->f_inode);
+    if (!tfs) {
+        printk(KERN_ERR "teafs: teafs_info is NULL\n");
+        return -ENOENT;
+    }
+
+    // 3. 初始化辅助结构
+    data.ctx.actor = teafs_filldir_func;
+    data.caller = ctx;
+    data.tfs = tfs;
+    data.entries_written = 0;
+    data.filldir_called = false;
+
+    // 4. 调用 iterate_dir，使用自定义的 filldir 回调函数
+    ret = iterate_dir(realfile, &data.ctx);
+    if (ret < 0)
+        return ret;
+
+    // 5. 更新 pos
+    ctx->pos = data.ctx.pos;
+
+    return ret;
 }
 
 static int teafs_dir_release(struct inode *inode, struct file *file)
