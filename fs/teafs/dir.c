@@ -81,6 +81,7 @@ struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 	goto revert_cred;
     }
 
+    teafs_print_dentry(base);
     // 7. 调用 lookup_one_unlocked 在底层文件系统中执行查找
     backing_dentry = lookup_one_unlocked(mnt_idmap(mnt), name, base, len);
     if (IS_ERR(backing_dentry)) {

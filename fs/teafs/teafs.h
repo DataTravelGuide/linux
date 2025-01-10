@@ -151,10 +151,9 @@ static void teafs_print_dentry(struct dentry *dentry)
     }
 
     // 打印 dentry 的名称和长度
-    printk(KERN_INFO "teafs_print_dentry: Name: %.*s (Length: %d)\n",
+    printk(KERN_INFO "teafs_print_dentry: %p Name: %.*s (Length: %d)\n", dentry,
            (int)dentry->d_name.len, dentry->d_name.name, dentry->d_name.len);
 
-    return;
     // 打印父 dentry 的名称
     if (dentry->d_parent) {
         ret = dentry_path_raw(dentry->d_parent, path_buf, sizeof(path_buf));
