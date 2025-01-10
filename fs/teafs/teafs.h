@@ -60,13 +60,28 @@ static struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
     return ti->backing_dentry;
 }
 
-static void teafs_backing_path(struct inode *inode, struct path *path)
+static struct teafs_info *teafs_info_i(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
+
+	    if (!sb) {
+		printk(KERN_ERR "teafs: Directory inode has no super_block\n");
+		return NULL;
+	    }
+
+	return sb->s_fs_info;
+}
+
+static struct mnt_idmap *teafs_info_mnt_idmap(struct teafs_info *tfs)
+{
+    	return mnt_idmap(tfs->backing_path.mnt);
+}
+
+static void teafs_backing_path(struct inode *inode, struct path *path)
+{
     	struct teafs_info *fs_info;
 
-	sb = inode->i_sb;
-	fs_info = sb->s_fs_info;
+	fs_info = teafs_info_i(inode);
 
 	path->mnt = fs_info->backing_path.mnt;
 	path->dentry = teafs_i(inode)->backing_dentry;
@@ -75,7 +90,7 @@ static void teafs_backing_path(struct inode *inode, struct path *path)
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);
 
-static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
+static struct vfsmount *teafs_backing_mnt(struct inode *inode)
 {
     struct super_block *sb;
     struct teafs_info *fs_info;
@@ -88,15 +103,8 @@ static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
     struct dentry *backing_dentry;
     int ret;
 
-    // 1. 获取超级块
-    sb = inode->i_sb;
-    if (!sb) {
-        printk(KERN_ERR "teafs: Directory inode has no super_block\n");
-        return ERR_PTR(-EINVAL);
-    }
-
     // 2. 获取 teafs_info
-    fs_info = sb->s_fs_info;
+    fs_info = teafs_info_i(inode);
     if (!fs_info) {
         printk(KERN_ERR "teafs: Super_block has no fs_info\n");
         return ERR_PTR(-EINVAL);
@@ -115,7 +123,12 @@ static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
         return ERR_PTR(-EINVAL);
     }
 
-    return mnt_idmap(mnt);
+    return mnt;
+}
+
+static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
+{
+    return mnt_idmap(teafs_backing_mnt(inode));
 
 }
 /* inode.c */
