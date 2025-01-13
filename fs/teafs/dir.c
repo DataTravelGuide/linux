@@ -260,6 +260,46 @@ static int teafs_create(struct mnt_idmap *idmap,
         return err;
     }
 
+    /* 6. 在刚创建的目录下，再创建一个名为 "data" 的文件 */
+    {
+        struct dentry *data_dentry;
+        struct inode *data_inode;
+        char data_name[] = "data";
+
+        /* 在 backing_subdir_dentry 下查找 "data" 文件 */
+        data_dentry = lookup_one(teafs_backing_mnt_idmap(dir),
+                                 data_name,
+                                 backing_subdir_dentry,
+                                 strlen(data_name));
+        if (IS_ERR(data_dentry)) {
+            err = PTR_ERR(data_dentry);
+            printk(KERN_ERR "teafs: lookup_one for 'data' failed with err=%d\n", err);
+            /* 若失败，删除已创建的目录 */
+            vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+            dput(backing_subdir_dentry);
+            return err;
+        }
+        /* 如果 "data" 文件已经存在，返回错误 */
+        if (d_really_is_positive(data_dentry)) {
+            printk(KERN_ERR "teafs: data file already exists in backing subdir '%s'\n", backing_subdir_name);
+            dput(data_dentry);
+            vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+            dput(backing_subdir_dentry);
+            return -EEXIST;
+        }
+        /* 创建 "data" 文件 */
+        err = vfs_create(teafs_backing_mnt_idmap(dir), d_inode(backing_subdir_dentry), data_dentry, mode, true);
+        if (err) {
+            printk(KERN_ERR "teafs: vfs_create for 'data' in '%s' failed with err=%d\n", backing_subdir_name, err);
+            dput(data_dentry);
+            vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+            dput(backing_subdir_dentry);
+            return err;
+        }
+        /* 释放对 data_dentry 的引用 */
+        dput(data_dentry);
+    }
+
     /* 
     // 5. 设置扩展属性
     err = teafs_set_xattr(teafs_info_i(dir), backing_subdir_dentry);

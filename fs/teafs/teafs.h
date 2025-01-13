@@ -13,10 +13,15 @@
 #include <linux/cred.h>
 #include <linux/err.h>
 
+struct teafs_file {
+	struct file *data_file;
+};
+
 /* TEAFS inode information structure */
 struct teafs_inode_info {
     struct inode        vfs_inode;
     struct dentry	*backing_dentry;
+    struct teafs_file	tfile;
 };
 
 struct teafs_info {
