@@ -19,6 +19,8 @@ static int teafs_open(struct inode *inode, struct file *file)
 
 	teafs_backing_data_path(inode, &backing_data_path);
 
+	teafs_print_path(&backing_data_path);
+
 	tfile->data_file = backing_file_open(&file->f_path, file->f_flags, &backing_data_path,
 					     current_cred());
 

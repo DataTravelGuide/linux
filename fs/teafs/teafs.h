@@ -29,6 +29,33 @@ struct teafs_info {
 	struct path backing_path;
 	const struct cred *creator_cred;
 };
+#include <linux/path.h>
+#include <linux/dcache.h>
+#include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/printk.h>
+
+static void teafs_print_path(const struct path *path)
+{
+    char *buf;
+    char *path_str;
+    int buflen = 256; // 如果路径较长，可以适当增大
+
+    buf = kmalloc(buflen, GFP_KERNEL);
+    if (!buf) {
+        printk(KERN_ERR "print_path: kmalloc failed\n");
+        return;
+    }
+
+    path_str = d_path(path, buf, buflen);
+    if (IS_ERR(path_str))
+        printk(KERN_ERR "print_path: d_path failed: %ld\n", PTR_ERR(path_str));
+    else
+        printk(KERN_INFO "path: %s\n", path_str);
+
+    kfree(buf);
+}
+
 
 
 /* Inode operation prototypes */

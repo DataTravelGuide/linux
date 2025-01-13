@@ -203,7 +203,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 
         // 11. 创建 TEAFS 的 inode（合并上层和底层信息）
         {
-            teafs_inode = teafs_get_inode(sb, backing_dentry, backing_inode->i_mode);
+            teafs_inode = teafs_get_inode(sb, backing_dentry, S_IFREG);
             if (IS_ERR(teafs_inode)) {
                 printk(KERN_ERR "teafs: teafs_get_inode failed for %s: %ld\n", conv_name, PTR_ERR(teafs_inode));
                 dput(backing_dentry);
@@ -250,6 +250,9 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
             result = NULL;
             goto revert_cred;
         }
+
+	pr_err("print data_dentry");
+	teafs_print_dentry(data_dentry);
         /* 保存 data 文件的 dentry 到 teafs_inode_info 中 */
         ti->backing_data_file_dentry = data_dentry;
         /* 注意：data_dentry 此处不需要马上 dput，因为我们需要保持引用，
