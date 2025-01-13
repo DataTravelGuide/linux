@@ -112,6 +112,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
     struct dentry *base;
     struct dentry *result;
     struct dentry *backing_dentry;
+    struct inode *teafs_inode;
     const struct cred *old_cred;
     int ret;
 
@@ -202,7 +203,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 
         // 11. 创建 TEAFS 的 inode（合并上层和底层信息）
         {
-            struct inode *teafs_inode = teafs_get_inode(sb, backing_dentry, backing_inode->i_mode);
+            teafs_inode = teafs_get_inode(sb, backing_dentry, backing_inode->i_mode);
             if (IS_ERR(teafs_inode)) {
                 printk(KERN_ERR "teafs: teafs_get_inode failed for %s: %ld\n", conv_name, PTR_ERR(teafs_inode));
                 dput(backing_dentry);
@@ -221,6 +222,38 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
                 goto revert_cred;
             }
         }
+    }
+
+    {
+        struct teafs_inode_info *ti = teafs_i(teafs_inode);
+        struct dentry *data_dentry;
+
+        /* 在合并视图（result）对应的 backing 目录中查找名为 "data" 的文件
+         * 注意：这里我们使用 lookup_one_unlocked() 查找 "data" 文件
+         * 如果 "data" 文件不存在，则返回负 dentry（你也可以选择在此处调用 vfs_create() 来创建该文件）
+         */
+	pr_err("before lookup backing data:");
+	teafs_print_dentry(result);
+        data_dentry = lookup_one_unlocked(mnt_idmap(mnt), "data", backing_dentry, strlen("data"));
+        if (IS_ERR(data_dentry)) {
+            printk(KERN_ERR "teafs: lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
+            result = ERR_CAST(data_dentry);
+            goto revert_cred;
+        }
+        if (d_really_is_negative(data_dentry)) {
+            /* 如果找不到 data 文件，可选：你可以选择创建一个空的 data 文件，
+             * 这里先返回错误（或者将 backing_data_file_dentry 设置为 NULL），
+             * 这样后续写 data 时再进行处理。
+             */
+            printk(KERN_ERR "teafs: backing data file not found in backing subdir\n");
+            dput(data_dentry);
+            result = NULL;
+            goto revert_cred;
+        }
+        /* 保存 data 文件的 dentry 到 teafs_inode_info 中 */
+        ti->backing_data_file_dentry = data_dentry;
+        /* 注意：data_dentry 此处不需要马上 dput，因为我们需要保持引用，
+         * 直到后续适当的时候释放 */
     }
 
 revert_cred:
