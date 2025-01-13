@@ -21,6 +21,7 @@ struct teafs_file {
 struct teafs_inode_info {
     struct inode        vfs_inode;
     struct dentry	*backing_dentry;
+    struct dentry	*backing_data_file_dentry;
     struct teafs_file	tfile;
 };
 
@@ -90,6 +91,16 @@ static void teafs_backing_path(struct inode *inode, struct path *path)
 
 	path->mnt = fs_info->backing_path.mnt;
 	path->dentry = teafs_i(inode)->backing_dentry;
+}
+
+static void teafs_backing_data_path(struct inode *inode, struct path *path)
+{
+    	struct teafs_info *fs_info;
+
+	fs_info = teafs_info_i(inode);
+
+	path->mnt = fs_info->backing_path.mnt;
+	path->dentry = teafs_i(inode)->backing_data_file_dentry;
 }
 
 const struct cred *teafs_override_creds(const struct super_block *sb);

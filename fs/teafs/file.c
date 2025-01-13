@@ -9,7 +9,7 @@
 
 static int teafs_open(struct inode *inode, struct file *file)
 {
-	struct path backing_path;
+	struct path backing_data_path;
 	struct teafs_inode *ti;
 	const struct cred *old_cred;
 	struct teafs_info *tfs = inode->i_sb->s_fs_info;
@@ -17,14 +17,14 @@ static int teafs_open(struct inode *inode, struct file *file)
 
 	old_cred = override_creds(tfs->creator_cred);
 
-	teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
+	teafs_backing_data_path(inode, &backing_data_path);
 
-	tfile->data_file = backing_file_open(&file->f_path, file->f_flags, &backing_path,
+	tfile->data_file = backing_file_open(&file->f_path, file->f_flags, &backing_data_path,
 					     current_cred());
 
 	file->private_data = tfile;
 	revert_creds(old_cred);
-	path_put(&backing_path);
+	path_put(&backing_data_path);
 
 	return 0;
 }
