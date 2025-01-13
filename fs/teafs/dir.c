@@ -475,7 +475,7 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
     struct inode *backing_dir;
     struct dentry *backing_dir_dentry;
     struct teafs_info *tfs;
-    struct teafs_getdents_callback data;
+    struct teafs_getdents_callback data = { 0 };
     int ret;
 
     // 1. 获取后端目录 dentry
@@ -505,11 +505,13 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
 
     // 4. 调用 iterate_dir，使用自定义的 filldir 回调函数
     ret = iterate_dir(realfile, &data.ctx);
+    pr_err("ret of iterate_dir: %d\n", ret);
     if (ret < 0)
         return ret;
 
     // 5. 更新 pos
     ctx->pos = data.ctx.pos;
+    pr_err("pos: %d", ctx->pos);
 
     return ret;
 }
