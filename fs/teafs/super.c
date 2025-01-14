@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/statfs.h>
 
 static struct kmem_cache *teafs_inode_cachep;
 
@@ -39,14 +40,8 @@ static int teafs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	teafs_backing_path(d_inode(dentry), &path);
 
 	err = vfs_statfs(&path, buf);
-	/*
-	if (false && !err) {
-		buf->f_namelen = ofs->namelen;
-		buf->f_type = OVERLAYFS_SUPER_MAGIC;
-		if (ovl_has_fsid(ofs))
-			buf->f_fsid = uuid_to_fsid(sb->s_uuid.b);
-	}
-	*/
+	if (!err)
+		buf->f_type = TEAFS_SUPER_MAGIC;
 
 	return err;
 }
