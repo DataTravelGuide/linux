@@ -396,9 +396,6 @@ static int teafs_dir_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#define TEAFS_FILE_PREFIX "teafs_file_"
-#define TEAFS_FILE_PREFIX_LEN (sizeof(TEAFS_FILE_PREFIX) - 1) // 不包括终止符
-
 #include <linux/dcache.h>
 #include <linux/xattr.h>
 #include <linux/namei.h>
