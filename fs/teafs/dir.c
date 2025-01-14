@@ -298,7 +298,7 @@ static int teafs_create(struct mnt_idmap *idmap,
     }
 
     // 6. 在新创建的目录下创建 "data" 文件
-    data_dentry = lookup_one(teafs_backing_mnt_idmap(dir),
+    data_dentry = lookup_one_unlocked(teafs_backing_mnt_idmap(dir),
                              "data",
                              backing_subdir_dentry,
                              strlen("data"));
@@ -330,9 +330,6 @@ static int teafs_create(struct mnt_idmap *idmap,
         return err;
     }
 
-    // 9. 释放 data_dentry 引用
-    dput(data_dentry);
-
     // 10. 创建成功后设置 xattr 来标记目录为已完成
     err = teafs_set_xattr(teafs_info_i(dir), backing_subdir_dentry);
     if (err) {
@@ -353,12 +350,19 @@ static int teafs_create(struct mnt_idmap *idmap,
         return err;
     }
 
+    dget(data_dentry);
+    teafs_i(inode)->backing_data_file_dentry = data_dentry;
+
+    // 9. 释放 data_dentry 引用
+    dput(data_dentry);
+
     // 12. 将 dentry 和 inode 关联
     d_instantiate(dentry, inode);
 
     // 13. 释放 backing_subdir_dentry 引用
     dput(backing_subdir_dentry);
 
+    pr_err("teafs_create finished.");
     return 0;
 }
 
