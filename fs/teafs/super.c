@@ -10,13 +10,6 @@
 
 static struct kmem_cache *teafs_inode_cachep;
 
-/**
- * teafs_alloc_inode - Allocate memory for TEAFS inode
- * @sb: Superblock pointer
- *
- * Returns:
- *   A pointer to the new inode on success, or NULL on failure.
- */
 static struct inode *teafs_alloc_inode(struct super_block *sb)
 {
     struct teafs_inode_info *ti;
@@ -28,12 +21,6 @@ static struct inode *teafs_alloc_inode(struct super_block *sb)
     return &ti->vfs_inode;
 }
 
-/**
- * teafs_destroy_inode - Destroy a TEAFS inode
- * @inode: Inode pointer
- *
- * Frees the memory allocated for the inode.
- */
 static void teafs_destroy_inode(struct inode *inode)
 {
     struct teafs_inode_info *ti = teafs_i(inode);
@@ -87,7 +74,7 @@ int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_d_op = &teafs_dentry_operations;
 	sb->s_op = &teafs_super_ops;
 
-	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
+	sb->s_magic = TEAFS_SUPER_MAGIC;
 	sb->s_fs_info = tfs;
 	sb->s_iflags |= SB_I_SKIP_SYNC;
 	/*
