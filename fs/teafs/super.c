@@ -1,6 +1,5 @@
 // fs/teafs/super.c
 
-#include "teafs.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -8,6 +7,8 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/statfs.h>
+
+#include "teafs.h"
 
 static struct kmem_cache *teafs_inode_cachep;
 
@@ -154,12 +155,6 @@ static void teafs_free(struct fs_context *fc)
 {
 	struct teafs_info *tfs_info = fc->s_fs_info;
 
-	/*
-	 * tfs_info is stored in the fs_context when it is initialized.
-	 * tfs_info is transferred to the superblock on a successful mount,
-	 * but if an error occurs before the transfer we have to free
-	 * it here.
-	 */
 	if (tfs_info) {
 		path_put(&tfs_info->backing_path);
 		if (tfs_info->creator_cred)
@@ -210,30 +205,30 @@ static void teafs_inode_init_once(void *foo)
 
 static int __init teafs_init(void)
 {
-	int err;
+	int ret;
 
 	teafs_inode_cachep = kmem_cache_create("teafs_inode",
-						 sizeof(struct teafs_inode), 0,
-						 (SLAB_RECLAIM_ACCOUNT|
-						  SLAB_ACCOUNT),
-						 teafs_inode_init_once);
+					sizeof(struct teafs_inode), 0,
+					(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT),
+					teafs_inode_init_once);
 	if (teafs_inode_cachep == NULL)
 		return -ENOMEM;
 
-	err = register_filesystem(&teafs_fs_type);
-	if (!err)
-		return 0;
+	ret = register_filesystem(&teafs_fs_type);
+	if (ret)
+		goto destroy_cache;
 
+	return 0;
+
+destroy_cache:
 	kmem_cache_destroy(teafs_inode_cachep);
 
-	return err;
+	return ret;
 }
 
 static void __exit teafs_exit(void)
 {
 	unregister_filesystem(&teafs_fs_type);
-
-	rcu_barrier();
 	kmem_cache_destroy(teafs_inode_cachep);
 }
 

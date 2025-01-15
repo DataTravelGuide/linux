@@ -57,7 +57,7 @@ static inline struct teafs_inode *teafs_i(struct inode *inode)
 	return container_of(inode, struct teafs_inode, vfs_inode);
 }
 
-static struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
+static inline struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
 {
 	struct teafs_inode *ti;
 
@@ -68,7 +68,7 @@ static struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
 	return ti->backing_dentry;
 }
 
-static struct teafs_info *teafs_info_i(struct inode *inode)
+static inline struct teafs_info *teafs_info_i(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
@@ -80,12 +80,17 @@ static struct teafs_info *teafs_info_i(struct inode *inode)
 	return sb->s_fs_info;
 }
 
-static struct mnt_idmap *teafs_info_mnt_idmap(struct teafs_info *tfs)
+static inline struct mnt_idmap *teafs_info_mnt_idmap(struct teafs_info *tfs)
 {
-	return mnt_idmap(tfs->backing_path.mnt);
+	struct vfsmount *mnt = tfs->backing_path.mnt;
+
+	if (!mnt)
+		return NULL;
+
+	return mnt_idmap(mnt);
 }
 
-static int teafs_backing_path(struct inode *inode, struct path *path)
+static inline int teafs_backing_path(struct inode *inode, struct path *path)
 {
 	struct teafs_info *tfs = teafs_info_i(inode);
 	struct teafs_inode *ti = teafs_i(inode);
@@ -101,7 +106,7 @@ static int teafs_backing_path(struct inode *inode, struct path *path)
 	return 0;
 }
 
-static int teafs_backing_data_path(struct inode *inode, struct path *path)
+static inline int teafs_backing_data_path(struct inode *inode, struct path *path)
 {
 	struct teafs_info *tfs = teafs_info_i(inode);
 	struct teafs_inode *ti = teafs_i(inode);
@@ -120,7 +125,7 @@ static int teafs_backing_data_path(struct inode *inode, struct path *path)
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);
 
-static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
+static inline struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 {
 	struct super_block *sb;
 	struct teafs_info *tfs;
@@ -135,13 +140,13 @@ static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 
 	tfs = teafs_info_i(inode);
 	if (!tfs) {
-		teafs_err("teafs: Super_block has no fs_info\n");
+		teafs_err("super_block has no fs_info\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	mnt = tfs->backing_path.mnt;
 	if (!mnt) {
-		teafs_err("teafs: backing_path has no mount\n");
+		teafs_err("backing_path has no mount\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -150,7 +155,7 @@ static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 
 struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode);
 
-static void teafs_print_dentry(struct dentry *dentry)
+static inline void teafs_print_dentry(struct dentry *dentry)
 {
 	char path_buf[PATH_MAX];
 	int ret;

@@ -25,25 +25,36 @@
 #define TEAFS_XATTR_MARKER "user.teafs"
 #define TEAFS_XATTR_VALUE "teafs_file_dir"
 
-// 设置扩展属性
 static int teafs_set_xattr(struct teafs_info *tfs, struct dentry *dentry)
 {
-    return vfs_setxattr(teafs_info_mnt_idmap(tfs), dentry, TEAFS_XATTR_MARKER,
-                        TEAFS_XATTR_VALUE,
-                        strlen(TEAFS_XATTR_VALUE), 0);
+	struct mnt_idmap *mnt_idmap;
+	
+	mnt_idmap = teafs_info_mnt_idmap(tfs);
+	if (!mnt_idmap)
+		return -EIO;
+
+	return vfs_setxattr(mnt_idmap, dentry, TEAFS_XATTR_MARKER,
+			TEAFS_XATTR_VALUE, strlen(TEAFS_XATTR_VALUE), 0);
 }
 
-// 检查扩展属性
-static bool teafs_check_xattr(struct teafs_info *tfs, struct dentry *dentry)
+static int teafs_check_xattr(struct teafs_info *tfs, struct dentry *dentry)
 {
-    char buf[32];
-    int ret;
+	struct mnt_idmap *mnt_idmap;
+	char buf[32];
+	int ret;
 
-    ret = vfs_getxattr(teafs_info_mnt_idmap(tfs), dentry, TEAFS_XATTR_MARKER, buf, sizeof(buf));
-    if (ret < 0)
-        return false;
+	mnt_idmap = teafs_info_mnt_idmap(tfs);
+	if (!mnt_idmap)
+		return -EIO;
 
-    return strncmp(buf, TEAFS_XATTR_VALUE, ret) == 0;
+	ret = vfs_getxattr(teafs_info_mnt_idmap(tfs), dentry, TEAFS_XATTR_MARKER, buf, sizeof(buf));
+	if (ret < 0)
+		return ret;
+
+	if (strncmp(buf, TEAFS_XATTR_VALUE, ret) != 0)
+		return -EINVAL;
+
+	return 0;
 }
 
 
@@ -201,7 +212,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 
         // 12. 使用 check_xattr 来验证是否为 TEAFS 文件
     	ret = teafs_check_xattr(fs_info, backing_dentry);
-        if (!ret) {
+        if (ret) {
             printk(KERN_ERR "teafs: XAttr check failed for %s\n", orig_name);
             dput(backing_dentry);
             result = ERR_PTR(ret);
@@ -426,6 +437,7 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner,
     struct dentry *entry_dentry;
     bool is_teafs_file;
     bool res;
+    int ret;
 
     // 跳过 '.' 和 '..' 目录项
     if ((namelen == 1 && name[0] == '.') ||
@@ -442,10 +454,10 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner,
     }
 
     // 检查该 dentry 是否有 TEAFS 的 xattr 标记
-    is_teafs_file = teafs_check_xattr(tfs, entry_dentry);
+    ret = teafs_check_xattr(tfs, entry_dentry);
     dput(entry_dentry); // 释放对 dentry 的引用
 
-    if (!is_teafs_file) {
+    if (ret) {
         // 如果不是 TEAFS 文件，跳过
         return true;
     }
