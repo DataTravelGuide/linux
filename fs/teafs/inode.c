@@ -31,13 +31,13 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
     inode = iget5_locked(sb, (unsigned long) d_inode(backing_dentry),
 		    teafs_inode_test, teafs_inode_set, d_inode(backing_dentry));
     if (!inode)
-        return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-ENOMEM);
 
     if (!(inode->i_state & I_NEW)) {
 	    dump_stack();
 	    pr_err("found inode: %p\n", inode);
-    	    teafs_print_dentry(backing_dentry);
-	    return inode;
+	    teafs_print_dentry(backing_dentry);
+	return inode;
     }
 
     inode->i_mode = mode;
@@ -70,7 +70,7 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
 		break;
 	}
     if (inode->i_state & I_NEW)
-        unlock_new_inode(inode);
+	unlock_new_inode(inode);
 
     pr_err("new allocated inode: %p", inode);
     teafs_print_dentry(backing_dentry);
