@@ -152,7 +152,11 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	pr_err("print data_dentry");
 	teafs_print_dentry(data_dentry);
 
-	teafs_inode = teafs_get_inode(dir->i_sb, backing_dentry, S_IFREG);
+	struct teafs_inode_param ti_param = { .backing_dentry = backing_dentry,
+						.backing_data_file_dentry = data_dentry,
+       						.mode = S_IFREG	};
+
+	teafs_inode = teafs_get_inode(dir->i_sb, &ti_param);
 	if (IS_ERR(teafs_inode)) {
 		teafs_err("teafs_get_inode failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(teafs_inode));
 		result = ERR_CAST(teafs_inode);
@@ -169,9 +173,6 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 		result = ERR_CAST(result);
 		goto put_backing_dentry;
 	}
-
-	ti = teafs_i(teafs_inode);
-	ti->backing_data_file_dentry = data_dentry;
 
 put_backing_dentry:
 	dput(backing_dentry);
@@ -282,8 +283,11 @@ static int teafs_create(struct mnt_idmap *idmap,
 	return ret;
 	}
 
-	// 11. 获取最终的 inode 并关联 dentry
-	struct inode *inode = teafs_get_inode(dir->i_sb, backing_subdir_dentry, S_IFREG);
+	struct teafs_inode_param ti_param = { .backing_dentry = backing_subdir_dentry,
+						.backing_data_file_dentry = data_dentry,
+       						.mode = S_IFREG	};
+
+	struct inode *inode = teafs_get_inode(dir->i_sb, &ti_param);
 
 	if (IS_ERR(inode)) {
 	ret = PTR_ERR(inode);
@@ -293,8 +297,6 @@ static int teafs_create(struct mnt_idmap *idmap,
 	return ret;
 	}
 
-	dget(data_dentry);
-	teafs_i(inode)->backing_data_file_dentry = data_dentry;
 
 	// 9. 释放 data_dentry 引用
 	dput(data_dentry);

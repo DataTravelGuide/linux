@@ -15,18 +15,15 @@ static int teafs_inode_set(struct inode *inode, void *data)
 	return 0;
 }
 
-/**
- * teafs_get_inode - Allocate and initialize a new inode
- * @sb: Superblock pointer
- * @mode: File mode
- *
- * Returns:
- *   A pointer to the new inode on success, or ERR_PTR on failure.
- */
-struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode)
+struct inode *teafs_get_inode(struct super_block *sb, struct teafs_inode_param *param)
 {
     struct inode *inode;
     struct teafs_inode *ti;
+    struct dentry *backing_dentry;
+    struct dentry *backing_data_file_dentry;
+
+    backing_dentry = param->backing_dentry;
+    backing_data_file_dentry = param->backing_data_file_dentry;
 
     inode = iget5_locked(sb, (unsigned long) d_inode(backing_dentry),
 		    teafs_inode_test, teafs_inode_set, d_inode(backing_dentry));
@@ -40,7 +37,7 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
 	return inode;
     }
 
-    inode->i_mode = mode;
+    inode->i_mode = param->mode;
     inode->i_ino = d_inode(backing_dentry)->i_ino;
     inode->i_uid = current_fsuid();
     inode->i_gid = current_fsgid();
@@ -48,8 +45,12 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
     ti = teafs_i(inode);
     dget(backing_dentry);
     ti->backing_dentry = backing_dentry;
+    if (backing_data_file_dentry) {
+	    dget(backing_data_file_dentry);
+	    ti->backing_data_file_dentry = backing_data_file_dentry;
+    }
 
-	switch (mode & S_IFMT) {
+	switch (param->mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_op = &teafs_file_inode_operations;
 		inode->i_fop = &teafs_file_operations;
@@ -66,7 +67,7 @@ struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_den
 
 	default:
 		inode->i_op = &teafs_special_inode_operations;
-		init_special_inode(inode, mode, d_inode(backing_dentry)->i_rdev);
+		init_special_inode(inode, param->mode, d_inode(backing_dentry)->i_rdev);
 		break;
 	}
     if (inode->i_state & I_NEW)

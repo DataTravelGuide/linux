@@ -84,7 +84,10 @@ int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	tfs->creator_cred = prepare_creds();
 
 	/* Create root inode */
-	root_inode = teafs_get_inode(sb, tfs->backing_path.dentry, S_IFDIR | 0755);
+	struct teafs_inode_param ti_param = { .backing_dentry = tfs->backing_path.dentry,
+       						.mode = S_IFDIR	};
+
+	root_inode = teafs_get_inode(sb, &ti_param);
 	if (IS_ERR(root_inode)) {
 		ret = PTR_ERR(root_inode);
 		goto out_err;

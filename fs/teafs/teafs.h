@@ -153,7 +153,13 @@ static inline struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 	return mnt_idmap(mnt);
 }
 
-struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode);
+struct teafs_inode_param {
+	struct dentry *backing_dentry;
+	struct dentry *backing_data_file_dentry;
+	umode_t mode;
+};
+
+struct inode *teafs_get_inode(struct super_block *sb, struct teafs_inode_param *param);
 
 static inline void teafs_print_dentry(struct dentry *dentry)
 {
