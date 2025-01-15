@@ -141,13 +141,13 @@ static inline struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 	tfs = teafs_info_i(inode);
 	if (!tfs) {
 		teafs_err("super_block has no fs_info\n");
-		return ERR_PTR(-EINVAL);
+		return NULL;
 	}
 
 	mnt = tfs->backing_path.mnt;
 	if (!mnt) {
 		teafs_err("backing_path has no mount\n");
-		return ERR_PTR(-EINVAL);
+		return NULL;
 	}
 
 	return mnt_idmap(mnt);

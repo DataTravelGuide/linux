@@ -3,22 +3,7 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/file.h>
-
-#include "teafs.h"
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-
-
-#include <linux/fs.h>
-#include <linux/namei.h>
-#include <linux/dcache.h>
-#include <linux/mount.h>
-#include <linux/printk.h>
-#include <linux/string.h>
 #include <linux/xattr.h>
-#include <linux/uuid.h>
-#include <linux/random.h>
 
 #include "teafs.h"
 
@@ -64,42 +49,35 @@ static struct dentry *lookup_backing_data_dentry(struct teafs_info *fs_info,
 	const char *data_name = "data";
 	int ret;
 
-	/* 在 backing_subdir_dentry 目录下查找 data 文件 */
 	data_dentry = lookup_one(teafs_info_mnt_idmap(fs_info), data_name,
 				 backing_subdir_dentry, strlen(data_name));
 	if (IS_ERR(data_dentry)) {
-	printk(KERN_ERR "teafs: lookup_one for data file failed with err=%ld\n",
-		   PTR_ERR(data_dentry));
-	return data_dentry;
+		teafs_err("lookup_one for data file failed with err=%ld\n", PTR_ERR(data_dentry));
+		return data_dentry;
 	}
 
-	/* 如果 data 文件已存在，则直接返回 */
 	if (d_really_is_positive(data_dentry))
-	return data_dentry;
+		return data_dentry;
 
-	/* 如果 data 文件不存在，则创建一个 data 文件
-	 * 此处使用 vfs_create；需要传入 backing_subdir_dentry 的 inode 作父目录
-	 */
 	ret = vfs_create(teafs_info_mnt_idmap(fs_info),
 			 d_inode(backing_subdir_dentry),
 			 data_dentry,
-			 0644,  /* 可根据需要设定权限 */
+			 0600,
 			 true);
 	if (ret) {
-	printk(KERN_ERR "teafs: vfs_create for data file failed with err=%d\n", ret);
-	dput(data_dentry);
-	return ERR_PTR(ret);
+		teafs_err("vfs_create for data file failed with err=%d\n", ret);
+		dput(data_dentry);
+		return ERR_PTR(ret);
 	}
+
 	return data_dentry;
 }
 
 static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct super_block *sb;
 	struct teafs_info *fs_info;
 	struct path backing_path;
-	struct vfsmount *mnt;
-	const char *orig_name;
+	struct mnt_idmap *mnt_idmap;
 	struct dentry *base;
 	struct dentry *result;
 	struct dentry *backing_dentry;
@@ -107,43 +85,22 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	const struct cred *old_cred;
 	int ret;
 
-	printk(KERN_INFO "teafs: Lookup called for %s\n", dentry->d_name.name);
+	teafs_err("teafs: Lookup called for %s\n", dentry->d_name.name);
 
-	// 1. 获取 super_block
-	sb = dir->i_sb;
-	if (!sb) {
-	printk(KERN_ERR "teafs: Directory inode has no super_block\n");
-	result = ERR_PTR(-EINVAL);
-	goto out;
-	}
 
-	// 2. 获取 teafs_fs_info
-	fs_info = sb->s_fs_info;
+	fs_info = teafs_info_i(dir);
 	if (!fs_info) {
-	printk(KERN_ERR "teafs: Super_block has no fs_info\n");
-	result = ERR_PTR(-EINVAL);
-	goto out;
+		result = ERR_PTR(-EINVAL);
+		goto out;
 	}
 
-	old_cred = override_creds_light(fs_info->creator_cred);
+	old_cred = override_creds(fs_info->creator_cred);
 
-	// 3. 获取 backing_path
-	if (!fs_info->backing_path.dentry || !fs_info->backing_path.mnt) {
-	printk(KERN_ERR "teafs: Invalid backing_path in fs_info\n");
-	result = ERR_PTR(-EINVAL);
-	goto revert_cred;
+	mnt_idmap = teafs_backing_mnt_idmap(dir);
+	if (!mnt_idmap) {
+		result = ERR_PTR(-EINVAL);
+		goto revert_cred;
 	}
-
-	// 4. 获取挂载点 mnt
-	mnt = fs_info->backing_path.mnt;
-	if (!mnt) {
-	printk(KERN_ERR "teafs: backing_path has no mount\n");
-	result = ERR_PTR(-EINVAL);
-	goto revert_cred;
-	}
-
-	// 5. 获取原始文件名
-	orig_name = dentry->d_name.name;
 
 	// 6. 直接使用 d_name 进行查找
 	base = teafs_get_backing_dentry_i(dir);
@@ -154,12 +111,12 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	}
 
 	teafs_print_dentry(base);
-	pr_err("lookup %s in %s", orig_name, base->d_name.name);
+	pr_err("lookup %s in %s", dentry->d_name.name, base->d_name.name);
 
 	// 7. 调用 lookup_one_unlocked 进行查找
-	backing_dentry = lookup_one_unlocked(mnt_idmap(mnt), orig_name, base, dentry->d_name.len);
+	backing_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name, base, dentry->d_name.len);
 	if (IS_ERR(backing_dentry)) {
-	printk(KERN_ERR "teafs: lookup_one_unlocked failed for %s: %ld\n", orig_name, PTR_ERR(backing_dentry));
+	printk(KERN_ERR "teafs: lookup_one_unlocked failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(backing_dentry));
 	result = ERR_CAST(backing_dentry);
 	goto revert_cred;
 	}
@@ -185,9 +142,9 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 
 	// 10. 创建 TEAFS 的 inode（结合上层和下层信息）
 	{
-		teafs_inode = teafs_get_inode(sb, backing_dentry, S_IFREG);
+		teafs_inode = teafs_get_inode(dir->i_sb, backing_dentry, S_IFREG);
 		if (IS_ERR(teafs_inode)) {
-		printk(KERN_ERR "teafs: teafs_get_inode failed for %s: %ld\n", orig_name, PTR_ERR(teafs_inode));
+		printk(KERN_ERR "teafs: teafs_get_inode failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(teafs_inode));
 		dput(backing_dentry);
 		result = ERR_CAST(teafs_inode);
 		goto revert_cred;
@@ -213,7 +170,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	// 12. 使用 check_xattr 来验证是否为 TEAFS 文件
 	ret = teafs_check_xattr(fs_info, backing_dentry);
 	if (ret) {
-		printk(KERN_ERR "teafs: XAttr check failed for %s\n", orig_name);
+		printk(KERN_ERR "teafs: XAttr check failed for %s\n", dentry->d_name.name);
 		dput(backing_dentry);
 		result = ERR_PTR(ret);
 		goto revert_cred;
@@ -222,7 +179,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	// 13. 查找 backing data 文
 	pr_err("before lookup backing data:");
 	teafs_print_dentry(result);
-	data_dentry = lookup_one_unlocked(mnt_idmap(mnt), "data", backing_dentry, strlen("data"));
+	data_dentry = lookup_one_unlocked(mnt_idmap, "data", backing_dentry, strlen("data"));
 	if (IS_ERR(data_dentry)) {
 		printk(KERN_ERR "teafs: lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
 		result = ERR_CAST(data_dentry);
@@ -436,7 +393,6 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner,
 	struct dentry *parent_dentry = data->parent_dentry;
 	struct teafs_info *tfs = data->tfs;
 	struct dentry *entry_dentry;
-	bool is_teafs_file;
 	bool res;
 	int ret;
 
