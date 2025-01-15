@@ -113,10 +113,10 @@ static int teafs_backing_data_path(struct inode *inode, struct path *path)
 const struct cred *teafs_override_creds(const struct super_block *sb);
 void teafs_revert_creds(const struct cred *old_cred);
 
-static struct vfsmount *teafs_backing_mnt(struct inode *inode)
+static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 {
 	struct super_block *sb;
-	struct teafs_info *fs_info;
+	struct teafs_info *tfs;
 	struct path backing_path;
 	struct vfsmount *mnt;
 	const char *name;
@@ -126,32 +126,19 @@ static struct vfsmount *teafs_backing_mnt(struct inode *inode)
 	struct dentry *backing_dentry;
 	int ret;
 
-	// 2. 获取 teafs_info
-	fs_info = teafs_info_i(inode);
-	if (!fs_info) {
-		printk(KERN_ERR "teafs: Super_block has no fs_info\n");
+	tfs = teafs_info_i(inode);
+	if (!tfs) {
+		pr_err("teafs: Super_block has no fs_info\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	// 3. 获取 backing_path
-	if (!fs_info->backing_path.dentry || !fs_info->backing_path.mnt) {
-		printk(KERN_ERR "teafs: Invalid backing_path in fs_info\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	// 4. 获取挂载点 mnt
-	mnt = fs_info->backing_path.mnt;
+	mnt = tfs->backing_path.mnt;
 	if (!mnt) {
-		printk(KERN_ERR "teafs: backing_path has no mount\n");
+		pr_err("teafs: backing_path has no mount\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	return mnt;
-}
-
-static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
-{
-	return mnt_idmap(teafs_backing_mnt(inode));
+	return mnt_idmap(mnt);
 }
 
 struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode);

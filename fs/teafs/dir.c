@@ -244,43 +244,43 @@ static int teafs_create(struct mnt_idmap *idmap,
                         umode_t mode,
                         bool excl)
 {
-    struct inode *backing_dir;
-    struct dentry *backing_dir_dentry;
-    struct dentry *backing_subdir_dentry;
-    struct dentry *data_dentry;
-    int err;
+	struct inode *backing_dir;
+	struct dentry *backing_dir_dentry;
+	struct dentry *backing_subdir_dentry;
+	struct dentry *data_dentry;
+	struct mnt_idmap *backing_mnt_idmap;
+	int ret;
 
-    // 1. 获取后端目录 dentry
-    backing_dir_dentry = teafs_get_backing_dentry_i(dir);
-    if (!backing_dir_dentry) {
-        printk(KERN_ERR "teafs: backing_dir dentry is NULL\n");
-        return -ENOENT;
-    }
+	backing_mnt_idmap = teafs_backing_mnt_idmap(dir);
+	if (IS_ERR(backing_mnt_idmap)) {
+		ret = PTR_ERR(backing_mnt_idmap);
+		pr_err("badking mnt_idmap is error: %d", ret);
+		goto out;
+	}
 
-    teafs_print_dentry(backing_dir_dentry);
+	backing_dir_dentry = teafs_get_backing_dentry_i(dir);
+	if (!backing_dir_dentry) {
+		pr_err("teafs: backing_dir dentry is NULL\n");
+		return -ENOENT;
+	}
 
-    backing_dir = d_inode(backing_dir_dentry);
-    if (!backing_dir) {
-        printk(KERN_ERR "teafs: backing_dir inode is NULL\n");
-        return -ENOENT;
-    }
+	backing_dir = d_inode(backing_dir_dentry);
+	if (!backing_dir) {
+		pr_err("teafs: backing_dir inode is NULL\n");
+		return -ENOENT;
+	}
 
-    // 2. 使用用户提供的名字作为后端目录名称
-    //strncpy(dentry->d_name.name, dentry->d_name.name, sizeof(dentry->d_name.name));
+	backing_subdir_dentry = lookup_one_unlocked(backing_mnt_idmap,
+					dentry->d_name.name,
+					backing_dir_dentry,
+					dentry->d_name.len);
 
-    // 3. 查找后端目录下是否已存在该目录
-    backing_subdir_dentry = lookup_one_unlocked(teafs_backing_mnt_idmap(dir),
-                                       dentry->d_name.name,
-                                       backing_dir_dentry,
-                                       dentry->d_name.len);
-    if (IS_ERR(backing_subdir_dentry)) {
-        err = PTR_ERR(backing_subdir_dentry);
-        printk(KERN_ERR "teafs: lookup_one for '%s' failed with err=%d\n",
-               dentry->d_name.name, err);
-        return err;
-    }
+	if (IS_ERR(backing_subdir_dentry)) {
+		ret = PTR_ERR(backing_subdir_dentry);
+		printk(KERN_ERR "teafs: lookup_one for '%s' failed with err=%d\n", dentry->d_name.name, ret);
+		return ret;
+	}
 
-    // 4. 如果目录已存在，返回错误
     if (d_really_is_positive(backing_subdir_dentry)) {
         printk(KERN_ERR "teafs: backing subdir '%s' already exists\n", dentry->d_name.name);
         dput(backing_subdir_dentry);
@@ -288,13 +288,12 @@ static int teafs_create(struct mnt_idmap *idmap,
     }
 
     pr_err("create %s in %s", backing_subdir_dentry->d_name.name, backing_dir_dentry->d_name.name);
-    // 5. 创建目录
-    err = vfs_mkdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry, mode);
-    if (err) {
+    ret = vfs_mkdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry, mode);
+    if (ret) {
         printk(KERN_ERR "teafs: vfs_mkdir for '%s' failed with err=%d\n",
-               dentry->d_name.name, err);
+               dentry->d_name.name, ret);
         dput(backing_subdir_dentry);
-        return err;
+        return ret;
     }
 
     // 6. 在新创建的目录下创建 "data" 文件
@@ -303,12 +302,12 @@ static int teafs_create(struct mnt_idmap *idmap,
                              backing_subdir_dentry,
                              strlen("data"));
     if (IS_ERR(data_dentry)) {
-        err = PTR_ERR(data_dentry);
-        printk(KERN_ERR "teafs: lookup_one for 'data' failed with err=%d\n", err);
+        ret = PTR_ERR(data_dentry);
+        printk(KERN_ERR "teafs: lookup_one for 'data' failed with err=%d\n", ret);
         // 清理已创建的目录
         vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
-        return err;
+        return ret;
     }
 
     // 7. 如果 "data" 文件已存在，返回错误
@@ -321,33 +320,33 @@ static int teafs_create(struct mnt_idmap *idmap,
     }
 
     // 8. 创建 "data" 文件
-    err = vfs_create(teafs_backing_mnt_idmap(dir), d_inode(backing_subdir_dentry), data_dentry, mode, true);
-    if (err) {
-        printk(KERN_ERR "teafs: vfs_create for 'data' in '%s' failed with err=%d\n", dentry->d_name.name, err);
+    ret = vfs_create(teafs_backing_mnt_idmap(dir), d_inode(backing_subdir_dentry), data_dentry, mode, true);
+    if (ret) {
+        printk(KERN_ERR "teafs: vfs_create for 'data' in '%s' failed with err=%d\n", dentry->d_name.name, ret);
         dput(data_dentry);
         vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
-        return err;
+        return ret;
     }
 
     // 10. 创建成功后设置 xattr 来标记目录为已完成
-    err = teafs_set_xattr(teafs_info_i(dir), backing_subdir_dentry);
-    if (err) {
-        printk(KERN_ERR "teafs: Failed to set xattr on '%s' with err=%d\n", dentry->d_name.name, err);
+    ret = teafs_set_xattr(teafs_info_i(dir), backing_subdir_dentry);
+    if (ret) {
+        printk(KERN_ERR "teafs: Failed to set xattr on '%s' with err=%d\n", dentry->d_name.name, ret);
         // 如果设置 xattr 失败，清理已创建的目录和文件
         vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
-        return err;
+        return ret;
     }
 
     // 11. 获取最终的 inode 并关联 dentry
     struct inode *inode = teafs_get_inode(dir->i_sb, backing_subdir_dentry, S_IFREG);
     if (IS_ERR(inode)) {
-        err = PTR_ERR(inode);
-        printk(KERN_ERR "teafs: teafs_get_inode failed with err=%d\n", err);
+        ret = PTR_ERR(inode);
+        printk(KERN_ERR "teafs: teafs_get_inode failed with err=%d\n", ret);
         vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
         dput(backing_subdir_dentry);
-        return err;
+        return ret;
     }
 
     dget(data_dentry);
@@ -363,7 +362,8 @@ static int teafs_create(struct mnt_idmap *idmap,
     dput(backing_subdir_dentry);
 
     pr_err("teafs_create finished.");
-    return 0;
+out:
+	return ret;
 }
 
 /* Define inode operations for directories */
