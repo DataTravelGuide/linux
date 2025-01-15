@@ -82,11 +82,12 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	struct dentry *result;
 	struct dentry *backing_dentry;
 	struct inode *teafs_inode;
+	struct teafs_inode *ti;
+	struct dentry *data_dentry;
 	const struct cred *old_cred;
 	int ret;
 
 	teafs_err("teafs: Lookup called for %s\n", dentry->d_name.name);
-
 
 	fs_info = teafs_info_i(dir);
 	if (!fs_info) {
@@ -102,106 +103,80 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 		goto revert_cred;
 	}
 
-	// 6. 直接使用 d_name 进行查找
 	base = teafs_get_backing_dentry_i(dir);
 	if (!base) {
-	printk(KERN_ERR "teafs: backing_path dentry is NULL\n");
-	result = ERR_PTR(-ENOENT);
-	goto revert_cred;
+		teafs_err("backing_path dentry is NULL\n");
+		result = ERR_PTR(-ENOENT);
+		goto revert_cred;
 	}
 
 	teafs_print_dentry(base);
 	pr_err("lookup %s in %s", dentry->d_name.name, base->d_name.name);
 
-	// 7. 调用 lookup_one_unlocked 进行查找
 	backing_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name, base, dentry->d_name.len);
 	if (IS_ERR(backing_dentry)) {
-	printk(KERN_ERR "teafs: lookup_one_unlocked failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(backing_dentry));
-	result = ERR_CAST(backing_dentry);
-	goto revert_cred;
+		teafs_err("lookup_one_unlocked failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(backing_dentry));
+		result = ERR_CAST(backing_dentry);
+		goto revert_cred;
 	}
 
-	// 8. 检查查找结果是否为负 dentry
 	if (d_really_is_negative(backing_dentry)) {
-	dput(backing_dentry);
-	result = NULL; /* 文件不存在 */
-	pr_err("backing dentry is negative ");
-	goto revert_cred;
+		result = NULL;
+		pr_err("backing dentry is negative ");
+		goto put_backing_dentry;
 	}
 
-	// 9. 获取 backing inode
-	{
-	struct inode *backing_inode = d_inode(backing_dentry);
-
-	if (!backing_inode) {
-		printk(KERN_ERR "teafs: backing dentry has no inode\n");
-		dput(backing_dentry);
-		result = ERR_PTR(-ENOENT);
-		goto revert_cred;
-	}
-
-	// 10. 创建 TEAFS 的 inode（结合上层和下层信息）
-	{
-		teafs_inode = teafs_get_inode(dir->i_sb, backing_dentry, S_IFREG);
-		if (IS_ERR(teafs_inode)) {
-		printk(KERN_ERR "teafs: teafs_get_inode failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(teafs_inode));
-		dput(backing_dentry);
-		result = ERR_CAST(teafs_inode);
-		goto revert_cred;
-		}
-		teafs_inode->i_mode = (teafs_inode->i_mode & ~S_IFMT) | S_IFREG;
-
-		// 11. 通过 d_splice_alias 关联 TEAFS inode 和 dentry
-		result = d_splice_alias(teafs_inode, dentry);
-		dput(backing_dentry);
-		if (IS_ERR(result)) {
-		printk(KERN_ERR "teafs: d_splice_alias failed: %ld\n", PTR_ERR(result));
-		iput(teafs_inode);
-		result = ERR_CAST(result);
-		goto revert_cred;
-		}
-	}
-	}
-
-	{
-	struct teafs_inode *ti = teafs_i(teafs_inode);
-	struct dentry *data_dentry;
-
-	// 12. 使用 check_xattr 来验证是否为 TEAFS 文件
 	ret = teafs_check_xattr(fs_info, backing_dentry);
 	if (ret) {
 		printk(KERN_ERR "teafs: XAttr check failed for %s\n", dentry->d_name.name);
-		dput(backing_dentry);
 		result = ERR_PTR(ret);
-		goto revert_cred;
+		goto put_backing_dentry;
 	}
 
-	// 13. 查找 backing data 文
 	pr_err("before lookup backing data:");
 	teafs_print_dentry(result);
+
 	data_dentry = lookup_one_unlocked(mnt_idmap, "data", backing_dentry, strlen("data"));
 	if (IS_ERR(data_dentry)) {
 		printk(KERN_ERR "teafs: lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
 		result = ERR_CAST(data_dentry);
-		goto revert_cred;
+		goto put_backing_dentry;
 	}
+
 	if (d_really_is_negative(data_dentry)) {
 		printk(KERN_ERR "teafs: backing data file not found in backing subdir\n");
-		dput(data_dentry);
 		result = NULL;
-		goto revert_cred;
+		goto put_backing_dentry;
 	}
 
 	pr_err("print data_dentry");
 	teafs_print_dentry(data_dentry);
-	/* 保存 data 文件的 dentry 到 teafs_inode 中 */
-	ti->backing_data_file_dentry = data_dentry;
-	/* 注意：data_dentry 此处不需要立即释放，因为它会被后续使用 */
+
+	teafs_inode = teafs_get_inode(dir->i_sb, backing_dentry, S_IFREG);
+	if (IS_ERR(teafs_inode)) {
+		teafs_err("teafs_get_inode failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(teafs_inode));
+		result = ERR_CAST(teafs_inode);
+		goto put_backing_dentry;
 	}
 
+	teafs_inode->i_mode = (teafs_inode->i_mode & ~S_IFMT) | S_IFREG;
+
+	result = d_splice_alias(teafs_inode, dentry);
+
+	if (IS_ERR(result)) {
+		teafs_err("d_splice_alias failed: %ld\n", PTR_ERR(result));
+		iput(teafs_inode);
+		result = ERR_CAST(result);
+		goto put_backing_dentry;
+	}
+
+	ti = teafs_i(teafs_inode);
+	ti->backing_data_file_dentry = data_dentry;
+
+put_backing_dentry:
+	dput(backing_dentry);
 revert_cred:
 	revert_creds_light(old_cred);
-
 out:
 	return result;
 }
