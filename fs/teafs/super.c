@@ -13,45 +13,46 @@ static struct kmem_cache *teafs_inode_cachep;
 
 static struct inode *teafs_alloc_inode(struct super_block *sb)
 {
-    struct teafs_inode_info *ti;
+	struct teafs_inode *ti;
 
-    ti = alloc_inode_sb(sb, teafs_inode_cachep, GFP_KERNEL);
-    if (!ti)
-        return NULL;
+	ti = alloc_inode_sb(sb, teafs_inode_cachep, GFP_KERNEL);
+	if (!ti)
+		return NULL;
 
-    return &ti->vfs_inode;
+	return &ti->vfs_inode;
 }
 
 static void teafs_destroy_inode(struct inode *inode)
 {
-    struct teafs_inode_info *ti = teafs_i(inode);
+	struct teafs_inode *ti = teafs_i(inode);
 
-    if (ti->backing_dentry)
-        dput(ti->backing_dentry);
+	if (ti->backing_dentry)
+		dput(ti->backing_dentry);
 
-    kfree(ti);
+	kfree(ti);
 }
 
 static int teafs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct path path;
-	int err;
+	int ret;
 
-	teafs_backing_path(d_inode(dentry), &path);
+	ret = teafs_backing_path(d_inode(dentry), &path);
+	if (ret)
+		return ret;
 
-	err = vfs_statfs(&path, buf);
-	if (!err)
+	ret = vfs_statfs(&path, buf);
+	if (!ret)
 		buf->f_type = TEAFS_SUPER_MAGIC;
 
-	return err;
+	return ret;
 }
-
 
 /* Define superblock operations */
 static const struct super_operations teafs_super_ops = {
-    .alloc_inode    = teafs_alloc_inode,
-    .destroy_inode  = teafs_destroy_inode,
-    .statfs	     = teafs_statfs,
+	.alloc_inode	= teafs_alloc_inode,
+	.destroy_inode	= teafs_destroy_inode,
+	.statfs		= teafs_statfs,
 };
 
 int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
@@ -60,9 +61,8 @@ int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct inode *root_inode;
 	struct dentry *root_dentry;
 	struct cred *cred;
-	int err;
+	int ret = -EIO;
 
-	err = -EIO;
 	if (WARN_ON(fc->user_ns != current_user_ns()))
 		goto out_err;
 
@@ -81,27 +81,26 @@ int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_iflags |= SB_I_EVM_HMAC_UNSUPPORTED;
 
 	tfs->creator_cred = prepare_creds();
-	err = -ENOMEM;
-	    /* Create root inode */
-	    root_inode = teafs_get_inode(sb, tfs->backing_path.dentry, S_IFDIR | 0755);
-	    if (IS_ERR(root_inode)) {
-		err = PTR_ERR(root_inode);
-		goto out_err;
-	    }
 
-	    root_dentry = d_make_root(root_inode);
-	    if (!root_dentry) {
+	/* Create root inode */
+	root_inode = teafs_get_inode(sb, tfs->backing_path.dentry, S_IFDIR | 0755);
+	if (IS_ERR(root_inode)) {
+		ret = PTR_ERR(root_inode);
+		goto out_err;
+	}
+
+	root_dentry = d_make_root(root_inode);
+	if (!root_dentry) {
 		iput(root_inode);
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out_err;
-	    }
+	}
 
-	    sb->s_root = root_dentry;
+	sb->s_root = root_dentry;
 
 	return 0;
-
 out_err:
-	return err;
+	return ret;
 }
 
 enum teafs_opt {
@@ -109,7 +108,7 @@ enum teafs_opt {
 };
 
 const struct fs_parameter_spec teafs_parameter_spec[] = {
-	fsparam_string("backingdir",          Opt_backingdir),
+	fsparam_string("backingdir",		  Opt_backingdir),
 	{}
 };
 
@@ -121,21 +120,9 @@ static int teafs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	int opt;
 
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
-		/*
-		 * On remount overlayfs has always ignored all mount
-		 * options no matter if malformed or not so for
-		 * backwards compatibility we do the same here.
-		 */
 		if (fc->oldapi)
 			return 0;
 
-		/*
-		 * Give us the freedom to allow changing mount options
-		 * with the new mount api in the future. So instead of
-		 * silently ignoring everything we report a proper
-		 * error. This is only visible for users of the new
-		 * mount api.
-		 */
 		return invalfc(fc, "No changes allowed in reconfigure");
 	}
 
@@ -151,7 +138,7 @@ static int teafs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	default:
 		pr_err("unrecognized mount option \"%s\" or missing value\n",
-		       param->key);
+			   param->key);
 		return -EINVAL;
 	}
 
@@ -176,15 +163,15 @@ static void teafs_free(struct fs_context *fc)
 	if (tfs_info) {
 		path_put(&tfs_info->backing_path);
 		if (tfs_info->creator_cred)
-		       put_cred(tfs_info->creator_cred);
+			   put_cred(tfs_info->creator_cred);
 		kfree(tfs_info);
 	}
 }
 
 static const struct fs_context_operations tea_context_ops = {
-	.parse_param = teafs_parse_param,
-	.get_tree    = teafs_get_tree,
-	.free        = teafs_free,
+	.parse_param	= teafs_parse_param,
+	.get_tree	= teafs_get_tree,
+	.free		= teafs_free,
 };
 
 int teafs_init_fs_context(struct fs_context *fc)
@@ -216,7 +203,7 @@ static struct file_system_type teafs_fs_type = {
 
 static void teafs_inode_init_once(void *foo)
 {
-	struct teafs_inode_info *ti = foo;
+	struct teafs_inode *ti = foo;
 
 	inode_init_once(&ti->vfs_inode);
 }
@@ -226,10 +213,10 @@ static int __init teafs_init(void)
 	int err;
 
 	teafs_inode_cachep = kmem_cache_create("teafs_inode",
-					     sizeof(struct teafs_inode_info), 0,
-					     (SLAB_RECLAIM_ACCOUNT|
-					      SLAB_ACCOUNT),
-					     teafs_inode_init_once);
+						 sizeof(struct teafs_inode), 0,
+						 (SLAB_RECLAIM_ACCOUNT|
+						  SLAB_ACCOUNT),
+						 teafs_inode_init_once);
 	if (teafs_inode_cachep == NULL)
 		return -ENOMEM;
 
@@ -254,5 +241,5 @@ module_init(teafs_init);
 module_exit(teafs_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
+MODULE_AUTHOR("Dongsheng Yang <dongsheng.yang@linux.dev>");
 MODULE_DESCRIPTION("TEAFS - Transparent Extensible Aggregated Filesystem");

@@ -196,7 +196,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
     }
 
     {
-        struct teafs_inode_info *ti = teafs_i(teafs_inode);
+        struct teafs_inode *ti = teafs_i(teafs_inode);
         struct dentry *data_dentry;
 
         // 12. 使用 check_xattr 来验证是否为 TEAFS 文件
@@ -226,7 +226,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 
         pr_err("print data_dentry");
         teafs_print_dentry(data_dentry);
-        /* 保存 data 文件的 dentry 到 teafs_inode_info 中 */
+        /* 保存 data 文件的 dentry 到 teafs_inode 中 */
         ti->backing_data_file_dentry = data_dentry;
         /* 注意：data_dentry 此处不需要立即释放，因为它会被后续使用 */
     }
@@ -387,8 +387,11 @@ static int teafs_dir_open(struct inode *inode, struct file *file)
 {
 	struct path backing_path;
 	struct teafs_inode *ti;
+	int ret;
 
-	teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
+	ret = teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
+	if (ret)
+		return ret;
 
 	file->private_data = dentry_open(&backing_path, O_RDONLY, current_cred());
 	path_put(&backing_path);

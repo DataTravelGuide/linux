@@ -26,7 +26,7 @@ static int teafs_inode_set(struct inode *inode, void *data)
 struct inode *teafs_get_inode(struct super_block *sb, struct dentry *backing_dentry, umode_t mode)
 {
     struct inode *inode;
-    struct teafs_inode_info *ti;
+    struct teafs_inode *ti;
 
     inode = iget5_locked(sb, (unsigned long) d_inode(backing_dentry),
 		    teafs_inode_test, teafs_inode_set, d_inode(backing_dentry));
