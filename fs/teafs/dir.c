@@ -163,10 +163,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 		goto put_backing_dentry;
 	}
 
-	teafs_inode->i_mode = (teafs_inode->i_mode & ~S_IFMT) | S_IFREG;
-
 	result = d_splice_alias(teafs_inode, dentry);
-
 	if (IS_ERR(result)) {
 		teafs_err("d_splice_alias failed: %ld\n", PTR_ERR(result));
 		iput(teafs_inode);
