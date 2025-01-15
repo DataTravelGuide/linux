@@ -13,6 +13,13 @@
 #include <linux/cred.h>
 #include <linux/err.h>
 
+#define teafs_err(fmt, ...)							\
+	pr_err("teafs: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
+#define teafs_info(fmt, ...)							\
+	pr_info("teafs: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
+#define teafs_debug(fmt, ...)							\
+	pr_debug("teafs: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
+
 struct teafs_file {
 	struct file *data_file;
 };
@@ -66,7 +73,7 @@ static struct teafs_info *teafs_info_i(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 
 	if (!sb) {
-		pr_err("teafs: inode has no super_block\n");
+		teafs_err("inode has no super_block\n");
 		return NULL;
 	}
 
@@ -128,13 +135,13 @@ static struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 
 	tfs = teafs_info_i(inode);
 	if (!tfs) {
-		pr_err("teafs: Super_block has no fs_info\n");
+		teafs_err("teafs: Super_block has no fs_info\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	mnt = tfs->backing_path.mnt;
 	if (!mnt) {
-		pr_err("teafs: backing_path has no mount\n");
+		teafs_err("teafs: backing_path has no mount\n");
 		return ERR_PTR(-EINVAL);
 	}
 
