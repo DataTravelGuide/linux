@@ -126,8 +126,8 @@ static inline struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 	tfs = teafs_info_i(inode);
 	mnt = tfs->backing_path.mnt;
 	if (!mnt) {
-		teafs_err("backing_path has no mount\n");
-		return NULL;
+		teafs_err("backing_path for teafs not initialized.\n");
+		return ERR_PTR(-EIO);
 	}
 
 	return mnt_idmap(mnt);

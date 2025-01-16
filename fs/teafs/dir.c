@@ -51,38 +51,45 @@ static struct dentry *lookup_backing_dir(struct teafs_info *tfs, struct inode *d
 {
 	struct mnt_idmap *mnt_idmap;
 	struct dentry *backing_dir_dentry;
-	struct dentry *base;
+	struct dentry *backing_base;
+	struct dentry *result;
 	int ret;
 
 	mnt_idmap = teafs_backing_mnt_idmap(dir);
-	if (!mnt_idmap) {
-		teafs_err("mnt_idmap for backing dir: %p not found.", dir);
+	if (IS_ERR(mnt_idmap)) {
+		result = ERR_CAST(mnt_idmap);
 		goto err;
 	}
 
-	base = teafs_get_backing_dentry_i(dir);
-	if (!base) {
+	backing_base = teafs_get_backing_dentry_i(dir);
+	if (!backing_base) {
 		teafs_err("backing_path dentry for dir: %p is NULL", dir);
+		result = ERR_PTR(-EIO);
 		goto err;
 	}
 
-	teafs_print_dentry(base);
-	pr_err("lookup %s in %s", dentry->d_name.name, base->d_name.name);
+	teafs_print_dentry(backing_base);
+	pr_err("lookup %s in %s", dentry->d_name.name, backing_base->d_name.name);
 
-	backing_dir_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name, base, dentry->d_name.len);
+	backing_dir_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name,
+						backing_base, dentry->d_name.len);
 	if (IS_ERR(backing_dir_dentry)) {
-		teafs_err("lookup_one_unlocked failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(backing_dir_dentry));
+		teafs_err("lookup_one_unlocked failed for %s: %ld\n",
+				dentry->d_name.name, PTR_ERR(backing_dir_dentry));
+		result = ERR_CAST(backing_dir_dentry);
 		goto err;
 	}
 
 	if (d_really_is_negative(backing_dir_dentry)) {
 		teafs_err("backing dir dentry is negative ");
+		result = ERR_PTR(-ENOENT);
 		goto put_backing_dentry;
 	}
 
 	ret = teafs_check_xattr(tfs, backing_dir_dentry);
 	if (ret) {
 		teafs_debug("%s is not teafs dir\n", dentry->d_name.name);
+		result = ERR_PTR(-ENOENT);
 		goto put_backing_dentry;
 	}
 
@@ -94,7 +101,7 @@ static struct dentry *lookup_backing_dir(struct teafs_info *tfs, struct inode *d
 put_backing_dentry:
 	dput(backing_dir_dentry);
 err:
-	return NULL;
+	return result;
 }
 
 static struct dentry *lookup_backing_data_file(struct teafs_info *tfs, struct dentry *backing_dir_dentry)
@@ -133,7 +140,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	struct teafs_info *tfs;
 	struct dentry *result;
 	struct dentry *backing_dir_dentry;
-	struct inode *teafs_inode;
+	struct inode *teafs_inode = NULL;
 	struct dentry *data_dentry;
 	const struct cred *old_cred;
 	struct teafs_inode_param ti_param = { 0 };
@@ -144,15 +151,21 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	old_cred = override_creds(tfs->creator_cred);
 
 	backing_dir_dentry = lookup_backing_dir(tfs, dir, dentry);
-	if (!backing_dir_dentry) {
-		result = NULL;
-		goto revert_cred;
-	} else if (IS_ERR(backing_dir_dentry))
-		goto revert_cred;
+	if (IS_ERR(backing_dir_dentry)) {
+		if (PTR_ERR(backing_dir_dentry) == -ENOENT) {
+			teafs_inode = NULL;
+			goto out;
+		} else {
+			result = ERR_CAST(backing_dir_dentry);
+			goto err;
+		}
+	}
 
 	data_dentry = lookup_backing_data_file(tfs, backing_dir_dentry);
-	if (IS_ERR_OR_NULL(data_dentry))
+	if (IS_ERR_OR_NULL(data_dentry)) {
+		result = ERR_PTR(-EIO);
 		goto put_backing_dentry;
+	}
 
 	ti_param.backing_dentry = backing_dir_dentry;
 	ti_param.backing_data_file_dentry = data_dentry;
@@ -165,17 +178,14 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 		goto put_backing_dentry;
 	}
 
-	result = d_splice_alias(teafs_inode, dentry);
-	if (IS_ERR(result)) {
-		teafs_err("d_splice_alias failed: %ld\n", PTR_ERR(result));
-		iput(teafs_inode);
-		result = ERR_CAST(result);
-		goto put_backing_dentry;
-	}
+	dput(backing_dir_dentry);
+out:
+	revert_creds_light(old_cred);
+	return d_splice_alias(teafs_inode, dentry);
 
 put_backing_dentry:
 	dput(backing_dir_dentry);
-revert_cred:
+err:
 	revert_creds_light(old_cred);
 	return result;
 }
@@ -196,7 +206,7 @@ static int teafs_create(struct mnt_idmap *idmap,
 	backing_mnt_idmap = teafs_backing_mnt_idmap(dir);
 	if (IS_ERR(backing_mnt_idmap)) {
 		ret = PTR_ERR(backing_mnt_idmap);
-		pr_err("badking mnt_idmap is error: %d", ret);
+		pr_err("backing mnt_idmap is error: %d", ret);
 		goto out;
 	}
 
