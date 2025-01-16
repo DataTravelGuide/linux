@@ -1,5 +1,3 @@
-// fs/teafs/inode.c
-
 #include "teafs.h"
 
 static int teafs_inode_test(struct inode *inode, void *data)
@@ -41,13 +39,9 @@ struct inode *teafs_get_inode(struct super_block *sb, struct teafs_inode_param *
 	inode->i_gid = current_fsgid();
 
 	ti = teafs_i(inode);
-	dget(backing_dentry);
-	ti->backing_dentry = backing_dentry;
-
-	if (backing_data_file_dentry) {
-		dget(backing_data_file_dentry);
-		ti->backing_data_file_dentry = backing_data_file_dentry;
-	}
+	ti->backing_dentry = dget(backing_dentry);
+	if (backing_data_file_dentry)
+		ti->backing_data_file_dentry = dget(backing_data_file_dentry);
 
 	switch (param->mode & S_IFMT) {
 	case S_IFREG:
