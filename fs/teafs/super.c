@@ -56,12 +56,11 @@ static const struct super_operations teafs_super_ops = {
 	.statfs		= teafs_statfs,
 };
 
-int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
+static int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct teafs_info *tfs = sb->s_fs_info;
 	struct inode *root_inode;
 	struct dentry *root_dentry;
-	struct cred *cred;
 	int ret = -EIO;
 
 	if (WARN_ON(fc->user_ns != current_user_ns()))
@@ -172,7 +171,7 @@ static const struct fs_context_operations tea_context_ops = {
 	.free		= teafs_free,
 };
 
-int teafs_init_fs_context(struct fs_context *fc)
+static int teafs_init_fs_context(struct fs_context *fc)
 {
 	struct teafs_info *tfs_info;
 

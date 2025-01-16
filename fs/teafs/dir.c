@@ -347,8 +347,8 @@ static int teafs_dir_open(struct inode *inode, struct file *file)
 #include <linux/namei.h>
 #include <linux/string.h>
 
-// 假设 teafs_getdents_callback 结构如下
-struct teafs_getdents_callback {
+// 假设 teafs_iterate_ctx 结构如下
+struct teafs_iterate_ctx {
 	struct dir_context ctx;
 	struct dir_context *caller;
 	struct dentry *parent_dentry;
@@ -363,7 +363,7 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner,
 				   u64 ino,
 				   unsigned int d_type)
 {
-	struct teafs_getdents_callback *data = container_of(ctx_inner, struct teafs_getdents_callback, ctx);
+	struct teafs_iterate_ctx *data = container_of(ctx_inner, struct teafs_iterate_ctx, ctx);
 	struct dentry *parent_dentry = data->parent_dentry;
 	struct teafs_info *tfs = data->tfs;
 	struct dentry *entry_dentry;
@@ -406,7 +406,7 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
 	struct inode *backing_dir;
 	struct dentry *backing_dir_dentry;
 	struct teafs_info *tfs;
-	struct teafs_getdents_callback data = { 0 };
+	struct teafs_iterate_ctx data = { 0 };
 	int ret;
 
 	// 1. 获取后端目录 dentry
