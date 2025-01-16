@@ -70,14 +70,7 @@ static inline struct dentry *teafs_get_backing_dentry_i(struct inode *inode)
 
 static inline struct teafs_info *teafs_info_i(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
-
-	if (!sb) {
-		teafs_err("inode has no super_block\n");
-		return NULL;
-	}
-
-	return sb->s_fs_info;
+	return inode->i_sb->s_fs_info;
 }
 
 static inline struct mnt_idmap *teafs_info_mnt_idmap(struct teafs_info *tfs)
@@ -139,11 +132,6 @@ static inline struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 	int ret;
 
 	tfs = teafs_info_i(inode);
-	if (!tfs) {
-		teafs_err("super_block has no fs_info\n");
-		return NULL;
-	}
-
 	mnt = tfs->backing_path.mnt;
 	if (!mnt) {
 		teafs_err("backing_path has no mount\n");

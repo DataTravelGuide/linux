@@ -90,11 +90,6 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	teafs_err("teafs: Lookup called for %s\n", dentry->d_name.name);
 
 	fs_info = teafs_info_i(dir);
-	if (!fs_info) {
-		result = ERR_PTR(-EINVAL);
-		goto out;
-	}
-
 	old_cred = override_creds(fs_info->creator_cred);
 
 	mnt_idmap = teafs_backing_mnt_idmap(dir);
@@ -424,10 +419,6 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
 
 	// 2. 获取 teafs_info
 	tfs = teafs_info_i(file->f_inode);
-	if (!tfs) {
-	printk(KERN_ERR "teafs: teafs_info is NULL\n");
-	return -ENOENT;
-	}
 
 	// 3. 初始化辅助结构
 	data.ctx.actor = teafs_filldir_func;
