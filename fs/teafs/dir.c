@@ -42,47 +42,14 @@ static int teafs_check_xattr(struct teafs_info *tfs, struct dentry *dentry)
 	return 0;
 }
 
-static struct dentry *lookup_backing_data_dentry(struct teafs_info *fs_info,
-						struct dentry *backing_subdir_dentry)
-{
-	struct dentry *data_dentry;
-	const char *data_name = "data";
-	int ret;
-
-	data_dentry = lookup_one(teafs_info_mnt_idmap(fs_info), data_name,
-				 backing_subdir_dentry, strlen(data_name));
-	if (IS_ERR(data_dentry)) {
-		teafs_err("lookup_one for data file failed with err=%ld\n", PTR_ERR(data_dentry));
-		return data_dentry;
-	}
-
-	if (d_really_is_positive(data_dentry))
-		return data_dentry;
-
-	ret = vfs_create(teafs_info_mnt_idmap(fs_info),
-			 d_inode(backing_subdir_dentry),
-			 data_dentry,
-			 0600,
-			 true);
-	if (ret) {
-		teafs_err("vfs_create for data file failed with err=%d\n", ret);
-		dput(data_dentry);
-		return ERR_PTR(ret);
-	}
-
-	return data_dentry;
-}
-
 static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct teafs_info *fs_info;
-	struct path backing_path;
 	struct mnt_idmap *mnt_idmap;
 	struct dentry *base;
 	struct dentry *result;
 	struct dentry *backing_dentry;
 	struct inode *teafs_inode;
-	struct teafs_inode *ti;
 	struct dentry *data_dentry;
 	const struct cred *old_cred;
 	int ret;
@@ -170,7 +137,6 @@ put_backing_dentry:
 	dput(backing_dentry);
 revert_cred:
 	revert_creds_light(old_cred);
-out:
 	return result;
 }
 
@@ -324,7 +290,6 @@ const struct inode_operations teafs_dir_inode_operations = {
 static int teafs_dir_open(struct inode *inode, struct file *file)
 {
 	struct path backing_path;
-	struct teafs_inode *ti;
 	int ret;
 
 	ret = teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
@@ -432,9 +397,7 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
 	if (ret < 0)
 	return ret;
 
-	// 5. 更新 pos
 	ctx->pos = data.ctx.pos;
-	pr_err("pos: %d", ctx->pos);
 
 	return ret;
 }

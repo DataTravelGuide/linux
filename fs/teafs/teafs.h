@@ -120,16 +120,8 @@ void teafs_revert_creds(const struct cred *old_cred);
 
 static inline struct mnt_idmap *teafs_backing_mnt_idmap(struct inode *inode)
 {
-	struct super_block *sb;
 	struct teafs_info *tfs;
-	struct path backing_path;
 	struct vfsmount *mnt;
-	const char *name;
-	int len;
-	struct dentry *base;
-	struct dentry *result;
-	struct dentry *backing_dentry;
-	int ret;
 
 	tfs = teafs_info_i(inode);
 	mnt = tfs->backing_path.mnt;
@@ -151,37 +143,14 @@ struct inode *teafs_get_inode(struct super_block *sb, struct teafs_inode_param *
 
 static inline void teafs_print_dentry(struct dentry *dentry)
 {
-	char path_buf[PATH_MAX];
-	int ret;
-
 	if (!dentry) {
 		printk(KERN_WARNING "teafs_print_dentry: NULL dentry pointer provided.\n");
 		return;
 	}
 
-	// 获取 dentry 的完整路径
-	ret = dentry_path_raw(dentry, path_buf, sizeof(path_buf));
-	if (ret) {
-		printk(KERN_INFO "teafs_print_dentry: Failed to get path for dentry.\n");
-	} else {
-		printk(KERN_INFO "teafs_print_dentry: Path: %s\n", path_buf);
-	}
-
 	// 打印 dentry 的名称和长度
 	printk(KERN_INFO "teafs_print_dentry: %p Name: %.*s (Length: %d)\n", dentry,
 		   (int)dentry->d_name.len, dentry->d_name.name, dentry->d_name.len);
-
-	// 打印父 dentry 的名称
-	if (dentry->d_parent) {
-		ret = dentry_path_raw(dentry->d_parent, path_buf, sizeof(path_buf));
-		if (ret) {
-			printk(KERN_INFO "teafs_print_dentry: Parent Path: <unknown>\n");
-		} else {
-			printk(KERN_INFO "teafs_print_dentry: Parent Path: %s\n", path_buf);
-		}
-	} else {
-		printk(KERN_INFO "teafs_print_dentry: No parent dentry.\n");
-	}
 
 	// 打印关联的 inode 信息
 	if (dentry->d_inode) {
@@ -199,9 +168,6 @@ static inline void teafs_print_dentry(struct dentry *dentry)
 
 	// 打印 dentry 的标志位
 	printk(KERN_INFO "teafs_print_dentry: Dentry Flags: 0x%x\n", dentry->d_flags);
-
-	// 打印 dentry 的 hash 值（用于 dcache）
-	printk(KERN_INFO "teafs_print_dentry: Dentry Hash: 0x%x\n", dentry->d_hash);
 
 	// 检查是否为负 dentry
 	if (d_really_is_negative(dentry)) {
