@@ -107,20 +107,25 @@ err:
 static struct dentry *lookup_backing_data_file(struct teafs_info *tfs, struct dentry *backing_dir_dentry)
 {
 	struct mnt_idmap *mnt_idmap;
-	struct dentry *data_dentry = NULL;
+	struct dentry *data_dentry;
+	struct dentry *result;
 
 	mnt_idmap = teafs_info_mnt_idmap(tfs);
-	if (!mnt_idmap)
+	if (!mnt_idmap) {
+		result = ERR_PTR(-EIO);
 		goto err;
+	}
 
 	data_dentry = lookup_one_unlocked(mnt_idmap, "data", backing_dir_dentry, strlen("data"));
 	if (IS_ERR(data_dentry)) {
-		printk(KERN_ERR "teafs: lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
+		teafs_err("lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
+		result = data_dentry;
 		goto err;
 	}
 
 	if (d_really_is_negative(data_dentry)) {
-		printk(KERN_ERR "teafs: backing data file not found in backing subdir\n");
+		teafs_err("backing data file not found in backing subdir\n");
+		result = ERR_PTR(-ENOENT);
 		goto put_dentry;
 	}
 
@@ -128,11 +133,10 @@ static struct dentry *lookup_backing_data_file(struct teafs_info *tfs, struct de
 	teafs_print_dentry(data_dentry);
 
 	return data_dentry;
-
 put_dentry:
 	dput(data_dentry);
 err:
-	return NULL;
+	return data_dentry;
 }
 
 static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
