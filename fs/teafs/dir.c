@@ -10,6 +10,11 @@
 #define TEAFS_XATTR_MARKER "user.teafs"
 #define TEAFS_XATTR_VALUE "teafs_file_dir"
 
+struct teafs_xattr {
+	__u32	magic;
+	__u8	type;
+} __packed;
+
 static int teafs_set_xattr(struct teafs_info *tfs, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
@@ -42,81 +47,116 @@ static int teafs_check_xattr(struct teafs_info *tfs, struct dentry *dentry)
 	return 0;
 }
 
-static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *lookup_backing_dir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
 {
-	struct teafs_info *fs_info;
 	struct mnt_idmap *mnt_idmap;
+	struct dentry *backing_dir_dentry;
 	struct dentry *base;
-	struct dentry *result;
-	struct dentry *backing_dentry;
-	struct inode *teafs_inode;
-	struct dentry *data_dentry;
-	const struct cred *old_cred;
 	int ret;
-
-	teafs_err("teafs: Lookup called for %s\n", dentry->d_name.name);
-
-	fs_info = teafs_info_i(dir);
-	old_cred = override_creds(fs_info->creator_cred);
 
 	mnt_idmap = teafs_backing_mnt_idmap(dir);
 	if (!mnt_idmap) {
-		result = ERR_PTR(-EINVAL);
-		goto revert_cred;
+		teafs_err("mnt_idmap for backing dir: %p not found.", dir);
+		goto err;
 	}
 
 	base = teafs_get_backing_dentry_i(dir);
 	if (!base) {
-		teafs_err("backing_path dentry is NULL\n");
-		result = ERR_PTR(-ENOENT);
-		goto revert_cred;
+		teafs_err("backing_path dentry for dir: %p is NULL", dir);
+		goto err;
 	}
 
 	teafs_print_dentry(base);
 	pr_err("lookup %s in %s", dentry->d_name.name, base->d_name.name);
 
-	backing_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name, base, dentry->d_name.len);
-	if (IS_ERR(backing_dentry)) {
-		teafs_err("lookup_one_unlocked failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(backing_dentry));
-		result = ERR_CAST(backing_dentry);
-		goto revert_cred;
+	backing_dir_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name, base, dentry->d_name.len);
+	if (IS_ERR(backing_dir_dentry)) {
+		teafs_err("lookup_one_unlocked failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(backing_dir_dentry));
+		goto err;
 	}
 
-	if (d_really_is_negative(backing_dentry)) {
-		result = NULL;
-		pr_err("backing dentry is negative ");
+	if (d_really_is_negative(backing_dir_dentry)) {
+		teafs_err("backing dir dentry is negative ");
 		goto put_backing_dentry;
 	}
 
-	ret = teafs_check_xattr(fs_info, backing_dentry);
+	ret = teafs_check_xattr(tfs, backing_dir_dentry);
 	if (ret) {
-		printk(KERN_ERR "teafs: XAttr check failed for %s\n", dentry->d_name.name);
-		result = ERR_PTR(ret);
+		teafs_debug("%s is not teafs dir\n", dentry->d_name.name);
 		goto put_backing_dentry;
 	}
 
 	pr_err("before lookup backing data:");
-	teafs_print_dentry(result);
+	teafs_print_dentry(backing_dir_dentry);
 
-	data_dentry = lookup_one_unlocked(mnt_idmap, "data", backing_dentry, strlen("data"));
+	return backing_dir_dentry;
+
+put_backing_dentry:
+	dput(backing_dir_dentry);
+err:
+	return NULL;
+}
+
+static struct dentry *lookup_backing_data_file(struct teafs_info *tfs, struct dentry *backing_dir_dentry)
+{
+	struct mnt_idmap *mnt_idmap;
+	struct dentry *data_dentry = NULL;
+
+	mnt_idmap = teafs_info_mnt_idmap(tfs);
+	if (!mnt_idmap)
+		goto err;
+
+	data_dentry = lookup_one_unlocked(mnt_idmap, "data", backing_dir_dentry, strlen("data"));
 	if (IS_ERR(data_dentry)) {
 		printk(KERN_ERR "teafs: lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
-		result = ERR_CAST(data_dentry);
-		goto put_backing_dentry;
+		goto err;
 	}
 
 	if (d_really_is_negative(data_dentry)) {
 		printk(KERN_ERR "teafs: backing data file not found in backing subdir\n");
-		result = NULL;
-		goto put_backing_dentry;
+		goto put_dentry;
 	}
 
 	pr_err("print data_dentry");
 	teafs_print_dentry(data_dentry);
 
-	struct teafs_inode_param ti_param = { .backing_dentry = backing_dentry,
-						.backing_data_file_dentry = data_dentry,
-       						.mode = S_IFREG	};
+	return data_dentry;
+
+put_dentry:
+	dput(data_dentry);
+err:
+	return NULL;
+}
+
+static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+{
+	struct teafs_info *tfs;
+	struct dentry *result;
+	struct dentry *backing_dir_dentry;
+	struct inode *teafs_inode;
+	struct dentry *data_dentry;
+	const struct cred *old_cred;
+	struct teafs_inode_param ti_param = { 0 };
+
+	teafs_err("teafs: Lookup called for %s\n", dentry->d_name.name);
+
+	tfs = teafs_info_i(dir);
+	old_cred = override_creds(tfs->creator_cred);
+
+	backing_dir_dentry = lookup_backing_dir(tfs, dir, dentry);
+	if (!backing_dir_dentry) {
+		result = NULL;
+		goto revert_cred;
+	} else if (IS_ERR(backing_dir_dentry))
+		goto revert_cred;
+
+	data_dentry = lookup_backing_data_file(tfs, backing_dir_dentry);
+	if (IS_ERR_OR_NULL(data_dentry))
+		goto put_backing_dentry;
+
+	ti_param.backing_dentry = backing_dir_dentry;
+	ti_param.backing_data_file_dentry = data_dentry;
+	ti_param.mode = S_IFREG;
 
 	teafs_inode = teafs_get_inode(dir->i_sb, &ti_param);
 	if (IS_ERR(teafs_inode)) {
@@ -134,7 +174,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	}
 
 put_backing_dentry:
-	dput(backing_dentry);
+	dput(backing_dir_dentry);
 revert_cred:
 	revert_creds_light(old_cred);
 	return result;
@@ -411,7 +451,7 @@ static int teafs_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-WRAP_DIR_ITER(teafs_iterate) // FIXME!
+WRAP_DIR_ITER(teafs_iterate)
 const struct file_operations teafs_dir_operations = {
 	.read		= generic_read_dir,
 	.open		= teafs_dir_open,
