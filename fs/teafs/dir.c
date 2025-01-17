@@ -51,6 +51,15 @@ static int teafs_check_xattr(struct teafs_info *tfs, struct dentry *dentry)
 	return 0;
 }
 
+static int teafs_do_rmdir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
+{
+	int err = vfs_rmdir(teafs_info_mnt_idmap(tfs), dir, dentry);
+
+	teafs_err("remove %pd2: %d.", dentry, err);
+
+	return err;
+}
+
 static struct dentry *lookup_backing_dir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
@@ -93,6 +102,7 @@ static struct dentry *lookup_backing_dir(struct teafs_info *tfs, struct inode *d
 	ret = teafs_check_xattr(tfs, backing_dir_dentry);
 	if (ret) {
 		teafs_debug("%s is not teafs dir\n", dentry->d_name.name);
+		teafs_do_rmdir(tfs, d_inode(backing_base), backing_dir_dentry);
 		result = ERR_PTR(-ENOENT);
 		goto put_backing_dentry;
 	}
