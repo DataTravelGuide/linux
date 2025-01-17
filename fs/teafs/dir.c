@@ -15,6 +15,10 @@ struct teafs_xattr {
 	__u8	type;
 } __packed;
 
+#define TEAFS_XATTR_MAGIC	0x796473
+
+#define TEAFS_XATTR_TYPE_FILE
+
 static int teafs_set_xattr(struct teafs_info *tfs, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
@@ -173,7 +177,8 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 
 	ti_param.backing_dentry = backing_dir_dentry;
 	ti_param.backing_data_file_dentry = data_dentry;
-	ti_param.mode = S_IFREG;
+	ti_param.mode = d_inode(data_dentry)->i_mode;
+	pr_err("ti_param.mode: %x", ti_param.mode);
 
 	teafs_inode = teafs_get_inode(dir->i_sb, &ti_param);
 	if (IS_ERR(teafs_inode)) {
