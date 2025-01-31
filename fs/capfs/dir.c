@@ -1,66 +1,66 @@
-// fs/teafs/dir.c
+// fs/capfs/dir.c
 
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/file.h>
 #include <linux/xattr.h>
 
-#include "teafs.h"
+#include "capfs.h"
 
-#define TEAFS_XATTR_MARKER "user.teafs"
-#define TEAFS_XATTR_VALUE "teafs_file_dir"
+#define CAPFS_XATTR_MARKER "user.capfs"
+#define CAPFS_XATTR_VALUE "capfs_file_dir"
 
-struct teafs_xattr {
+struct capfs_xattr {
 	__u32	magic;
 	__u8	type;
 } __packed;
 
-#define TEAFS_XATTR_MAGIC	0x796473
+#define CAPFS_XATTR_MAGIC	0x796473
 
-#define TEAFS_XATTR_TYPE_FILE
+#define CAPFS_XATTR_TYPE_FILE
 
-static int teafs_set_xattr(struct teafs_info *tfs, struct dentry *dentry)
+static int capfs_set_xattr(struct capfs_info *tfs, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
 
-	mnt_idmap = teafs_info_mnt_idmap(tfs);
+	mnt_idmap = capfs_info_mnt_idmap(tfs);
 	if (!mnt_idmap)
 		return -EIO;
 
-	return vfs_setxattr(mnt_idmap, dentry, TEAFS_XATTR_MARKER,
-			TEAFS_XATTR_VALUE, strlen(TEAFS_XATTR_VALUE), 0);
+	return vfs_setxattr(mnt_idmap, dentry, CAPFS_XATTR_MARKER,
+			CAPFS_XATTR_VALUE, strlen(CAPFS_XATTR_VALUE), 0);
 }
 
-static int teafs_check_xattr(struct teafs_info *tfs, struct dentry *dentry)
+static int capfs_check_xattr(struct capfs_info *tfs, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
 	char buf[32];
 	int ret;
 
-	mnt_idmap = teafs_info_mnt_idmap(tfs);
+	mnt_idmap = capfs_info_mnt_idmap(tfs);
 	if (!mnt_idmap)
 		return -EIO;
 
-	ret = vfs_getxattr(teafs_info_mnt_idmap(tfs), dentry, TEAFS_XATTR_MARKER, buf, sizeof(buf));
+	ret = vfs_getxattr(capfs_info_mnt_idmap(tfs), dentry, CAPFS_XATTR_MARKER, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
-	if (strncmp(buf, TEAFS_XATTR_VALUE, ret) != 0)
+	if (strncmp(buf, CAPFS_XATTR_VALUE, ret) != 0)
 		return -EINVAL;
 
 	return 0;
 }
 
-static int teafs_do_rmdir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
+static int capfs_do_rmdir(struct capfs_info *tfs, struct inode *dir, struct dentry *dentry)
 {
-	int err = vfs_rmdir(teafs_info_mnt_idmap(tfs), dir, dentry);
+	int err = vfs_rmdir(capfs_info_mnt_idmap(tfs), dir, dentry);
 
-	teafs_err("remove %pd2: %d.", dentry, err);
+	capfs_err("remove %pd2: %d.", dentry, err);
 
 	return err;
 }
 
-static struct dentry *lookup_backing_subdir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
+static struct dentry *lookup_backing_subdir(struct capfs_info *tfs, struct inode *dir, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
 	struct dentry *backing_dir_dentry;
@@ -68,47 +68,47 @@ static struct dentry *lookup_backing_subdir(struct teafs_info *tfs, struct inode
 	struct dentry *result;
 	int ret;
 
-	mnt_idmap = teafs_backing_mnt_idmap(dir);
+	mnt_idmap = capfs_backing_mnt_idmap(dir);
 	if (IS_ERR(mnt_idmap)) {
 		result = ERR_CAST(mnt_idmap);
 		goto err;
 	}
 
-	backing_base = teafs_get_backing_dentry_i(dir);
+	backing_base = capfs_get_backing_dentry_i(dir);
 	if (!backing_base) {
-		teafs_err("backing_path dentry for dir: %p is NULL", dir);
+		capfs_err("backing_path dentry for dir: %p is NULL", dir);
 		result = ERR_PTR(-EIO);
 		goto err;
 	}
 
-	teafs_print_dentry(backing_base);
+	capfs_print_dentry(backing_base);
 	pr_err("lookup %s in %s", dentry->d_name.name, backing_base->d_name.name);
 
 	backing_dir_dentry = lookup_one_unlocked(mnt_idmap, dentry->d_name.name,
 						backing_base, dentry->d_name.len);
 	if (IS_ERR(backing_dir_dentry)) {
-		teafs_err("lookup_one_unlocked failed for %s: %ld\n",
+		capfs_err("lookup_one_unlocked failed for %s: %ld\n",
 				dentry->d_name.name, PTR_ERR(backing_dir_dentry));
 		result = ERR_CAST(backing_dir_dentry);
 		goto err;
 	}
 
 	if (d_really_is_negative(backing_dir_dentry)) {
-		teafs_err("backing dir dentry is negative ");
+		capfs_err("backing dir dentry is negative ");
 		result = ERR_PTR(-ENOENT);
 		goto put_backing_dentry;
 	}
 
-	ret = teafs_check_xattr(tfs, backing_dir_dentry);
+	ret = capfs_check_xattr(tfs, backing_dir_dentry);
 	if (ret) {
-		teafs_debug("%s is not teafs dir\n", dentry->d_name.name);
-		teafs_do_rmdir(tfs, d_inode(backing_base), backing_dir_dentry);
+		capfs_debug("%s is not capfs dir\n", dentry->d_name.name);
+		capfs_do_rmdir(tfs, d_inode(backing_base), backing_dir_dentry);
 		result = ERR_PTR(-ENOENT);
 		goto put_backing_dentry;
 	}
 
 	pr_err("before lookup backing data:");
-	teafs_print_dentry(backing_dir_dentry);
+	capfs_print_dentry(backing_dir_dentry);
 
 	return backing_dir_dentry;
 
@@ -118,13 +118,13 @@ err:
 	return result;
 }
 
-static struct dentry *lookup_backing_data_file(struct teafs_info *tfs, struct dentry *backing_dir_dentry)
+static struct dentry *lookup_backing_data_file(struct capfs_info *tfs, struct dentry *backing_dir_dentry)
 {
 	struct mnt_idmap *mnt_idmap;
 	struct dentry *data_dentry;
 	struct dentry *result;
 
-	mnt_idmap = teafs_info_mnt_idmap(tfs);
+	mnt_idmap = capfs_info_mnt_idmap(tfs);
 	if (!mnt_idmap) {
 		result = ERR_PTR(-EIO);
 		goto err;
@@ -132,19 +132,19 @@ static struct dentry *lookup_backing_data_file(struct teafs_info *tfs, struct de
 
 	data_dentry = lookup_one_unlocked(mnt_idmap, "data", backing_dir_dentry, strlen("data"));
 	if (IS_ERR(data_dentry)) {
-		teafs_err("lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
+		capfs_err("lookup_one_unlocked for 'data' failed: %ld\n", PTR_ERR(data_dentry));
 		result = data_dentry;
 		goto err;
 	}
 
 	if (d_really_is_negative(data_dentry)) {
-		teafs_err("backing data file not found in backing subdir\n");
+		capfs_err("backing data file not found in backing subdir\n");
 		result = ERR_PTR(-ENOENT);
 		goto put_dentry;
 	}
 
 	pr_err("print data_dentry");
-	teafs_print_dentry(data_dentry);
+	capfs_print_dentry(data_dentry);
 
 	return data_dentry;
 put_dentry:
@@ -153,25 +153,25 @@ err:
 	return data_dentry;
 }
 
-static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *capfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct teafs_info *tfs;
+	struct capfs_info *tfs;
 	struct dentry *result;
 	struct dentry *backing_subdir_dentry;
-	struct inode *teafs_inode = NULL;
+	struct inode *capfs_inode = NULL;
 	struct dentry *data_dentry;
 	const struct cred *old_cred;
-	struct teafs_inode_param ti_param = { 0 };
+	struct capfs_inode_param ti_param = { 0 };
 
-	teafs_err("teafs: Lookup called for %s\n", dentry->d_name.name);
+	capfs_err("capfs: Lookup called for %s\n", dentry->d_name.name);
 
-	tfs = teafs_info_i(dir);
+	tfs = capfs_info_i(dir);
 	old_cred = override_creds(tfs->creator_cred);
 
 	backing_subdir_dentry = lookup_backing_subdir(tfs, dir, dentry);
 	if (IS_ERR(backing_subdir_dentry)) {
 		if (PTR_ERR(backing_subdir_dentry) == -ENOENT) {
-			teafs_inode = NULL;
+			capfs_inode = NULL;
 			goto out;
 		} else {
 			result = ERR_CAST(backing_subdir_dentry);
@@ -190,17 +190,17 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	ti_param.mode = d_inode(data_dentry)->i_mode;
 	pr_err("ti_param.mode: %x", ti_param.mode);
 
-	teafs_inode = teafs_get_inode(dir->i_sb, &ti_param);
-	if (IS_ERR(teafs_inode)) {
-		teafs_err("teafs_get_inode failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(teafs_inode));
-		result = ERR_CAST(teafs_inode);
+	capfs_inode = capfs_get_inode(dir->i_sb, &ti_param);
+	if (IS_ERR(capfs_inode)) {
+		capfs_err("capfs_get_inode failed for %s: %ld\n", dentry->d_name.name, PTR_ERR(capfs_inode));
+		result = ERR_CAST(capfs_inode);
 		goto put_backing_dentry;
 	}
 
 	dput(backing_subdir_dentry);
 out:
 	revert_creds_light(old_cred);
-	return d_splice_alias(teafs_inode, dentry);
+	return d_splice_alias(capfs_inode, dentry);
 
 put_backing_dentry:
 	dput(backing_subdir_dentry);
@@ -209,7 +209,7 @@ err:
 	return result;
 }
 
-static int teafs_create(struct mnt_idmap *idmap,
+static int capfs_create(struct mnt_idmap *idmap,
 			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,
@@ -220,12 +220,12 @@ static int teafs_create(struct mnt_idmap *idmap,
 	struct dentry *backing_subdir_dentry;
 	struct dentry *data_dentry;
 	struct mnt_idmap *backing_mnt_idmap;
-	struct teafs_info *tfs;
+	struct capfs_info *tfs;
 	const struct cred *old_cred;
 	int ret;
 
 	/*
-	tfs = teafs_info_i(dir);
+	tfs = capfs_info_i(dir);
 	old_cred = override_creds(tfs->creator_cred);
 	backing_subdir_dentry = lookup_backing_subdir(tfs, dir, dentry);
 	if (IS_ERR(backing_subdir_dentry)) {
@@ -239,25 +239,25 @@ static int teafs_create(struct mnt_idmap *idmap,
 		goto err;
 	}
 
-	teafs_do_mkdir(tfs, );
+	capfs_do_mkdir(tfs, );
 	*/
 
-	backing_mnt_idmap = teafs_backing_mnt_idmap(dir);
+	backing_mnt_idmap = capfs_backing_mnt_idmap(dir);
 	if (IS_ERR(backing_mnt_idmap)) {
 		ret = PTR_ERR(backing_mnt_idmap);
 		pr_err("backing mnt_idmap is error: %d", ret);
 		goto out;
 	}
 
-	backing_dir_dentry = teafs_get_backing_dentry_i(dir);
+	backing_dir_dentry = capfs_get_backing_dentry_i(dir);
 	if (!backing_dir_dentry) {
-		pr_err("teafs: backing_dir dentry is NULL\n");
+		pr_err("capfs: backing_dir dentry is NULL\n");
 		return -ENOENT;
 	}
 
 	backing_dir = d_inode(backing_dir_dentry);
 	if (!backing_dir) {
-		pr_err("teafs: backing_dir inode is NULL\n");
+		pr_err("capfs: backing_dir inode is NULL\n");
 		return -ENOENT;
 	}
 
@@ -268,78 +268,78 @@ static int teafs_create(struct mnt_idmap *idmap,
 
 	if (IS_ERR(backing_subdir_dentry)) {
 		ret = PTR_ERR(backing_subdir_dentry);
-		printk(KERN_ERR "teafs: lookup_one for '%s' failed with err=%d\n", dentry->d_name.name, ret);
+		printk(KERN_ERR "capfs: lookup_one for '%s' failed with err=%d\n", dentry->d_name.name, ret);
 		return ret;
 	}
 
 	if (d_really_is_positive(backing_subdir_dentry)) {
-	printk(KERN_ERR "teafs: backing subdir '%s' already exists\n", dentry->d_name.name);
+	printk(KERN_ERR "capfs: backing subdir '%s' already exists\n", dentry->d_name.name);
 	dput(backing_subdir_dentry);
 	return -EEXIST;
 	}
 
 	pr_err("create %s in %s", backing_subdir_dentry->d_name.name, backing_dir_dentry->d_name.name);
-	ret = vfs_mkdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry, mode);
+	ret = vfs_mkdir(capfs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry, mode);
 	if (ret) {
-	printk(KERN_ERR "teafs: vfs_mkdir for '%s' failed with err=%d\n",
+	printk(KERN_ERR "capfs: vfs_mkdir for '%s' failed with err=%d\n",
 		   dentry->d_name.name, ret);
 	dput(backing_subdir_dentry);
 	return ret;
 	}
 
 	// 6. 在新创建的目录下创建 "data" 文件
-	data_dentry = lookup_one_unlocked(teafs_backing_mnt_idmap(dir),
+	data_dentry = lookup_one_unlocked(capfs_backing_mnt_idmap(dir),
 				 "data",
 				 backing_subdir_dentry,
 				 strlen("data"));
 	if (IS_ERR(data_dentry)) {
 	ret = PTR_ERR(data_dentry);
-	printk(KERN_ERR "teafs: lookup_one for 'data' failed with err=%d\n", ret);
+	printk(KERN_ERR "capfs: lookup_one for 'data' failed with err=%d\n", ret);
 	// 清理已创建的目录
-	vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+	vfs_rmdir(capfs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
 	dput(backing_subdir_dentry);
 	return ret;
 	}
 
 	// 7. 如果 "data" 文件已存在，返回错误
 	if (d_really_is_positive(data_dentry)) {
-	printk(KERN_ERR "teafs: data file already exists in '%s'\n", dentry->d_name.name);
+	printk(KERN_ERR "capfs: data file already exists in '%s'\n", dentry->d_name.name);
 	dput(data_dentry);
-	vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+	vfs_rmdir(capfs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
 	dput(backing_subdir_dentry);
 	return -EEXIST;
 	}
 
 	// 8. 创建 "data" 文件
-	ret = vfs_create(teafs_backing_mnt_idmap(dir), d_inode(backing_subdir_dentry), data_dentry, mode, true);
+	ret = vfs_create(capfs_backing_mnt_idmap(dir), d_inode(backing_subdir_dentry), data_dentry, mode, true);
 	if (ret) {
-	printk(KERN_ERR "teafs: vfs_create for 'data' in '%s' failed with err=%d\n", dentry->d_name.name, ret);
+	printk(KERN_ERR "capfs: vfs_create for 'data' in '%s' failed with err=%d\n", dentry->d_name.name, ret);
 	dput(data_dentry);
-	vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+	vfs_rmdir(capfs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
 	dput(backing_subdir_dentry);
 	return ret;
 	}
 
 	// 10. 创建成功后设置 xattr 来标记目录为已完成
-	ret = teafs_set_xattr(teafs_info_i(dir), backing_subdir_dentry);
+	ret = capfs_set_xattr(capfs_info_i(dir), backing_subdir_dentry);
 	if (ret) {
-	printk(KERN_ERR "teafs: Failed to set xattr on '%s' with err=%d\n", dentry->d_name.name, ret);
+	printk(KERN_ERR "capfs: Failed to set xattr on '%s' with err=%d\n", dentry->d_name.name, ret);
 	// 如果设置 xattr 失败，清理已创建的目录和文件
-	vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+	vfs_rmdir(capfs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
 	dput(backing_subdir_dentry);
 	return ret;
 	}
 
-	struct teafs_inode_param ti_param = { .backing_dentry = backing_subdir_dentry,
+	struct capfs_inode_param ti_param = { .backing_dentry = backing_subdir_dentry,
 						.backing_data_file_dentry = data_dentry,
        						.mode = S_IFREG	};
 
-	struct inode *inode = teafs_get_inode(dir->i_sb, &ti_param);
+	struct inode *inode = capfs_get_inode(dir->i_sb, &ti_param);
 
 	if (IS_ERR(inode)) {
 	ret = PTR_ERR(inode);
-	printk(KERN_ERR "teafs: teafs_get_inode failed with err=%d\n", ret);
-	vfs_rmdir(teafs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
+	printk(KERN_ERR "capfs: capfs_get_inode failed with err=%d\n", ret);
+	vfs_rmdir(capfs_backing_mnt_idmap(dir), backing_dir, backing_subdir_dentry);
 	dput(backing_subdir_dentry);
 	return ret;
 	}
@@ -354,15 +354,15 @@ static int teafs_create(struct mnt_idmap *idmap,
 	// 13. 释放 backing_subdir_dentry 引用
 	dput(backing_subdir_dentry);
 
-	pr_err("teafs_create finished.");
+	pr_err("capfs_create finished.");
 out:
 	return ret;
 }
 
 /* Define inode operations for directories */
-const struct inode_operations teafs_dir_inode_operations = {
-	.lookup		 = teafs_lookup,
-	.create		= teafs_create,
+const struct inode_operations capfs_dir_inode_operations = {
+	.lookup		 = capfs_lookup,
+	.create		= capfs_create,
 	.mkdir		  = NULL,
 	.rmdir		  = NULL,
 	.link		= NULL,
@@ -376,12 +376,12 @@ const struct inode_operations teafs_dir_inode_operations = {
 	.tmpfile		= NULL,
 };
 
-static int teafs_dir_open(struct inode *inode, struct file *file)
+static int capfs_dir_open(struct inode *inode, struct file *file)
 {
 	struct path backing_path;
 	int ret;
 
-	ret = teafs_backing_path(d_inode(file->f_path.dentry), &backing_path);
+	ret = capfs_backing_path(d_inode(file->f_path.dentry), &backing_path);
 	if (ret)
 		return ret;
 
@@ -396,25 +396,25 @@ static int teafs_dir_open(struct inode *inode, struct file *file)
 #include <linux/namei.h>
 #include <linux/string.h>
 
-// 假设 teafs_iterate_ctx 结构如下
-struct teafs_iterate_ctx {
+// 假设 capfs_iterate_ctx 结构如下
+struct capfs_iterate_ctx {
 	struct dir_context ctx;
 	struct dir_context *caller;
 	struct dentry *parent_dentry;
-	struct teafs_info *tfs;
+	struct capfs_info *tfs;
 };
 
-// 修改后的 teafs_filldir_func 函数
-static bool teafs_filldir_func(struct dir_context *ctx_inner,
+// 修改后的 capfs_filldir_func 函数
+static bool capfs_filldir_func(struct dir_context *ctx_inner,
 				   const char *name,
 				   int namelen,
 				   loff_t offset,
 				   u64 ino,
 				   unsigned int d_type)
 {
-	struct teafs_iterate_ctx *data = container_of(ctx_inner, struct teafs_iterate_ctx, ctx);
+	struct capfs_iterate_ctx *data = container_of(ctx_inner, struct capfs_iterate_ctx, ctx);
 	struct dentry *parent_dentry = data->parent_dentry;
-	struct teafs_info *tfs = data->tfs;
+	struct capfs_info *tfs = data->tfs;
 	struct dentry *entry_dentry;
 	bool res;
 	int ret;
@@ -429,16 +429,16 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner,
 	entry_dentry = lookup_one_len_unlocked(name, parent_dentry, namelen);
 	if (IS_ERR(entry_dentry)) {
 	// 查找失败，跳过此目录项并记录警告
-	printk(KERN_WARNING "teafs: lookup_one_len_unlocked failed for '%.*s'\n", namelen, name);
+	printk(KERN_WARNING "capfs: lookup_one_len_unlocked failed for '%.*s'\n", namelen, name);
 	return true;
 	}
 
-	// 检查该 dentry 是否有 TEAFS 的 xattr 标记
-	ret = teafs_check_xattr(tfs, entry_dentry);
+	// 检查该 dentry 是否有 CAPFS 的 xattr 标记
+	ret = capfs_check_xattr(tfs, entry_dentry);
 	dput(entry_dentry); // 释放对 dentry 的引用
 
 	if (ret) {
-	// 如果不是 TEAFS 文件，跳过
+	// 如果不是 CAPFS 文件，跳过
 	return true;
 	}
 
@@ -449,33 +449,33 @@ static bool teafs_filldir_func(struct dir_context *ctx_inner,
 }
 
 
-static int teafs_iterate(struct file *file, struct dir_context *ctx)
+static int capfs_iterate(struct file *file, struct dir_context *ctx)
 {
 	struct file *realfile = file->private_data;
 	struct inode *backing_dir;
 	struct dentry *backing_dir_dentry;
-	struct teafs_info *tfs;
-	struct teafs_iterate_ctx data = { 0 };
+	struct capfs_info *tfs;
+	struct capfs_iterate_ctx data = { 0 };
 	int ret;
 
 	// 1. 获取后端目录 dentry
-	backing_dir_dentry = teafs_get_backing_dentry_i(file->f_inode);
+	backing_dir_dentry = capfs_get_backing_dentry_i(file->f_inode);
 	if (!backing_dir_dentry) {
-	printk(KERN_ERR "teafs: backing_dir dentry is NULL\n");
+	printk(KERN_ERR "capfs: backing_dir dentry is NULL\n");
 	return -ENOENT;
 	}
 
 	backing_dir = d_inode(backing_dir_dentry);
 	if (!backing_dir) {
-	printk(KERN_ERR "teafs: backing_dir inode is NULL\n");
+	printk(KERN_ERR "capfs: backing_dir inode is NULL\n");
 	return -ENOENT;
 	}
 
-	// 2. 获取 teafs_info
-	tfs = teafs_info_i(file->f_inode);
+	// 2. 获取 capfs_info
+	tfs = capfs_info_i(file->f_inode);
 
 	// 3. 初始化辅助结构
-	data.ctx.actor = teafs_filldir_func;
+	data.ctx.actor = capfs_filldir_func;
 	data.caller = ctx;
 	data.tfs = tfs;
 	data.parent_dentry = backing_dir_dentry;
@@ -491,7 +491,7 @@ static int teafs_iterate(struct file *file, struct dir_context *ctx)
 	return ret;
 }
 
-static int teafs_dir_release(struct inode *inode, struct file *file)
+static int capfs_dir_release(struct inode *inode, struct file *file)
 {
 	struct file *realfile = file->private_data;
 
@@ -500,12 +500,12 @@ static int teafs_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-WRAP_DIR_ITER(teafs_iterate)
-const struct file_operations teafs_dir_operations = {
+WRAP_DIR_ITER(capfs_iterate)
+const struct file_operations capfs_dir_operations = {
 	.read		= generic_read_dir,
-	.open		= teafs_dir_open,
-	.iterate_shared	= shared_teafs_iterate,
+	.open		= capfs_dir_open,
+	.iterate_shared	= shared_capfs_iterate,
 	.llseek		= NULL,
 	.fsync		= NULL,
-	.release	= teafs_dir_release,
+	.release	= capfs_dir_release,
 };

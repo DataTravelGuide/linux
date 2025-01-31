@@ -138,7 +138,7 @@ source "fs/quota/Kconfig"
 source "fs/autofs/Kconfig"
 source "fs/fuse/Kconfig"
 source "fs/overlayfs/Kconfig"
-source "fs/teafs/Kconfig"
+source "fs/capfs/Kconfig"
 
 menu "Caches"
 

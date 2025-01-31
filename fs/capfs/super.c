@@ -1,4 +1,4 @@
-// fs/teafs/super.c
+// fs/capfs/super.c
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -8,24 +8,24 @@
 #include <linux/fs_parser.h>
 #include <linux/statfs.h>
 
-#include "teafs.h"
+#include "capfs.h"
 
-static struct kmem_cache *teafs_inode_cachep;
+static struct kmem_cache *capfs_inode_cachep;
 
-static struct inode *teafs_alloc_inode(struct super_block *sb)
+static struct inode *capfs_alloc_inode(struct super_block *sb)
 {
-	struct teafs_inode *ti;
+	struct capfs_inode *ti;
 
-	ti = alloc_inode_sb(sb, teafs_inode_cachep, GFP_KERNEL);
+	ti = alloc_inode_sb(sb, capfs_inode_cachep, GFP_KERNEL);
 	if (!ti)
 		return NULL;
 
 	return &ti->vfs_inode;
 }
 
-static void teafs_destroy_inode(struct inode *inode)
+static void capfs_destroy_inode(struct inode *inode)
 {
-	struct teafs_inode *ti = teafs_i(inode);
+	struct capfs_inode *ti = capfs_i(inode);
 
 	if (ti->backing_dentry)
 		dput(ti->backing_dentry);
@@ -33,32 +33,32 @@ static void teafs_destroy_inode(struct inode *inode)
 	kfree(ti);
 }
 
-static int teafs_statfs(struct dentry *dentry, struct kstatfs *buf)
+static int capfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct path path;
 	int ret;
 
-	ret = teafs_backing_path(d_inode(dentry), &path);
+	ret = capfs_backing_path(d_inode(dentry), &path);
 	if (ret)
 		return ret;
 
 	ret = vfs_statfs(&path, buf);
 	if (!ret)
-		buf->f_type = TEAFS_SUPER_MAGIC;
+		buf->f_type = CAPFS_SUPER_MAGIC;
 
 	return ret;
 }
 
 /* Define superblock operations */
-static const struct super_operations teafs_super_ops = {
-	.alloc_inode	= teafs_alloc_inode,
-	.destroy_inode	= teafs_destroy_inode,
-	.statfs		= teafs_statfs,
+static const struct super_operations capfs_super_ops = {
+	.alloc_inode	= capfs_alloc_inode,
+	.destroy_inode	= capfs_destroy_inode,
+	.statfs		= capfs_statfs,
 };
 
-static int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
+static int capfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct teafs_info *tfs = sb->s_fs_info;
+	struct capfs_info *tfs = sb->s_fs_info;
 	struct inode *root_inode;
 	struct dentry *root_dentry;
 	int ret = -EIO;
@@ -66,10 +66,10 @@ static int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (WARN_ON(fc->user_ns != current_user_ns()))
 		goto out_err;
 
-	sb->s_d_op = &teafs_dentry_operations;
-	sb->s_op = &teafs_super_ops;
+	sb->s_d_op = &capfs_dentry_operations;
+	sb->s_op = &capfs_super_ops;
 
-	sb->s_magic = TEAFS_SUPER_MAGIC;
+	sb->s_magic = CAPFS_SUPER_MAGIC;
 	sb->s_fs_info = tfs;
 	sb->s_iflags |= SB_I_SKIP_SYNC;
 	/*
@@ -83,10 +83,10 @@ static int teafs_fill_super(struct super_block *sb, struct fs_context *fc)
 	tfs->creator_cred = prepare_creds();
 
 	/* Create root inode */
-	struct teafs_inode_param ti_param = { .backing_dentry = tfs->backing_path.dentry,
+	struct capfs_inode_param ti_param = { .backing_dentry = tfs->backing_path.dentry,
        						.mode = S_IFDIR	};
 
-	root_inode = teafs_get_inode(sb, &ti_param);
+	root_inode = capfs_get_inode(sb, &ti_param);
 	if (IS_ERR(root_inode)) {
 		ret = PTR_ERR(root_inode);
 		goto out_err;
@@ -106,20 +106,20 @@ out_err:
 	return ret;
 }
 
-enum teafs_opt {
+enum capfs_opt {
 	Opt_backingdir,
 };
 
-const struct fs_parameter_spec teafs_parameter_spec[] = {
+const struct fs_parameter_spec capfs_parameter_spec[] = {
 	fsparam_string("backingdir",		  Opt_backingdir),
 	{}
 };
 
-static int teafs_parse_param(struct fs_context *fc, struct fs_parameter *param)
+static int capfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	int err = 0;
 	struct fs_parse_result result;
-	struct teafs_info *tfs_info = fc->s_fs_info;
+	struct capfs_info *tfs_info = fc->s_fs_info;
 	int opt;
 
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
@@ -129,7 +129,7 @@ static int teafs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		return invalfc(fc, "No changes allowed in reconfigure");
 	}
 
-	opt = fs_parse(fc, teafs_parameter_spec, param, &result);
+	opt = fs_parse(fc, capfs_parameter_spec, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -148,14 +148,14 @@ static int teafs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return err;
 }
 
-static int teafs_get_tree(struct fs_context *fc)
+static int capfs_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, teafs_fill_super);
+	return get_tree_nodev(fc, capfs_fill_super);
 }
 
-static void teafs_free(struct fs_context *fc)
+static void capfs_free(struct fs_context *fc)
 {
-	struct teafs_info *tfs_info = fc->s_fs_info;
+	struct capfs_info *tfs_info = fc->s_fs_info;
 
 	if (tfs_info) {
 		path_put(&tfs_info->backing_path);
@@ -166,16 +166,16 @@ static void teafs_free(struct fs_context *fc)
 }
 
 static const struct fs_context_operations tea_context_ops = {
-	.parse_param	= teafs_parse_param,
-	.get_tree	= teafs_get_tree,
-	.free		= teafs_free,
+	.parse_param	= capfs_parse_param,
+	.get_tree	= capfs_get_tree,
+	.free		= capfs_free,
 };
 
-static int teafs_init_fs_context(struct fs_context *fc)
+static int capfs_init_fs_context(struct fs_context *fc)
 {
-	struct teafs_info *tfs_info;
+	struct capfs_info *tfs_info;
 
-	tfs_info = kzalloc(sizeof(struct teafs_info), GFP_KERNEL);
+	tfs_info = kzalloc(sizeof(struct capfs_info), GFP_KERNEL);
 	if (!tfs_info)
 		goto out;
 
@@ -189,54 +189,54 @@ out:
 }
 
 /* Define the filesystem type structure */
-static struct file_system_type teafs_fs_type = {
+static struct file_system_type capfs_fs_type = {
 	.owner			= THIS_MODULE,
-	.name			= "teafs",
-	.init_fs_context	= teafs_init_fs_context,
-	.parameters		= teafs_parameter_spec,
+	.name			= "capfs",
+	.init_fs_context	= capfs_init_fs_context,
+	.parameters		= capfs_parameter_spec,
 	.fs_flags		= FS_USERNS_MOUNT,
 	.kill_sb		= kill_anon_super,
 };
 
-static void teafs_inode_init_once(void *foo)
+static void capfs_inode_init_once(void *foo)
 {
-	struct teafs_inode *ti = foo;
+	struct capfs_inode *ti = foo;
 
 	inode_init_once(&ti->vfs_inode);
 }
 
-static int __init teafs_init(void)
+static int __init capfs_init(void)
 {
 	int ret;
 
-	teafs_inode_cachep = kmem_cache_create("teafs_inode",
-					sizeof(struct teafs_inode), 0,
+	capfs_inode_cachep = kmem_cache_create("capfs_inode",
+					sizeof(struct capfs_inode), 0,
 					(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT),
-					teafs_inode_init_once);
-	if (teafs_inode_cachep == NULL)
+					capfs_inode_init_once);
+	if (capfs_inode_cachep == NULL)
 		return -ENOMEM;
 
-	ret = register_filesystem(&teafs_fs_type);
+	ret = register_filesystem(&capfs_fs_type);
 	if (ret)
 		goto destroy_cache;
 
 	return 0;
 
 destroy_cache:
-	kmem_cache_destroy(teafs_inode_cachep);
+	kmem_cache_destroy(capfs_inode_cachep);
 
 	return ret;
 }
 
-static void __exit teafs_exit(void)
+static void __exit capfs_exit(void)
 {
-	unregister_filesystem(&teafs_fs_type);
-	kmem_cache_destroy(teafs_inode_cachep);
+	unregister_filesystem(&capfs_fs_type);
+	kmem_cache_destroy(capfs_inode_cachep);
 }
 
-module_init(teafs_init);
-module_exit(teafs_exit);
+module_init(capfs_init);
+module_exit(capfs_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dongsheng Yang <dongsheng.yang@linux.dev>");
-MODULE_DESCRIPTION("TEAFS - Transparent Extensible Aggregated Filesystem");
+MODULE_DESCRIPTION("CAPFS - Transparent Extensible Aggregated Filesystem");

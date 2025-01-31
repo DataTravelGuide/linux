@@ -1,0 +1,10 @@
+# fs/capfs/Kconfig
+
+config CAPFS
+    tristate "CAPFS - Transparent Extensible Aggregated Filesystem"
+    select FS_STACK
+    help
+      CAPFS is a single-layer overlay filesystem that forwards all operations
+      to a specified backing directory.
+
+      If unsure, say N.
