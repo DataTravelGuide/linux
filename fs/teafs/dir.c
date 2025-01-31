@@ -60,7 +60,7 @@ static int teafs_do_rmdir(struct teafs_info *tfs, struct inode *dir, struct dent
 	return err;
 }
 
-static struct dentry *lookup_backing_dir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
+static struct dentry *lookup_backing_subdir(struct teafs_info *tfs, struct inode *dir, struct dentry *dentry)
 {
 	struct mnt_idmap *mnt_idmap;
 	struct dentry *backing_dir_dentry;
@@ -157,7 +157,7 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 {
 	struct teafs_info *tfs;
 	struct dentry *result;
-	struct dentry *backing_dir_dentry;
+	struct dentry *backing_subdir_dentry;
 	struct inode *teafs_inode = NULL;
 	struct dentry *data_dentry;
 	const struct cred *old_cred;
@@ -168,24 +168,24 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 	tfs = teafs_info_i(dir);
 	old_cred = override_creds(tfs->creator_cred);
 
-	backing_dir_dentry = lookup_backing_dir(tfs, dir, dentry);
-	if (IS_ERR(backing_dir_dentry)) {
-		if (PTR_ERR(backing_dir_dentry) == -ENOENT) {
+	backing_subdir_dentry = lookup_backing_subdir(tfs, dir, dentry);
+	if (IS_ERR(backing_subdir_dentry)) {
+		if (PTR_ERR(backing_subdir_dentry) == -ENOENT) {
 			teafs_inode = NULL;
 			goto out;
 		} else {
-			result = ERR_CAST(backing_dir_dentry);
+			result = ERR_CAST(backing_subdir_dentry);
 			goto err;
 		}
 	}
 
-	data_dentry = lookup_backing_data_file(tfs, backing_dir_dentry);
+	data_dentry = lookup_backing_data_file(tfs, backing_subdir_dentry);
 	if (IS_ERR_OR_NULL(data_dentry)) {
 		result = ERR_PTR(-EIO);
 		goto put_backing_dentry;
 	}
 
-	ti_param.backing_dentry = backing_dir_dentry;
+	ti_param.backing_dentry = backing_subdir_dentry;
 	ti_param.backing_data_file_dentry = data_dentry;
 	ti_param.mode = d_inode(data_dentry)->i_mode;
 	pr_err("ti_param.mode: %x", ti_param.mode);
@@ -197,13 +197,13 @@ static struct dentry *teafs_lookup(struct inode *dir, struct dentry *dentry, uns
 		goto put_backing_dentry;
 	}
 
-	dput(backing_dir_dentry);
+	dput(backing_subdir_dentry);
 out:
 	revert_creds_light(old_cred);
 	return d_splice_alias(teafs_inode, dentry);
 
 put_backing_dentry:
-	dput(backing_dir_dentry);
+	dput(backing_subdir_dentry);
 err:
 	revert_creds_light(old_cred);
 	return result;
@@ -220,7 +220,27 @@ static int teafs_create(struct mnt_idmap *idmap,
 	struct dentry *backing_subdir_dentry;
 	struct dentry *data_dentry;
 	struct mnt_idmap *backing_mnt_idmap;
+	struct teafs_info *tfs;
+	const struct cred *old_cred;
 	int ret;
+
+	/*
+	tfs = teafs_info_i(dir);
+	old_cred = override_creds(tfs->creator_cred);
+	backing_subdir_dentry = lookup_backing_subdir(tfs, dir, dentry);
+	if (IS_ERR(backing_subdir_dentry)) {
+		if (PTR_ERR(backing_subdir_dentry) != -ENOENT) {
+			result = ERR_CAST(backing_subdir_dentry);
+			goto err;
+		}
+	} else {
+		dput(backing_subdir_dentry);
+		result = ERR_PTR(-EEXIST);
+		goto err;
+	}
+
+	teafs_do_mkdir(tfs, );
+	*/
 
 	backing_mnt_idmap = teafs_backing_mnt_idmap(dir);
 	if (IS_ERR(backing_mnt_idmap)) {
