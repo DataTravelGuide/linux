@@ -57,8 +57,6 @@ enum {
 	PCACHE_ADM_OPT_FORCE,
 	PCACHE_ADM_OPT_PATH,
 	PCACHE_ADM_OPT_BID,
-	PCACHE_ADM_OPT_HANDLERS,
-	PCACHE_ADM_OPT_DID,
 	PCACHE_ADM_OPT_QUEUES,
 	PCACHE_ADM_OPT_CACHE_SIZE,
 };
@@ -78,8 +76,6 @@ static const match_table_t adm_opt_tokens = {
 	{ PCACHE_ADM_OPT_FORCE,		"force=%u" },
 	{ PCACHE_ADM_OPT_PATH,		"path=%s" },
 	{ PCACHE_ADM_OPT_BID,		"backing_id=%u" },
-	{ PCACHE_ADM_OPT_HANDLERS,	"handlers=%u" },
-	{ PCACHE_ADM_OPT_DID,		"dev_id=%u" },
 	{ PCACHE_ADM_OPT_QUEUES,	"queues=%u" },
 	{ PCACHE_ADM_OPT_CACHE_SIZE,	"cache_size=%u" },	/* unit is MiB */
 	{ PCACHE_ADM_OPT_ERR,		NULL	}
@@ -90,20 +86,9 @@ struct pcache_cache_dev_adm_options {
 	u16 op;
 	u16 force:1;
 	u32 backing_id;
-	union {
-		struct backing_options {
-			char path[PCACHE_PATH_LEN];
-			u32 handlers;
-			u64 cache_size_M;
-		} backing;
-		struct segment_options {
-			u32 sid;
-		} segment;
-		struct blkdev_options {
-			u32 devid;
-			u32 queues;
-		} blkdev;
-	};
+	u32 queues;
+	char path[PCACHE_PATH_LEN];
+	u64 cache_size_M;
 };
 
 static int parse_adm_options(struct pcache_cache_dev *cache_dev,
@@ -132,7 +117,7 @@ static int parse_adm_options(struct pcache_cache_dev *cache_dev,
 			opts->op = ret;
 			break;
 		case PCACHE_ADM_OPT_PATH:
-			if (match_strlcpy(opts->backing.path, &args[0],
+			if (match_strlcpy(opts->path, &args[0],
 				PCACHE_PATH_LEN) == 0) {
 				ret = -EINVAL;
 				goto out;
@@ -153,29 +138,6 @@ static int parse_adm_options(struct pcache_cache_dev *cache_dev,
 
 			opts->backing_id = token;
 			break;
-		case PCACHE_ADM_OPT_HANDLERS:
-			if (match_uint(args, &token)) {
-				ret = -EINVAL;
-				goto out;
-			}
-
-			if (token > PCACHE_HANDLERS_MAX) {
-				cache_dev_err(cache_dev, "invalid handlers: %u, larger than max %u\n",
-						token, PCACHE_HANDLERS_MAX);
-				ret = -EINVAL;
-				goto out;
-			}
-
-			opts->backing.handlers = token;
-			break;
-		case PCACHE_ADM_OPT_DID:
-			if (match_uint(args, &token)) {
-				ret = -EINVAL;
-				goto out;
-			}
-
-			opts->blkdev.devid = token;
-			break;
 		case PCACHE_ADM_OPT_QUEUES:
 			if (match_uint(args, &token)) {
 				ret = -EINVAL;
@@ -188,14 +150,14 @@ static int parse_adm_options(struct pcache_cache_dev *cache_dev,
 				ret = -EINVAL;
 				goto out;
 			}
-			opts->blkdev.queues = token;
+			opts->queues = token;
 			break;
 		case PCACHE_ADM_OPT_CACHE_SIZE:
 			if (match_uint(args, &token)) {
 				ret = -EINVAL;
 				goto out;
 			}
-			opts->backing.cache_size_M = token;
+			opts->cache_size_M = token;
 			break;
 		default:
 			cache_dev_err(cache_dev, "unknown parameter or missing value '%s'\n", p);
@@ -219,7 +181,6 @@ static ssize_t adm_store(struct device *dev,
 	struct pcache_cache_dev *cache_dev;
 
 	opts.backing_id = U32_MAX;
-	opts.backing.handlers = 1;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -244,11 +205,11 @@ static ssize_t adm_store(struct device *dev,
 	case PCACHE_ADM_OP_B_START:
 		u32 cache_segs = 0;
 
-		if (opts.backing.cache_size_M > 0)
-			cache_segs = DIV_ROUND_UP(opts.backing.cache_size_M,
+		if (opts.cache_size_M > 0)
+			cache_segs = DIV_ROUND_UP(opts.cache_size_M,
 					PCACHE_SEG_SIZE / PCACHE_MB);
 
-		ret = backing_dev_start(cache_dev, opts.backing.path, cache_segs);
+		ret = backing_dev_start(cache_dev, opts.path, cache_segs);
 		break;
 	case PCACHE_ADM_OP_B_STOP:
 		ret = backing_dev_stop(cache_dev, opts.backing_id);
