@@ -1,24 +1,9 @@
 config BLK_DEV_PCACHE
-	tristate "Persistent memory for cache of  Block Device (Experimental)"
+	tristate "Persistent memory for cache of Block Device (Experimental)"
 	depends on DEV_DAX && FS_DAX
 	help
 	  PCACHE (CXL Block Device) provides a mechanism to register a persistent
-	  memory device as a transport layer for block devices. By leveraging PCACHE,
-	  you can use persistent memory as a high-speed data cache, significantly
-	  enhancing the performance of block storage devices by reducing latency
-	  for frequent data access.
-
-	  When PCACHE_MULTIHOST is enabled, the module extends functionality to
-	  support shared access to block devices across multiple hosts. This
-	  enables you to access and manage block devices located on remote hosts
-	  as though they are local disks, a feature valuable in distributed
-	  environments where data accessibility and performance are critical.
-
-	  Usage options:
-	  - Select 'y' to build the PCACHE module directly into the kernel, making
-	    it immediately available at boot.
-	  - Select 'm' to build it as a loadable kernel module. The module will
-	    be called "cbd" and can be loaded or unloaded as needed.
+	  memory device as a caceh layer for block device.
 
 	  Note: This feature is experimental and should be tested thoroughly
 	  before use in production environments.

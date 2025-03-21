@@ -356,8 +356,8 @@ void pcache_blkdev_exit(void)
 }
 
 /**
- * end_req - Finalize a CBD request and handle its completion.
- * @ref: Pointer to the kref structure that manages the reference count of the CBD request.
+ * end_req - Finalize a PCACHE request and handle its completion.
+ * @ref: Pointer to the kref structure that manages the reference count of the PCACHE request.
  *
  * This function is called when the reference count of the pcache_request reaches zero. It
  * contains two key operations:

@@ -233,8 +233,6 @@ int backing_dev_stop(struct pcache_cache_dev *cache_dev, u32 backing_dev_id)
 	backing_dev_destroy(backing_dev);
 	backing_dev_free(backing_dev);
 
-	//cbdt_backing_dev_info_clear(cbdt, backing_dev_id);
-
 	return 0;
 }
 
