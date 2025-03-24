@@ -207,7 +207,7 @@ int cache_key_append(struct pcache_cache *cache, struct pcache_cache_key *key)
 		}
 	} else {
 		/* If not full, queue a delayed work to flush the kset */
-		queue_delayed_work(cache->cache_wq, &kset->flush_work, 1 * HZ);
+		queue_delayed_work(cache->backing_dev->task_wq, &kset->flush_work, 1 * HZ);
 	}
 out:
 	spin_unlock(&kset->kset_lock);
@@ -712,7 +712,7 @@ void kset_flush_fn(struct work_struct *work)
 
 	if (ret) {
 		/* Failed to flush kset, schedule a retry. */
-		queue_delayed_work(cache->cache_wq, &kset->flush_work, 0);
+		queue_delayed_work(cache->backing_dev->task_wq, &kset->flush_work, 0);
 	}
 }
 

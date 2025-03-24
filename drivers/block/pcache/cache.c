@@ -27,10 +27,6 @@ static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
 	if (!cache->req_cache)
 		goto free_bitmap;
 
-	cache->cache_wq = alloc_workqueue("pcache",  WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
-	if (!cache->cache_wq)
-		goto free_req_cache;
-
 	cache->backing_dev = backing_dev;
 	cache->n_segs = backing_dev->cache_segs;
 	spin_lock_init(&cache->seg_map_lock);
@@ -57,8 +53,6 @@ err:
 
 static void cache_free(struct pcache_cache *cache)
 {
-	drain_workqueue(cache->cache_wq);
-	destroy_workqueue(cache->cache_wq);
 	kmem_cache_destroy(cache->req_cache);
 	bitmap_free(cache->seg_map);
 	kvfree(cache);
@@ -345,7 +339,7 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 
 	if (opts->start_gc) {
 		cache->start_gc = 1;
-		queue_delayed_work(cache->cache_wq, &cache->gc_work, 0);
+		queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, 0);
 	}
 
 	return cache;

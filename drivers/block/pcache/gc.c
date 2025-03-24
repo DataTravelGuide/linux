@@ -163,5 +163,5 @@ void pcache_cache_gc_fn(struct work_struct *work)
 		cache_encode_key_tail(cache);
 	}
 
-	queue_delayed_work(cache->cache_wq, &cache->gc_work, PCACHE_CACHE_GC_INTERVAL);
+	queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, PCACHE_CACHE_GC_INTERVAL);
 }
