@@ -12,8 +12,6 @@
 #include "cache_dev.h"
 #include "logic_dev.h"
 
-struct workqueue_struct	*pcache_wq;
-
 enum {
 	PCACHE_REG_OPT_ERR		= 0,
 	PCACHE_REG_OPT_FORCE,
@@ -157,14 +155,10 @@ static int __init pcache_init(void)
 {
 	int ret;
 
-	pcache_wq = alloc_workqueue(PCACHE_DRV_NAME, WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
-	if (!pcache_wq)
-		return -ENOMEM;
-
 	ret = device_register(&pcache_root_dev);
 	if (ret < 0) {
 		put_device(&pcache_root_dev);
-		goto destroy_wq;
+		goto err;
 	}
 
 	ret = bus_register(&pcache_bus_type);
@@ -181,8 +175,7 @@ bus_unregister:
 	bus_unregister(&pcache_bus_type);
 device_unregister:
 	device_unregister(&pcache_root_dev);
-destroy_wq:
-	destroy_workqueue(pcache_wq);
+err:
 
 	return ret;
 }
@@ -192,7 +185,6 @@ static void pcache_exit(void)
 	pcache_blkdev_exit();
 	bus_unregister(&pcache_bus_type);
 	device_unregister(&pcache_root_dev);
-	destroy_workqueue(pcache_wq);
 }
 
 MODULE_AUTHOR("Dongsheng Yang <dongsheng.yang@linux.dev>");
