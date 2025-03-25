@@ -8,7 +8,7 @@
 #include "meta_segment.h"
 #include "segment.h"
 
-int segment_pos_advance(struct segment_pos *seg_pos, u32 len)
+int segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
 {
 	u32 to_advance;
 
@@ -26,28 +26,6 @@ int segment_pos_advance(struct segment_pos *seg_pos, u32 len)
 	return 0;
 }
 
-void segment_copy_data(struct segment_pos *dst_pos,
-		struct segment_pos *src_pos, u32 len)
-{
-	u32 copied = 0;
-	u32 to_copy;
-
-	while (copied < len) {
-		to_copy = len - copied;
-
-		if (to_copy > dst_pos->segment->data_size - dst_pos->off)
-			to_copy = dst_pos->segment->data_size - dst_pos->off;
-		if (to_copy > src_pos->segment->data_size - src_pos->off)
-			to_copy = src_pos->segment->data_size - src_pos->off;
-
-		memcpy_flushcache(dst_pos->segment->data + dst_pos->off, src_pos->segment->data + src_pos->off, to_copy);
-
-		copied += to_copy;
-		segment_pos_advance(dst_pos, to_copy);
-		segment_pos_advance(src_pos, to_copy);
-	}
-}
-
 int segment_copy_to_bio(struct pcache_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
@@ -55,7 +33,7 @@ int segment_copy_to_bio(struct pcache_segment *segment,
 	struct bvec_iter iter;
 	void *dst;
 	u32 to_copy, page_off = 0;
-	struct segment_pos pos = { .segment = segment,
+	struct pcache_segment_pos pos = { .segment = segment,
 				   .off = data_off };
 next:
 	bio_for_each_segment(bv, bio, iter) {
@@ -109,7 +87,7 @@ void segment_copy_from_bio(struct pcache_segment *segment,
 	struct bvec_iter iter;
 	void *src;
 	u32 to_copy, page_off = 0;
-	struct segment_pos pos = { .segment = segment,
+	struct pcache_segment_pos pos = { .segment = segment,
 				   .off = data_off };
 next:
 	bio_for_each_segment(bv, bio, iter) {
@@ -171,30 +149,25 @@ int pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segmen
 	return 0;
 }
 
-void pcache_segment_clear(struct pcache_cache_dev *cache_dev, u32 seg_id)
+void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct pcache_segment_info *seg_info, u32 seg_id)
 {
-	cache_dev_zero_range(cache_dev, CACHE_DEV_SEGMENT(cache_dev, seg_id), PCACHE_SEG_SIZE);
-}
-
-void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct segment_info *seg_info, u32 seg_id)
-{
-	struct segment_info *seg_info_addr;
+	struct pcache_segment_info *seg_info_addr;
 
 	seg_info->header.seq++;
 
 	seg_info_addr = CACHE_DEV_SEGMENT(cache_dev, seg_id);
 	seg_info_addr = pcache_meta_find_oldest(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
 
-	memcpy(seg_info_addr, seg_info, sizeof(struct segment_info));
+	memcpy(seg_info_addr, seg_info, sizeof(struct pcache_segment_info));
 
 	seg_info_addr->header.crc = pcache_meta_crc(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
 	cache_dev_flush(cache_dev, seg_info_addr, PCACHE_SEG_INFO_SIZE);
 
 }
 
-struct segment_info *pcache_segment_info_read(struct pcache_cache_dev *cache_dev, u32 seg_id)
+struct pcache_segment_info *pcache_segment_info_read(struct pcache_cache_dev *cache_dev, u32 seg_id)
 {
-	struct segment_info *seg_info_addr;
+	struct pcache_segment_info *seg_info_addr;
 
 	seg_info_addr = CACHE_DEV_SEGMENT(cache_dev, seg_id);
 

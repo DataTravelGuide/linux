@@ -7,13 +7,15 @@
 static void cache_seg_info_write(struct pcache_cache_segment *cache_seg)
 {
 	mutex_lock(&cache_seg->info_lock);
-	pcache_segment_info_write(cache_seg->cache->backing_dev->cache_dev, &cache_seg->cache_seg_info.segment_info, cache_seg->segment.seg_info->seg_id);
+	pcache_segment_info_write(cache_seg->cache->backing_dev->cache_dev,
+			&cache_seg->cache_seg_info.segment_info,
+			cache_seg->segment.seg_info->seg_id);
 	mutex_unlock(&cache_seg->info_lock);
 }
 
 static int cache_seg_info_load(struct pcache_cache_segment *cache_seg)
 {
-	struct segment_info *cache_seg_info;
+	struct pcache_segment_info *cache_seg_info;
 	int ret = 0;
 
 	mutex_lock(&cache_seg->info_lock);
@@ -148,12 +150,6 @@ err:
 	return ret;
 }
 
-/**
- * This function clears the segment information to release resources
- * and prepares the segment for cleanup. It should be called when
- * the cache segment is no longer needed. This function should only
- * be called by owner backend.
- */
 void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 {
 	/* clear cache segment ctrl */
@@ -161,9 +157,6 @@ void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 			PCACHE_CACHE_SEG_CTRL_SIZE);
 
 	clear_bit(cache_seg->segment.seg_info->seg_id, cache_seg->cache->backing_dev->cache_dev->seg_bitmap);
-
-	/* clear pcache segment infomation */
-	//pcache_segment_info_clear(&cache_seg->segment);
 }
 
 #define PCACHE_WAIT_NEW_CACHE_INTERVAL	100

@@ -170,7 +170,7 @@ static int get_seg_id(struct pcache_cache *cache,
 			cache_info_set_seg_id(cache, *seg_id);
 	} else {
 		if (prev_cache_seg) {
-			struct segment_info *prev_seg_info;
+			struct pcache_segment_info *prev_seg_info;
 
 			prev_seg_info = &prev_cache_seg->cache_seg_info.segment_info;
 			if (!segment_info_has_next(prev_seg_info)) {

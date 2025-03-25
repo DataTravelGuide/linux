@@ -54,7 +54,7 @@ struct pcache_cache_seg_ctrl {
 };
 
 struct pcache_cache_seg_info {
-	struct segment_info segment_info;   /* must be first member */
+	struct pcache_segment_info segment_info;   /* must be first member */
 };
 
 struct pcache_cache_info {

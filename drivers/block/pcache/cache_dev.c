@@ -550,7 +550,7 @@ static int sb_validate(struct pcache_cache_dev *cache_dev)
 
 static void backing_dev_info_init(struct pcache_cache_dev *cache_dev)
 {
-	struct segment_info *seg_info;
+	struct pcache_segment_info *seg_info;
 	struct pcache_meta_segment *meta_seg;
 	struct pcache_backing_dev_info *backing_info, *backing_info_addr;
 	u32 seg_id;

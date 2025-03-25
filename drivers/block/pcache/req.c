@@ -4,7 +4,6 @@
 #include "backing_dev.h"
 #include "logic_dev.h"
 
-
 static int cache_data_head_init(struct pcache_cache *cache, u32 head_index)
 {
 	struct pcache_cache_segment *next_seg;
@@ -708,7 +707,6 @@ static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache
 	u32 io_done = 0;
 	int ret;
 
-	//pr_err("cache_write: %llu:%u", offset, length);
 	while (true) {
 		if (io_done >= length)
 			break;
@@ -809,7 +807,6 @@ int cache_flush(struct pcache_cache *cache)
  */
 int pcache_cache_handle_req(struct pcache_cache *cache, struct pcache_request *pcache_req)
 {
-	//pr_err("handle req: %d", pcache_req->op);
 	switch (pcache_req->op) {
 	case REQ_OP_FLUSH:
 		return cache_flush(cache);
