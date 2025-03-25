@@ -82,4 +82,8 @@ int cache_dev_add_backing(struct pcache_cache_dev *cache_dev, struct pcache_back
 void cache_dev_del_backing(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev *backing_dev);
 struct pcache_backing_dev *cache_dev_fetch_backing(struct pcache_cache_dev *cache_dev, u32 backing_dev_id);
 int cache_dev_get_empty_segment_id(struct pcache_cache_dev *cache_dev, u32 *seg_id);
+
+extern const struct bus_type pcache_bus_type;
+extern struct device pcache_root_dev;
+
 #endif /* _PCACHE_CACHE_DEV_H */

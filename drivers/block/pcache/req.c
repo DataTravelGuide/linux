@@ -106,7 +106,6 @@ static int cache_copy_to_req_bio(struct pcache_cache *cache, struct pcache_reque
 	struct pcache_segment *segment = &cache_seg->segment;
 	int ret;
 
-	//pr_err("copy to bio, %llu:%u", bio_off, len);
 	spin_lock(&cache_seg->gen_lock);
 	if (key_gen < cache_seg->gen) {
 		spin_unlock(&cache_seg->gen_lock);
@@ -137,8 +136,6 @@ static void miss_read_end_req(struct pcache_backing_dev_req *backing_req, int re
 	void *priv_data = backing_req->priv_data;
 	struct pcache_request *pcache_req = backing_req->upper_req;
 	struct pcache_cache *cache = backing_req->backing_dev->cache;
-
-	//pr_err("ret: %d", ret);
 
 	if (priv_data) {
 		struct pcache_cache_key *key;
@@ -205,8 +202,6 @@ unlock:
 static void submit_cache_miss_req(struct pcache_cache *cache, struct pcache_backing_dev_req *backing_req)
 {
 	int ret;
-
-	//pr_err("read from backing");
 
 	if (backing_req->priv_data) {
 		struct pcache_cache_key *key;

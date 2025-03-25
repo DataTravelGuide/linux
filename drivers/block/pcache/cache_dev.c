@@ -16,9 +16,6 @@ static struct pcache_cache_dev *cache_devs[PCACHE_CACHE_DEV_MAX];
 static DEFINE_IDA(cache_devs_id_ida);
 static DEFINE_MUTEX(cache_devs_mutex);
 
-extern const struct bus_type pcache_bus_type;
-extern struct device pcache_root_dev;
-
 static ssize_t info_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)

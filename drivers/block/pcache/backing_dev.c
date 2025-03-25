@@ -269,7 +269,7 @@ next_bio:
 		struct page *page = src_bvec.bv_page;
 		size_t page_off = src_bvec.bv_offset;
 		size_t page_len = src_bvec.bv_len;
-		
+
 		if (offset + page_len <= req_off) {
 			offset += page_len;
 			continue;

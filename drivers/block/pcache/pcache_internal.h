@@ -128,7 +128,6 @@ static inline void *pcache_meta_find_latest(struct pcache_meta_header *header,
 	for (i = 0; i < PCACHE_META_INDEX_MAX; i++) {
 		meta = (void *)header + (i * meta_size);
 
-		//pr_err("meta: %p crc: %u, meta_crc: %u", meta, meta->crc, pcache_meta_crc(meta, meta_size));
 		/* Skip if CRC check fails */
 		if (meta->crc != pcache_meta_crc(meta, meta_size))
 			continue;
@@ -138,7 +137,6 @@ static inline void *pcache_meta_find_latest(struct pcache_meta_header *header,
 			latest = meta;
 	}
 
-	//pr_err("latest: %p", latest);
 	return latest;
 }
 

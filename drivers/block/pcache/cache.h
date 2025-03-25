@@ -585,39 +585,12 @@ static inline u32 cache_pos_onmedia_crc(struct pcache_cache_pos_onmedia *pos_om)
 	return pcache_meta_crc(&pos_om->header, sizeof(struct pcache_cache_pos_onmedia));
 }
 
-static inline void cache_pos_encode(struct pcache_cache *cache,
+void cache_pos_encode(struct pcache_cache *cache,
 			     struct pcache_cache_pos_onmedia *pos_onmedia,
-			     struct pcache_cache_pos *pos)
-{
-	struct pcache_cache_pos_onmedia *oldest;
-
-	oldest = pcache_meta_find_oldest(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
-	BUG_ON(!oldest);
-
-	oldest->cache_seg_id = pos->cache_seg->cache_seg_id;
-	oldest->seg_off = pos->seg_off;
-	oldest->header.seq = pcache_meta_get_next_seq(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
-	oldest->header.crc = cache_pos_onmedia_crc(oldest);
-	//pr_err("oldest: %p seq: %llu, seg_off: %u seg_id: %u", oldest, oldest->header.seq, oldest->seg_off, oldest->cache_seg_id);
-	//pr_err("encode pos: crc: %u", oldest->header.crc);
-	//cache_dev_flush(cache->backing_dev->cache_dev, oldest, sizeof(struct pcache_cache_pos_onmedia));
-}
-
-static inline int cache_pos_decode(struct pcache_cache *cache,
+			     struct pcache_cache_pos *pos);
+int cache_pos_decode(struct pcache_cache *cache,
 			    struct pcache_cache_pos_onmedia *pos_onmedia,
-			    struct pcache_cache_pos *pos)
-{
-	struct pcache_cache_pos_onmedia *latest;
-
-	latest = pcache_meta_find_latest(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
-	if (!latest)
-		return -EIO;
-
-	pos->cache_seg = &cache->segments[latest->cache_seg_id];
-	pos->seg_off = latest->seg_off;
-
-	return 0;
-}
+			    struct pcache_cache_pos *pos);
 
 static inline void cache_encode_key_tail(struct pcache_cache *cache)
 {

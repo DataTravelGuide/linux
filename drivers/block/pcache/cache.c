@@ -5,6 +5,38 @@
 #include "cache.h"
 #include "backing_dev.h"
 
+void cache_pos_encode(struct pcache_cache *cache,
+			     struct pcache_cache_pos_onmedia *pos_onmedia,
+			     struct pcache_cache_pos *pos)
+{
+	struct pcache_cache_pos_onmedia *oldest;
+
+	oldest = pcache_meta_find_oldest(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
+	BUG_ON(!oldest);
+
+	oldest->cache_seg_id = pos->cache_seg->cache_seg_id;
+	oldest->seg_off = pos->seg_off;
+	oldest->header.seq = pcache_meta_get_next_seq(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
+	oldest->header.crc = cache_pos_onmedia_crc(oldest);
+	cache_dev_flush(cache->backing_dev->cache_dev, oldest, sizeof(struct pcache_cache_pos_onmedia));
+}
+
+int cache_pos_decode(struct pcache_cache *cache,
+			    struct pcache_cache_pos_onmedia *pos_onmedia,
+			    struct pcache_cache_pos *pos)
+{
+	struct pcache_cache_pos_onmedia *latest;
+
+	latest = pcache_meta_find_latest(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
+	if (!latest)
+		return -EIO;
+
+	pos->cache_seg = &cache->segments[latest->cache_seg_id];
+	pos->seg_off = latest->seg_off;
+
+	return 0;
+}
+
 static void cache_info_set_seg_id(struct pcache_cache *cache, u32 seg_id)
 {
 	cache->cache_info->seg_id = seg_id;
@@ -160,7 +192,6 @@ static int get_seg_id(struct pcache_cache *cache,
 			backing_dev_err(backing_dev, "no available segment\n");
 			goto err;
 		}
-		pr_err("seg_id: %u", *seg_id);
 
 		if (prev_cache_seg)
 			cache_seg_set_next_seg(prev_cache_seg, *seg_id);
