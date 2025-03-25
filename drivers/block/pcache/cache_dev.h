@@ -45,6 +45,7 @@ struct pcache_backing_dev;
 struct pcache_backing_dev_info;
 struct pcache_cache_dev {
 	u16				id;
+	u16				seg_num;
 	struct pcache_sb		*sb_addr;
 	struct device			device;
 	struct mutex			lock;
@@ -55,7 +56,6 @@ struct pcache_cache_dev {
 	struct dax_device		*dax_dev;
 	struct file			*bdev_file;
 
-	u64				seg_num;
 	struct mutex			seg_lock;
 	unsigned long			*seg_bitmap;
 

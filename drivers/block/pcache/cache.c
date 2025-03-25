@@ -41,8 +41,6 @@ static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
 
 	return cache;
 
-free_req_cache:
-	kmem_cache_destroy(cache->req_cache);
 free_bitmap:
 	bitmap_free(cache->seg_map);
 free_cache:
@@ -58,7 +56,7 @@ static void cache_free(struct pcache_cache *cache)
 	kvfree(cache);
 }
 
-void pcache_cache_info_init(struct pcache_cache_info *cache_info, u32 cache_segs)
+static void pcache_cache_info_init(struct pcache_cache_info *cache_info, u32 cache_segs)
 {
 	cache_info->n_segs = cache_segs;
 	cache_info->gc_percent = PCACHE_CACHE_GC_PERCENT_DEFAULT;

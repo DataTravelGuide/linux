@@ -31,7 +31,7 @@
 
 
 /* pcache segment */
-#define PCACHE_SEG_SIZE			(16 * 1024 * 1024)                  /* Size of each PCACHE segment (16 MB) */
+#define PCACHE_SEG_SIZE			(16 * 1024 * 1024ULL)                  /* Size of each PCACHE segment (16 MB) */
 
 #define PCACHE_MAGIC             0x65B05EFA96C596EFULL  /* Unique identifier for PCACHE cache dev */
 #define PCACHE_VERSION           1
@@ -51,14 +51,12 @@
 
 #define PCACHE_BACKING_DEV_INFO_SIZE	PAGE_SIZE
 
-#define PCACHE_SEG_SIZE			(16 * 1024 * 1024)
-
 #define PCACHE_CACHE_DEV_SIZE_MIN          (512 * 1024 * 1024)     /* 512 MB */
 
 #define CACHE_DEV_SB(cache_dev)			(cache_dev->sb_addr)
 #define CACHE_DEV_INFO(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_CACHE_DEV_INFO_OFF)
 #define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_SEGMENTS_OFF)
-#define CACHE_DEV_SEGMENT(cache_dev, id)	((void *)CACHE_DEV_SEGMENTS(cache_dev) + id * PCACHE_SEG_SIZE)
+#define CACHE_DEV_SEGMENT(cache_dev, id)	((void *)CACHE_DEV_SEGMENTS(cache_dev) + (u64)id * PCACHE_SEG_SIZE)
 
 #define BACKING_DEV_INFO_SEG_ID			0
 #define CACHE_DEV_BACKING_SEG(cache_dev)	(CACHE_DEV_SEGMENT(cache_dev, BACKING_DEV_INFO_SEG_ID))

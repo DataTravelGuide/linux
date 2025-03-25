@@ -259,7 +259,6 @@ static int map_bio_pages(struct bio *bio, struct request *req, u32 req_off, u32 
 {
 	struct bio_vec src_bvec;
 	struct bvec_iter src_iter;
-	struct req_iterator iter;
 	size_t mapped = 0, offset = 0;
 	struct bio *src_bio;
 
@@ -305,7 +304,6 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 	struct pcache_backing_dev_req *backing_req;
 	u32 mapped_len = 0;
 	struct bio *bio;
-	int ret;
 
 	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, GFP_ATOMIC);
 	if (!backing_req)

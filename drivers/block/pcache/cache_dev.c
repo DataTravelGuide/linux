@@ -33,7 +33,7 @@ static ssize_t info_show(struct device *dev,
 	ret = sprintf(buf, "magic: 0x%llx\n"
 			"version: %u\n"
 			"flags: %x\n\n"
-			"segment_num: %llu\n",
+			"segment_num: %u\n",
 			le64_to_cpu(sb->magic),
 			le16_to_cpu(sb->version),
 			le16_to_cpu(sb->flags),
