@@ -128,13 +128,13 @@ static void backing_dev_cache_destroy(struct pcache_backing_dev *backing_dev)
 		pcache_cache_destroy(backing_dev->cache);
 }
 
-static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path, u32 cache_segs)
+static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path, u32 queues, u32 cache_segs)
 {
 	struct pcache_cache_dev *cache_dev = backing_dev->cache_dev;
 	bool new_backing;
 	int ret;
 
-	pr_err("backing_dev_init path : %s", path);
+	pr_err("backing_dev_init path : %s, queues: %u", path, queues);
 	memcpy(backing_dev->backing_dev_info.path, path, PCACHE_PATH_LEN);
 
 	backing_dev->bdev_file = bdev_file_open_by_path(backing_dev->backing_dev_info.path,
@@ -163,7 +163,7 @@ static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path, 
 	if (ret)
 		goto bioset_exit;
 
-	ret = logic_dev_start(backing_dev, 1);
+	ret = logic_dev_start(backing_dev, queues);
 	if (ret)
 		goto destroy_cache;
 
@@ -197,7 +197,7 @@ static int backing_dev_destroy(struct pcache_backing_dev *backing_dev)
 	return 0;
 }
 
-int backing_dev_start(struct pcache_cache_dev *cache_dev, char *path, u32 cache_segs)
+int backing_dev_start(struct pcache_cache_dev *cache_dev, char *path, u32 queues, u32 cache_segs)
 {
 	struct pcache_backing_dev *backing_dev;
 	int ret;
@@ -210,7 +210,7 @@ int backing_dev_start(struct pcache_cache_dev *cache_dev, char *path, u32 cache_
 	if (!backing_dev)
 		return -ENOMEM;
 
-	ret = backing_dev_init(backing_dev, path, cache_segs);
+	ret = backing_dev_init(backing_dev, path, queues, cache_segs);
 	if (ret)
 		goto destroy_backing_dev;
 

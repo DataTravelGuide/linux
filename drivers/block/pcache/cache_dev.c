@@ -146,6 +146,7 @@ static int parse_adm_options(struct pcache_cache_dev *cache_dev,
 				ret = -EINVAL;
 				goto out;
 			}
+			pr_err("queues=%u", token);
 
 			if (token > PCACHE_QUEUES_MAX) {
 				cache_dev_err(cache_dev, "invalid queues: %u, larger than max %u\n",
@@ -212,7 +213,7 @@ static ssize_t adm_store(struct device *dev,
 			cache_segs = DIV_ROUND_UP(opts.cache_size_M,
 					PCACHE_SEG_SIZE / PCACHE_MB);
 
-		ret = backing_dev_start(cache_dev, opts.path, cache_segs);
+		ret = backing_dev_start(cache_dev, opts.path, opts.queues, cache_segs);
 		break;
 	case PCACHE_ADM_OP_B_STOP:
 		ret = backing_dev_stop(cache_dev, opts.backing_id);

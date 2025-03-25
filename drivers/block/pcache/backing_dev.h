@@ -87,7 +87,7 @@ struct pcache_backing_dev {
 	struct bio_set		bioset;
 };
 
-int backing_dev_start(struct pcache_cache_dev *cache_dev, char *path, u32 cache_segs);
+int backing_dev_start(struct pcache_cache_dev *cache_dev, char *path, u32 queues, u32 cache_segs);
 int backing_dev_stop(struct pcache_cache_dev *cache_dev, u32 backing_dev_id);
 void backing_dev_info_write(struct pcache_backing_dev *backing_dev);
 

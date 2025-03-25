@@ -301,6 +301,7 @@ int logic_dev_start(struct pcache_backing_dev *backing_dev, u32 queues)
 	struct pcache_logic_dev *logic_dev;
 	int ret;
 
+	pr_err("queues: %u", queues);
 	logic_dev = logic_dev_alloc(backing_dev);
 	if (!logic_dev)
 		return -ENOMEM;
