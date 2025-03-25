@@ -2,6 +2,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/dax.h>
+#include <linux/vmalloc.h>
 #include <linux/pfn_t.h>
 #include <linux/parser.h>
 
@@ -146,7 +147,6 @@ static int parse_adm_options(struct pcache_cache_dev *cache_dev,
 				ret = -EINVAL;
 				goto out;
 			}
-			pr_err("queues=%u", token);
 
 			if (token > PCACHE_QUEUES_MAX) {
 				cache_dev_err(cache_dev, "invalid queues: %u, larger than max %u\n",
@@ -321,45 +321,137 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, char *path)
 {
 	struct dax_device *dax_dev = NULL;
 	struct file *bdev_file = NULL;
-	long access_size;
-	void *kaddr;
-	u64 start_off = 0;
+	struct block_device *bdev;
+	long da, total_pages, mapped_pages;
+	pfn_t pfn;
+	struct page **pages = NULL;
 	int ret;
 	int id;
+	void *vaddr = NULL;
+	u64 bdev_size, start_off = 0;
+	long i = 0;
 
+	/* Copy the device path */
 	memcpy(cache_dev->path, path, PCACHE_PATH_LEN);
 
+	/* Open block device */
 	bdev_file = bdev_file_open_by_path(path, BLK_OPEN_READ | BLK_OPEN_WRITE, cache_dev, NULL);
 	if (IS_ERR(bdev_file)) {
-		cache_dev_err(cache_dev, "%s: failed blkdev_get_by_path(%s)\n", __func__, path);
 		ret = PTR_ERR(bdev_file);
+		cache_dev_err(cache_dev, "failed to open bdev %s, err=%d\n", path, ret);
 		goto err;
 	}
 
-	dax_dev = fs_dax_get_by_bdev(file_bdev(bdev_file), &start_off,
-				     cache_dev,
-				     &cache_dev_dax_holder_ops);
-	if (IS_ERR(dax_dev)) {
-		cache_dev_err(cache_dev, "%s: unable to get daxdev from bdev_file\n", __func__);
-		ret = -ENODEV;
+	/* Get block device structure */
+	bdev = file_bdev(bdev_file);
+	if (!bdev) {
+		ret = -EINVAL;
+		cache_dev_err(cache_dev, "failed to get bdev from file\n");
 		goto fput;
 	}
 
-	/* TODO vmap all pages to contiguous address */
+	/* Get total device size */
+	bdev_size = bdev_nr_bytes(bdev);
+	if (bdev_size == 0) {
+		ret = -ENODEV;
+		cache_dev_err(cache_dev, "device %s has zero size\n", path);
+		goto fput;
+	}
+
+	/* Convert device size to total pages */
+	total_pages = bdev_size >> PAGE_SHIFT;
+
+	/* Get the DAX device */
+	dax_dev = fs_dax_get_by_bdev(bdev, &start_off, cache_dev, &cache_dev_dax_holder_ops);
+	if (IS_ERR(dax_dev)) {
+		ret = PTR_ERR(dax_dev);
+		cache_dev_err(cache_dev, "failed to get dax_dev from bdev, err=%d\n", ret);
+		goto fput;
+	}
+
+	cache_dev->bdev_file = NULL;
+	cache_dev->dax_dev = NULL;
+	cache_dev->sb_addr = NULL;
+
+	/* Lock DAX access */
 	id = dax_read_lock();
-	access_size = dax_direct_access(dax_dev, 0, 1, DAX_ACCESS, &kaddr, NULL);
-	if (access_size != 1) {
-		ret = -EINVAL;
+
+	/* Try to access the entire device memory */
+	da = dax_direct_access(dax_dev, 0, total_pages, DAX_ACCESS, &vaddr, &pfn);
+	if (da < 0) {
+		cache_dev_err(cache_dev, "dax_direct_access failed, err=%ld\n", da);
+		ret = da;
 		goto unlock;
 	}
 
+	/* Convert the accessible bytes to pages */
+	mapped_pages = da >> PAGE_SHIFT;
+
+	if (!pfn_t_has_page(pfn)) {
+		cache_dev_err(cache_dev, "pfn_t does not have a valid page mapping\n");
+		ret = -EOPNOTSUPP;
+		goto unlock;
+	}
+
+	/* If all pages are mapped in one go, use direct mapping */
+	if (mapped_pages == total_pages) {
+		cache_dev->sb_addr = (struct pcache_sb *)vaddr;
+	} else {
+		/* Use vmap() to create a contiguous mapping */
+		long chunk_size;
+
+		cache_dev_info(cache_dev, "partial mapping, using vmap\n");
+
+		pages = vmalloc_array(total_pages, sizeof(struct page *));
+		if (!pages) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
+
+		i = 0;
+		do {
+			/* Access each page range in DAX */
+			chunk_size = dax_direct_access(dax_dev, i, total_pages - i, DAX_ACCESS, NULL, &pfn);
+			if (chunk_size <= 0) {
+				ret = chunk_size ? chunk_size : -EINVAL;
+				goto vfree;
+			}
+
+			if (!pfn_t_has_page(pfn)) {
+				ret = -EOPNOTSUPP;
+				goto vfree;
+			}
+
+			/* Store pages in the array for vmap */
+			while (chunk_size-- && i < total_pages) {
+				pages[i++] = pfn_t_to_page(pfn);
+				pfn.val++;
+				if (!(i & 15))
+					cond_resched();
+			}
+		} while (i < total_pages);
+
+		/* Map all pages into a contiguous virtual address */
+		vaddr = vmap(pages, total_pages, VM_MAP, PAGE_KERNEL);
+		if (!vaddr) {
+			ret = -ENOMEM;
+			goto vfree;
+		}
+
+		vfree(pages);
+		cache_dev->sb_addr = (struct pcache_sb *)vaddr;
+	}
+
+	/* Unlock and store references */
+	dax_read_unlock(id);
+
 	cache_dev->bdev_file = bdev_file;
 	cache_dev->dax_dev = dax_dev;
-	cache_dev->sb_addr = (struct pcache_sb *)kaddr;
-	dax_read_unlock(id);
 
 	return 0;
 
+vfree:
+	vfree(pages);
 unlock:
 	dax_read_unlock(id);
 	fs_put_dax(dax_dev, cache_dev);
@@ -463,7 +555,6 @@ static void backing_dev_info_init(struct pcache_cache_dev *cache_dev)
 	struct pcache_meta_segment *meta_seg;
 	struct pcache_backing_dev_info *backing_info, *backing_info_addr;
 	u32 seg_id;
-	int ret;
 	u32 i;
 
 	pr_err("into backing_dev_info_init");
@@ -734,4 +825,3 @@ unlock:
 	mutex_unlock(&cache_dev->seg_lock);
 	return ret;
 }
-
