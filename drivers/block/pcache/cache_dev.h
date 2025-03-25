@@ -41,29 +41,25 @@ struct pcache_cache_dev_info {
 	struct pcache_meta_header header;
 };
 
-struct pcache_meta_segment;
 struct pcache_backing_dev;
 struct pcache_backing_dev_info;
 struct pcache_cache_dev {
-	u16		id;
-	struct device device;
-	struct mutex lock;
-	struct mutex seg_lock;
-	struct mutex adm_lock;
+	u16				id;
+	struct pcache_sb		*sb_addr;
+	struct device			device;
+	struct mutex			lock;
+	struct mutex			adm_lock;
+	struct list_head		backing_devs;
 
-	struct list_head backing_devs;
-	struct list_head backends;
+	char				path[PCACHE_PATH_LEN];
+	struct dax_device		*dax_dev;
+	struct file			*bdev_file;
 
-	char path[PCACHE_PATH_LEN];
-	struct dax_device *dax_dev;
-	struct file *bdev_file;
+	u64				seg_num;
+	struct mutex			seg_lock;
+	unsigned long			*seg_bitmap;
 
-	struct pcache_sb *sb_addr;
-
-	u64			seg_num;
-	unsigned long		*seg_bitmap;
-
-	struct pcache_meta_segment *backing_info_seg;
+	struct pcache_meta_segment	*backing_info_seg;
 };
 
 struct pcache_cache_dev_register_options {
@@ -79,13 +75,11 @@ int cache_dev_unregister(u32 cache_dev_id);
 void pcache_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 void pcache_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 
-int cache_dev_find_backing_info(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev *backing_dev, bool *new_backing);
+int cache_dev_find_backing_info(struct pcache_cache_dev *cache_dev,
+				struct pcache_backing_dev *backing_dev, bool *new_backing);
 
 int cache_dev_add_backing(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev *backing_dev);
 void cache_dev_del_backing(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev *backing_dev);
 struct pcache_backing_dev *cache_dev_fetch_backing(struct pcache_cache_dev *cache_dev, u32 backing_dev_id);
 int cache_dev_get_empty_segment_id(struct pcache_cache_dev *cache_dev, u32 *seg_id);
-
-extern const struct bus_type pcache_bus_type;
-extern struct device pcache_root_dev;
 #endif /* _PCACHE_CACHE_DEV_H */
