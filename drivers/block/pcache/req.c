@@ -255,7 +255,6 @@ static struct pcache_backing_dev_req *create_cache_miss_req(struct pcache_cache 
 	struct pcache_backing_dev *backing_dev = cache->backing_dev;
 	struct pcache_backing_dev_req *backing_req;
 	struct pcache_cache_key *key = NULL;
-	int ret;
 
 	backing_req = backing_dev_req_create(backing_dev, parent, off, len, miss_read_end_req);
 	if (!backing_req)

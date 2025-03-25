@@ -315,6 +315,7 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
 	cache->cache_info = opts->cache_info;
+	cache->state = PCACHE_CACHE_STATE_RUNNING;
 
 	ret = cache_segs_init(cache, opts->new_cache);
 	if (ret)
@@ -324,23 +325,15 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	if (ret)
 		goto segs_destroy;
 
-	if (opts->init_req_keys) {
-		ret = cache_init_req_keys(cache, opts->n_paral);
-		if (ret)
-			goto segs_destroy;
-	}
+	ret = cache_init_req_keys(cache, opts->n_paral);
+	if (ret)
+		goto segs_destroy;
 
-	if (opts->start_writeback) {
-		cache->start_writeback = 1;
-		ret = cache_writeback_init(cache);
-		if (ret)
-			goto destroy_keys;
-	}
+	ret = cache_writeback_init(cache);
+	if (ret)
+		goto destroy_keys;
 
-	if (opts->start_gc) {
-		cache->start_gc = 1;
-		queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, 0);
-	}
+	queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, 0);
 
 	return cache;
 
@@ -356,15 +349,13 @@ free_cache:
 
 void pcache_cache_destroy(struct pcache_cache *cache)
 {
+	cache->state = PCACHE_CACHE_STATE_STOPPING;
 	cache_flush(cache);
 
-	if (cache->start_gc) {
-		cancel_delayed_work_sync(&cache->gc_work);
-		flush_work(&cache->clean_work);
-	}
+	cancel_delayed_work_sync(&cache->gc_work);
+	flush_work(&cache->clean_work);
 
-	if (cache->start_writeback)
-		cache_writeback_exit(cache);
+	cache_writeback_exit(cache);
 
 	if (cache->req_key_tree.n_subtrees)
 		cache_destroy_req_keys(cache);

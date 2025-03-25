@@ -13,14 +13,14 @@
 #define PCACHE_CACHE_SEGS_EACH_PARAL	10
 
 #define PCACHE_CACHE_SUBTREE_SIZE		(4 * 1024 * 1024)   /* 4MB total tree size */
-#define PCACHE_CACHE_SUBTREE_SIZE_MASK	0x3FFFFF            /* Mask for tree size */
-#define PCACHE_CACHE_SUBTREE_SIZE_SHIFT	22                  /* Bit shift for tree size */
+#define PCACHE_CACHE_SUBTREE_SIZE_MASK		0x3FFFFF            /* Mask for tree size */
+#define PCACHE_CACHE_SUBTREE_SIZE_SHIFT		22                  /* Bit shift for tree size */
 
 /* Maximum number of keys per key set */
 #define PCACHE_KSET_KEYS_MAX		128
 #define PCACHE_CACHE_SEGS_MAX		(1024 * 1024)	/* maximum cache size for each device is 16T */
 #define PCACHE_KSET_ONMEDIA_SIZE_MAX	struct_size_t(struct pcache_cache_kset_onmedia, data, PCACHE_KSET_KEYS_MAX)
-#define PCACHE_KSET_SIZE			(sizeof(struct pcache_cache_kset) + sizeof(struct pcache_cache_key_onmedia) * PCACHE_KSET_KEYS_MAX)
+#define PCACHE_KSET_SIZE		(sizeof(struct pcache_cache_kset) + sizeof(struct pcache_cache_key_onmedia) * PCACHE_KSET_KEYS_MAX)
 
 /* Maximum number of keys to clean in one round of clean_work */
 #define PCACHE_CLEAN_KEYS_MAX             10
@@ -107,6 +107,10 @@ struct pcache_cache_tree {
 	struct pcache_cache_subtree	*subtrees;
 };
 
+#define PCACHE_CACHE_STATE_NONE			0
+#define PCACHE_CACHE_STATE_RUNNING		1
+#define PCACHE_CACHE_STATE_STOPPING		2
+
 /* PCACHE Cache main structure */
 struct pcache_cache {
 	struct pcache_backing_dev	*backing_dev;
@@ -139,9 +143,6 @@ struct pcache_cache {
 	struct pcache_cache_info	*cache_info;
 
 	u32			state:8;
-	u32			init_req_keys:1;
-	u32			start_writeback:1;
-	u32			start_gc:1;
 
 	u32			n_segs;
 	unsigned long		*seg_map;
@@ -156,9 +157,6 @@ struct pcache_cache_opts {
 	void *owner;
 	u32 n_segs;
 	bool new_cache;
-	bool start_writeback;
-	bool start_gc;
-	bool init_req_keys;
 	u64 dev_size;
 	u32 n_paral;
 	struct file *bdev_file;

@@ -609,7 +609,6 @@ int cache_key_insert(struct pcache_cache_tree *cache_tree, struct pcache_cache_k
 	LIST_HEAD(delete_key_list);
 	int ret;
 
-	//pr_err("insert key, %llu:%u", key->off, key->len);
 	cache_subtree = get_subtree(cache_tree, key->off);
 	key->cache_subtree = cache_subtree;
 search:
@@ -661,10 +660,8 @@ void clean_fn(struct work_struct *work)
 		cache_subtree = &cache->req_key_tree.subtrees[i];
 
 again:
-		/*
 		if (cache->state == PCACHE_CACHE_STATE_STOPPING)
 			return;
-			*/
 
 		/* Delete up to PCACHE_CLEAN_KEYS_MAX keys in one iteration */
 		count = 0;

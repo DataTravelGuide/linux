@@ -41,21 +41,15 @@ void cache_writeback_exit(struct pcache_cache *cache)
 	while (!is_cache_clean(cache))
 		schedule_timeout(HZ);
 
-	pr_err("cancel writeback work");
 	cancel_delayed_work_sync(&cache->writeback_work);
 }
 
 int cache_writeback_init(struct pcache_cache *cache)
 {
-	int ret;
-
 	/* Queue delayed work to start writeback handling */
 	queue_delayed_work(cache->backing_dev->task_wq, &cache->writeback_work, 0);
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_key *key)

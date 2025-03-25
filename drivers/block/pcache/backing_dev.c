@@ -31,8 +31,6 @@ static int backing_dev_info_load(struct pcache_backing_dev *backing_dev)
 	struct pcache_backing_dev_info *info;
 	int ret = 0;
 
-	pr_err("load backing info");
-
 	mutex_lock(&backing_dev->info_lock);
 
 	info = pcache_meta_find_latest(&backing_dev->backing_dev_info_addr->header, PCACHE_BACKING_DEV_INFO_SIZE);
@@ -94,7 +92,8 @@ free_backing_dev:
 	return NULL;
 }
 
-static int backing_dev_cache_init(struct pcache_backing_dev *backing_dev, u32 cache_segs, bool new_backing_dev)
+static int backing_dev_cache_init(struct pcache_backing_dev *backing_dev,
+		u32 queues, u32 cache_segs, bool new_backing_dev)
 {
 	struct pcache_cache_opts cache_opts = { 0 };
 	int ret;
@@ -102,11 +101,8 @@ static int backing_dev_cache_init(struct pcache_backing_dev *backing_dev, u32 ca
 	backing_dev->cache_segs = cache_segs;
 	cache_opts.cache_info = &backing_dev->backing_dev_info.cache_info;
 	cache_opts.n_segs = cache_segs;
-	cache_opts.n_paral = 1;
+	cache_opts.n_paral = queues;
 	cache_opts.new_cache = new_backing_dev;
-	cache_opts.start_writeback = true;
-	cache_opts.start_gc = true;
-	cache_opts.init_req_keys = true;
 	cache_opts.bdev_file = backing_dev->bdev_file;
 	cache_opts.dev_size = backing_dev->dev_size;
 
@@ -134,7 +130,6 @@ static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path, 
 	bool new_backing;
 	int ret;
 
-	pr_err("backing_dev_init path : %s, queues: %u", path, queues);
 	memcpy(backing_dev->backing_dev_info.path, path, PCACHE_PATH_LEN);
 
 	backing_dev->bdev_file = bdev_file_open_by_path(backing_dev->backing_dev_info.path,
@@ -159,7 +154,7 @@ static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path, 
 	if (!new_backing)
 		backing_dev_info_load(backing_dev);
 
-	ret = backing_dev_cache_init(backing_dev, cache_segs, new_backing);
+	ret = backing_dev_cache_init(backing_dev, queues, cache_segs, new_backing);
 	if (ret)
 		goto bioset_exit;
 
