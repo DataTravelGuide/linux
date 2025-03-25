@@ -323,12 +323,11 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, char *path)
 	struct file *bdev_file = NULL;
 	struct block_device *bdev;
 	long da, total_pages, mapped_pages;
-	pfn_t pfn;
-	struct page **pages = NULL;
-	int ret;
-	int id;
-	void *vaddr = NULL;
 	u64 bdev_size, start_off = 0;
+	struct page **pages = NULL;
+	void *vaddr = NULL;
+	int ret, id;
+	pfn_t pfn;
 	long i = 0;
 
 	/* Copy the device path */
@@ -557,14 +556,11 @@ static void backing_dev_info_init(struct pcache_cache_dev *cache_dev)
 	u32 seg_id;
 	u32 i;
 
-	pr_err("into backing_dev_info_init");
 	meta_seg = cache_dev->backing_info_seg;
 again:
 	set_bit(meta_seg->segment.seg_info->seg_id, cache_dev->seg_bitmap);
-	pr_err("set bit %u", meta_seg->segment.seg_info->seg_id);
 	/* Try to find the backing_dev_id with same path */
 	pcache_meta_seg_for_each_meta(meta_seg, i, backing_info_addr) {
-		//pr_err("meta %u", i);
 		backing_info = pcache_meta_find_latest(&backing_info_addr->header, PCACHE_BACKING_DEV_INFO_SIZE);
 		if (!backing_info || backing_info->state != PCACHE_BACKING_STATE_RUNNING)
 			continue;
@@ -574,7 +570,6 @@ next_seg:
 		seg_info = pcache_segment_info_read(cache_dev, seg_id);
 		BUG_ON(!seg_info);
 		set_bit(seg_info->seg_id, cache_dev->seg_bitmap);
-		pr_err("set bit %u", seg_info->seg_id);
 		if (segment_info_has_next(seg_info)) {
 			seg_id = seg_info->next_seg;
 			goto next_seg;
@@ -719,10 +714,10 @@ int cache_dev_find_backing_info(struct pcache_cache_dev *cache_dev, struct pcach
 {
 	struct pcache_meta_segment *meta_seg;
 	struct pcache_backing_dev_info *backing_info, *backing_info_addr;
+	struct pcache_backing_dev_info *empty_backing_info;
 	bool empty_id_found = false;
 	u32 total_id = 0;
 	u32 empty_id;
-	struct pcache_backing_dev_info *empty_backing_info;
 	int ret;
 	u32 i;
 
@@ -733,7 +728,6 @@ again:
 		backing_info = pcache_meta_find_latest(&backing_info_addr->header, PCACHE_BACKING_DEV_INFO_SIZE);
 
 		if (!backing_info || backing_info->state == PCACHE_BACKING_STATE_NONE) {
-			//pr_err("continue: %u", i);
 			if (!empty_id_found) {
 				empty_id_found = true;
 				empty_backing_info = backing_info_addr;
@@ -743,7 +737,6 @@ again:
 			continue;
 		}
 
-		pr_err("backing_info->path: %s", backing_info->path);
 		if (strcmp(backing_info->path, backing_dev->backing_dev_info.path) == 0) {
 			backing_dev->backing_dev_id = backing_info->backing_dev_id;
 			backing_dev->backing_dev_info_addr = backing_info_addr;
@@ -775,8 +768,6 @@ out:
 
 int cache_dev_add_backing(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev *backing_dev)
 {
-	cache_dev_err(cache_dev, "add backing_dev_id: %u", backing_dev->backing_dev_id);
-
 	mutex_lock(&cache_dev->lock);
 	list_add_tail(&backing_dev->node, &cache_dev->backing_devs);
 	mutex_unlock(&cache_dev->lock);
