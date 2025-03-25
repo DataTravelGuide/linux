@@ -157,7 +157,7 @@ err:
 void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 {
 	/* clear cache segment ctrl */
-	pcache_zero_range(cache_seg->cache->backing_dev->cache_dev, cache_seg->cache_seg_ctrl,
+	cache_dev_zero_range(cache_seg->cache->backing_dev->cache_dev, cache_seg->cache_seg_ctrl,
 			PCACHE_CACHE_SEG_CTRL_SIZE);
 
 	clear_bit(cache_seg->segment.seg_info->seg_id, cache_seg->cache->backing_dev->cache_dev->seg_bitmap);

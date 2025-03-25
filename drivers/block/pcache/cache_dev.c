@@ -373,7 +373,7 @@ void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 	dax_flush(cache_dev->dax_dev, pos, size);
 }
 
-void pcache_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
+void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 {
 	memset(pos, 0, size);
 	cache_dev_flush(cache_dev, pos, size);
@@ -401,7 +401,7 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev, bool force)
 	nr_segs = (cache_dev_size - PCACHE_SEGMENTS_OFF) / ((PCACHE_SEG_SIZE));
 
 	/* Segment 0 to be backing info segment */
-	pcache_zero_range(cache_dev, CACHE_DEV_SEGMENT(cache_dev, 0), PCACHE_SEG_SIZE);
+	cache_dev_zero_range(cache_dev, CACHE_DEV_SEGMENT(cache_dev, 0), PCACHE_SEG_SIZE);
 
 	sb->version = cpu_to_le16(PCACHE_VERSION);
 

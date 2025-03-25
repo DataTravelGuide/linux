@@ -173,7 +173,7 @@ int pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segmen
 
 void pcache_segment_clear(struct pcache_cache_dev *cache_dev, u32 seg_id)
 {
-	pcache_zero_range(cache_dev, CACHE_DEV_SEGMENT(cache_dev, seg_id), PCACHE_SEG_SIZE);
+	cache_dev_zero_range(cache_dev, CACHE_DEV_SEGMENT(cache_dev, seg_id), PCACHE_SEG_SIZE);
 }
 
 void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct segment_info *seg_info, u32 seg_id)
