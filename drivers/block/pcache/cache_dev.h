@@ -7,21 +7,21 @@
 #include "pcache_internal.h"
 #include "meta_segment.h"
 
-#define cache_dev_err(transport, fmt, ...)						\
+#define cache_dev_err(cache_dev, fmt, ...)						\
 	pcache_err("cache_dev%u: " fmt,					\
-		 transport->id, ##__VA_ARGS__)
-#define cache_dev_info(transport, fmt, ...)						\
+		 cache_dev->id, ##__VA_ARGS__)
+#define cache_dev_info(cache_dev, fmt, ...)						\
 	pcache_info("cache_dev%u: " fmt,					\
-		 transport->id, ##__VA_ARGS__)
-#define cache_dev_debug(transport, fmt, ...)						\
+		 cache_dev->id, ##__VA_ARGS__)
+#define cache_dev_debug(cache_dev, fmt, ...)						\
 	pcache_debug("cache_dev%u: " fmt,					\
-		 transport->id, ##__VA_ARGS__)
+		 cache_dev->id, ##__VA_ARGS__)
 
 /*
  * PCACHE SB flags configured during formatting
  *
- * The PCACHE_SB_F_xxx flags define registration requirements based on transport
- * formatting. For a machine to register a transport:
+ * The PCACHE_SB_F_xxx flags define registration requirements based on cache_dev
+ * formatting. For a machine to register a cache_dev:
  * - PCACHE_SB_F_BIGENDIAN: Requires a big-endian machine.
  * - PCACHE_SB_F_CACHE_DATA_CRC: Requires PCACHE_CACHE_DATA_CRC enabled.
  */
@@ -45,7 +45,7 @@ struct pcache_meta_segment;
 struct pcache_backing_dev;
 struct pcache_backing_dev_info;
 struct pcache_cache_dev {
-	u16	id;
+	u16		id;
 	struct device device;
 	struct mutex lock;
 	struct mutex seg_lock;
@@ -53,19 +53,14 @@ struct pcache_cache_dev {
 
 	struct list_head backing_devs;
 	struct list_head backends;
-	struct list_head devices;
 
 	char path[PCACHE_PATH_LEN];
 	struct dax_device *dax_dev;
 	struct file *bdev_file;
 
-	struct pcache_sb *pcache_sb_addr;
+	struct pcache_sb *sb_addr;
 
-	struct pcache_cache_dev_info *cache_dev_info_addr;
-	struct pcache_cache_dev_info cache_dev_info;
-
-	u64	seg_num;
-	void	*segments_addr;
+	u64			seg_num;
 	unsigned long		*seg_bitmap;
 
 	struct pcache_meta_segment *backing_info_seg;

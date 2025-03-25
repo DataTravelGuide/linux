@@ -55,9 +55,9 @@
 
 #define PCACHE_CACHE_DEV_SIZE_MIN          (512 * 1024 * 1024)     /* 512 MB */
 
-#define CACHE_DEV_SB(cache_dev)			(cache_dev->pcache_sb_addr)
-#define CACHE_DEV_INFO(cache_dev)		((void *)cache_dev->pcache_sb_addr + PCACHE_CACHE_DEV_INFO_OFF)
-#define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->pcache_sb_addr + PCACHE_SEGMENTS_OFF)
+#define CACHE_DEV_SB(cache_dev)			(cache_dev->sb_addr)
+#define CACHE_DEV_INFO(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_CACHE_DEV_INFO_OFF)
+#define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_SEGMENTS_OFF)
 #define CACHE_DEV_SEGMENT(cache_dev, id)	((void *)CACHE_DEV_SEGMENTS(cache_dev) + id * PCACHE_SEG_SIZE)
 
 #define BACKING_DEV_INFO_SEG_ID			0

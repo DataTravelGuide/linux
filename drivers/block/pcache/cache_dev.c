@@ -24,7 +24,7 @@ static ssize_t info_show(struct device *dev,
 	ssize_t ret;
 
 	cache_dev = container_of(dev, struct pcache_cache_dev, device);
-	sb = cache_dev->pcache_sb_addr;
+	sb = cache_dev->sb_addr;
 
 	ret = sprintf(buf, "magic: 0x%llx\n"
 			"version: %u\n"
@@ -351,9 +351,7 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, char *path)
 
 	cache_dev->bdev_file = bdev_file;
 	cache_dev->dax_dev = dax_dev;
-	cache_dev->pcache_sb_addr = (struct pcache_sb *)kaddr;
-	cache_dev->cache_dev_info_addr = kaddr + PCACHE_CACHE_DEV_INFO_OFF;
-	memcpy(&cache_dev->cache_dev_info, cache_dev->cache_dev_info_addr, sizeof(struct pcache_cache_dev_info));
+	cache_dev->sb_addr = (struct pcache_sb *)kaddr;
 	dax_read_unlock(id);
 
 	return 0;
@@ -380,7 +378,7 @@ void pcache_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 
 static int cache_dev_format(struct pcache_cache_dev *cache_dev, bool force)
 {
-	struct pcache_sb *sb = cache_dev->pcache_sb_addr;
+	struct pcache_sb *sb = cache_dev->sb_addr;
 	u64 nr_segs;
 	u64 cache_dev_size;
 	u64 magic;
@@ -423,7 +421,7 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev, bool force)
 
 static int sb_validate(struct pcache_cache_dev *cache_dev)
 {
-	struct pcache_sb *sb = cache_dev->pcache_sb_addr;
+	struct pcache_sb *sb = cache_dev->sb_addr;
 	u16 flags;
 
 	if (le64_to_cpu(sb->magic) != PCACHE_MAGIC) {
@@ -505,7 +503,7 @@ static int cache_dev_init(struct pcache_cache_dev *cache_dev,
 	if (ret)
 		goto err;
 
-	sb = cache_dev->pcache_sb_addr;
+	sb = cache_dev->sb_addr;
 	cache_dev->seg_num = le64_to_cpu(sb->seg_num);
 
 	cache_dev->seg_bitmap = bitmap_zalloc(cache_dev->seg_num, GFP_KERNEL);
