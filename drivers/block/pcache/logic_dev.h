@@ -6,14 +6,14 @@
 
 #include "pcache_internal.h"
 
-#define logic_dev_err(logic_dev, fmt, ...)						\
-	cache_dev_err(logic_dev->cache_dev, "logic_dev%d: " fmt,			\
+#define logic_dev_err(logic_dev, fmt, ...)							\
+	cache_dev_err(logic_dev->backing_dev->cache_dev, "logic_dev%d: " fmt,			\
 		 logic_dev->mapped_id, ##__VA_ARGS__)
-#define logic_dev_info(logic_dev, fmt, ...)						\
-	cache_dev_info(logic_dev->cache_dev, "logic_dev%d: " fmt,			\
+#define logic_dev_info(logic_dev, fmt, ...)							\
+	cache_dev_info(logic_dev->backing_dev->cache_dev, "logic_dev%d: " fmt,			\
 		 logic_dev->mapped_id, ##__VA_ARGS__)
-#define logic_dev_debug(logic_dev, fmt, ...)						\
-	cache_dev_debug(logic_dev->cache_dev, "logic_dev%d: " fmt,			\
+#define logic_dev_debug(logic_dev, fmt, ...)							\
+	cache_dev_debug(logic_dev->backing_dev->cache_dev, "logic_dev%d: " fmt,			\
 		 logic_dev->mapped_id, ##__VA_ARGS__)
 
 #define PCACHE_QUEUE_STATE_NONE			0
@@ -22,24 +22,18 @@
 struct pcache_queue {
 	struct pcache_logic_dev	*logic_dev;
 	u32			index;
-	struct list_head	inflight_reqs;
-	spinlock_t		inflight_reqs_lock;
-	u64			req_tid;
 
 	u8	                state;
-	struct bio_set		bioset;
 };
 
 struct pcache_request {
 	struct pcache_queue	*queue;
-	struct request	*req;
-	struct bio	*orig_bio;
+	struct request		*req;
 
 	u64			off;
 	u32			data_len;
 
 	u8			op;
-	spinlock_t		lock;
 
 	struct kref		ref;
 	int			ret;
@@ -48,28 +42,24 @@ struct pcache_request {
 struct pcache_logic_dev {
 	int				mapped_id; /* id in block device such as: /dev/pcache0 */
 
-	struct pcache_cache_dev		*cache_dev;
 	struct pcache_backing_dev	*backing_dev;
 
 	int				major;		/* blkdev assigned major */
 	int				minor;
 	struct gendisk			*disk;		/* blkdev's gendisk and rq */
 
-	struct mutex		lock;
-	unsigned long		open_count;	/* protected by lock */
+	struct mutex			lock;
+	unsigned long			open_count;	/* protected by lock */
 
-	struct list_head	node;
-	struct delayed_work	hb_work; /* heartbeat work */
+	struct list_head		node;
 
 	/* Block layer tags. */
-	struct blk_mq_tag_set	tag_set;
+	struct blk_mq_tag_set		tag_set;
 
-	uint32_t		num_queues;
-	struct pcache_queue	*queues;
+	uint32_t			num_queues;
+	struct pcache_queue		*queues;
 
-	u64			dev_size;
-
-	struct workqueue_struct	*task_wq;
+	u64				dev_size;
 };
 
 int logic_dev_start(struct pcache_backing_dev *backing_dev, u32 queues);

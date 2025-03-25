@@ -97,7 +97,7 @@ static void cache_copy_from_req_bio(struct pcache_cache *cache, struct pcache_ca
 
 	segment = &pos->cache_seg->segment;
 
-	segment_copy_from_bio(segment, pos->seg_off, key->len, pcache_req->orig_bio, bio_off);
+	segment_copy_from_bio(segment, pos->seg_off, key->len, pcache_req->req->bio, bio_off);
 }
 
 static int cache_copy_to_req_bio(struct pcache_cache *cache, struct pcache_request *pcache_req,
@@ -114,9 +114,7 @@ static int cache_copy_to_req_bio(struct pcache_cache *cache, struct pcache_reque
 		return -EINVAL;
 	}
 
-	spin_lock(&pcache_req->lock);
-	ret = segment_copy_to_bio(segment, pos->seg_off, len, pcache_req->orig_bio, bio_off);
-	spin_unlock(&pcache_req->lock);
+	ret = segment_copy_to_bio(segment, pos->seg_off, len, pcache_req->req->bio, bio_off);
 	spin_unlock(&cache_seg->gen_lock);
 
 	return ret;

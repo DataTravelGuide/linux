@@ -61,13 +61,11 @@ static blk_status_t pcache_queue_rq(struct blk_mq_hw_ctx *hctx,
 	int ret;
 
 	memset(pcache_req, 0, sizeof(struct pcache_request));
-	spin_lock_init(&pcache_req->lock);
 	kref_init(&pcache_req->ref);
 	blk_mq_start_request(bd->rq);
 
 	pcache_req->queue = queue;
 	pcache_req->req = req;
-	pcache_req->orig_bio = req->bio;
 	pcache_req->op = req_op(bd->rq);
 	pcache_req->off = (u64)blk_rq_pos(bd->rq) << SECTOR_SHIFT;
 	if (!pcache_req_nodata(pcache_req))
@@ -75,10 +73,7 @@ static blk_status_t pcache_queue_rq(struct blk_mq_hw_ctx *hctx,
 	else
 		pcache_req->data_len = 0;
 
-	if (bio_segments(req->bio) > 256)
-		pr_err("req: %p op: %u orig_bio: %p orig_bio->bi_max_vecs: %u, off: %llu bytes: %u, bi_vcnt: %u, bio_segments: %u", req, req_op(bd->rq), req->bio, req->bio->bi_max_vecs, pcache_req->off, pcache_req->data_len, req->bio->bi_vcnt, bio_segments(req->bio));
 	ret = pcache_cache_handle_req(logic_dev->backing_dev->cache, pcache_req);
-
 	pcache_req_put(pcache_req, ret);
 
 	return BLK_STS_OK;
@@ -158,8 +153,6 @@ static int disk_start(struct pcache_logic_dev *logic_dev)
 
 	return 0;
 
-del_disk:
-	del_gendisk(logic_dev->disk);
 put_disk:
 	put_disk(logic_dev->disk);
 out_tag_set:
@@ -186,7 +179,6 @@ static struct pcache_logic_dev *logic_dev_alloc(struct pcache_backing_dev *backi
 		return NULL;
 
 	logic_dev->backing_dev = backing_dev;
-	logic_dev->cache_dev = backing_dev->cache_dev;
 	mutex_init(&logic_dev->lock);
 	INIT_LIST_HEAD(&logic_dev->node);
 
@@ -200,8 +192,6 @@ static struct pcache_logic_dev *logic_dev_alloc(struct pcache_backing_dev *backi
 
 	return logic_dev;
 
-ida_remove:
-	ida_simple_remove(&pcache_mapped_id_ida, logic_dev->mapped_id);
 logic_dev_free:
 	kfree(logic_dev);
 
@@ -224,27 +214,15 @@ static void logic_dev_destroy_queues(struct pcache_logic_dev *logic_dev)
 		queue = &logic_dev->queues[i];
 		if (queue->state == PCACHE_QUEUE_STATE_NONE)
 			continue;
-
-		bioset_exit(&queue->bioset);
 	}
 
 	/* Free the memory allocated for the queues */
 	kfree(logic_dev->queues);
 }
 
-/**
- * logic_dev_create_queues - Create and initialize queues for the block device
- * @backing_dev: Pointer to the block device structure
- * @channels: Array of channel identifiers for each queue
- *
- * Note: The backing_dev_destroy_queues function checks the state of each queue.
- *       Only queues that have been started will be stopped in the error path.
- *       Therefore, any queues that were not started will not be affected.
- */
 static int logic_dev_create_queues(struct pcache_logic_dev *logic_dev)
 {
 	int i;
-	int ret;
 	struct pcache_queue *queue;
 
 	logic_dev->queues = kcalloc(logic_dev->num_queues, sizeof(struct pcache_queue), GFP_KERNEL);
@@ -256,24 +234,11 @@ static int logic_dev_create_queues(struct pcache_logic_dev *logic_dev)
 		queue->logic_dev = logic_dev;
 		queue->index = i;
 
-		ret = bioset_init(&queue->bioset, 256, 0, BIOSET_NEED_BVECS);
-		if (ret)
-			goto err;
-
-
 		queue->state = PCACHE_QUEUE_STATE_RUNNING;
-		//ret = pcache_queue_start(queue, channels[i]);
-		//if (ret)
-		//	goto err;
 	}
 
 	return 0;
-
-err:
-	logic_dev_destroy_queues(logic_dev);
-	return ret;
 }
-
 
 static int logic_dev_init(struct pcache_logic_dev *logic_dev, u32 queues)
 {
@@ -293,7 +258,7 @@ err:
 
 static void logic_dev_destroy(struct pcache_logic_dev *logic_dev)
 {
-	return;
+	logic_dev_destroy_queues(logic_dev);
 }
 
 int logic_dev_start(struct pcache_backing_dev *backing_dev, u32 queues)
@@ -301,7 +266,6 @@ int logic_dev_start(struct pcache_backing_dev *backing_dev, u32 queues)
 	struct pcache_logic_dev *logic_dev;
 	int ret;
 
-	pr_err("queues: %u", queues);
 	logic_dev = logic_dev_alloc(backing_dev);
 	if (!logic_dev)
 		return -ENOMEM;
@@ -356,21 +320,6 @@ void pcache_blkdev_exit(void)
 	unregister_blkdev(pcache_major, "pcache");
 }
 
-/**
- * end_req - Finalize a PCACHE request and handle its completion.
- * @ref: Pointer to the kref structure that manages the reference count of the PCACHE request.
- *
- * This function is called when the reference count of the pcache_request reaches zero. It
- * contains two key operations:
- *
- * (1) If the end_req callback is set in the pcache_request, this callback will be invoked.
- *     This allows different pcache_requests to perform specific operations upon completion.
- *     For example, in the case of a backend request sent in the cache miss reading, it may require
- *     cache-related operations, such as storing data retrieved during a miss read.
- *
- * (2) If pcache_req->req is not NULL, it indicates that this pcache_request corresponds to a
- *     block layer request. The function will finalize the block layer request accordingly.
- */
 static void end_req(struct kref *ref)
 {
 	struct pcache_request *pcache_req = container_of(ref, struct pcache_request, ref);
@@ -379,13 +328,10 @@ static void end_req(struct kref *ref)
 
 	if (req) {
 		/* Complete the block layer request based on the return status */
-		if (ret == -ENOMEM || ret == -EBUSY) {
-			//pr_err("requeue: %p bio: %p", req, req->bio);
+		if (ret == -ENOMEM || ret == -EBUSY)
 			blk_mq_requeue_request(req, true);
-		} else {
-			//pr_err("end: req: %p, bio: %p", req, req->bio);
+		else
 			blk_mq_end_request(req, errno_to_blk_status(ret));
-		}
 	}
 }
 
@@ -394,13 +340,6 @@ void pcache_req_get(struct pcache_request *pcache_req)
 	kref_get(&pcache_req->ref);
 }
 
-/**
- * This function decreases the reference count of the specified pcache_request. If the
- * reference count reaches zero, the end_req function is called to finalize the request.
- * Additionally, if the pcache_request has a parent and if the current request is being
- * finalized (i.e., the reference count reaches zero), the parent request will also
- * be put, potentially propagating the return status up the hierarchy.
- */
 void pcache_req_put(struct pcache_request *pcache_req, int ret)
 {
 	/* Set the return status if it is not already set */
@@ -409,4 +348,3 @@ void pcache_req_put(struct pcache_request *pcache_req, int ret)
 
 	kref_put(&pcache_req->ref, end_req);
 }
-
