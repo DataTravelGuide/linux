@@ -368,7 +368,7 @@ err:
 	return ret;
 }
 
-void pcache_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
+void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 {
 	dax_flush(cache_dev->dax_dev, pos, size);
 }
@@ -376,7 +376,7 @@ void pcache_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 void pcache_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 {
 	memset(pos, 0, size);
-	pcache_flush(cache_dev, pos, size);
+	cache_dev_flush(cache_dev, pos, size);
 }
 
 static int cache_dev_format(struct pcache_cache_dev *cache_dev, bool force)

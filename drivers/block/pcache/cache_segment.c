@@ -65,7 +65,7 @@ static void cache_seg_ctrl_write(struct pcache_cache_segment *cache_seg)
 						 sizeof(struct pcache_cache_seg_gen));
 	mutex_unlock(&cache_seg->ctrl_lock);
 
-	pcache_flush(cache_seg->cache->backing_dev->cache_dev, cache_seg_gen, sizeof(struct pcache_cache_seg_gen));
+	cache_dev_flush(cache_seg->cache->backing_dev->cache_dev, cache_seg_gen, sizeof(struct pcache_cache_seg_gen));
 }
 
 static int cache_seg_meta_load(struct pcache_cache_segment *cache_seg)

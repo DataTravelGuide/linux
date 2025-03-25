@@ -602,7 +602,7 @@ static inline void cache_pos_encode(struct pcache_cache *cache,
 	oldest->header.crc = cache_pos_onmedia_crc(oldest);
 	//pr_err("oldest: %p seq: %llu, seg_off: %u seg_id: %u", oldest, oldest->header.seq, oldest->seg_off, oldest->cache_seg_id);
 	//pr_err("encode pos: crc: %u", oldest->header.crc);
-	//pcache_flush(cache->backing_dev->cache_dev, oldest, sizeof(struct pcache_cache_pos_onmedia));
+	//cache_dev_flush(cache->backing_dev->cache_dev, oldest, sizeof(struct pcache_cache_pos_onmedia));
 }
 
 static inline int cache_pos_decode(struct pcache_cache *cache,

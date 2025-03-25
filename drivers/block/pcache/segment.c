@@ -188,7 +188,7 @@ void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct segmen
 	memcpy(seg_info_addr, seg_info, sizeof(struct segment_info));
 
 	seg_info_addr->header.crc = pcache_meta_crc(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
-	pcache_flush(cache_dev, seg_info_addr, PCACHE_SEG_INFO_SIZE);
+	cache_dev_flush(cache_dev, seg_info_addr, PCACHE_SEG_INFO_SIZE);
 
 }
 

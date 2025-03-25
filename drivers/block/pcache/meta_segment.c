@@ -16,7 +16,7 @@ static void meta_seg_info_write(struct pcache_meta_segment *meta_seg)
 	memcpy(info_addr, &meta_seg->meta_seg_info, sizeof(struct pcache_meta_segment_info));
 	info_addr->seg_info.header.crc = pcache_meta_crc(&info_addr->seg_info.header, PCACHE_SEG_INFO_SIZE);
 
-	pcache_flush(meta_seg->cache_dev, info_addr, PCACHE_SEG_INFO_SIZE);
+	cache_dev_flush(meta_seg->cache_dev, info_addr, PCACHE_SEG_INFO_SIZE);
 	mutex_unlock(&meta_seg->info_lock);
 }
 

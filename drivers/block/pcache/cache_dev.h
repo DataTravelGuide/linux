@@ -72,7 +72,7 @@ struct pcache_cache_dev_register_options {
 int cache_dev_register(struct pcache_cache_dev_register_options *opts);
 int cache_dev_unregister(u32 cache_dev_id);
 
-void pcache_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
+void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 void pcache_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 
 int cache_dev_find_backing_info(struct pcache_cache_dev *cache_dev,

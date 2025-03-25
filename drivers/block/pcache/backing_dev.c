@@ -22,7 +22,7 @@ void backing_dev_info_write(struct pcache_backing_dev *backing_dev)
 	memcpy(info, &backing_dev->backing_dev_info, sizeof(struct pcache_backing_dev_info));
 	info->header.crc = pcache_meta_crc(&info->header, PCACHE_BACKING_DEV_INFO_SIZE);
 
-	pcache_flush(backing_dev->cache_dev, info, PCACHE_BACKING_DEV_INFO_SIZE);
+	cache_dev_flush(backing_dev->cache_dev, info, PCACHE_BACKING_DEV_INFO_SIZE);
 	mutex_unlock(&backing_dev->info_lock);
 }
 
