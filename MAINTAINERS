@@ -18376,6 +18376,14 @@ S:	Maintained
 F:	drivers/leds/leds-pca9532.c
 F:	include/linux/leds-pca9532.h
 
+PCACHE (Pmem as cache for block device)
+M:	Dongsheng Yang <dongsheng.yang@linux.dev>
+M:	Zheng Gu <cengku@gmail.com>
+R:	Linggang Zeng <linggang.linux@gmail.com>
+L:	linux-block@vger.kernel.org
+S:	Maintained
+F:	drivers/block/pcache/
+
 PCI DRIVER FOR AARDVARK (Marvell Armada 3700)
 M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 M:	Pali Rohár <pali@kernel.org>
