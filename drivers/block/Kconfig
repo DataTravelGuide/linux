@@ -192,6 +192,8 @@ config BLK_DEV_LOOP_MIN_COUNT
 
 source "drivers/block/drbd/Kconfig"
 
+source "drivers/block/pcache/Kconfig"
+
 config BLK_DEV_NBD
 	tristate "Network block device support"
 	depends on NET
