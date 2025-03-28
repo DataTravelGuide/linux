@@ -1,0 +1,32 @@
+config BLK_DEV_PCACHE
+	tristate "Persistent memory for cache of Block Device (Experimental)"
+	depends on DEV_DAX && FS_DAX
+	help
+	  PCACHE provides a mechanism to use persistent memory (e.g., CXL persistent memory,
+	  DAX-enabled devices) as a high-performance cache layer in front of
+	  traditional block devices such as SSDs or HDDs.
+
+	  PCACHE is implemented as a kernel module that integrates with the block
+	  layer and supports direct access (DAX) to persistent memory for low-latency,
+	  byte-addressable caching.
+
+	  Note: This feature is experimental and should be tested thoroughly
+	  before use in production environments.
+
+	  If unsure, say 'N'.
+
+config PCACHE_CACHE_DATA_CRC
+	bool "Enable PCACHE cache data checksum"
+	default n
+	depends on BLK_DEV_PCACHE
+	help
+	  In the PCACHE cache system, all cache keys are stored within a kset. Each
+	  kset inherently includes a CRC to ensure the integrity of its stored
+	  data, meaning that basic data integrity for all cache keys is enabled
+	  by default.
+
+	  Enabling PCACHE_CACHE_DATA_CRC, however, adds an additional CRC specifically
+	  within each `cache_key`, providing a checksum for the actual data content
+	  associated with each cache entry. This option ensures full data integrity
+	  for both cache keys and the cached data itself, offering an additional
+	  layer of protection against data corruption within the cache.
