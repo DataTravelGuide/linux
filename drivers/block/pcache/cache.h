@@ -26,8 +26,8 @@
 #define PCACHE_CLEAN_KEYS_MAX             10
 
 /* Writeback and garbage collection intervals in jiffies */
-#define PCACHE_CACHE_WRITEBACK_INTERVAL   (1 * HZ)
-#define PCACHE_CACHE_GC_INTERVAL          (1 * HZ)
+#define PCACHE_CACHE_WRITEBACK_INTERVAL   (5 * HZ)
+#define PCACHE_CACHE_GC_INTERVAL          (5 * HZ)
 
 /* Macro to get the cache key structure from an rb_node pointer */
 #define CACHE_KEY(node)                (container_of(node, struct pcache_cache_key, rb_node))
