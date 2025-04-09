@@ -549,11 +549,12 @@ static void req_complete_fn(struct work_struct *work)
 {
 	struct pcache_backing_dev *backing_dev = container_of(work, struct pcache_backing_dev, req_complete_work);
 	struct pcache_backing_dev_req *backing_req;
+	unsigned long flags;
 	LIST_HEAD(tmp_list);
 
-	spin_lock(&backing_dev->complete_lock);
+	spin_lock_irqsave(&backing_dev->complete_lock, flags);
 	list_splice_init(&backing_dev->complete_list, &tmp_list);
-	spin_unlock(&backing_dev->complete_lock);
+	spin_unlock_irqrestore(&backing_dev->complete_lock, flags);
 
 	while (!list_empty(&tmp_list)) {
 		backing_req = list_first_entry(&tmp_list,
