@@ -1172,6 +1172,12 @@ config CRYPTO_ZSTD
 
 	  See https://github.com/facebook/zstd for further information.
 
+
+config CRYPTO_UCOMPRESSION
+	tristate "Userspace compression"
+	select CRYPTO_ACOMP2
+	help
+	  userspace compression
 endmenu
 
 menu "Random number generation"

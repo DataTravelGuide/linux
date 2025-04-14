@@ -184,6 +184,8 @@ obj-$(CONFIG_CRYPTO_ZSTD) += zstd.o
 obj-$(CONFIG_CRYPTO_ECC) += ecc.o
 obj-$(CONFIG_CRYPTO_ESSIV) += essiv.o
 obj-$(CONFIG_CRYPTO_CURVE25519) += curve25519-generic.o
+obj-$(CONFIG_CRYPTO_UCOMPRESSION) += ucomp.o
+obj-$(CONFIG_CRYPTO_UCOMPRESSION) += comp_bench.o
 
 ecdh_generic-y += ecdh.o
 ecdh_generic-y += ecdh_helper.o

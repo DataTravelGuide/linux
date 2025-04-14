@@ -1617,11 +1617,11 @@ static int zram_read_page(struct zram *zram, struct page *page, u32 index,
 {
 	int ret;
 
-	zram_slot_lock(zram, index);
+	//zram_slot_lock(zram, index);
 	if (!zram_test_flag(zram, index, ZRAM_WB)) {
 		/* Slot should be locked through out the function call */
 		ret = zram_read_from_zspool(zram, page, index);
-		zram_slot_unlock(zram, index);
+		//zram_slot_unlock(zram, index);
 	} else {
 		/*
 		 * The slot should be unlocked before reading from the backing
@@ -2206,65 +2206,151 @@ static void zram_bio_discard(struct zram *zram, struct bio *bio)
 	bio_endio(bio);
 }
 
+struct zram_req {
+	struct list_head list;
+	struct bio *bio;
+	struct zram *zram;
+	unsigned long start_time;
+};
+
+
+static LIST_HEAD(zram_pending_read_list);
+static DEFINE_SPINLOCK(zram_pending_read_lock);
+static void zram_handle_read_req_work(struct work_struct *work);
+static DECLARE_WORK(zram_read_work, zram_handle_read_req_work);
+
 static void zram_bio_read(struct zram *zram, struct bio *bio)
 {
-	unsigned long start_time = bio_start_io_acct(bio);
-	struct bvec_iter iter = bio->bi_iter;
+	struct zram_req *req;
 
-	do {
-		u32 index = iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
-		u32 offset = (iter.bi_sector & (SECTORS_PER_PAGE - 1)) <<
-				SECTOR_SHIFT;
-		struct bio_vec bv = bio_iter_iovec(bio, iter);
+	req = kmalloc(sizeof(*req), GFP_ATOMIC);
+	if (!req) {
+		bio->bi_status = BLK_STS_RESOURCE;
+		bio_endio(bio);
+		return;
+	}
 
-		bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+	req->zram = zram;
+	req->bio = bio;
+	req->start_time = bio_start_io_acct(bio);
 
-		if (zram_bvec_read(zram, &bv, index, offset, bio) < 0) {
-			atomic64_inc(&zram->stats.failed_reads);
-			bio->bi_status = BLK_STS_IOERR;
-			break;
-		}
-		flush_dcache_page(bv.bv_page);
+	spin_lock(&zram_pending_read_lock);
+	list_add_tail(&req->list, &zram_pending_read_list);
+	spin_unlock(&zram_pending_read_lock);
 
-		zram_slot_lock(zram, index);
-		zram_accessed(zram, index);
-		zram_slot_unlock(zram, index);
+	queue_work(system_unbound_wq, &zram_read_work);
+}
 
-		bio_advance_iter_single(bio, &iter, bv.bv_len);
-	} while (iter.bi_size);
+static void zram_handle_read_req_work(struct work_struct *work)
+{
+	struct zram_req *req, *tmp;
 
-	bio_end_io_acct(bio, start_time);
-	bio_endio(bio);
+	LIST_HEAD(local_list);
+
+	spin_lock(&zram_pending_read_lock);
+	list_splice_init(&zram_pending_read_list, &local_list);
+	spin_unlock(&zram_pending_read_lock);
+
+	list_for_each_entry_safe(req, tmp, &local_list, list) {
+		struct bio *bio = req->bio;
+		struct zram *zram = req->zram;
+		struct bvec_iter iter = bio->bi_iter;
+
+		do {
+			u32 index = iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
+			u32 offset = (iter.bi_sector & (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
+			struct bio_vec bv = bio_iter_iovec(bio, iter);
+
+			bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+
+			if (zram_bvec_read(zram, &bv, index, offset, bio) < 0) {
+				atomic64_inc(&zram->stats.failed_reads);
+				bio->bi_status = BLK_STS_IOERR;
+				break;
+			}
+
+			flush_dcache_page(bv.bv_page);
+
+			zram_slot_lock(zram, index);
+			zram_accessed(zram, index);
+			zram_slot_unlock(zram, index);
+
+			bio_advance_iter_single(bio, &iter, bv.bv_len);
+		} while (iter.bi_size);
+
+		bio_end_io_acct(bio, req->start_time);
+		bio_endio(bio);
+		list_del(&req->list);
+		kfree(req);
+	}
+}
+
+static LIST_HEAD(zram_pending_req_list);
+static DEFINE_SPINLOCK(zram_pending_req_lock);
+static struct work_struct zram_req_work;
+
+static void zram_handle_req_work(struct work_struct *work)
+{
+	struct zram_req *req, *tmp;
+
+	LIST_HEAD(local_list);
+
+	spin_lock(&zram_pending_req_lock);
+	list_splice_init(&zram_pending_req_list, &local_list);
+	spin_unlock(&zram_pending_req_lock);
+
+	list_for_each_entry_safe(req, tmp, &local_list, list) {
+		struct bio *bio = req->bio;
+		struct zram *zram = req->zram;
+		struct bvec_iter iter = bio->bi_iter;
+
+		do {
+			u32 index = iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
+			u32 offset = (iter.bi_sector & (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
+			struct bio_vec bv = bio_iter_iovec(bio, iter);
+
+			bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+
+			if (zram_bvec_write(zram, &bv, index, offset, bio) < 0) {
+				atomic64_inc(&zram->stats.failed_writes);
+				bio->bi_status = BLK_STS_IOERR;
+				break;
+			}
+
+			zram_slot_lock(zram, index);
+			zram_accessed(zram, index);
+			zram_slot_unlock(zram, index);
+
+			bio_advance_iter_single(bio, &iter, bv.bv_len);
+		} while (iter.bi_size);
+
+		bio_end_io_acct(bio, req->start_time);
+		bio_endio(bio);
+		list_del(&req->list);
+		kfree(req);
+	}
 }
 
 static void zram_bio_write(struct zram *zram, struct bio *bio)
 {
-	unsigned long start_time = bio_start_io_acct(bio);
-	struct bvec_iter iter = bio->bi_iter;
+	struct zram_req *req;
 
-	do {
-		u32 index = iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
-		u32 offset = (iter.bi_sector & (SECTORS_PER_PAGE - 1)) <<
-				SECTOR_SHIFT;
-		struct bio_vec bv = bio_iter_iovec(bio, iter);
+	req = kmalloc(sizeof(*req), GFP_ATOMIC);
+	if (!req) {
+		bio->bi_status = BLK_STS_RESOURCE;
+		bio_endio(bio);
+		return;
+	}
 
-		bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
+	req->bio = bio;
+	req->zram = zram;
+	req->start_time = bio_start_io_acct(bio);
 
-		if (zram_bvec_write(zram, &bv, index, offset, bio) < 0) {
-			atomic64_inc(&zram->stats.failed_writes);
-			bio->bi_status = BLK_STS_IOERR;
-			break;
-		}
+	spin_lock(&zram_pending_req_lock);
+	list_add_tail(&req->list, &zram_pending_req_list);
+	spin_unlock(&zram_pending_req_lock);
 
-		zram_slot_lock(zram, index);
-		zram_accessed(zram, index);
-		zram_slot_unlock(zram, index);
-
-		bio_advance_iter_single(bio, &iter, bv.bv_len);
-	} while (iter.bi_size);
-
-	bio_end_io_acct(bio, start_time);
-	bio_endio(bio);
+	queue_work(system_wq, &zram_req_work);
 }
 
 /*
@@ -2783,6 +2869,8 @@ static int __init zram_init(void)
 			goto out_error;
 		num_devices--;
 	}
+
+	INIT_WORK(&zram_req_work, zram_handle_req_work);
 
 	return 0;
 
