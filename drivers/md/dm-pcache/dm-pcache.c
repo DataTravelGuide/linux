@@ -12,15 +12,46 @@
 #include <linux/blk-mq.h>
 
 /* ------------------------------------------------------------------ */
-struct dm_pcache { /* empty for now */ };
+struct dm_pcache {
+	const char *cache_dev;
+	const char *backing_dev;
+	unsigned long sec_nr;
+};
 
 /* ---------------- target callbacks -------------------------------- */
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
-        struct dm_pcache *ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-        if (!ctx)
+        struct dm_pcache *pcache;
+        const char *cache_dev, *backing_dev;
+        unsigned long sec_nr;
+        int ret;
+
+        /* Check if we have the right number of arguments */
+        if (argc != 2) {
+		pr_err("argc: %d", argc);
+                ti->error = "pcache: invalid argument count";
+                return -EINVAL;
+        }
+
+        /* Allocate memory for the cache structure */
+        pcache = kzalloc(sizeof(struct dm_pcache), GFP_KERNEL);
+        if (!pcache)
                 return -ENOMEM;
-        ti->private = ctx;
+
+        cache_dev = argv[0];  // Cache device path
+        backing_dev = argv[1];  // Backing device path
+
+        pcache->cache_dev = cache_dev;
+        pcache->backing_dev = backing_dev;
+
+        ti->private = pcache;
+
+        /* Log the parsed data (for debugging) */
+        pr_info("Cache device: %s\n", cache_dev);
+        pr_info("Backing device: %s\n", backing_dev);
+        pr_info("Total sectors: %lu\n", sec_nr);
+
+        /* Return success */
         return 0;
 }
 
@@ -37,6 +68,7 @@ static int dm_pcache_clone_and_map_rq(struct dm_target *ti,
 {
         blk_mq_end_request(rq, BLK_STS_OK);
         *clone = NULL;                 /* nothing was dispatched */
+
         return DM_MAPIO_SUBMITTED;
 }
 
