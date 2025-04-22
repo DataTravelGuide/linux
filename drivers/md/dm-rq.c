@@ -553,10 +553,15 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 
 	md->tag_set->cmd_size = sizeof(struct dm_rq_target_io);
 	immutable_tgt = dm_table_get_immutable_target(t);
-	if (immutable_tgt && immutable_tgt->per_io_data_size) {
-		/* any target-specific per-io data is immediately after the tio */
-		md->tag_set->cmd_size += immutable_tgt->per_io_data_size;
-		md->init_tio_pdu = true;
+	if (immutable_tgt) {
+		if (immutable_tgt->per_io_data_size) {
+			/* any target-specific per-io data is immediately after the tio */
+			md->tag_set->cmd_size += immutable_tgt->per_io_data_size;
+			md->init_tio_pdu = true;
+		}
+
+		if (immutable_tgt->nr_hw_queues)
+			md->tag_set->nr_hw_queues = immutable_tgt->nr_hw_queues;
 	}
 
 	err = blk_mq_alloc_tag_set(md->tag_set);
