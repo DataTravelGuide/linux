@@ -8,29 +8,6 @@
 
 #include "cache_dev.h"
 
-static void cache_dev_free(struct pcache_cache_dev *cache_dev)
-{
-	kfree(cache_dev);
-}
-
-static struct pcache_cache_dev *cache_dev_alloc(void)
-{
-	struct pcache_cache_dev *cache_dev;
-	int ret;
-
-	cache_dev = kzalloc(sizeof(struct pcache_cache_dev), GFP_KERNEL);
-	if (!cache_dev)
-		return NULL;
-
-	mutex_init(&cache_dev->seg_lock);
-
-	return cache_dev;
-
-cache_dev_free:
-	kfree(cache_dev);
-	return NULL;
-}
-
 static void cache_dev_dax_exit(struct pcache_cache_dev *cache_dev)
 {
 	if (cache_dev->dax_dev)
@@ -296,10 +273,7 @@ static void __cache_dev_exit(struct pcache_cache_dev *cache_dev)
 int cache_dev_exit(struct pcache_cache_dev *cache_dev)
 {
 	__cache_dev_exit(cache_dev);
-	return 0;
 	cache_dev_dax_exit(cache_dev);
-	cache_dev_free(cache_dev);
-	module_put(THIS_MODULE);
 
 	return 0;
 }
@@ -312,7 +286,6 @@ int cache_dev_init(struct pcache_cache_dev *cache_dev, char *cache_dev_path, cha
 	if (ret)
 		goto cache_dev_free;
 
-	return 0;
 	ret = cache_dev_format(cache_dev);
 	if (ret < 0)
 		goto dax_release;
