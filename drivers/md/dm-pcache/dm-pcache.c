@@ -12,9 +12,11 @@
 #include <linux/blk-mq.h>
 #include <linux/bio.h>  // Required for bio-based targets
 
+#include "cache_dev.h"
+
 /* ------------------------------------------------------------------ */
 struct dm_pcache {
-        const char *cache_dev;
+	struct pcache_cache_dev cache_dev;
         const char *backing_dev;
         unsigned long sec_nr;
 };
@@ -45,7 +47,6 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         cache_dev = argv[0];  // Cache device path
         backing_dev = argv[1];  // Backing device path
 
-        pcache->cache_dev = cache_dev;
         pcache->backing_dev = backing_dev;
 
         ti->per_io_data_size = sizeof(struct pcache_request);
