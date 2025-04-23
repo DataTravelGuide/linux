@@ -36,8 +36,8 @@ struct pcache_cache_dev {
 	unsigned long			*seg_bitmap;
 };
 
-int cache_dev_register(char *cache_dev_path, char *backing_dev_path);
-int cache_dev_unregister(struct pcache_cache_dev *cache_dev);
+int cache_dev_exit(struct pcache_cache_dev *cache_dev);
+int cache_dev_init(struct pcache_cache_dev *cache_dev, char *cache_dev_path, char *backing_dev_path);
 
 void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size);

@@ -56,13 +56,19 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         pr_info("Cache device: %s\n", cache_dev);
         pr_info("Backing device: %s\n", backing_dev);
 
-        /* Return success */
-        return 0;
+	ret = cache_dev_init(&pcache->cache_dev, cache_dev, backing_dev);
+
+	return ret;
 }
 
 static void dm_pcache_dtr(struct dm_target *ti)
 {
-        kfree(ti->private);
+	struct dm_pcache *pcache;
+
+	pcache = ti->private;
+
+	cache_dev_exit(&pcache->cache_dev);
+        kfree(pcache);
 }
 
 /* bio-based fast path – just succeed */

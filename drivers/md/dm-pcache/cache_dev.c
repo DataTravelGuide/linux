@@ -263,7 +263,7 @@ static int sb_validate(struct pcache_cache_dev *cache_dev)
 	return 0;
 }
 
-static int cache_dev_init(struct pcache_cache_dev *cache_dev)
+static int __cache_dev_init(struct pcache_cache_dev *cache_dev)
 {
 	struct pcache_sb *sb;
 	struct device *dev;
@@ -288,14 +288,14 @@ err:
 	return ret;
 }
 
-static void cache_dev_exit(struct pcache_cache_dev *cache_dev)
+static void __cache_dev_exit(struct pcache_cache_dev *cache_dev)
 {
 	bitmap_free(cache_dev->seg_bitmap);
 }
 
-int cache_dev_unregister(struct pcache_cache_dev *cache_dev)
+int cache_dev_exit(struct pcache_cache_dev *cache_dev)
 {
-	cache_dev_exit(cache_dev);
+	__cache_dev_exit(cache_dev);
 	return 0;
 	cache_dev_dax_exit(cache_dev);
 	cache_dev_free(cache_dev);
@@ -304,16 +304,9 @@ int cache_dev_unregister(struct pcache_cache_dev *cache_dev)
 	return 0;
 }
 
-int cache_dev_register(char *cache_dev_path, char *backing_dev_path)
+int cache_dev_init(struct pcache_cache_dev *cache_dev, char *cache_dev_path, char *backing_dev_path)
 {
-	struct pcache_cache_dev *cache_dev;
 	int ret;
-
-	cache_dev = cache_dev_alloc();
-	if (!cache_dev) {
-		ret = -ENOMEM;
-		goto module_put;
-	}
 
 	ret = cache_dev_dax_init(cache_dev, cache_dev_path);
 	if (ret)
@@ -324,7 +317,7 @@ int cache_dev_register(char *cache_dev_path, char *backing_dev_path)
 	if (ret < 0)
 		goto dax_release;
 
-	ret = cache_dev_init(cache_dev);
+	ret = __cache_dev_init(cache_dev);
 	if (ret)
 		goto dax_release;
 
@@ -332,9 +325,6 @@ int cache_dev_register(char *cache_dev_path, char *backing_dev_path)
 dax_release:
 	cache_dev_dax_exit(cache_dev);
 cache_dev_free:
-	cache_dev_free(cache_dev);
-module_put:
-	module_put(THIS_MODULE);
 
 	return ret;
 }
