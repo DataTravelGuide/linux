@@ -140,7 +140,8 @@ struct pcache_cache {
 
 	struct kmem_cache	*req_cache;
 
-	struct pcache_cache_info	*cache_info;
+	struct pcache_cache_info	cache_info;;
+	struct pcache_cache_info	*cache_info_addr;
 
 	u32			state:8;
 
@@ -161,7 +162,6 @@ struct pcache_cache_opts {
 	u64 dev_size;
 	u32 n_paral;
 	struct file *bdev_file;
-	struct pcache_cache_info *cache_info;
 };
 
 struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
@@ -445,7 +445,7 @@ static inline void cache_key_delete(struct pcache_cache_key *key)
 
 static inline bool cache_data_crc_on(struct pcache_cache *cache)
 {
-	return (cache->cache_info->flags & PCACHE_CACHE_FLAGS_DATA_CRC);
+	return (cache->cache_info.flags & PCACHE_CACHE_FLAGS_DATA_CRC);
 }
 
 /**

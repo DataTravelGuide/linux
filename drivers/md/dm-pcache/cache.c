@@ -38,7 +38,7 @@ int cache_pos_decode(struct pcache_cache *cache,
 
 static void cache_info_set_seg_id(struct pcache_cache *cache, u32 seg_id)
 {
-	cache->cache_info->seg_id = seg_id;
+	cache->cache_info.seg_id = seg_id;
 }
 
 static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
@@ -86,60 +86,12 @@ static void cache_free(struct pcache_cache *cache)
 	kvfree(cache);
 }
 
-static void pcache_cache_info_init(struct pcache_cache_opts *opts)
+static void pcache_cache_info_init(struct pcache_cache *cache)
 {
-	struct pcache_cache_info *cache_info = opts->cache_info;
+	struct pcache_cache_info *cache_info = &cache->cache_info;
 
-	cache_info->n_segs = opts->n_segs;
 	cache_info->gc_percent = PCACHE_CACHE_GC_PERCENT_DEFAULT;
-	if (opts->data_crc)
-		cache_info->flags |= PCACHE_CACHE_FLAGS_DATA_CRC;
-}
-
-static int cache_validate(struct pcache_backing_dev *backing_dev,
-			  struct pcache_cache_opts *opts)
-{
-	struct pcache_cache_info *cache_info;
-	int ret = -EINVAL;
-
-	if (opts->n_paral > PCACHE_CACHE_PARAL_MAX) {
-		pcache_err("n_paral too large (max %u).\n",
-			 PCACHE_CACHE_PARAL_MAX);
-		goto err;
-	}
-
-	if (opts->new_cache)
-		pcache_cache_info_init(opts);
-
-	cache_info = opts->cache_info;
-
-	/*
-	 * Check if the number of segments required for the specified n_paral
-	 * exceeds the available segments in the cache. If so, report an error.
-	 */
-	if (opts->n_paral * PCACHE_CACHE_SEGS_EACH_PARAL > cache_info->n_segs) {
-		pcache_err("n_paral %u requires cache size (%llu), more than current (%llu).",
-				opts->n_paral, opts->n_paral * PCACHE_CACHE_SEGS_EACH_PARAL * (u64)PCACHE_SEG_SIZE,
-				cache_info->n_segs * (u64)PCACHE_SEG_SIZE);
-		goto err;
-	}
-
-	if (cache_info->n_segs > backing_dev->cache_dev->seg_num) {
-		pcache_err("too large cache_segs: %u, segment_num: %u\n",
-				cache_info->n_segs, backing_dev->cache_dev->seg_num);
-		goto err;
-	}
-
-	if (cache_info->n_segs > PCACHE_CACHE_SEGS_MAX) {
-		pcache_err("cache_segs: %u larger than PCACHE_CACHE_SEGS_MAX: %u\n",
-				cache_info->n_segs, PCACHE_CACHE_SEGS_MAX);
-		goto err;
-	}
-
-	return 0;
-
-err:
-	return ret;
+	cache_info->flags |= PCACHE_CACHE_FLAGS_DATA_CRC;
 }
 
 static int cache_tail_init(struct pcache_cache *cache, bool new_cache)
@@ -206,7 +158,7 @@ static int get_seg_id(struct pcache_cache *cache,
 			}
 			*seg_id = prev_cache_seg->cache_seg_info.segment_info.next_seg;
 		} else {
-			*seg_id = cache->cache_info->seg_id;
+			*seg_id = cache->cache_info.seg_id;
 		}
 	}
 	return 0;
@@ -217,7 +169,7 @@ err:
 static int cache_segs_init(struct pcache_cache *cache, bool new_cache)
 {
 	struct pcache_cache_segment *prev_cache_seg = NULL;
-	struct pcache_cache_info *cache_info = cache->cache_info;
+	struct pcache_cache_info *cache_info = &cache->cache_info;
 	u32 seg_id;
 	int ret;
 	u32 i;
@@ -331,17 +283,12 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	struct pcache_cache *cache;
 	int ret;
 
-	ret = cache_validate(backing_dev, opts);
-	if (ret)
-		return NULL;
-
 	cache = cache_alloc(backing_dev);
 	if (!cache)
 		return NULL;
 
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
-	cache->cache_info = opts->cache_info;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;
 
 	ret = cache_segs_init(cache, opts->new_cache);

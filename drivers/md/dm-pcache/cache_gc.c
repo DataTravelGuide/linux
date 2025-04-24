@@ -60,7 +60,7 @@ static bool need_gc(struct pcache_cache *cache)
 	}
 
 	segs_used = bitmap_weight(cache->seg_map, cache->n_segs);
-	segs_gc_threshold = cache->n_segs * cache->cache_info->gc_percent / 100;
+	segs_gc_threshold = cache->n_segs * cache->cache_info.gc_percent / 100;
 	if (segs_used < segs_gc_threshold) {
 		pcache_debug("segs_used: %u, segs_gc_threshold: %u\n", segs_used, segs_gc_threshold);
 		return false;

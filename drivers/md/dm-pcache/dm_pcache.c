@@ -15,6 +15,7 @@
 #include "cache_dev.h"
 #include "backing_dev.h"
 #include "dm_pcache.h"
+#include "cache.h"
 
 static void end_req(struct kref *ref)
 {
@@ -74,6 +75,16 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ret = cache_dev_start(pcache, cache_dev_path, backing_dev_path);
 
 	ret = backing_dev_start(pcache, backing_dev_path);
+
+	struct pcache_cache_opts cache_opts = { 0 };
+
+	cache_opts.n_segs = 128;
+	cache_opts.n_paral = 1;
+	cache_opts.new_cache = 1;
+	cache_opts.data_crc = 1;
+	cache_opts.bdev_file = pcache->backing_dev.bdev_file;
+
+	pcache->cache = pcache_cache_alloc(&pcache->backing_dev, &cache_opts);
 
 	return ret;
 }
