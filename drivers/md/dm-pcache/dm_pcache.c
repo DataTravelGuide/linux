@@ -71,7 +71,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         pr_info("Cache device: %s\n", cache_dev_path);
         pr_info("Backing device: %s\n", backing_dev_path);
 
-	ret = cache_dev_init(&pcache->cache_dev, cache_dev_path, backing_dev_path);
+	ret = cache_dev_start(pcache, cache_dev_path, backing_dev_path);
 
 	ret = backing_dev_start(pcache, backing_dev_path);
 
@@ -85,7 +85,7 @@ static void dm_pcache_dtr(struct dm_target *ti)
 	pcache = ti->private;
 
 	backing_dev_stop(pcache);
-	cache_dev_exit(&pcache->cache_dev);
+	cache_dev_stop(pcache);
         kfree(pcache);
 }
 

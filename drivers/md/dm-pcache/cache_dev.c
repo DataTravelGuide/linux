@@ -7,6 +7,8 @@
 #include <linux/parser.h>
 
 #include "cache_dev.h"
+#include "backing_dev.h"
+#include "dm_pcache.h"
 
 static void cache_dev_dax_exit(struct pcache_cache_dev *cache_dev)
 {
@@ -240,7 +242,7 @@ static int sb_validate(struct pcache_cache_dev *cache_dev)
 	return 0;
 }
 
-static int __cache_dev_init(struct pcache_cache_dev *cache_dev)
+static int cache_dev_init(struct pcache_cache_dev *cache_dev)
 {
 	struct pcache_sb *sb;
 	struct device *dev;
@@ -265,21 +267,24 @@ err:
 	return ret;
 }
 
-static void __cache_dev_exit(struct pcache_cache_dev *cache_dev)
+static void cache_dev_exit(struct pcache_cache_dev *cache_dev)
 {
 	bitmap_free(cache_dev->seg_bitmap);
 }
 
-int cache_dev_exit(struct pcache_cache_dev *cache_dev)
+int cache_dev_stop(struct dm_pcache *pcache)
 {
-	__cache_dev_exit(cache_dev);
+	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
+
+	cache_dev_exit(cache_dev);
 	cache_dev_dax_exit(cache_dev);
 
 	return 0;
 }
 
-int cache_dev_init(struct pcache_cache_dev *cache_dev, char *cache_dev_path, char *backing_dev_path)
+int cache_dev_start(struct dm_pcache *pcache, char *cache_dev_path, char *backing_dev_path)
 {
+	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	int ret;
 
 	ret = cache_dev_dax_init(cache_dev, cache_dev_path);
@@ -290,7 +295,7 @@ int cache_dev_init(struct pcache_cache_dev *cache_dev, char *cache_dev_path, cha
 	if (ret < 0)
 		goto dax_release;
 
-	ret = __cache_dev_init(cache_dev);
+	ret = cache_dev_init(cache_dev);
 	if (ret)
 		goto dax_release;
 
