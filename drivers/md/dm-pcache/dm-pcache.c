@@ -14,14 +14,37 @@
 
 #include "cache_dev.h"
 
+static void end_req(struct kref *ref)
+{
+	struct pcache_request *pcache_req = container_of(ref, struct pcache_request, ref);
+	struct bio *bio = pcache_req->bio;
+	int ret = pcache_req->ret;
+
+	if (bio) {
+		bio->bi_status = -EBUSY;
+		bio_endio(bio);
+	}
+}
+
+void pcache_req_get(struct pcache_request *pcache_req)
+{
+	kref_get(&pcache_req->ref);
+}
+
+void pcache_req_put(struct pcache_request *pcache_req, int ret)
+{
+	/* Set the return status if it is not already set */
+	if (ret && !pcache_req->ret)
+		pcache_req->ret = ret;
+
+	kref_put(&pcache_req->ref, end_req);
+}
+
 /* ------------------------------------------------------------------ */
 struct dm_pcache {
 	struct pcache_cache_dev cache_dev;
         const char *backing_dev;
         unsigned long sec_nr;
-};
-
-struct pcache_request {
 };
 
 /* ---------------- target callbacks -------------------------------- */

@@ -27,13 +27,10 @@ struct pcache_queue {
 };
 
 struct pcache_request {
-	struct pcache_queue	*queue;
-	struct request		*req;
+	struct bio		*bio;
 
 	u64			off;
 	u32			data_len;
-
-	u8			op;
 
 	struct kref		ref;
 	int			ret;
