@@ -289,6 +289,7 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	if (!cache)
 		return NULL;
 
+	backing_dev->cache = cache;
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;

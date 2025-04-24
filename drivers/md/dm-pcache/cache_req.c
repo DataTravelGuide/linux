@@ -177,6 +177,7 @@ unlock:
 		cache_key_put(key);
 	}
 
+	pr_err("put pcache_req: %p, ref: %u", pcache_req, kref_read(&pcache_req->ref));
 	pcache_req_put(pcache_req, ret);
 }
 

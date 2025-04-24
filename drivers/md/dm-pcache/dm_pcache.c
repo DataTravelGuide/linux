@@ -84,6 +84,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	cache_opts.n_paral = 1;
 	cache_opts.new_cache = 1;
 	cache_opts.data_crc = 1;
+	cache_opts.dev_size = pcache->backing_dev.dev_size;
 	cache_opts.bdev_file = pcache->backing_dev.bdev_file;
 
 	pcache->cache = pcache_cache_alloc(&pcache->backing_dev, &cache_opts);
@@ -105,8 +106,22 @@ static void dm_pcache_dtr(struct dm_target *ti)
 /* bio-based fast path – just succeed */
 static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 {
-        /* We simply complete the bio without doing any actual I/O */
-        bio_endio(bio);  // Correct way to complete bio with success status
+	struct dm_pcache *pcache = ti->private;
+	struct pcache_request *pcache_req = dm_per_bio_data(bio, sizeof(struct pcache_request));
+	int ret;
+
+	pcache_req->bio = bio;
+	pcache_req->off = (u64)bio->bi_iter.bi_sector << 9;
+	pcache_req->data_len = (u64)bio_sectors(bio) << 9;
+	kref_init(&pcache_req->ref);
+	pcache_req->ret = 0;
+	ret = pcache_cache_handle_req(pcache->cache, pcache_req);
+
+	pcache_req_put(pcache_req, ret);
+	if (ret) {
+		return DM_MAPIO_KILL;
+	}
+	
         return DM_MAPIO_SUBMITTED;
 }
 
