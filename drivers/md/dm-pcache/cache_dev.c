@@ -199,7 +199,6 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 	}
 
 	nr_segs = (cache_dev_size - PCACHE_SEGMENTS_OFF) / ((PCACHE_SEG_SIZE));
-	nr_segs = 128;
 
 	sb->version = cpu_to_le16(PCACHE_VERSION);
 

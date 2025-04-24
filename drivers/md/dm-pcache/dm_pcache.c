@@ -80,10 +80,10 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	struct pcache_cache_opts cache_opts = { 0 };
 
-	cache_opts.n_segs = 128;
-	cache_opts.n_paral = 1;
+	cache_opts.n_segs = pcache->cache_dev.seg_num;
+	cache_opts.n_paral = 32;
 	cache_opts.new_cache = 1;
-	cache_opts.data_crc = 1;
+	cache_opts.data_crc = 0;
 	cache_opts.dev_size = pcache->backing_dev.dev_size;
 	cache_opts.bdev_file = pcache->backing_dev.bdev_file;
 
@@ -98,6 +98,7 @@ static void dm_pcache_dtr(struct dm_target *ti)
 
 	pcache = ti->private;
 
+	pcache_cache_destroy(pcache->cache);
 	backing_dev_stop(pcache);
 	cache_dev_stop(pcache);
         kfree(pcache);
