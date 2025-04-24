@@ -4,7 +4,7 @@
 #include "pcache_internal.h"
 #include "cache_dev.h"
 #include "backing_dev.h"
-#include "dm-pcache.h"
+#include "dm_pcache.h"
 
 static void backing_dev_free(struct pcache_backing_dev *backing_dev)
 {

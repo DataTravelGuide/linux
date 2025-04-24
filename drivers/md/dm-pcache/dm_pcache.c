@@ -14,7 +14,7 @@
 
 #include "cache_dev.h"
 #include "backing_dev.h"
-#include "dm-pcache.h"
+#include "dm_pcache.h"
 
 static void end_req(struct kref *ref)
 {
