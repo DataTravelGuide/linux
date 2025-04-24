@@ -6,7 +6,7 @@
 #include "backing_dev.h"
 #include "dm_pcache.h"
 
-static void backing_dev_free(struct pcache_backing_dev *backing_dev)
+static void backing_dev_destroy(struct pcache_backing_dev *backing_dev)
 {
 	drain_workqueue(backing_dev->task_wq);
 	destroy_workqueue(backing_dev->task_wq);
@@ -16,13 +16,9 @@ static void backing_dev_free(struct pcache_backing_dev *backing_dev)
 
 static void req_submit_fn(struct work_struct *work);
 static void req_complete_fn(struct work_struct *work);
-static struct pcache_backing_dev *backing_dev_alloc(struct dm_pcache *pcache)
+static struct pcache_backing_dev *backing_dev_init(struct dm_pcache *pcache)
 {
-	struct pcache_backing_dev *backing_dev;
-
-	backing_dev = kzalloc(sizeof(struct pcache_backing_dev), GFP_KERNEL);
-	if (!backing_dev)
-		return NULL;
+	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 
 	backing_dev->backing_req_cache = KMEM_CACHE(pcache_backing_dev_req, 0);
 	if (!backing_dev->backing_req_cache)
@@ -51,7 +47,7 @@ free_backing_dev:
 	return NULL;
 }
 
-static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path)
+static int backing_dev_open(struct pcache_backing_dev *backing_dev, char *path)
 {
 	struct pcache_cache_dev *cache_dev = backing_dev->cache_dev;
 	bool new_backing;
@@ -82,7 +78,7 @@ err:
 	return ret;
 }
 
-static int backing_dev_destroy(struct pcache_backing_dev *backing_dev)
+static int backing_dev_close(struct pcache_backing_dev *backing_dev)
 {
 	bioset_exit(&backing_dev->bioset);
 	fput(backing_dev->bdev_file);
@@ -99,26 +95,26 @@ int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path)
 	if (strncmp(backing_dev_path, "/dev/", 5) != 0)
 		return -EINVAL;
 
-	backing_dev = backing_dev_alloc(pcache);
+	backing_dev = backing_dev_init(pcache);
 	if (!backing_dev)
 		return -ENOMEM;
 
-	ret = backing_dev_init(backing_dev, backing_dev_path);
+	ret = backing_dev_open(backing_dev, backing_dev_path);
 	if (ret)
 		goto destroy_backing_dev;
 
 	return 0;
 
 destroy_backing_dev:
-	backing_dev_free(backing_dev);
+	backing_dev_destroy(backing_dev);
 
 	return ret;
 }
 
 int backing_dev_stop(struct pcache_backing_dev *backing_dev)
 {
+	backing_dev_close(backing_dev);
 	backing_dev_destroy(backing_dev);
-	backing_dev_free(backing_dev);
 
 	return 0;
 }

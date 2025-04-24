@@ -73,7 +73,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ret = cache_dev_init(&pcache->cache_dev, cache_dev_path, backing_dev_path);
 
-	pcache->backing_dev = backing_dev_start(pcache, backing_dev_path);
+	ret = backing_dev_start(pcache, backing_dev_path);
 
 	return ret;
 }
