@@ -45,6 +45,8 @@ static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
 {
 	struct pcache_cache *cache;
 
+	backing_dev->cache_segs = 128;
+
 	cache = kvzalloc(struct_size(cache, segments, backing_dev->cache_segs), GFP_KERNEL);
 	if (!cache)
 		goto err;
@@ -290,6 +292,9 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;
+
+	cache->cache_info.n_segs = 128;
+	cache->cache_info.gc_percent = PCACHE_CACHE_GC_PERCENT_DEFAULT;
 
 	ret = cache_segs_init(cache, opts->new_cache);
 	if (ret)

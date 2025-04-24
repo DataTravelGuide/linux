@@ -74,6 +74,8 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ret = cache_dev_start(pcache, cache_dev_path, backing_dev_path);
 
+	pr_err("ret of dev_start: %d", ret);
+
 	ret = backing_dev_start(pcache, backing_dev_path);
 
 	struct pcache_cache_opts cache_opts = { 0 };

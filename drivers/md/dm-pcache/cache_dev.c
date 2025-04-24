@@ -188,7 +188,7 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 	u16 flags = 0;
 
 	magic = le64_to_cpu(sb->magic);
-	if (magic)
+	if (false && magic)
 		return -EEXIST;
 
 	cache_dev_size = bdev_nr_bytes(file_bdev(cache_dev->bdev_file));
@@ -199,6 +199,7 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 	}
 
 	nr_segs = (cache_dev_size - PCACHE_SEGMENTS_OFF) / ((PCACHE_SEG_SIZE));
+	nr_segs = 128;
 
 	sb->version = cpu_to_le16(PCACHE_VERSION);
 
@@ -255,6 +256,7 @@ static int cache_dev_init(struct pcache_cache_dev *cache_dev)
 	sb = cache_dev->sb_addr;
 	cache_dev->seg_num = le64_to_cpu(sb->seg_num);
 
+	pr_err("seg_num: %u", cache_dev->seg_num);
 	cache_dev->seg_bitmap = bitmap_zalloc(cache_dev->seg_num, GFP_KERNEL);
 	if (!cache_dev->seg_bitmap)
 		goto err;
@@ -287,23 +289,30 @@ int cache_dev_start(struct dm_pcache *pcache, char *cache_dev_path, char *backin
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	int ret;
 
+	mutex_init(&cache_dev->seg_lock);
+
 	ret = cache_dev_dax_init(cache_dev, cache_dev_path);
 	if (ret)
 		goto cache_dev_free;
 
+	pr_err("after dax init");
 	ret = cache_dev_format(cache_dev);
 	if (ret < 0)
 		goto dax_release;
 
+	pr_err("after format");
 	ret = cache_dev_init(cache_dev);
 	if (ret)
 		goto dax_release;
+
+	pr_err("seg_num after start: %u", cache_dev->seg_num);
 
 	return 0;
 dax_release:
 	cache_dev_dax_exit(cache_dev);
 cache_dev_free:
 
+	pr_err("failed to start cache_dev\ %dn", ret);
 	return ret;
 }
 
@@ -311,6 +320,7 @@ int cache_dev_get_empty_segment_id(struct pcache_cache_dev *cache_dev, u32 *seg_
 {
 	int ret;
 
+	pr_err("seg_num: %u", cache_dev->seg_num);
 	mutex_lock(&cache_dev->seg_lock);
 	*seg_id = find_next_zero_bit(cache_dev->seg_bitmap, cache_dev->seg_num, 0);
 	if (*seg_id == cache_dev->seg_num) {
