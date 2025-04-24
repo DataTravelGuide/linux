@@ -84,6 +84,7 @@ static void dm_pcache_dtr(struct dm_target *ti)
 
 	pcache = ti->private;
 
+	backing_dev_stop(pcache);
 	cache_dev_exit(&pcache->cache_dev);
         kfree(pcache);
 }

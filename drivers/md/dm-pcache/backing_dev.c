@@ -111,8 +111,10 @@ destroy_backing_dev:
 	return ret;
 }
 
-int backing_dev_stop(struct pcache_backing_dev *backing_dev)
+int backing_dev_stop(struct dm_pcache *pcache)
 {
+	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
+
 	backing_dev_close(backing_dev);
 	backing_dev_destroy(backing_dev);
 
