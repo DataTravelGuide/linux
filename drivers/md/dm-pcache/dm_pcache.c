@@ -121,11 +121,9 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	if (ret) {
 		return DM_MAPIO_KILL;
 	}
-	
+
         return DM_MAPIO_SUBMITTED;
 }
-
-static int dm_pcache_busy(struct dm_target *ti) { return 0; }
 
 static void dm_pcache_status(struct dm_target *ti, status_type_t type,
                              unsigned int status_flags, char *result,
@@ -148,7 +146,6 @@ static struct target_type dm_pcache_target = {
         .ctr              = dm_pcache_ctr,
         .dtr              = dm_pcache_dtr,
         .map 	         = dm_pcache_map_bio,  // Updated to map_bio for bio-based targets
-        .busy             = dm_pcache_busy,
         .status           = dm_pcache_status,
         .message          = dm_pcache_message,
 };
