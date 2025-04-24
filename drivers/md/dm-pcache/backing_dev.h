@@ -26,8 +26,8 @@ struct pcache_backing_dev_req {
 	int				ret;
 };
 
-struct pcache_logic_dev;
 struct pcache_backing_dev {
+	struct pcache_cache		*cache;
 	struct pcache_cache_dev		*cache_dev;
 	spinlock_t			lock;
 
