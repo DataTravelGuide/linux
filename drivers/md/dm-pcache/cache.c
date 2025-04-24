@@ -103,7 +103,7 @@ static int cache_validate(struct pcache_backing_dev *backing_dev,
 	int ret = -EINVAL;
 
 	if (opts->n_paral > PCACHE_CACHE_PARAL_MAX) {
-		backing_dev_err(backing_dev, "n_paral too large (max %u).\n",
+		pcache_err("n_paral too large (max %u).\n",
 			 PCACHE_CACHE_PARAL_MAX);
 		goto err;
 	}
@@ -118,20 +118,20 @@ static int cache_validate(struct pcache_backing_dev *backing_dev,
 	 * exceeds the available segments in the cache. If so, report an error.
 	 */
 	if (opts->n_paral * PCACHE_CACHE_SEGS_EACH_PARAL > cache_info->n_segs) {
-		backing_dev_err(backing_dev, "n_paral %u requires cache size (%llu), more than current (%llu).",
+		pcache_err("n_paral %u requires cache size (%llu), more than current (%llu).",
 				opts->n_paral, opts->n_paral * PCACHE_CACHE_SEGS_EACH_PARAL * (u64)PCACHE_SEG_SIZE,
 				cache_info->n_segs * (u64)PCACHE_SEG_SIZE);
 		goto err;
 	}
 
 	if (cache_info->n_segs > backing_dev->cache_dev->seg_num) {
-		backing_dev_err(backing_dev, "too large cache_segs: %u, segment_num: %u\n",
+		pcache_err("too large cache_segs: %u, segment_num: %u\n",
 				cache_info->n_segs, backing_dev->cache_dev->seg_num);
 		goto err;
 	}
 
 	if (cache_info->n_segs > PCACHE_CACHE_SEGS_MAX) {
-		backing_dev_err(backing_dev, "cache_segs: %u larger than PCACHE_CACHE_SEGS_MAX: %u\n",
+		pcache_err("cache_segs: %u larger than PCACHE_CACHE_SEGS_MAX: %u\n",
 				cache_info->n_segs, PCACHE_CACHE_SEGS_MAX);
 		goto err;
 	}
@@ -158,7 +158,7 @@ static int cache_tail_init(struct pcache_cache *cache, bool new_cache)
 		cache_encode_key_tail(cache);
 	} else {
 		if (cache_decode_key_tail(cache) || cache_decode_dirty_tail(cache)) {
-			backing_dev_err(cache->backing_dev, "Corrupted key tail or dirty tail.\n");
+			pcache_err("Corrupted key tail or dirty tail.\n");
 			ret = -EIO;
 			goto err;
 		}
@@ -187,7 +187,7 @@ static int get_seg_id(struct pcache_cache *cache,
 	if (new_cache) {
 		ret = cache_dev_get_empty_segment_id(cache_dev, seg_id);
 		if (ret) {
-			backing_dev_err(backing_dev, "no available segment\n");
+			pcache_err("no available segment\n");
 			goto err;
 		}
 
@@ -294,7 +294,7 @@ static int cache_init_req_keys(struct pcache_cache *cache, u32 n_paral)
 	 */
 	ret = cache_replay(cache);
 	if (ret) {
-		backing_dev_err(cache->backing_dev, "failed to replay keys\n");
+		pcache_err("failed to replay keys\n");
 		goto free_heads;
 	}
 

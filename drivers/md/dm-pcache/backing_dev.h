@@ -47,6 +47,7 @@ struct pcache_backing_dev {
 	struct work_struct		req_complete_work;
 
 	u64				dev_size;
+	u32				cache_segs;
 };
 
 struct pcache_backing_dev_opts {
