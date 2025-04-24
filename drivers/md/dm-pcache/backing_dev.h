@@ -57,7 +57,8 @@ struct pcache_backing_dev_opts {
 	bool data_crc;
 };
 
-int backing_dev_start(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev_opts *backing_opts);
+struct dm_pcache;
+int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path);
 int backing_dev_stop(struct pcache_backing_dev *backing_dev);
 
 void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req);

@@ -4,6 +4,7 @@
 #include "pcache_internal.h"
 #include "cache_dev.h"
 #include "backing_dev.h"
+#include "dm-pcache.h"
 
 static void backing_dev_free(struct pcache_backing_dev *backing_dev)
 {
@@ -15,7 +16,7 @@ static void backing_dev_free(struct pcache_backing_dev *backing_dev)
 
 static void req_submit_fn(struct work_struct *work);
 static void req_complete_fn(struct work_struct *work);
-static struct pcache_backing_dev *backing_dev_alloc(struct pcache_cache_dev *cache_dev)
+static struct pcache_backing_dev *backing_dev_alloc(struct dm_pcache *pcache)
 {
 	struct pcache_backing_dev *backing_dev;
 
@@ -31,7 +32,7 @@ static struct pcache_backing_dev *backing_dev_alloc(struct pcache_cache_dev *cac
 	if (!backing_dev->task_wq)
 		goto destroy_io_cache;
 
-	backing_dev->cache_dev = cache_dev;
+	backing_dev->cache_dev = &pcache->cache_dev;
 
 	INIT_LIST_HEAD(&backing_dev->submit_list);
 	INIT_LIST_HEAD(&backing_dev->complete_list);
@@ -50,13 +51,13 @@ free_backing_dev:
 	return NULL;
 }
 
-static int backing_dev_init(struct pcache_backing_dev *backing_dev, struct pcache_backing_dev_opts *backing_opts)
+static int backing_dev_init(struct pcache_backing_dev *backing_dev, char *path)
 {
 	struct pcache_cache_dev *cache_dev = backing_dev->cache_dev;
 	bool new_backing;
 	int ret;
 
-	backing_dev->bdev_file = bdev_file_open_by_path(backing_opts->path,
+	backing_dev->bdev_file = bdev_file_open_by_path(path,
 			BLK_OPEN_READ | BLK_OPEN_WRITE, backing_dev, NULL);
 	if (IS_ERR(backing_dev->bdev_file)) {
 		pcache_err("failed to open bdev: %d", (int)PTR_ERR(backing_dev->bdev_file));
@@ -89,20 +90,20 @@ static int backing_dev_destroy(struct pcache_backing_dev *backing_dev)
 	return 0;
 }
 
-int backing_dev_start(struct pcache_cache_dev *cache_dev, struct pcache_backing_dev_opts *backing_opts)
+int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path)
 {
 	struct pcache_backing_dev *backing_dev;
 	int ret;
 
 	/* Check if path starts with "/dev/" */
-	if (strncmp(backing_opts->path, "/dev/", 5) != 0)
+	if (strncmp(backing_dev_path, "/dev/", 5) != 0)
 		return -EINVAL;
 
-	backing_dev = backing_dev_alloc(cache_dev);
+	backing_dev = backing_dev_alloc(pcache);
 	if (!backing_dev)
 		return -ENOMEM;
 
-	ret = backing_dev_init(backing_dev, backing_opts);
+	ret = backing_dev_init(backing_dev, backing_dev_path);
 	if (ret)
 		goto destroy_backing_dev;
 

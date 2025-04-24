@@ -13,6 +13,8 @@
 #include <linux/bio.h>  // Required for bio-based targets
 
 #include "cache_dev.h"
+#include "backing_dev.h"
+#include "dm-pcache.h"
 
 static void end_req(struct kref *ref)
 {
@@ -21,7 +23,7 @@ static void end_req(struct kref *ref)
 	int ret = pcache_req->ret;
 
 	if (bio) {
-		bio->bi_status = -EBUSY;
+		bio->bi_status = ret;
 		bio_endio(bio);
 	}
 }
@@ -40,20 +42,12 @@ void pcache_req_put(struct pcache_request *pcache_req, int ret)
 	kref_put(&pcache_req->ref, end_req);
 }
 
-/* ------------------------------------------------------------------ */
-struct dm_pcache {
-	struct pcache_cache_dev cache_dev;
-        const char *backing_dev;
-        unsigned long sec_nr;
-};
-
 /* ---------------- target callbacks -------------------------------- */
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
         struct dm_pcache *pcache;
-        const char *cache_dev, *backing_dev;
+        const char *cache_dev_path, *backing_dev_path;
         int ret;
-        dump_stack();
 
         /* Check if we have the right number of arguments */
         if (argc != 2) {
@@ -67,19 +61,19 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         if (!pcache)
                 return -ENOMEM;
 
-        cache_dev = argv[0];  // Cache device path
-        backing_dev = argv[1];  // Backing device path
-
-        pcache->backing_dev = backing_dev;
+        cache_dev_path = argv[0];  // Cache device path
+        backing_dev_path = argv[1];  // Backing device path
 
         ti->per_io_data_size = sizeof(struct pcache_request);
         ti->private = pcache;
 
         /* Log the parsed data (for debugging) */
-        pr_info("Cache device: %s\n", cache_dev);
-        pr_info("Backing device: %s\n", backing_dev);
+        pr_info("Cache device: %s\n", cache_dev_path);
+        pr_info("Backing device: %s\n", backing_dev_path);
 
-	ret = cache_dev_init(&pcache->cache_dev, cache_dev, backing_dev);
+	ret = cache_dev_init(&pcache->cache_dev, cache_dev_path, backing_dev_path);
+
+	pcache->backing_dev = backing_dev_start(pcache, backing_dev_path);
 
 	return ret;
 }
