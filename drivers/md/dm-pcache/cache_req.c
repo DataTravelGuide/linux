@@ -41,9 +41,8 @@ static int cache_data_alloc(struct pcache_cache *cache, struct pcache_cache_key 
 	u32 allocated = 0, to_alloc;
 	int ret = 0;
 
+	preempt_disable();
 	data_head = get_data_head(cache, head_index);
-
-	spin_lock(&data_head->data_head_lock);
 again:
 	if (!data_head->head_pos.cache_seg) {
 		seg_remain = 0;
@@ -82,7 +81,7 @@ again:
 	}
 
 out:
-	spin_unlock(&data_head->data_head_lock);
+	preempt_enable();
 
 	return ret;
 }
@@ -155,7 +154,7 @@ static void miss_read_end_req(struct pcache_backing_dev_req *backing_req, int re
 			}
 
 			/* Allocate cache space for the key and copy data from the backing_dev. */
-			ret = cache_data_alloc(cache, key, 0);
+			ret = cache_data_alloc(cache, key, raw_smp_processor_id());
 			if (ret) {
 				cache_key_delete(key);
 				goto unlock;
@@ -712,7 +711,7 @@ static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache
 		if (key->len > PCACHE_CACHE_SUBTREE_SIZE - (key->off & PCACHE_CACHE_SUBTREE_SIZE_MASK))
 			key->len = PCACHE_CACHE_SUBTREE_SIZE - (key->off & PCACHE_CACHE_SUBTREE_SIZE_MASK);
 
-		ret = cache_data_alloc(cache, key, 0);
+		ret = cache_data_alloc(cache, key, raw_smp_processor_id());
 		if (ret) {
 			cache_key_put(key);
 			goto err;

@@ -197,7 +197,7 @@ static int cache_init_req_keys(struct pcache_cache *cache, u32 n_paral)
 {
 	u32 n_subtrees;
 	int ret;
-	u32 i;
+	u32 i, cpu;
 
 	/* Calculate number of cache trees based on the device size */
 	n_subtrees = DIV_ROUND_UP(cache->dev_size << SECTOR_SHIFT, PCACHE_CACHE_SUBTREE_SIZE);
@@ -226,17 +226,16 @@ static int cache_init_req_keys(struct pcache_cache *cache, u32 n_paral)
 		INIT_DELAYED_WORK(&kset->flush_work, kset_flush_fn);
 	}
 
-	cache->n_heads = n_paral;
-	cache->data_heads = kcalloc(cache->n_heads, sizeof(struct pcache_cache_data_head), GFP_KERNEL);
+	cache->data_heads = alloc_percpu(struct pcache_cache_data_head);
 	if (!cache->data_heads) {
 		ret = -ENOMEM;
 		goto free_kset;
 	}
 
-	for (i = 0; i < cache->n_heads; i++) {
-		struct pcache_cache_data_head *data_head = &cache->data_heads[i];
-
-		spin_lock_init(&data_head->data_head_lock);
+	for_each_possible_cpu(cpu) {
+		struct pcache_cache_data_head *h =
+			per_cpu_ptr(cache->data_heads, cpu);
+		h->head_pos.cache_seg = NULL;
 	}
 
 	/*
@@ -253,7 +252,7 @@ static int cache_init_req_keys(struct pcache_cache *cache, u32 n_paral)
 	return 0;
 
 free_heads:
-	kfree(cache->data_heads);
+	free_percpu(cache->data_heads);
 free_kset:
 	kfree(cache->ksets);
 req_tree_exit:
@@ -272,7 +271,7 @@ static void cache_destroy_req_keys(struct pcache_cache *cache)
 		cancel_delayed_work_sync(&kset->flush_work);
 	}
 
-	kfree(cache->data_heads);
+	free_percpu(cache->data_heads);
 	kfree(cache->ksets);
 	cache_tree_exit(&cache->req_key_tree);
 }

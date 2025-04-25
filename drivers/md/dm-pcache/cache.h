@@ -116,8 +116,7 @@ struct pcache_cache {
 	struct pcache_backing_dev	*backing_dev;
 	struct pcache_cache_ctrl	*cache_ctrl;
 
-	u32			n_heads;
-	struct pcache_cache_data_head *data_heads;
+	struct pcache_cache_data_head __percpu *data_heads;
 
 	spinlock_t		key_head_lock;
 	struct pcache_cache_pos	key_head;
@@ -179,7 +178,6 @@ struct pcache_cache_ctrl {
 };
 
 struct pcache_cache_data_head {
-	spinlock_t data_head_lock;
 	struct pcache_cache_pos head_pos;
 };
 
@@ -368,7 +366,7 @@ static inline struct pcache_cache_kset *get_kset(struct pcache_cache *cache, u32
 
 static inline struct pcache_cache_data_head *get_data_head(struct pcache_cache *cache, u32 i)
 {
-	return &cache->data_heads[i % cache->n_heads];
+	return this_cpu_ptr(cache->data_heads);;
 }
 
 static inline bool cache_key_empty(struct pcache_cache_key *key)

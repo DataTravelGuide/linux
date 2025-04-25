@@ -81,7 +81,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	struct pcache_cache_opts cache_opts = { 0 };
 
 	cache_opts.n_segs = pcache->cache_dev.seg_num;
-	cache_opts.n_paral = 32;
+	cache_opts.n_paral = num_online_cpus();
 	cache_opts.new_cache = 1;
 	cache_opts.data_crc = 0;
 	cache_opts.dev_size = pcache->backing_dev.dev_size;
