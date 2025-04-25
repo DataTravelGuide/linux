@@ -53,7 +53,7 @@ struct pcache_segment {
 	struct pcache_segment_info	*seg_info;
 };
 
-void segment_copy_to_bio(struct pcache_segment *segment,
+int segment_copy_to_bio(struct pcache_segment *segment,
 		      u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void segment_copy_from_bio(struct pcache_segment *segment,
 			u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
