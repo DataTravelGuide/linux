@@ -53,12 +53,12 @@ struct pcache_segment {
 	struct pcache_segment_info	*seg_info;
 };
 
-int segment_copy_to_bio(struct pcache_segment *segment,
+void segment_copy_to_bio(struct pcache_segment *segment,
 		      u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void segment_copy_from_bio(struct pcache_segment *segment,
 			u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
-int segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len);
-int pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
+void segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len);
+void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
 		      struct pcache_segment_init_options *options);
 
 void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct pcache_segment_info *seg_info, u32 seg_id);

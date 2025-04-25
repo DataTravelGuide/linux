@@ -71,8 +71,6 @@ static int backing_dev_open(struct pcache_backing_dev *backing_dev, char *path)
 
 	return 0;
 
-bioset_exit:
-	bioset_exit(&backing_dev->bioset);
 close_bdev:
 	fput(backing_dev->bdev_file);
 err:
@@ -153,7 +151,6 @@ static int map_bio_pages(struct bio *bio, struct bio *src_bio, u32 req_off, u32 
 	struct bvec_iter src_iter;
 	size_t mapped = 0, offset = 0;
 
-next_bio:
 	bio_for_each_segment(src_bvec, src_bio, src_iter) {
 		struct page *page = src_bvec.bv_page;
 		size_t page_off = src_bvec.bv_offset;
@@ -178,11 +175,6 @@ next_bio:
 
 		offset += page_len;
 	}
-
-	if (src_bio->bi_next) {
-		src_bio = src_bio->bi_next;
-		goto next_bio;
-	}
 out:
 	return 0;
 }
@@ -191,7 +183,6 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 			u32 off, u32 len, backing_req_end_fn_t end_req)
 {
 	struct pcache_backing_dev_req *backing_req;
-	u32 mapped_len = 0;
 	struct bio *bio;
 
 	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, GFP_ATOMIC);
@@ -203,7 +194,7 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 	kref_init(&backing_req->ref);
 	backing_req->end_req = end_req;
 	backing_req->bio_off = off;
-next_bio:
+
 	bio = bio_alloc_bioset(backing_dev->bdev,
 					BIO_MAX_VECS,
 					bio_op(pcache_req->bio),
@@ -211,20 +202,15 @@ next_bio:
 	if (!bio)
 		goto free_backing_req;
 
-	bio->bi_iter.bi_sector = (pcache_req->off + off + mapped_len) >> SECTOR_SHIFT;
+	bio->bi_iter.bi_sector = (pcache_req->off + off) >> SECTOR_SHIFT;
 	bio->bi_iter.bi_size = 0;
 	bio->bi_private = backing_req;
 	bio->bi_end_io = backing_dev_bio_end;
 	kref_get(&backing_req->ref);
 
-	if (backing_req->bio)
-		bio->bi_next = backing_req->bio;
 	backing_req->bio = bio;
 
-	map_bio_pages(bio, pcache_req->bio, off + mapped_len, len - mapped_len);
-	mapped_len += bio->bi_iter.bi_size;
-	if (mapped_len < len)
-		goto next_bio;
+	map_bio_pages(bio, pcache_req->bio, off, len);
 
 	pcache_req_get(pcache_req);
 	backing_req->upper_req = pcache_req;
@@ -232,11 +218,9 @@ next_bio:
 	return backing_req;
 
 free_backing_req:
-	while (backing_req->bio) {
-		bio = backing_req->bio;
-		backing_req->bio = bio->bi_next;
-		bio_put(bio);
-	}
+	if (backing_req->bio)
+		bio_put(backing_req->bio);
+
 	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
 
 	return NULL;
@@ -257,12 +241,7 @@ static void req_submit_fn(struct work_struct *work)
 		backing_req = list_first_entry(&tmp_list,
 					    struct pcache_backing_dev_req, node);
 		list_del_init(&backing_req->node);
-		while (backing_req->bio) {
-			struct bio *bio = backing_req->bio;
-
-			backing_req->bio = bio->bi_next;
-			submit_bio_noacct(bio);
-		}
+		submit_bio_noacct(backing_req->bio);
 
 		local_irq_save(flags);
 		kref_put(&backing_req->ref, end_req);

@@ -5,7 +5,7 @@
 #include "cache_dev.h"
 #include "segment.h"
 
-int segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
+void segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
 {
 	u32 to_advance;
 
@@ -19,11 +19,9 @@ int segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
 
 		len -= to_advance;
 	}
-
-	return 0;
 }
 
-int segment_copy_to_bio(struct pcache_segment *segment,
+void segment_copy_to_bio(struct pcache_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
 	struct bio_vec bv;
@@ -32,7 +30,7 @@ int segment_copy_to_bio(struct pcache_segment *segment,
 	u32 to_copy, page_off = 0;
 	struct pcache_segment_pos pos = { .segment = segment,
 				   .off = data_off };
-next:
+
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
 			bio_off -= bv.bv_len;
@@ -60,7 +58,7 @@ again:
 		data_len -= to_copy;
 		if (!data_len) {
 			kunmap_local(dst);
-			return 0;
+			return;
 		}
 
 		/* more data in this bv page */
@@ -68,13 +66,6 @@ again:
 			goto again;
 		kunmap_local(dst);
 	}
-
-	if (bio->bi_next) {
-		bio = bio->bi_next;
-		goto next;
-	}
-
-	return 0;
 }
 
 void segment_copy_from_bio(struct pcache_segment *segment,
@@ -86,7 +77,7 @@ void segment_copy_from_bio(struct pcache_segment *segment,
 	u32 to_copy, page_off = 0;
 	struct pcache_segment_pos pos = { .segment = segment,
 				   .off = data_off };
-next:
+
 	bio_for_each_segment(bv, bio, iter) {
 		if (bio_off > bv.bv_len) {
 			bio_off -= bv.bv_len;
@@ -122,14 +113,9 @@ again:
 			goto again;
 		kunmap_local(src);
 	}
-
-	if (bio->bi_next) {
-		bio = bio->bi_next;
-		goto next;
-	}
 }
 
-int pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
+void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
 		      struct pcache_segment_init_options *options)
 {
 	segment->seg_info = options->seg_info;
@@ -142,8 +128,6 @@ int pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segmen
 	segment->cache_dev = cache_dev;
 	segment->data_size = PCACHE_SEG_SIZE - options->data_off;
 	segment->data = CACHE_DEV_SEGMENT(cache_dev, options->seg_id) + options->data_off;
-
-	return 0;
 }
 
 void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct pcache_segment_info *seg_info, u32 seg_id)

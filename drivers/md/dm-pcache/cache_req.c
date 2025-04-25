@@ -102,7 +102,6 @@ static int cache_copy_to_req_bio(struct pcache_cache *cache, struct pcache_reque
 {
 	struct pcache_cache_segment *cache_seg = pos->cache_seg;
 	struct pcache_segment *segment = &cache_seg->segment;
-	int ret;
 
 	spin_lock(&cache_seg->gen_lock);
 	if (key_gen < cache_seg->gen) {
@@ -110,10 +109,10 @@ static int cache_copy_to_req_bio(struct pcache_cache *cache, struct pcache_reque
 		return -EINVAL;
 	}
 
-	ret = segment_copy_to_bio(segment, pos->seg_off, len, pcache_req->bio, bio_off);
+	segment_copy_to_bio(segment, pos->seg_off, len, pcache_req->bio, bio_off);
 	spin_unlock(&cache_seg->gen_lock);
 
-	return ret;
+	return 0;
 }
 
 /**
