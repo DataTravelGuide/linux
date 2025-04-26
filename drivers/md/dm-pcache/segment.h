@@ -55,7 +55,7 @@ struct pcache_segment {
 
 int segment_copy_to_bio(struct pcache_segment *segment,
 		      u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
-void segment_copy_from_bio(struct pcache_segment *segment,
+int segment_copy_from_bio(struct pcache_segment *segment,
 			u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 void segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len);
 void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,

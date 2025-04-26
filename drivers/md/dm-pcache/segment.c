@@ -21,21 +21,26 @@ void segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
 	}
 }
 
-int segment_copy_to_bio(struct pcache_segment *segment,
-		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
+static int segment_copy_between_bio(struct pcache_segment *segment,
+				u32 data_off, u32 data_len,
+				struct bio *bio, u32 bio_off,
+				bool to_bio)
 {
 	struct kvec kv = { .iov_base = segment->data + data_off,
 			.iov_len  = data_len };
-	struct iov_iter iter;
+	struct iov_iter seg_iter;
 	struct bio_vec bvec;
-	struct bvec_iter iter_all;
+	struct bvec_iter bio_iter;
 	u32 remaining = data_len;
 	u32 skip = bio_off;
 	ssize_t ret;
 
-	iov_iter_kvec(&iter, WRITE, &kv, 1, data_len);
+	if (to_bio)
+		iov_iter_kvec(&seg_iter, WRITE, &kv, 1, data_len);
+	else
+		iov_iter_kvec(&seg_iter, READ, &kv, 1, data_len);
 
-	bio_for_each_segment(bvec, bio, iter_all) {
+	bio_for_each_segment(bvec, bio, bio_iter) {
 		u32 this_len = bvec.bv_len;
 
 		if (skip) {
@@ -46,68 +51,44 @@ int segment_copy_to_bio(struct pcache_segment *segment,
 			this_len -= skip;
 		}
 
-		ret = copy_page_from_iter(bvec.bv_page,
-					bvec.bv_offset + skip,
-					this_len,
-					&iter);
+		if (this_len > remaining)
+			this_len = remaining;
+
+		if (to_bio)
+			ret = copy_page_from_iter(bvec.bv_page,
+						bvec.bv_offset + skip,
+						this_len,
+						&seg_iter);
+		else
+			ret = copy_page_to_iter(bvec.bv_page,
+						bvec.bv_offset + skip,
+						this_len,
+						&seg_iter);
 		skip = 0;
 
 		if (ret < this_len)
 			return -EFAULT;
 
 		remaining -= ret;
-		if (!iov_iter_count(&iter))
+		if (!iov_iter_count(&seg_iter))
 			break;
 	}
 
 	return remaining ? -EFAULT : 0;
 }
 
-void segment_copy_from_bio(struct pcache_segment *segment,
+int segment_copy_to_bio(struct pcache_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
-	struct bio_vec bv;
-	struct bvec_iter iter;
-	void *src;
-	u32 to_copy, page_off = 0;
-	struct pcache_segment_pos pos = { .segment = segment,
-				   .off = data_off };
+	return segment_copy_between_bio(segment, data_off, data_len,
+					bio, bio_off, true);
+}
 
-	bio_for_each_segment(bv, bio, iter) {
-		if (bio_off > bv.bv_len) {
-			bio_off -= bv.bv_len;
-			continue;
-		}
-		page_off = bv.bv_offset;
-		page_off += bio_off;
-		bio_off = 0;
-
-		src = kmap_local_page(bv.bv_page);
-again:
-		segment = pos.segment;
-
-		to_copy = min(bv.bv_offset + bv.bv_len - page_off,
-				segment->data_size - pos.off);
-		if (to_copy > data_len)
-			to_copy = data_len;
-
-		memcpy_flushcache(segment->data + pos.off, src + page_off, to_copy);
-		flush_dcache_page(bv.bv_page);
-
-		/* advance */
-		pos.off += to_copy;
-		page_off += to_copy;
-		data_len -= to_copy;
-		if (!data_len) {
-			kunmap_local(src);
-			return;
-		}
-
-		/* more data in this bv page */
-		if (page_off < bv.bv_offset + bv.bv_len)
-			goto again;
-		kunmap_local(src);
-	}
+int segment_copy_from_bio(struct pcache_segment *segment,
+		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
+{
+	return segment_copy_between_bio(segment, data_off, data_len,
+					bio, bio_off, false);
 }
 
 void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
@@ -138,7 +119,6 @@ void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct pcache
 
 	seg_info_addr->header.crc = pcache_meta_crc(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
 	cache_dev_flush(cache_dev, seg_info_addr, PCACHE_SEG_INFO_SIZE);
-
 }
 
 struct pcache_segment_info *pcache_segment_info_read(struct pcache_cache_dev *cache_dev, u32 seg_id)
