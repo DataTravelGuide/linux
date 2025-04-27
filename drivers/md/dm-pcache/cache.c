@@ -74,15 +74,16 @@ static int cache_init(struct dm_pcache *pcache)
 {
 	struct pcache_cache *cache = &pcache->cache;
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
+	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	int ret;
 
-	cache->segments = kvzalloc(sizeof(struct pcache_cache_segment) * backing_dev->cache_segs, GFP_KERNEL);
+	cache->segments = kvzalloc(sizeof(struct pcache_cache_segment) * cache_dev->seg_num, GFP_KERNEL);
 	if (!cache->segments) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	cache->seg_map = bitmap_zalloc(backing_dev->cache_segs, GFP_KERNEL);
+	cache->seg_map = bitmap_zalloc(cache_dev->seg_num, GFP_KERNEL);
 	if (!cache->seg_map) {
 		ret = -ENOMEM;
 		goto free_segments;
@@ -96,7 +97,7 @@ static int cache_init(struct dm_pcache *pcache)
 
 	cache->backing_dev = backing_dev;
 	cache->cache_dev = &pcache->cache_dev;
-	cache->n_segs = backing_dev->cache_segs;
+	cache->n_segs = cache_dev->seg_num;
 	spin_lock_init(&cache->seg_map_lock);
 	spin_lock_init(&cache->key_head_lock);
 

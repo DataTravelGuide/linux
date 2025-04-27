@@ -29,8 +29,6 @@ static struct pcache_backing_dev *backing_dev_init(struct dm_pcache *pcache)
 	if (!backing_dev->task_wq)
 		goto destroy_io_cache;
 
-	backing_dev->cache_segs = pcache->cache_dev.seg_num;
-
 	INIT_LIST_HEAD(&backing_dev->submit_list);
 	INIT_LIST_HEAD(&backing_dev->complete_list);
 	spin_lock_init(&backing_dev->submit_lock);
