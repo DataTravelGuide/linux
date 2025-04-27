@@ -3,6 +3,7 @@
 
 #include "cache.h"
 #include "backing_dev.h"
+#include "dm_pcache.h"
 
 static void cache_info_write(struct pcache_cache *cache)
 {
@@ -25,7 +26,6 @@ static void cache_info_load(struct pcache_cache *cache)
 
 	cache_info_addr = pcache_meta_find_latest(&cache->cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
 
-	pr_err("cache_info_addr: %p", cache_info_addr);
 	if (!cache_info_addr)
 		cache_info_init(cache);
 	else
@@ -314,10 +314,11 @@ static void cache_destroy_req_keys(struct pcache_cache *cache)
 	cache_tree_exit(&cache->req_key_tree);
 }
 
-struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
-				  struct pcache_cache_opts *opts)
+struct pcache_cache *pcache_cache_alloc(struct dm_pcache *pcache)
 {
+	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 	struct pcache_cache *cache;
+	bool new_cache = true;
 	int ret;
 
 	cache = cache_alloc(backing_dev);
@@ -326,21 +327,23 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 
 	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(backing_dev->cache_dev);
 	backing_dev->cache = cache;
-	cache->bdev_file = opts->bdev_file;
-	cache->dev_size = opts->dev_size;
+	cache->bdev_file = backing_dev->bdev_file;
+	cache->dev_size = backing_dev->dev_size;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;
 
 	cache_info_load(cache);
 
-	ret = cache_segs_init(cache, opts->new_cache);
+	new_cache = !(cache->cache_info.flags & PCACHE_CACHE_FLAGS_INIT_DONE);
+
+	ret = cache_segs_init(cache, new_cache);
 	if (ret)
 		goto free_cache;
 
-	ret = cache_tail_init(cache, opts->new_cache);
+	ret = cache_tail_init(cache, new_cache);
 	if (ret)
 		goto segs_destroy;
 
-	ret = cache_init_req_keys(cache, opts->n_paral);
+	ret = cache_init_req_keys(cache, num_online_cpus());
 	if (ret)
 		goto segs_destroy;
 

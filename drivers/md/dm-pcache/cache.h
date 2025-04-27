@@ -165,8 +165,8 @@ struct pcache_cache_opts {
 	struct file *bdev_file;
 };
 
-struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
-				  struct pcache_cache_opts *opts);
+struct dm_pcache;
+struct pcache_cache *pcache_cache_alloc(struct dm_pcache *pcache);
 void pcache_cache_destroy(struct pcache_cache *cache);
 
 struct pcache_cache_ctrl {
