@@ -58,8 +58,10 @@ struct pcache_cache_seg_info {
 };
 
 #define PCACHE_CACHE_FLAGS_DATA_CRC	(1 << 0)
+#define PCACHE_CACHE_FLAGS_INIT_DONE	(1 << 1)
 
 struct pcache_cache_info {
+	struct pcache_meta_header header;
 	u32 seg_id;
 	u32 n_segs;
 	u16 gc_percent;
@@ -318,10 +320,6 @@ void cache_seg_get(struct pcache_cache_segment *cache_seg);
 void cache_seg_put(struct pcache_cache_segment *cache_seg);
 void cache_seg_set_next_seg(struct pcache_cache_segment *cache_seg, u32 seg_id);
 
-/* cache info */
-void cache_info_write(struct pcache_cache *cache);
-int cache_info_load(struct pcache_cache *cache);
-
 /* cache request*/
 int cache_flush(struct pcache_cache *cache);
 void miss_read_end_work_fn(struct work_struct *work);
@@ -458,7 +456,7 @@ static inline u32 cache_key_data_crc(struct pcache_cache_key *key)
 
 	data = cache_pos_addr(&key->cache_pos);
 
-	return crc32(0, data, key->len);
+	return crc32(PCACHE_CRC_SEED, data, key->len);
 }
 
 static inline u32 cache_kset_crc(struct pcache_cache_kset_onmedia *kset_onmedia)
@@ -470,7 +468,7 @@ static inline u32 cache_kset_crc(struct pcache_cache_kset_onmedia *kset_onmedia)
 	else
 		crc_size = struct_size(kset_onmedia, data, kset_onmedia->key_num) - 4;
 
-	return crc32(0, (void *)kset_onmedia + 4, crc_size);
+	return crc32(PCACHE_CRC_SEED, (void *)kset_onmedia + 4, crc_size);
 }
 
 static inline u32 get_kset_onmedia_size(struct pcache_cache_kset_onmedia *kset_onmedia)

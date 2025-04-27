@@ -210,7 +210,9 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 	sb->magic = cpu_to_le64(PCACHE_MAGIC);
 	sb->seg_num = cpu_to_le16(nr_segs);
 
-	sb->crc = cpu_to_le32(crc32(0, (void *)sb + 4, PCACHE_SB_SIZE - 4));
+	cache_dev_zero_range(cache_dev, CACHE_DEV_CACHE_INFO(cache_dev), PCACHE_CACHE_INFO_SIZE * PCACHE_META_INDEX_MAX);
+
+	sb->crc = cpu_to_le32(crc32(PCACHE_CRC_SEED, (void *)sb + 4, PCACHE_SB_SIZE - 4));
 
 	return 0;
 }

@@ -4,6 +4,34 @@
 #include "cache.h"
 #include "backing_dev.h"
 
+static void cache_info_write(struct pcache_cache *cache)
+{
+	struct pcache_cache_info *cache_info = &cache->cache_info;
+	struct pcache_cache_info *cache_info_addr;
+
+	cache_info->header.seq++;
+	cache_info_addr = pcache_meta_find_oldest(&cache->cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
+
+	memcpy(cache_info_addr, cache_info, sizeof(struct pcache_cache_info));
+
+	cache_info_addr->header.crc = pcache_meta_crc(&cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
+	cache_dev_flush(cache->backing_dev->cache_dev, cache_info_addr, PCACHE_CACHE_INFO_SIZE);
+}
+
+static void cache_info_init(struct pcache_cache *cache);
+static void cache_info_load(struct pcache_cache *cache)
+{
+	struct pcache_cache_info *cache_info_addr;
+
+	cache_info_addr = pcache_meta_find_latest(&cache->cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
+
+	pr_err("cache_info_addr: %p", cache_info_addr);
+	if (!cache_info_addr)
+		cache_info_init(cache);
+	else
+		memcpy(&cache->cache_info, cache_info_addr, sizeof(struct pcache_cache_info));
+}
+
 void cache_pos_encode(struct pcache_cache *cache,
 			     struct pcache_cache_pos_onmedia *pos_onmedia,
 			     struct pcache_cache_pos *pos)
@@ -93,10 +121,13 @@ static void cache_free(struct pcache_cache *cache)
 	kvfree(cache);
 }
 
-static void pcache_cache_info_init(struct pcache_cache *cache)
+static void cache_info_init(struct pcache_cache *cache)
 {
+	struct pcache_backing_dev *backing_dev = cache->backing_dev;
 	struct pcache_cache_info *cache_info = &cache->cache_info;
 
+	cache_info->n_segs = backing_dev->cache_dev->seg_num;
+	pr_err("init n_segs: %u", cache_info->n_segs);
 	cache_info->gc_percent = PCACHE_CACHE_GC_PERCENT_DEFAULT;
 	cache_info->flags |= PCACHE_CACHE_FLAGS_DATA_CRC;
 }
@@ -293,13 +324,13 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	if (!cache)
 		return NULL;
 
+	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(backing_dev->cache_dev);
 	backing_dev->cache = cache;
 	cache->bdev_file = opts->bdev_file;
 	cache->dev_size = opts->dev_size;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;
 
-	cache->cache_info.n_segs = backing_dev->cache_dev->seg_num;
-	cache->cache_info.gc_percent = PCACHE_CACHE_GC_PERCENT_DEFAULT;
+	cache_info_load(cache);
 
 	ret = cache_segs_init(cache, opts->new_cache);
 	if (ret)
@@ -317,6 +348,8 @@ struct pcache_cache *pcache_cache_alloc(struct pcache_backing_dev *backing_dev,
 	if (ret)
 		goto destroy_keys;
 
+	cache->cache_info.flags |= PCACHE_CACHE_FLAGS_INIT_DONE;
+	cache_info_write(cache);
 	queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, 0);
 
 	return cache;

@@ -38,9 +38,11 @@
 
 #define PCACHE_CACHE_DEV_SIZE_MIN		(512 * 1024 * 1024)	 /* 512 MB */
 
+#define CACHE_DEV_CACHE_INFO(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_CACHE_INFO_OFF)
 #define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_SEGMENTS_OFF)
 #define CACHE_DEV_SEGMENT(cache_dev, id)	((void *)CACHE_DEV_SEGMENTS(cache_dev) + (u64)id * PCACHE_SEG_SIZE)
 
+#define PCACHE_CRC_SEED		0x315
 /*
  * struct pcache_meta_header - PCACHE metadata header structure
  * @crc: CRC checksum for validating metadata integrity.
@@ -64,7 +66,7 @@ struct pcache_meta_header {
  */
 static inline u32 pcache_meta_crc(struct pcache_meta_header *header, u32 meta_size)
 {
-	return crc32(0, (void *)header + 4, meta_size - 4);  /* CRC calculated starting after the crc field */
+	return crc32(PCACHE_CRC_SEED, (void *)header + 4, meta_size - 4);  /* CRC calculated starting after the crc field */
 }
 
 /*
