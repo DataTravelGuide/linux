@@ -145,84 +145,44 @@ static void backing_dev_bio_end(struct bio *bio)
 	bio_put(bio);
 }
 
-static int map_bio_pages(struct bio *bio, struct bio *src_bio, u32 req_off, u32 len)
-{
-	struct bio_vec src_bvec;
-	struct bvec_iter src_iter;
-	size_t mapped = 0, offset = 0;
-
-	bio_for_each_segment(src_bvec, src_bio, src_iter) {
-		struct page *page = src_bvec.bv_page;
-		size_t page_off = src_bvec.bv_offset;
-		size_t page_len = src_bvec.bv_len;
-
-		if (offset + page_len <= req_off) {
-			offset += page_len;
-			continue;
-		}
-
-		size_t start = (req_off > offset) ? (req_off - offset) : 0;
-		size_t map_len = min(len - mapped, page_len - start);
-
-		if (bio_add_page(bio, page, map_len, page_off + start) != map_len) {
-			pr_err("Failed to map page to bio\n");
-			break;
-		}
-
-		mapped += map_len;
-		if (mapped >= len)
-			goto out;
-
-		offset += page_len;
-	}
-out:
-	return 0;
-}
-
-struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev, struct pcache_request *pcache_req,
-			u32 off, u32 len, backing_req_end_fn_t end_req)
+struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
+							struct pcache_request *pcache_req,
+							u32 off, u32 len,
+							backing_req_end_fn_t end_fn)
 {
 	struct pcache_backing_dev_req *backing_req;
-	struct bio *bio;
+	struct bio *clone, *orig = pcache_req->bio;
 
 	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, GFP_ATOMIC);
 	if (!backing_req)
 		return NULL;
 
+	clone = bio_alloc_clone(NULL, orig, GFP_ATOMIC, &backing_dev->bioset);
+	if (!clone)
+		goto err_free_req;
+
+	bio_trim(clone, off, len);
+
+	bio_set_dev(clone, backing_dev->bdev);
+	clone->bi_opf = bio_op(orig);
+	clone->bi_iter.bi_sector = (pcache_req->off + off) >> SECTOR_SHIFT;
+	clone->bi_private = backing_req;
+	clone->bi_end_io = backing_dev_bio_end;
+
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
 	kref_init(&backing_req->ref);
-	backing_req->end_req = end_req;
-	backing_req->bio_off = off;
-
-	bio = bio_alloc_bioset(backing_dev->bdev,
-					BIO_MAX_VECS,
-					bio_op(pcache_req->bio),
-					GFP_ATOMIC, &backing_dev->bioset);
-	if (!bio)
-		goto free_backing_req;
-
-	bio->bi_iter.bi_sector = (pcache_req->off + off) >> SECTOR_SHIFT;
-	bio->bi_iter.bi_size = 0;
-	bio->bi_private = backing_req;
-	bio->bi_end_io = backing_dev_bio_end;
-	kref_get(&backing_req->ref);
-
-	backing_req->bio = bio;
-
-	map_bio_pages(bio, pcache_req->bio, off, len);
+	backing_req->bio_off     = off;
+	backing_req->bio         = clone;
+	backing_req->end_req     = end_fn;
 
 	pcache_req_get(pcache_req);
 	backing_req->upper_req = pcache_req;
 
 	return backing_req;
 
-free_backing_req:
-	if (backing_req->bio)
-		bio_put(backing_req->bio);
-
+err_free_req:
 	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
-
 	return NULL;
 }
 
@@ -271,6 +231,8 @@ static void req_complete_fn(struct work_struct *work)
 void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req)
 {
 	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
+
+	kref_get(&backing_req->ref);
 
 	spin_lock(&backing_dev->submit_lock);
 	list_add_tail(&backing_req->node, &backing_dev->submit_list);
