@@ -116,6 +116,7 @@ struct pcache_cache_tree {
 /* PCACHE Cache main structure */
 struct pcache_cache {
 	struct pcache_backing_dev	*backing_dev;
+	struct pcache_cache_dev		*cache_dev;
 	struct pcache_cache_ctrl	*cache_ctrl;
 
 	struct pcache_cache_data_head __percpu *data_heads;

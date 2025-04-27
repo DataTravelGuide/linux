@@ -29,7 +29,6 @@ static struct pcache_backing_dev *backing_dev_init(struct dm_pcache *pcache)
 	if (!backing_dev->task_wq)
 		goto destroy_io_cache;
 
-	backing_dev->cache_dev = &pcache->cache_dev;
 	backing_dev->cache_segs = pcache->cache_dev.seg_num;
 
 	INIT_LIST_HEAD(&backing_dev->submit_list);
@@ -50,7 +49,6 @@ free_backing_dev:
 
 static int backing_dev_open(struct pcache_backing_dev *backing_dev, char *path)
 {
-	struct pcache_cache_dev *cache_dev = backing_dev->cache_dev;
 	bool new_backing;
 	int ret;
 

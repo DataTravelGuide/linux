@@ -3,7 +3,6 @@
 #define _BACKING_DEV_H
 
 #include "pcache_internal.h"
-#include "cache_dev.h"
 
 #define PCACHE_BACKING_STATE_NONE		0
 #define PCACHE_BACKING_STATE_RUNNING		1
@@ -28,7 +27,6 @@ struct pcache_backing_dev_req {
 
 struct pcache_backing_dev {
 	struct pcache_cache		*cache;
-	struct pcache_cache_dev		*cache_dev;
 
 	struct block_device		*bdev;
 	struct file			*bdev_file;

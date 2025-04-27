@@ -7,7 +7,7 @@
 static void cache_seg_info_write(struct pcache_cache_segment *cache_seg)
 {
 	mutex_lock(&cache_seg->info_lock);
-	pcache_segment_info_write(cache_seg->cache->backing_dev->cache_dev,
+	pcache_segment_info_write(cache_seg->cache->cache_dev,
 			&cache_seg->cache_seg_info.segment_info,
 			cache_seg->segment.seg_info->seg_id);
 	mutex_unlock(&cache_seg->info_lock);
@@ -19,7 +19,7 @@ static int cache_seg_info_load(struct pcache_cache_segment *cache_seg)
 	int ret = 0;
 
 	mutex_lock(&cache_seg->info_lock);
-	cache_seg_info = pcache_segment_info_read(cache_seg->cache->backing_dev->cache_dev,
+	cache_seg_info = pcache_segment_info_read(cache_seg->cache->cache_dev,
 						cache_seg->segment.seg_info->seg_id);
 	if (!cache_seg_info) {
 		pr_err("can't read segment info of segment: %u\n",
@@ -67,7 +67,7 @@ static void cache_seg_ctrl_write(struct pcache_cache_segment *cache_seg)
 						 sizeof(struct pcache_cache_seg_gen));
 	mutex_unlock(&cache_seg->ctrl_lock);
 
-	cache_dev_flush(cache_seg->cache->backing_dev->cache_dev, cache_seg_gen, sizeof(struct pcache_cache_seg_gen));
+	cache_dev_flush(cache_seg->cache->cache_dev, cache_seg_gen, sizeof(struct pcache_cache_seg_gen));
 }
 
 static int cache_seg_meta_load(struct pcache_cache_segment *cache_seg)
@@ -104,7 +104,7 @@ void cache_seg_set_next_seg(struct pcache_cache_segment *cache_seg, u32 seg_id)
 int cache_seg_init(struct pcache_cache *cache, u32 seg_id, u32 cache_seg_id,
 		   bool new_cache)
 {
-	struct pcache_cache_dev *cache_dev = cache->backing_dev->cache_dev;
+	struct pcache_cache_dev *cache_dev = cache->cache_dev;
 	struct pcache_cache_segment *cache_seg = &cache->segments[cache_seg_id];
 	struct pcache_segment_init_options seg_options = { 0 };
 	struct pcache_segment *segment = &cache_seg->segment;
@@ -153,10 +153,10 @@ err:
 void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 {
 	/* clear cache segment ctrl */
-	cache_dev_zero_range(cache_seg->cache->backing_dev->cache_dev, cache_seg->cache_seg_ctrl,
+	cache_dev_zero_range(cache_seg->cache->cache_dev, cache_seg->cache_seg_ctrl,
 			PCACHE_CACHE_SEG_CTRL_SIZE);
 
-	clear_bit(cache_seg->segment.seg_info->seg_id, cache_seg->cache->backing_dev->cache_dev->seg_bitmap);
+	clear_bit(cache_seg->segment.seg_info->seg_id, cache_seg->cache->cache_dev->seg_bitmap);
 }
 
 #define PCACHE_WAIT_NEW_CACHE_INTERVAL	100

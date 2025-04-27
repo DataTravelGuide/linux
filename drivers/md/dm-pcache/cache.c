@@ -2,6 +2,7 @@
 #include <linux/blk_types.h>
 
 #include "cache.h"
+#include "cache_dev.h"
 #include "backing_dev.h"
 #include "dm_pcache.h"
 
@@ -16,7 +17,7 @@ static void cache_info_write(struct pcache_cache *cache)
 	memcpy(cache_info_addr, cache_info, sizeof(struct pcache_cache_info));
 
 	cache_info_addr->header.crc = pcache_meta_crc(&cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
-	cache_dev_flush(cache->backing_dev->cache_dev, cache_info_addr, PCACHE_CACHE_INFO_SIZE);
+	cache_dev_flush(cache->cache_dev, cache_info_addr, PCACHE_CACHE_INFO_SIZE);
 }
 
 static void cache_info_init(struct pcache_cache *cache);
@@ -45,7 +46,7 @@ void cache_pos_encode(struct pcache_cache *cache,
 	oldest->seg_off = pos->seg_off;
 	oldest->header.seq = pcache_meta_get_next_seq(&pos_onmedia->header, sizeof(struct pcache_cache_pos_onmedia));
 	oldest->header.crc = cache_pos_onmedia_crc(oldest);
-	cache_dev_flush(cache->backing_dev->cache_dev, oldest, sizeof(struct pcache_cache_pos_onmedia));
+	cache_dev_flush(cache->cache_dev, oldest, sizeof(struct pcache_cache_pos_onmedia));
 }
 
 int cache_pos_decode(struct pcache_cache *cache,
@@ -94,6 +95,7 @@ static int cache_init(struct dm_pcache *pcache)
 	}
 
 	cache->backing_dev = backing_dev;
+	cache->cache_dev = &pcache->cache_dev;
 	cache->n_segs = backing_dev->cache_segs;
 	spin_lock_init(&cache->seg_map_lock);
 	spin_lock_init(&cache->key_head_lock);
@@ -124,10 +126,9 @@ static void cache_free(struct pcache_cache *cache)
 
 static void cache_info_init(struct pcache_cache *cache)
 {
-	struct pcache_backing_dev *backing_dev = cache->backing_dev;
 	struct pcache_cache_info *cache_info = &cache->cache_info;
 
-	cache_info->n_segs = backing_dev->cache_dev->seg_num;
+	cache_info->n_segs = cache->cache_dev->seg_num;
 	pr_err("init n_segs: %u", cache_info->n_segs);
 	cache_info->gc_percent = PCACHE_CACHE_GC_PERCENT_DEFAULT;
 	cache_info->flags |= PCACHE_CACHE_FLAGS_DATA_CRC;
@@ -172,7 +173,7 @@ static int get_seg_id(struct pcache_cache *cache,
 		      bool new_cache, u32 *seg_id)
 {
 	struct pcache_backing_dev *backing_dev = cache->backing_dev;
-	struct pcache_cache_dev *cache_dev = backing_dev->cache_dev;
+	struct pcache_cache_dev *cache_dev = cache->cache_dev;
 	int ret;
 
 	if (new_cache) {
@@ -326,7 +327,7 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 	if (ret)
 		return ret;
 
-	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(backing_dev->cache_dev);
+	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(cache->cache_dev);
 	backing_dev->cache = cache;
 	cache->bdev_file = backing_dev->bdev_file;
 	cache->dev_size = backing_dev->dev_size;
