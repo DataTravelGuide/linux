@@ -69,25 +69,29 @@ static void cache_info_set_seg_id(struct pcache_cache *cache, u32 seg_id)
 	cache->cache_info.seg_id = seg_id;
 }
 
-static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
+static int cache_init(struct dm_pcache *pcache)
 {
-	struct pcache_cache *cache;
-
-	cache = kzalloc(sizeof(struct pcache_cache), GFP_KERNEL);
-	if (!cache)
-		goto err;
+	struct pcache_cache *cache = &pcache->cache;
+	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
+	int ret;
 
 	cache->segments = kvzalloc(sizeof(struct pcache_cache_segment) * backing_dev->cache_segs, GFP_KERNEL);
-	if (!cache->segments)
-		goto free_cache;
+	if (!cache->segments) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	cache->seg_map = bitmap_zalloc(backing_dev->cache_segs, GFP_KERNEL);
-	if (!cache->seg_map)
+	if (!cache->seg_map) {
+		ret = -ENOMEM;
 		goto free_segments;
+	}
 
 	cache->req_cache = KMEM_CACHE(pcache_backing_dev_req, 0);
-	if (!cache->req_cache)
+	if (!cache->req_cache) {
+		ret = -ENOMEM;
 		goto free_bitmap;
+	}
 
 	cache->backing_dev = backing_dev;
 	cache->n_segs = backing_dev->cache_segs;
@@ -101,16 +105,14 @@ static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
 	INIT_DELAYED_WORK(&cache->gc_work, pcache_cache_gc_fn);
 	INIT_WORK(&cache->clean_work, clean_fn);
 
-	return cache;
+	return 0;
 
 free_bitmap:
 	bitmap_free(cache->seg_map);
 free_segments:
 	kvfree(cache->segments);
-free_cache:
-	kfree(cache);
 err:
-	return NULL;
+	return ret;
 }
 
 static void cache_free(struct pcache_cache *cache)
@@ -118,7 +120,6 @@ static void cache_free(struct pcache_cache *cache)
 	kmem_cache_destroy(cache->req_cache);
 	bitmap_free(cache->seg_map);
 	kvfree(cache->segments);
-	kvfree(cache);
 }
 
 static void cache_info_init(struct pcache_cache *cache)
@@ -314,16 +315,16 @@ static void cache_destroy_req_keys(struct pcache_cache *cache)
 	cache_tree_exit(&cache->req_key_tree);
 }
 
-struct pcache_cache *pcache_cache_alloc(struct dm_pcache *pcache)
+int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
-	struct pcache_cache *cache;
+	struct pcache_cache *cache = &pcache->cache;
 	bool new_cache = true;
 	int ret;
 
-	cache = cache_alloc(backing_dev);
-	if (!cache)
-		return NULL;
+	ret = cache_init(pcache);
+	if (ret)
+		return ret;
 
 	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(backing_dev->cache_dev);
 	backing_dev->cache = cache;
@@ -355,7 +356,7 @@ struct pcache_cache *pcache_cache_alloc(struct dm_pcache *pcache)
 	cache_info_write(cache);
 	queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, 0);
 
-	return cache;
+	return 0;
 
 destroy_keys:
 	cache_destroy_req_keys(cache);
@@ -367,8 +368,10 @@ free_cache:
 	return NULL;
 }
 
-void pcache_cache_destroy(struct pcache_cache *cache)
+void pcache_cache_stop(struct dm_pcache *pcache)
 {
+	struct pcache_cache *cache = &pcache->cache;
+
 	cache->state = PCACHE_CACHE_STATE_STOPPING;
 	cache_flush(cache);
 
@@ -381,5 +384,4 @@ void pcache_cache_destroy(struct pcache_cache *cache)
 		cache_destroy_req_keys(cache);
 
 	cache_segs_destroy(cache);
-	cache_free(cache);
 }

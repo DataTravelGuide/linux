@@ -14,8 +14,8 @@
 
 #include "cache_dev.h"
 #include "backing_dev.h"
-#include "dm_pcache.h"
 #include "cache.h"
+#include "dm_pcache.h"
 
 static void end_req(struct kref *ref)
 {
@@ -78,7 +78,9 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ret = backing_dev_start(pcache, backing_dev_path);
 
-	pcache->cache = pcache_cache_alloc(pcache);
+	pr_err("ret of backing start: %d", ret);
+
+	ret = pcache_cache_start(pcache, true);
 
 	return ret;
 }
@@ -89,7 +91,7 @@ static void dm_pcache_dtr(struct dm_target *ti)
 
 	pcache = ti->private;
 
-	pcache_cache_destroy(pcache->cache);
+	pcache_cache_stop(pcache);
 	backing_dev_stop(pcache);
 	cache_dev_stop(pcache);
         kfree(pcache);
@@ -107,7 +109,7 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	pcache_req->data_len = (u64)bio_sectors(bio) << 9;
 	kref_init(&pcache_req->ref);
 	pcache_req->ret = 0;
-	ret = pcache_cache_handle_req(pcache->cache, pcache_req);
+	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
 
 	pcache_req_put(pcache_req, ret);
 	if (ret) {

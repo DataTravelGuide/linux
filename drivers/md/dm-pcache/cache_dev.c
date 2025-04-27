@@ -8,6 +8,7 @@
 
 #include "cache_dev.h"
 #include "backing_dev.h"
+#include "cache.h"
 #include "dm_pcache.h"
 
 static void cache_dev_dax_exit(struct pcache_cache_dev *cache_dev)

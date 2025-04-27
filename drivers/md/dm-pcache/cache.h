@@ -153,21 +153,9 @@ struct pcache_cache {
 	struct pcache_cache_segment *segments;
 };
 
-/* PCACHE Cache options structure */
-struct pcache_cache_opts {
-	u32 cache_id;
-	void *owner;
-	u32 n_segs;
-	bool new_cache;
-	bool data_crc;
-	u64 dev_size;
-	u32 n_paral;
-	struct file *bdev_file;
-};
-
 struct dm_pcache;
-struct pcache_cache *pcache_cache_alloc(struct dm_pcache *pcache);
-void pcache_cache_destroy(struct pcache_cache *cache);
+int pcache_cache_start(struct dm_pcache *pcache, bool data_crc);
+void pcache_cache_stop(struct dm_pcache *pcache);
 
 struct pcache_cache_ctrl {
 	struct pcache_cache_seg_ctrl cache_seg_ctrl;
