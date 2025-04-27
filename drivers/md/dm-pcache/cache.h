@@ -154,6 +154,8 @@ struct pcache_cache {
 	struct pcache_cache_segment *segments;
 };
 
+struct workqueue_struct *cache_get_wq(struct pcache_cache *cache);
+
 struct dm_pcache;
 int pcache_cache_start(struct dm_pcache *pcache, bool data_crc);
 void pcache_cache_stop(struct dm_pcache *pcache);

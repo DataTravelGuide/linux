@@ -9,25 +9,22 @@
 
 static void backing_dev_destroy(struct pcache_backing_dev *backing_dev)
 {
-	drain_workqueue(backing_dev->task_wq);
-	destroy_workqueue(backing_dev->task_wq);
 	kmem_cache_destroy(backing_dev->backing_req_cache);
 	kfree(backing_dev);
 }
 
 static void req_submit_fn(struct work_struct *work);
 static void req_complete_fn(struct work_struct *work);
-static struct pcache_backing_dev *backing_dev_init(struct dm_pcache *pcache)
+static int backing_dev_init(struct dm_pcache *pcache)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
+	int ret;
 
 	backing_dev->backing_req_cache = KMEM_CACHE(pcache_backing_dev_req, 0);
-	if (!backing_dev->backing_req_cache)
-		goto free_backing_dev;
-
-	backing_dev->task_wq = alloc_workqueue("pcache-backing-wq",  WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
-	if (!backing_dev->task_wq)
-		goto destroy_io_cache;
+	if (!backing_dev->backing_req_cache) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	INIT_LIST_HEAD(&backing_dev->submit_list);
 	INIT_LIST_HEAD(&backing_dev->complete_list);
@@ -36,13 +33,9 @@ static struct pcache_backing_dev *backing_dev_init(struct dm_pcache *pcache)
 	INIT_WORK(&backing_dev->req_submit_work, req_submit_fn);
 	INIT_WORK(&backing_dev->req_complete_work, req_complete_fn);
 
-	return backing_dev;
-
-destroy_io_cache:
-	kmem_cache_destroy(backing_dev->backing_req_cache);
-free_backing_dev:
-	kfree(backing_dev);
-	return NULL;
+	return 0;
+err:
+	return ret;
 }
 
 static int backing_dev_open(struct pcache_backing_dev *backing_dev, char *path)
@@ -83,16 +76,16 @@ static int backing_dev_close(struct pcache_backing_dev *backing_dev)
 
 int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path)
 {
-	struct pcache_backing_dev *backing_dev;
+	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 	int ret;
 
 	/* Check if path starts with "/dev/" */
 	if (strncmp(backing_dev_path, "/dev/", 5) != 0)
 		return -EINVAL;
 
-	backing_dev = backing_dev_init(pcache);
-	if (!backing_dev)
-		return -ENOMEM;
+	ret = backing_dev_init(pcache);
+	if (ret)
+		goto err;
 
 	ret = backing_dev_open(backing_dev, backing_dev_path);
 	if (ret)
@@ -102,7 +95,7 @@ int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path)
 
 destroy_backing_dev:
 	backing_dev_destroy(backing_dev);
-
+err:
 	return ret;
 }
 
@@ -126,7 +119,7 @@ static void end_req(struct kref *ref)
 	list_move_tail(&backing_req->node, &backing_dev->complete_list);
 	spin_unlock(&backing_dev->complete_lock);
 
-	queue_work(backing_dev->task_wq, &backing_dev->req_complete_work);
+	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_complete_work);
 }
 
 static void backing_dev_bio_end(struct bio *bio)
@@ -234,7 +227,7 @@ void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req)
 	list_add_tail(&backing_req->node, &backing_dev->submit_list);
 	spin_unlock(&backing_dev->submit_lock);
 
-	queue_work(backing_dev->task_wq, &backing_dev->req_submit_work);
+	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_submit_work);
 }
 
 void backing_dev_req_end(struct pcache_backing_dev_req *backing_req)

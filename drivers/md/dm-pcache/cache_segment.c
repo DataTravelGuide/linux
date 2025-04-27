@@ -237,7 +237,7 @@ static void cache_seg_invalidate(struct pcache_cache_segment *cache_seg)
 	spin_unlock(&cache->seg_map_lock);
 
 	/* clean_work will clean the bad key in key_tree*/
-	queue_work(cache->backing_dev->task_wq, &cache->clean_work);
+	queue_work(cache_get_wq(cache), &cache->clean_work);
 }
 
 void cache_seg_put(struct pcache_cache_segment *cache_seg)

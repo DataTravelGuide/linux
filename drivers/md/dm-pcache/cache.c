@@ -356,7 +356,7 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 
 	cache->cache_info.flags |= PCACHE_CACHE_FLAGS_INIT_DONE;
 	cache_info_write(cache);
-	queue_delayed_work(cache->backing_dev->task_wq, &cache->gc_work, 0);
+	queue_delayed_work(cache_get_wq(cache), &cache->gc_work, 0);
 
 	return 0;
 
@@ -367,7 +367,7 @@ segs_destroy:
 free_cache:
 	cache_free(cache);
 
-	return NULL;
+	return ret;
 }
 
 void pcache_cache_stop(struct dm_pcache *pcache)
@@ -386,4 +386,11 @@ void pcache_cache_stop(struct dm_pcache *pcache)
 		cache_destroy_req_keys(cache);
 
 	cache_segs_destroy(cache);
+}
+
+struct workqueue_struct *cache_get_wq(struct pcache_cache *cache)
+{
+	struct dm_pcache *pcache = CACHE_TO_PCACHE(cache);
+
+	return pcache->task_wq;
 }

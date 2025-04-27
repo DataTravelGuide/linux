@@ -12,6 +12,8 @@
 #include <linux/blk-mq.h>
 #include <linux/bio.h>  // Required for bio-based targets
 
+#include "../dm-core.h"
+
 #include "cache_dev.h"
 #include "backing_dev.h"
 #include "cache.h"
@@ -62,6 +64,13 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         if (!pcache)
                 return -ENOMEM;
 
+	pcache->task_wq = alloc_workqueue("pcache-%s-wq",  WQ_UNBOUND | WQ_MEM_RECLAIM, 0,
+						ti->table->md->name);
+	if (!pcache->task_wq) {
+		ret = -ENOMEM;
+		goto free_pcache;
+	}
+
         cache_dev_path = argv[0];  // Cache device path
         backing_dev_path = argv[1];  // Backing device path
 
@@ -73,14 +82,33 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         pr_info("Backing device: %s\n", backing_dev_path);
 
 	ret = cache_dev_start(pcache, cache_dev_path, backing_dev_path);
-
-	pr_err("ret of dev_start: %d", ret);
+	if (ret) {
+		pcache_err("failed to start cache_dev: %d", ret);
+		goto destroy_wq;
+	}
 
 	ret = backing_dev_start(pcache, backing_dev_path);
-
-	pr_err("ret of backing start: %d", ret);
+	if (ret) {
+		pcache_err("failed to start backing_dev: %d", ret);
+		goto stop_cache_dev;
+	}
 
 	ret = pcache_cache_start(pcache, true);
+	if (ret) {
+		pcache_err("failed to start caching: %d", ret);
+		goto stop_backing_dev;
+	}
+
+	return 0;
+
+stop_backing_dev:
+	backing_dev_stop(pcache);
+stop_cache_dev:
+	cache_dev_stop(pcache);
+destroy_wq:
+	destroy_workqueue(pcache->task_wq);
+free_pcache:
+	kfree(pcache);
 
 	return ret;
 }
@@ -94,6 +122,10 @@ static void dm_pcache_dtr(struct dm_target *ti)
 	pcache_cache_stop(pcache);
 	backing_dev_stop(pcache);
 	cache_dev_stop(pcache);
+
+	drain_workqueue(pcache->task_wq);
+	destroy_workqueue(pcache->task_wq);
+
         kfree(pcache);
 }
 

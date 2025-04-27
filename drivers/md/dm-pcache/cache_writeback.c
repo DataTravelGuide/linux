@@ -47,7 +47,7 @@ void cache_writeback_exit(struct pcache_cache *cache)
 int cache_writeback_init(struct pcache_cache *cache)
 {
 	/* Queue delayed work to start writeback handling */
-	queue_delayed_work(cache->backing_dev->task_wq, &cache->writeback_work, 0);
+	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, 0);
 
 	return 0;
 }
@@ -179,5 +179,5 @@ void cache_writeback_fn(struct work_struct *work)
 		cache_encode_dirty_tail(cache);
 	}
 
-	queue_delayed_work(cache->backing_dev->task_wq, &cache->writeback_work, PCACHE_CACHE_WRITEBACK_INTERVAL);
+	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, PCACHE_CACHE_WRITEBACK_INTERVAL);
 }

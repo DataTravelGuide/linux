@@ -31,8 +31,6 @@ struct pcache_backing_dev {
 	struct block_device		*bdev;
 	struct file			*bdev_file;
 
-	struct workqueue_struct		*task_wq;
-
 	struct bio_set			bioset;
 	struct kmem_cache		*backing_req_cache;
 	struct list_head		submit_list;
