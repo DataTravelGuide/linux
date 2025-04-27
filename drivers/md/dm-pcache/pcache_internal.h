@@ -174,17 +174,4 @@ static inline u32 pcache_meta_get_next_seq(struct pcache_meta_header *header,
 	return (latest->seq + 1);
 }
 
-struct pcache_request {
-	struct bio		*bio;
-
-	u64			off;
-	u32			data_len;
-
-	struct kref		ref;
-	int			ret;
-};
-
-void pcache_req_get(struct pcache_request *pcache_req);
-void pcache_req_put(struct pcache_request *pcache_req, int ret);
-
 #endif /* _PCACHE_INTERNAL_H */

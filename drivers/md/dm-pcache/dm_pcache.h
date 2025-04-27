@@ -17,4 +17,17 @@ struct dm_pcache {
 	struct workqueue_struct		*task_wq;
 };
 
+struct pcache_request {
+	struct bio		*bio;
+
+	u64			off;
+	u32			data_len;
+
+	struct kref		ref;
+	int			ret;
+};
+
+void pcache_req_get(struct pcache_request *pcache_req);
+void pcache_req_put(struct pcache_request *pcache_req, int ret);
+
 #endif /* _DM_PCACHE_H */

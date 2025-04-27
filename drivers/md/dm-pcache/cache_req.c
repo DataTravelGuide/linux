@@ -2,6 +2,8 @@
 
 #include "cache.h"
 #include "backing_dev.h"
+#include "cache_dev.h"
+#include "dm_pcache.h"
 
 static int cache_data_head_init(struct pcache_cache *cache, u32 head_index)
 {
