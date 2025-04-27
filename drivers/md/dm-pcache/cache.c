@@ -45,13 +45,17 @@ static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
 {
 	struct pcache_cache *cache;
 
-	cache = kvzalloc(struct_size(cache, segments, backing_dev->cache_segs), GFP_KERNEL);
+	cache = kzalloc(sizeof(struct pcache_cache), GFP_KERNEL);
 	if (!cache)
 		goto err;
 
+	cache->segments = kvzalloc(sizeof(struct pcache_cache_segment) * backing_dev->cache_segs, GFP_KERNEL);
+	if (!cache->segments)
+		goto free_cache;
+
 	cache->seg_map = bitmap_zalloc(backing_dev->cache_segs, GFP_KERNEL);
 	if (!cache->seg_map)
-		goto free_cache;
+		goto free_segments;
 
 	cache->req_cache = KMEM_CACHE(pcache_backing_dev_req, 0);
 	if (!cache->req_cache)
@@ -73,8 +77,10 @@ static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
 
 free_bitmap:
 	bitmap_free(cache->seg_map);
+free_segments:
+	kvfree(cache->segments);
 free_cache:
-	kvfree(cache);
+	kfree(cache);
 err:
 	return NULL;
 }
@@ -83,6 +89,7 @@ static void cache_free(struct pcache_cache *cache)
 {
 	kmem_cache_destroy(cache->req_cache);
 	bitmap_free(cache->seg_map);
+	kvfree(cache->segments);
 	kvfree(cache);
 }
 

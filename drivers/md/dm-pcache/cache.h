@@ -148,7 +148,7 @@ struct pcache_cache {
 	unsigned long		*seg_map;
 	u32			last_cache_seg;
 	spinlock_t		seg_map_lock;
-	struct pcache_cache_segment segments[]; /* Last member */
+	struct pcache_cache_segment *segments;
 };
 
 /* PCACHE Cache options structure */

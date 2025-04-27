@@ -29,7 +29,6 @@ struct pcache_backing_dev_req {
 struct pcache_backing_dev {
 	struct pcache_cache		*cache;
 	struct pcache_cache_dev		*cache_dev;
-	spinlock_t			lock;
 
 	struct block_device		*bdev;
 	struct file			*bdev_file;

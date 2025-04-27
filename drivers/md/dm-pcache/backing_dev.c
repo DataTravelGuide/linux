@@ -33,7 +33,6 @@ static struct pcache_backing_dev *backing_dev_init(struct dm_pcache *pcache)
 
 	INIT_LIST_HEAD(&backing_dev->submit_list);
 	INIT_LIST_HEAD(&backing_dev->complete_list);
-	spin_lock_init(&backing_dev->lock);
 	spin_lock_init(&backing_dev->submit_lock);
 	spin_lock_init(&backing_dev->complete_lock);
 	INIT_WORK(&backing_dev->req_submit_work, req_submit_fn);
