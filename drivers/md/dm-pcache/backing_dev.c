@@ -38,9 +38,8 @@ err:
 	return ret;
 }
 
-static int backing_dev_open(struct pcache_backing_dev *backing_dev, char *path)
+static int backing_dev_open(struct pcache_backing_dev *backing_dev, const char *path)
 {
-	bool new_backing;
 	int ret;
 
 	backing_dev->bdev_file = bdev_file_open_by_path(path,
@@ -74,7 +73,7 @@ static int backing_dev_close(struct pcache_backing_dev *backing_dev)
 	return 0;
 }
 
-int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path)
+int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 	int ret;

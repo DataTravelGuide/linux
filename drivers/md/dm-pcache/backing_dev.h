@@ -52,7 +52,7 @@ struct pcache_backing_dev_opts {
 };
 
 struct dm_pcache;
-int backing_dev_start(struct dm_pcache *pcache, char *backing_dev_path);
+int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path);
 int backing_dev_stop(struct dm_pcache *pcache);
 
 void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req);

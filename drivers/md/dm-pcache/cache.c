@@ -173,7 +173,6 @@ static int get_seg_id(struct pcache_cache *cache,
 		      struct pcache_cache_segment *prev_cache_seg,
 		      bool new_cache, u32 *seg_id)
 {
-	struct pcache_backing_dev *backing_dev = cache->backing_dev;
 	struct pcache_cache_dev *cache_dev = cache->cache_dev;
 	int ret;
 
@@ -246,7 +245,6 @@ static int cache_init_req_keys(struct pcache_cache *cache, u32 n_paral)
 	if (ret)
 		goto err;
 
-	/* Set the number of ksets based on n_paral, often corresponding to blkdev multiqueue count */
 	cache->n_ksets = n_paral;
 	cache->ksets = kcalloc(cache->n_ksets, PCACHE_KSET_SIZE, GFP_KERNEL);
 	if (!cache->ksets) {

@@ -49,7 +49,7 @@ struct pcache_cache_seg_gen {
 
 /* Control structure for cache segments */
 struct pcache_cache_seg_ctrl {
-	struct pcache_cache_seg_gen gen[PCACHE_META_INDEX_MAX]; /* Updated by blkdev, incremented in invalidating */
+	struct pcache_cache_seg_gen gen[PCACHE_META_INDEX_MAX];
 	u64	res[64];
 };
 

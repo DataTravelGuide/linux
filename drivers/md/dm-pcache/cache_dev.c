@@ -34,7 +34,7 @@ const struct dax_holder_operations cache_dev_dax_holder_ops = {
 	.notify_failure		= cache_dev_dax_notify_failure,
 };
 
-static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, char *path)
+static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *path)
 {
 	struct dax_device *dax_dev = NULL;
 	struct file *bdev_file = NULL;
@@ -248,7 +248,6 @@ static int sb_validate(struct pcache_cache_dev *cache_dev)
 static int cache_dev_init(struct pcache_cache_dev *cache_dev)
 {
 	struct pcache_sb *sb;
-	struct device *dev;
 	int ret;
 
 	ret = sb_validate(cache_dev);
@@ -264,9 +263,6 @@ static int cache_dev_init(struct pcache_cache_dev *cache_dev)
 		goto err;
 
 	return 0;
-
-free_bitmap:
-	bitmap_free(cache_dev->seg_bitmap);
 err:
 	return ret;
 }
@@ -286,7 +282,7 @@ int cache_dev_stop(struct dm_pcache *pcache)
 	return 0;
 }
 
-int cache_dev_start(struct dm_pcache *pcache, char *cache_dev_path, char *backing_dev_path)
+int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path, const char *backing_dev_path)
 {
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	int ret;
@@ -294,27 +290,24 @@ int cache_dev_start(struct dm_pcache *pcache, char *cache_dev_path, char *backin
 	mutex_init(&cache_dev->seg_lock);
 
 	ret = cache_dev_dax_init(cache_dev, cache_dev_path);
-	if (ret)
-		goto cache_dev_free;
+	if (ret) {
+		pcache_err("failed to init cache_dev via dax way: %d.", ret);
+		goto err;
+	}
 
-	pr_err("after dax init");
 	ret = cache_dev_format(cache_dev);
 	if (ret < 0)
 		goto dax_release;
 
-	pr_err("after format");
 	ret = cache_dev_init(cache_dev);
 	if (ret)
 		goto dax_release;
 
-	pr_err("seg_num after start: %u", cache_dev->seg_num);
-
 	return 0;
+
 dax_release:
 	cache_dev_dax_exit(cache_dev);
-cache_dev_free:
-
-	pr_err("failed to start cache_dev\ %dn", ret);
+err:
 	return ret;
 }
 
@@ -322,7 +315,6 @@ int cache_dev_get_empty_segment_id(struct pcache_cache_dev *cache_dev, u32 *seg_
 {
 	int ret;
 
-	pr_err("seg_num: %u", cache_dev->seg_num);
 	mutex_lock(&cache_dev->seg_lock);
 	*seg_id = find_next_zero_bit(cache_dev->seg_bitmap, cache_dev->seg_num, 0);
 	if (*seg_id == cache_dev->seg_num) {
