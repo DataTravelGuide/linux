@@ -39,7 +39,7 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 	struct file *bdev_file = NULL;
 	struct block_device *bdev;
 	long total_pages, mapped_pages;
-	u64 bdev_size, start_off = 0;
+	u64 bdev_size;
 	struct page **pages = NULL;
 	void *vaddr = NULL;
 	int ret, id;

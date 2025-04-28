@@ -40,16 +40,41 @@ void pcache_req_put(struct pcache_request *pcache_req, int ret)
 static int parse_cache_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 				char **error)
 {
+	const char *cache_dev_path;
 	int ret;
 
 	if (!as->argc) {
-		*error = "Insufficient args";
+		*error = "Cache_dev_path required";
 		return -EINVAL;
 	}
 
-	ret = cache_dev_start(pcache, dm_shift_arg(as));
+	cache_dev_path = dm_shift_arg(as);
+	ret = cache_dev_start(pcache, cache_dev_path);
 	if (ret) {
-		pcache_err("failed to start cache_dev: %d", ret);
+		pcache_err("error to start cache dev: %s, ret: %d", cache_dev_path, ret);
+		*error = "Failed to start cache dev";
+		return ret;;
+	}
+
+	return 0;
+}
+
+static int parse_backing_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
+				char **error)
+{
+	const char *backing_dev_path;
+	int ret;
+
+	if (!as->argc) {
+		*error = "Backing_dev_path required";
+		return -EINVAL;
+	}
+
+	backing_dev_path = dm_shift_arg(as);
+	ret = backing_dev_start(pcache, backing_dev_path);
+	if (ret) {
+		pcache_err("error to start backing dev: %s, ret: %d", backing_dev_path, ret);
+		*error = "Failed to start backing dev";
 		return ret;;
 	}
 
@@ -66,14 +91,24 @@ static int parse_pcache_args(struct dm_pcache *pcache, unsigned int argc, char *
 	as.argv = argv;
 
 	ret = parse_cache_dev(pcache, &as, error);
+	if (ret)
+		goto err;
 
+	ret = parse_backing_dev(pcache, &as, error);
+	if (ret)
+		goto stop_cache_dev;
+
+	return 0;
+
+stop_cache_dev:
+	cache_dev_stop(pcache);
+err:
 	return ret;
 }
 
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dm_pcache *pcache;
-	const char *cache_dev_path, *backing_dev_path;
 	int ret;
 
 	/* Allocate memory for the cache structure */
@@ -90,23 +125,10 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	pcache->ti = ti;
 
-	cache_dev_path = argv[0];  // Cache device path
-	backing_dev_path = argv[1];  // Backing device path
-
 	ret = parse_pcache_args(pcache, argc, argv, &ti->error);
 	if (ret) {
 		pcache_err("parse args failed.");
 		goto destroy_wq;
-	}
-
-	/* Log the parsed data (for debugging) */
-	pr_info("Cache device: %s\n", cache_dev_path);
-	pr_info("Backing device: %s\n", backing_dev_path);
-
-	ret = backing_dev_start(pcache, backing_dev_path);
-	if (ret) {
-		pcache_err("failed to start backing_dev: %d", ret);
-		goto stop_cache_dev;
 	}
 
 	ret = pcache_cache_start(pcache, true);
@@ -122,7 +144,6 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 stop_backing_dev:
 	backing_dev_stop(pcache);
-stop_cache_dev:
 	cache_dev_stop(pcache);
 destroy_wq:
 	destroy_workqueue(pcache->task_wq);
