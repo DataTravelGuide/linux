@@ -142,7 +142,7 @@ struct pcache_cache {
 
 	struct kmem_cache	*req_cache;
 
-	struct pcache_cache_info	cache_info;;
+	struct pcache_cache_info	cache_info;
 	struct pcache_cache_info	*cache_info_addr;
 
 	u32			state:8;
@@ -355,7 +355,7 @@ static inline struct pcache_cache_kset *get_kset(struct pcache_cache *cache, u32
 
 static inline struct pcache_cache_data_head *get_data_head(struct pcache_cache *cache, u32 i)
 {
-	return this_cpu_ptr(cache->data_heads);;
+	return this_cpu_ptr(cache->data_heads);
 }
 
 static inline bool cache_key_empty(struct pcache_cache_key *key)
