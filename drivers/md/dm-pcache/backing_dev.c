@@ -109,6 +109,35 @@ int backing_dev_stop(struct dm_pcache *pcache)
 }
 
 /* pcache_backing_dev_req functions */
+void backing_dev_req_end(struct pcache_backing_dev_req *backing_req)
+{
+	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
+
+	if (backing_req->end_req)
+		backing_req->end_req(backing_req, backing_req->ret);
+
+	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
+}
+
+static void req_complete_fn(struct work_struct *work)
+{
+	struct pcache_backing_dev *backing_dev = container_of(work, struct pcache_backing_dev, req_complete_work);
+	struct pcache_backing_dev_req *backing_req;
+	unsigned long flags;
+	LIST_HEAD(tmp_list);
+
+	spin_lock_irqsave(&backing_dev->complete_lock, flags);
+	list_splice_init(&backing_dev->complete_list, &tmp_list);
+	spin_unlock_irqrestore(&backing_dev->complete_lock, flags);
+
+	while (!list_empty(&tmp_list)) {
+		backing_req = list_first_entry(&tmp_list,
+					    struct pcache_backing_dev_req, node);
+		list_del_init(&backing_req->node);
+		backing_dev_req_end(backing_req);
+	}
+}
+
 static void end_req(struct kref *ref)
 {
 	struct pcache_backing_dev_req *backing_req = container_of(ref, struct pcache_backing_dev_req, ref);
@@ -131,6 +160,42 @@ static void backing_dev_bio_end(struct bio *bio)
 
 	kref_put(&backing_req->ref, end_req);
 	bio_put(bio);
+}
+
+static void req_submit_fn(struct work_struct *work)
+{
+	struct pcache_backing_dev *backing_dev = container_of(work, struct pcache_backing_dev, req_submit_work);
+	struct pcache_backing_dev_req *backing_req;
+	unsigned long flags;
+	LIST_HEAD(tmp_list);
+
+	spin_lock(&backing_dev->submit_lock);
+	list_splice_init(&backing_dev->submit_list, &tmp_list);
+	spin_unlock(&backing_dev->submit_lock);
+
+	while (!list_empty(&tmp_list)) {
+		backing_req = list_first_entry(&tmp_list,
+					    struct pcache_backing_dev_req, node);
+		list_del_init(&backing_req->node);
+		submit_bio_noacct(backing_req->bio);
+
+		local_irq_save(flags);
+		kref_put(&backing_req->ref, end_req);
+		local_irq_restore(flags);
+	}
+}
+
+void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req)
+{
+	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
+
+	kref_get(&backing_req->ref);
+
+	spin_lock(&backing_dev->submit_lock);
+	list_add_tail(&backing_req->node, &backing_dev->submit_list);
+	spin_unlock(&backing_dev->submit_lock);
+
+	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_submit_work);
 }
 
 struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
@@ -172,69 +237,4 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 err_free_req:
 	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
 	return NULL;
-}
-
-static void req_submit_fn(struct work_struct *work)
-{
-	struct pcache_backing_dev *backing_dev = container_of(work, struct pcache_backing_dev, req_submit_work);
-	struct pcache_backing_dev_req *backing_req;
-	unsigned long flags;
-	LIST_HEAD(tmp_list);
-
-	spin_lock(&backing_dev->submit_lock);
-	list_splice_init(&backing_dev->submit_list, &tmp_list);
-	spin_unlock(&backing_dev->submit_lock);
-
-	while (!list_empty(&tmp_list)) {
-		backing_req = list_first_entry(&tmp_list,
-					    struct pcache_backing_dev_req, node);
-		list_del_init(&backing_req->node);
-		submit_bio_noacct(backing_req->bio);
-
-		local_irq_save(flags);
-		kref_put(&backing_req->ref, end_req);
-		local_irq_restore(flags);
-	}
-}
-
-static void req_complete_fn(struct work_struct *work)
-{
-	struct pcache_backing_dev *backing_dev = container_of(work, struct pcache_backing_dev, req_complete_work);
-	struct pcache_backing_dev_req *backing_req;
-	unsigned long flags;
-	LIST_HEAD(tmp_list);
-
-	spin_lock_irqsave(&backing_dev->complete_lock, flags);
-	list_splice_init(&backing_dev->complete_list, &tmp_list);
-	spin_unlock_irqrestore(&backing_dev->complete_lock, flags);
-
-	while (!list_empty(&tmp_list)) {
-		backing_req = list_first_entry(&tmp_list,
-					    struct pcache_backing_dev_req, node);
-		list_del_init(&backing_req->node);
-		backing_dev_req_end(backing_req);
-	}
-}
-
-void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req)
-{
-	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
-
-	kref_get(&backing_req->ref);
-
-	spin_lock(&backing_dev->submit_lock);
-	list_add_tail(&backing_req->node, &backing_dev->submit_list);
-	spin_unlock(&backing_dev->submit_lock);
-
-	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_submit_work);
-}
-
-void backing_dev_req_end(struct pcache_backing_dev_req *backing_req)
-{
-	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
-
-	if (backing_req->end_req)
-		backing_req->end_req(backing_req, backing_req->ret);
-
-	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
 }
