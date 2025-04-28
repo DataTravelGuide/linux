@@ -38,7 +38,7 @@ struct pcache_cache_dev {
 
 struct dm_pcache;
 int cache_dev_stop(struct dm_pcache *pcache);
-int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path, const char *backing_dev_path);
+int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path);
 
 void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size);

@@ -73,7 +73,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	pr_info("Cache device: %s\n", cache_dev_path);
 	pr_info("Backing device: %s\n", backing_dev_path);
 
-	ret = cache_dev_start(pcache, cache_dev_path, backing_dev_path);
+	ret = cache_dev_start(pcache, cache_dev_path);
 	if (ret) {
 		pcache_err("failed to start cache_dev: %d", ret);
 		goto destroy_wq;

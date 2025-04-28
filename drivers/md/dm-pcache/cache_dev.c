@@ -282,7 +282,7 @@ int cache_dev_stop(struct dm_pcache *pcache)
 	return 0;
 }
 
-int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path, const char *backing_dev_path)
+int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path)
 {
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	int ret;
