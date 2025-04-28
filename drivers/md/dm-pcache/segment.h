@@ -7,11 +7,10 @@
 #include "pcache_internal.h"
 
 #define PCACHE_SEGMENT_STATE_NONE		0
-#define PCACHE_SEGMENT_STATE_RUNNING	1
+#define PCACHE_SEGMENT_STATE_RUNNING		1
 
 #define PCACHES_TYPE_NONE			0
-#define PCACHES_TYPE_META			1
-#define PCACHE_SEGMENT_TYPE_DATA			2
+#define PCACHE_SEGMENT_TYPE_DATA		1
 
 struct pcache_segment_info {
 	struct pcache_meta_header	header;	/* Metadata header for the segment */
