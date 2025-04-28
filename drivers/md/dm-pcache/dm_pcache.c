@@ -1,16 +1,8 @@
-/*
- * dm‑pcache.c – Minimal bio-based Device‑Mapper target
- * -------------------------------------------------------------
- * This is a bio-based target that immediately completes every request with BLK_STS_OK.
- * No backing device, metadata, or DAX initialisation is performed – this is
- * just a compilable & runnable skeleton for future development.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #include <linux/module.h>
 #include <linux/device-mapper.h>
 #include <linux/blkdev.h>
-#include <linux/blk-mq.h>
-#include <linux/bio.h>  // Required for bio-based targets
+#include <linux/bio.h>
 
 #include "../dm-core.h"
 
@@ -129,7 +121,6 @@ static void dm_pcache_dtr(struct dm_target *ti)
         kfree(pcache);
 }
 
-/* bio-based fast path – just succeed */
 static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_pcache *pcache = ti->private;
@@ -142,11 +133,10 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	kref_init(&pcache_req->ref);
 	pcache_req->ret = 0;
 	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-
 	pcache_req_put(pcache_req, ret);
-	if (ret) {
+
+	if (ret)
 		return DM_MAPIO_KILL;
-	}
 
         return DM_MAPIO_SUBMITTED;
 }
@@ -164,16 +154,15 @@ static int dm_pcache_message(struct dm_target *ti, unsigned int argc,
         return -EINVAL; /* no messages supported yet */
 }
 
-/* ---------------- registration ------------------------------------ */
 static struct target_type dm_pcache_target = {
-        .name             = "pcache",
-        .version          = {0, 0, 1},
-        .module           = THIS_MODULE,
-        .ctr              = dm_pcache_ctr,
-        .dtr              = dm_pcache_dtr,
-        .map 	         = dm_pcache_map_bio,  // Updated to map_bio for bio-based targets
-        .status           = dm_pcache_status,
-        .message          = dm_pcache_message,
+        .name		= "pcache",
+        .version	= {0, 1, 0},
+        .module		= THIS_MODULE,
+        .ctr		= dm_pcache_ctr,
+        .dtr		= dm_pcache_dtr,
+        .map		= dm_pcache_map_bio,
+        .status		= dm_pcache_status,
+        .message	= dm_pcache_message,
 };
 
 static int __init dm_pcache_init(void)
@@ -188,6 +177,6 @@ static void __exit dm_pcache_exit(void)
 }
 module_exit(dm_pcache_exit);
 
-MODULE_DESCRIPTION("Device‑mapper pcache (bio-based, all I/O succeed)");
-MODULE_AUTHOR("Dongsheng Yang");
+MODULE_DESCRIPTION("dm-pcache Persistent Memory to be Cache for block device");
+MODULE_AUTHOR("Dongsheng Yang <dongsheng.yang@linux.dev>");
 MODULE_LICENSE("GPL v2");
