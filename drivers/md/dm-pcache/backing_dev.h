@@ -48,8 +48,30 @@ struct dm_pcache;
 int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path);
 void backing_dev_stop(struct dm_pcache *pcache);
 
+#define BACKING_DEV_REQ_TYPE_REQ		1
+#define BACKING_DEV_REQ_TYPE_KMEM		2
+
+struct pcache_backing_dev_req_opts {
+	u32 type;
+	union {
+		struct {
+			struct pcache_request *upper_req;
+			u32 req_off;
+			u32 len;
+		} req;
+		struct {
+			void *data;
+			u8 op;
+			u64 disk_off;
+			u32 len;
+		} kmem;
+	};
+
+	backing_req_end_fn_t	end_fn;
+};
+
 void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req);
 void backing_dev_req_end(struct pcache_backing_dev_req *backing_req);
 struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
-		struct pcache_request *pcache_req, u32 off, u32 len, backing_req_end_fn_t end_req);
+						struct pcache_backing_dev_req_opts *opts);
 #endif /* _BACKING_DEV_H */

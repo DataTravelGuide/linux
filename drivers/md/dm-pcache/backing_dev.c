@@ -198,7 +198,7 @@ void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req)
 	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_submit_work);
 }
 
-struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
+static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_dev *backing_dev,
 							struct pcache_request *pcache_req,
 							u32 off, u32 len,
 							backing_req_end_fn_t end_fn)
@@ -238,5 +238,14 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 
 err_free_req:
 	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
+	return NULL;
+}
+
+struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
+						struct pcache_backing_dev_req_opts *opts)
+{
+	if (opts->type == BACKING_DEV_REQ_TYPE_REQ)
+		return req_type_req_create(backing_dev, opts->req.upper_req, opts->req.req_off, opts->req.len, opts->end_fn);
+
 	return NULL;
 }

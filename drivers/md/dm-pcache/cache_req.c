@@ -252,8 +252,15 @@ static struct pcache_backing_dev_req *create_cache_miss_req(struct pcache_cache 
 	struct pcache_backing_dev *backing_dev = cache->backing_dev;
 	struct pcache_backing_dev_req *backing_req;
 	struct pcache_cache_key *key = NULL;
+	struct pcache_backing_dev_req_opts req_opts = { 0 };
 
-	backing_req = backing_dev_req_create(backing_dev, parent, off, len, miss_read_end_req);
+	req_opts.type = BACKING_DEV_REQ_TYPE_REQ;
+	req_opts.req.upper_req = parent;
+	req_opts.req.req_off = off;
+	req_opts.req.len = len;
+	req_opts.end_fn = miss_read_end_req;
+
+	backing_req = backing_dev_req_create(backing_dev, &req_opts);
 	if (!backing_req)
 		goto out;
 
