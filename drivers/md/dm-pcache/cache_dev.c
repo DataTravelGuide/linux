@@ -13,11 +13,9 @@
 
 static void cache_dev_dax_exit(struct pcache_cache_dev *cache_dev)
 {
-	if (cache_dev->dax_dev)
-		fs_put_dax(cache_dev->dax_dev, cache_dev);
+	struct dm_pcache *pcache = CACHE_DEV_TO_PCACHE(cache_dev);
 
-	if (cache_dev->bdev_file)
-		fput(cache_dev->bdev_file);
+	dm_put_device(pcache->ti, cache_dev->dm_dev);
 }
 
 static int cache_dev_dax_notify_failure(struct dax_device *dax_dev, u64 offset,
@@ -36,6 +34,7 @@ const struct dax_holder_operations cache_dev_dax_holder_ops = {
 
 static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *path)
 {
+	struct dm_pcache *pcache = CACHE_DEV_TO_PCACHE(cache_dev);
 	struct dax_device *dax_dev = NULL;
 	struct file *bdev_file = NULL;
 	struct block_device *bdev;
@@ -47,40 +46,27 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 	pfn_t pfn;
 	long i = 0;
 
-	/* Open block device */
-	bdev_file = bdev_file_open_by_path(path, BLK_OPEN_READ | BLK_OPEN_WRITE, cache_dev, NULL);
-	if (IS_ERR(bdev_file)) {
-		ret = PTR_ERR(bdev_file);
-		pcache_err("failed to open bdev %s, err=%d\n", path, ret);
+	ret = dm_get_device(pcache->ti, path,
+			BLK_OPEN_READ | BLK_OPEN_WRITE, &cache_dev->dm_dev);
+	if (ret) {
+		pcache_err("failed to open dm_dev: %s: %d", path, ret);
 		goto err;
 	}
 
-	/* Get block device structure */
-	bdev = file_bdev(bdev_file);
-	if (!bdev) {
-		ret = -EINVAL;
-		pcache_err("failed to get bdev from file\n");
-		goto fput;
-	}
+	bdev = cache_dev->dm_dev->bdev;
+	bdev_file = cache_dev->dm_dev->bdev_file;
+	dax_dev = cache_dev->dm_dev->dax_dev;
 
 	/* Get total device size */
 	bdev_size = bdev_nr_bytes(bdev);
 	if (bdev_size == 0) {
 		ret = -ENODEV;
 		pcache_err("device %s has zero size\n", path);
-		goto fput;
+		goto put_dm;
 	}
 
 	/* Convert device size to total pages */
 	total_pages = bdev_size >> PAGE_SHIFT;
-
-	/* Get the DAX device */
-	dax_dev = fs_dax_get_by_bdev(bdev, &start_off, cache_dev, &cache_dev_dax_holder_ops);
-	if (IS_ERR(dax_dev)) {
-		ret = PTR_ERR(dax_dev);
-		pcache_err("failed to get dax_dev from bdev, err=%d\n", ret);
-		goto fput;
-	}
 
 	/* Lock DAX access */
 	id = dax_read_lock();
@@ -162,9 +148,8 @@ vfree:
 	vfree(pages);
 unlock:
 	dax_read_unlock(id);
-	fs_put_dax(dax_dev, cache_dev);
-fput:
-	fput(bdev_file);
+put_dm:
+	dm_put_device(pcache->ti, cache_dev->dm_dev);
 err:
 	return ret;
 }
@@ -295,9 +280,11 @@ int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path)
 		goto err;
 	}
 
-	ret = cache_dev_format(cache_dev);
-	if (ret < 0)
-		goto dax_release;
+	if (true || le64_to_cpu(cache_dev->sb_addr->magic) == 0) {
+		ret = cache_dev_format(cache_dev);
+		if (ret < 0)
+			goto dax_release;
+	}
 
 	ret = cache_dev_init(cache_dev);
 	if (ret)

@@ -3,6 +3,7 @@
 #define _PCACHE_CACHE_DEV_H
 
 #include <linux/device.h>
+#include <linux/device-mapper.h>
 
 #include "pcache_internal.h"
 
@@ -31,6 +32,7 @@ struct pcache_cache_dev {
 	struct dax_device		*dax_dev;
 	struct file			*bdev_file;
 	struct block_device		*bdev;
+	struct dm_dev			*dm_dev;
 
 	struct mutex			seg_lock;
 	unsigned long			*seg_bitmap;

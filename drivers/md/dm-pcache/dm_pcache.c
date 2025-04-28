@@ -37,19 +37,44 @@ void pcache_req_put(struct pcache_request *pcache_req, int ret)
 	kref_put(&pcache_req->ref, end_req);
 }
 
-/* ---------------- target callbacks -------------------------------- */
+static int parse_cache_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
+				char **error)
+{
+	int ret;
+
+	if (!as->argc) {
+		*error = "Insufficient args";
+		return -EINVAL;
+	}
+
+	ret = cache_dev_start(pcache, dm_shift_arg(as));
+	if (ret) {
+		pcache_err("failed to start cache_dev: %d", ret);
+		return ret;;
+	}
+
+	return 0;
+}
+
+static int parse_pcache_args(struct dm_pcache *pcache, unsigned int argc, char **argv,
+				char **error)
+{
+	struct dm_arg_set as;
+	int ret;
+
+	as.argc = argc;
+	as.argv = argv;
+
+	ret = parse_cache_dev(pcache, &as, error);
+
+	return ret;
+}
+
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dm_pcache *pcache;
 	const char *cache_dev_path, *backing_dev_path;
 	int ret;
-
-	/* Check if we have the right number of arguments */
-	if (argc != 2) {
-		pr_err("argc: %d", argc);
-		ti->error = "pcache: invalid argument count";
-		return -EINVAL;
-	}
 
 	/* Allocate memory for the cache structure */
 	pcache = kzalloc(sizeof(struct dm_pcache), GFP_KERNEL);
@@ -63,21 +88,20 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto free_pcache;
 	}
 
+	pcache->ti = ti;
+
 	cache_dev_path = argv[0];  // Cache device path
 	backing_dev_path = argv[1];  // Backing device path
 
-	ti->per_io_data_size = sizeof(struct pcache_request);
-	ti->private = pcache;
+	ret = parse_pcache_args(pcache, argc, argv, &ti->error);
+	if (ret) {
+		pcache_err("parse args failed.");
+		goto destroy_wq;
+	}
 
 	/* Log the parsed data (for debugging) */
 	pr_info("Cache device: %s\n", cache_dev_path);
 	pr_info("Backing device: %s\n", backing_dev_path);
-
-	ret = cache_dev_start(pcache, cache_dev_path);
-	if (ret) {
-		pcache_err("failed to start cache_dev: %d", ret);
-		goto destroy_wq;
-	}
 
 	ret = backing_dev_start(pcache, backing_dev_path);
 	if (ret) {
@@ -90,6 +114,9 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		pcache_err("failed to start caching: %d", ret);
 		goto stop_backing_dev;
 	}
+
+	ti->per_io_data_size = sizeof(struct pcache_request);
+	ti->private = pcache;
 
 	return 0;
 
