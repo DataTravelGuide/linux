@@ -40,35 +40,38 @@ err:
 
 static int backing_dev_open(struct pcache_backing_dev *backing_dev, const char *path)
 {
+	struct dm_pcache *pcache = BACKING_DEV_TO_PCACHE(backing_dev);
 	int ret;
 
-	backing_dev->bdev_file = bdev_file_open_by_path(path,
-			BLK_OPEN_READ | BLK_OPEN_WRITE, backing_dev, NULL);
-	if (IS_ERR(backing_dev->bdev_file)) {
-		pcache_err("failed to open bdev: %d", (int)PTR_ERR(backing_dev->bdev_file));
-		ret = PTR_ERR(backing_dev->bdev_file);
+	ret = dm_get_device(pcache->ti, path,
+			BLK_OPEN_READ | BLK_OPEN_WRITE, &backing_dev->dm_dev);
+	if (ret) {
+		pcache_err("failed to open dm_dev: %s: %d", path, ret);
 		goto err;
 	}
 
-	backing_dev->bdev = file_bdev(backing_dev->bdev_file);
+	backing_dev->bdev_file = backing_dev->dm_dev->bdev_file;
+	backing_dev->bdev = backing_dev->dm_dev->bdev;
 	backing_dev->dev_size = bdev_nr_sectors(backing_dev->bdev);
 
 	ret = bioset_init(&backing_dev->bioset, 1024, 0, BIOSET_NEED_BVECS);
 	if (ret)
-		goto close_bdev;
+		goto put_dev;
 
 	return 0;
 
-close_bdev:
-	fput(backing_dev->bdev_file);
+put_dev:
+	dm_put_device(pcache->ti, backing_dev->dm_dev);
 err:
 	return ret;
 }
 
 static int backing_dev_close(struct pcache_backing_dev *backing_dev)
 {
+	struct dm_pcache *pcache = BACKING_DEV_TO_PCACHE(backing_dev);
+
 	bioset_exit(&backing_dev->bioset);
-	fput(backing_dev->bdev_file);
+	dm_put_device(pcache->ti, backing_dev->dm_dev);
 
 	return 0;
 }
