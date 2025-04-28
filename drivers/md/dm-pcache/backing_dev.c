@@ -214,7 +214,7 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 	if (!clone)
 		goto err_free_req;
 
-	bio_trim(clone, off, len);
+	bio_trim(clone, off >> SECTOR_SHIFT, len >> SECTOR_SHIFT);
 
 	bio_set_dev(clone, backing_dev->bdev);
 	clone->bi_opf = bio_op(orig);
