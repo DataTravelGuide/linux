@@ -139,7 +139,6 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 	dax_read_unlock(id);
 
 	cache_dev->bdev_file = bdev_file;
-	cache_dev->dax_dev = dax_dev;
 	cache_dev->bdev = bdev;
 
 	return 0;
@@ -156,7 +155,7 @@ err:
 
 void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size)
 {
-	dax_flush(cache_dev->dax_dev, pos, size);
+	dax_flush(cache_dev->dm_dev->dax_dev, pos, size);
 }
 
 void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size)

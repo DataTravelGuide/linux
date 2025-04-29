@@ -18,7 +18,11 @@ static void end_req(struct kref *ref)
 	int ret = pcache_req->ret;
 
 	if (bio) {
-		bio->bi_status = ret;
+		if (ret == -ENOMEM || ret == -EBUSY)
+			bio->bi_status = BLK_STS_DM_REQUEUE;
+		else
+			bio->bi_status = ret;
+
 		bio_endio(bio);
 	}
 }
@@ -183,8 +187,13 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 
 	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
 	pcache_req_put(pcache_req, ret);
-	if (ret)
+	if (ret == -ENOMEM || ret == -EBUSY) {
+		pcache_err("requeue req: %d", ret);
+		return DM_MAPIO_REQUEUE;
+	} else if (ret) {
+		pcache_err("failed to handle request: %d", ret);
 		return DM_MAPIO_KILL;
+	}
 
 	return DM_MAPIO_SUBMITTED;
 }
