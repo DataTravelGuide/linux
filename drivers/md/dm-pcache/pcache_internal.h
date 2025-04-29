@@ -17,7 +17,7 @@
 /* Maximum number of metadata indices */
 #define PCACHE_META_INDEX_MAX		2
 
-#define PCACHE_CRC_SEED			0x315
+#define PCACHE_CRC_SEED			0x3B15A
 /*
  * struct pcache_meta_header - PCACHE metadata header structure
  * @crc: CRC checksum for validating metadata integrity.
