@@ -10,7 +10,6 @@
 static void backing_dev_destroy(struct pcache_backing_dev *backing_dev)
 {
 	kmem_cache_destroy(backing_dev->backing_req_cache);
-	kfree(backing_dev);
 }
 
 static void req_submit_fn(struct work_struct *work);
