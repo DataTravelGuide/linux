@@ -43,7 +43,6 @@ obj-$(CONFIG_MD_RAID10)		+= raid10.o
 obj-$(CONFIG_MD_RAID456)	+= raid456.o
 obj-$(CONFIG_MD_CLUSTER)	+= md-cluster.o
 obj-$(CONFIG_BCACHE)		+= bcache/
-obj-m				+= dm-pcache/
 obj-$(CONFIG_BLK_DEV_MD)	+= md-mod.o
 ifeq ($(CONFIG_BLK_DEV_MD),y)
 obj-y				+= md-autodetect.o
@@ -72,6 +71,7 @@ obj-$(CONFIG_DM_RAID)		+= dm-raid.o
 obj-$(CONFIG_DM_THIN_PROVISIONING) += dm-thin-pool.o
 obj-$(CONFIG_DM_VERITY)		+= dm-verity.o
 obj-$(CONFIG_DM_VDO)            += dm-vdo/
+obj-$(CONFIG_DM_PCACHE)		+= dm-pcache/
 obj-$(CONFIG_DM_CACHE)		+= dm-cache.o
 obj-$(CONFIG_DM_CACHE_SMQ)	+= dm-cache-smq.o
 obj-$(CONFIG_DM_EBS)		+= dm-ebs.o
