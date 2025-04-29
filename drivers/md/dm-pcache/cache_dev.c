@@ -87,7 +87,7 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 
 	/* If all pages are mapped in one go, use direct mapping */
 	if (mapped_pages == total_pages) {
-		cache_dev->sb_addr = (struct pcache_sb *)vaddr;
+		cache_dev->mapping = vaddr;
 	} else {
 		/* Use vmap() to create a contiguous mapping */
 		long chunk_size;
@@ -132,7 +132,7 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 		}
 
 		vfree(pages);
-		cache_dev->sb_addr = (struct pcache_sb *)vaddr;
+		cache_dev->mapping = vaddr;
 	}
 
 	/* Unlock and store references */
@@ -167,14 +167,14 @@ void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 siz
 
 static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 {
-	struct pcache_sb *sb = cache_dev->sb_addr;
+	struct pcache_sb *sb = CACHE_DEV_SB(cache_dev);
 	u64 nr_segs;
 	u64 cache_dev_size;
 	u64 magic;
 	u16 flags = 0;
 
 	magic = le64_to_cpu(sb->magic);
-	if (false && magic)
+	if (magic)
 		return -EEXIST;
 
 	cache_dev_size = bdev_nr_bytes(file_bdev(cache_dev->bdev_file));
@@ -205,7 +205,7 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 
 static int sb_validate(struct pcache_cache_dev *cache_dev)
 {
-	struct pcache_sb *sb = cache_dev->sb_addr;
+	struct pcache_sb *sb = CACHE_DEV_SB(cache_dev);
 	u16 flags;
 
 	if (le64_to_cpu(sb->magic) != PCACHE_MAGIC) {
@@ -239,7 +239,7 @@ static int cache_dev_init(struct pcache_cache_dev *cache_dev)
 	if (ret)
 		goto err;
 
-	sb = cache_dev->sb_addr;
+	sb = CACHE_DEV_SB(cache_dev);
 	cache_dev->seg_num = le64_to_cpu(sb->seg_num);
 
 	pr_err("seg_num: %u", cache_dev->seg_num);
@@ -261,6 +261,7 @@ int cache_dev_stop(struct dm_pcache *pcache)
 {
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 
+	cache_dev_zero_range(cache_dev, CACHE_DEV_SB(cache_dev), PCACHE_SB_SIZE);
 	cache_dev_exit(cache_dev);
 	cache_dev_dax_exit(cache_dev);
 
@@ -280,7 +281,7 @@ int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path)
 		goto err;
 	}
 
-	if (true || le64_to_cpu(cache_dev->sb_addr->magic) == 0) {
+	if (le64_to_cpu(CACHE_DEV_SB(cache_dev)->magic) == 0) {
 		ret = cache_dev_format(cache_dev);
 		if (ret < 0)
 			goto dax_release;

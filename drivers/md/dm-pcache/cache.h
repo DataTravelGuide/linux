@@ -161,8 +161,6 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc);
 void pcache_cache_stop(struct dm_pcache *pcache);
 
 struct pcache_cache_ctrl {
-	struct pcache_cache_seg_ctrl cache_seg_ctrl;
-
 	/* Updated by gc_thread */
 	struct pcache_cache_pos_onmedia key_tail_pos[PCACHE_META_INDEX_MAX];
 

@@ -33,13 +33,18 @@
 #define PCACHE_CACHE_INFO_SIZE			PAGE_SIZE
 #define PCACHE_CACHE_INFO_STRIDE		(PCACHE_CACHE_INFO_SIZE * PCACHE_META_INDEX_MAX)
 
-#define PCACHE_SEGMENTS_OFF			(PCACHE_CACHE_INFO_OFF + PCACHE_CACHE_INFO_STRIDE)
+#define PCACHE_CACHE_CTRL_OFF			(PCACHE_CACHE_INFO_OFF + PCACHE_CACHE_INFO_STRIDE)
+#define PCACHE_CACHE_CTRL_SIZE			PAGE_SIZE
+
+#define PCACHE_SEGMENTS_OFF			(PCACHE_CACHE_CTRL_OFF + PCACHE_CACHE_CTRL_SIZE)
 #define PCACHE_SEG_INFO_SIZE			PAGE_SIZE
 
 #define PCACHE_CACHE_DEV_SIZE_MIN		(512 * 1024 * 1024)	 /* 512 MB */
 
-#define CACHE_DEV_CACHE_INFO(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_CACHE_INFO_OFF)
-#define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->sb_addr + PCACHE_SEGMENTS_OFF)
+#define CACHE_DEV_SB(cache_dev)			((struct pcache_sb *)(cache_dev->mapping + PCACHE_SB_OFF))
+#define CACHE_DEV_CACHE_INFO(cache_dev)		((void *)cache_dev->mapping + PCACHE_CACHE_INFO_OFF)
+#define CACHE_DEV_CACHE_CTRL(cache_dev)		((void *)cache_dev->mapping + PCACHE_CACHE_CTRL_OFF)
+#define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->mapping + PCACHE_SEGMENTS_OFF)
 #define CACHE_DEV_SEGMENT(cache_dev, id)	((void *)CACHE_DEV_SEGMENTS(cache_dev) + (u64)id * PCACHE_SEG_SIZE)
 
 #define PCACHE_CRC_SEED		0x315
@@ -108,6 +113,7 @@ static inline void *pcache_meta_find_latest(struct pcache_meta_header *header,
 	for (i = 0; i < PCACHE_META_INDEX_MAX; i++) {
 		meta = (void *)header + (i * meta_size);
 
+		pr_err("crc: %u, meta_crc: %u", meta->crc, pcache_meta_crc(meta, meta_size));
 		/* Skip if CRC check fails */
 		if (meta->crc != pcache_meta_crc(meta, meta_size))
 			continue;

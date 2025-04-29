@@ -27,10 +27,13 @@ static void cache_info_load(struct pcache_cache *cache)
 
 	cache_info_addr = pcache_meta_find_latest(&cache->cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
 
+	pr_err("cache_info_addr %p", cache_info_addr);
 	if (!cache_info_addr)
 		cache_info_init(cache);
 	else
 		memcpy(&cache->cache_info, cache_info_addr, sizeof(struct pcache_cache_info));
+
+	pr_err("seg_num: %d, flags: %x", cache->cache_info.n_segs, cache->cache_info.flags);
 }
 
 void cache_pos_encode(struct pcache_cache *cache,
@@ -327,6 +330,7 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 		return ret;
 
 	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(cache->cache_dev);
+	cache->cache_ctrl = CACHE_DEV_CACHE_CTRL(cache->cache_dev);
 	backing_dev->cache = cache;
 	cache->bdev_file = backing_dev->bdev_file;
 	cache->dev_size = backing_dev->dev_size;

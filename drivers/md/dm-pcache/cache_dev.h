@@ -27,7 +27,7 @@ struct pcache_sb {
 
 struct pcache_cache_dev {
 	u16				seg_num;
-	struct pcache_sb		*sb_addr;
+	void				*mapping;
 
 	struct dax_device		*dax_dev;
 	struct file			*bdev_file;

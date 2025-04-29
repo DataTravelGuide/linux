@@ -125,9 +125,6 @@ int cache_seg_init(struct pcache_cache *cache, u32 seg_id, u32 cache_seg_id,
 	pcache_segment_init(cache_dev, segment, &seg_options);
 
 	cache_seg->cache_seg_ctrl = CACHE_DEV_SEGMENT(cache_dev, seg_id) + PCACHE_CACHE_SEG_CTRL_OFF;
-	/* init cache->cache_ctrl */
-	if (cache_seg_is_ctrl_seg(cache_seg_id))
-		cache->cache_ctrl = (struct pcache_cache_ctrl *)cache_seg->cache_seg_ctrl;
 
 	if (new_cache) {
 		cache_seg->cache_seg_info.segment_info.type = PCACHE_SEGMENT_TYPE_DATA;
@@ -152,6 +149,7 @@ err:
 
 void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 {
+	pr_err("destroy segment\n");
 	/* clear cache segment ctrl */
 	cache_dev_zero_range(cache_seg->cache->cache_dev, cache_seg->cache_seg_ctrl,
 			PCACHE_CACHE_SEG_CTRL_SIZE);
