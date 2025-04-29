@@ -1,7 +1,7 @@
 /*
- * dm‑pcache.c – Minimal stub Device‑Mapper target (request‑based)
+ * dm‑pcache.c – Minimal bio-based Device‑Mapper target
  * -------------------------------------------------------------
- * A no‑op target that immediately completes every request with BLK_STS_OK.
+ * This is a bio-based target that immediately completes every request with BLK_STS_OK.
  * No backing device, metadata, or DAX initialisation is performed – this is
  * just a compilable & runnable skeleton for future development.
  */
@@ -10,12 +10,16 @@
 #include <linux/device-mapper.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
+#include <linux/bio.h>  // Required for bio-based targets
 
 /* ------------------------------------------------------------------ */
 struct dm_pcache {
-	const char *cache_dev;
-	const char *backing_dev;
-	unsigned long sec_nr;
+        const char *cache_dev;
+        const char *backing_dev;
+        unsigned long sec_nr;
+};
+
+struct pcache_request {
 };
 
 /* ---------------- target callbacks -------------------------------- */
@@ -23,12 +27,12 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
         struct dm_pcache *pcache;
         const char *cache_dev, *backing_dev;
-        unsigned long sec_nr;
         int ret;
+        dump_stack();
 
         /* Check if we have the right number of arguments */
         if (argc != 2) {
-		pr_err("argc: %d", argc);
+                pr_err("argc: %d", argc);
                 ti->error = "pcache: invalid argument count";
                 return -EINVAL;
         }
@@ -44,12 +48,12 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
         pcache->cache_dev = cache_dev;
         pcache->backing_dev = backing_dev;
 
+        ti->per_io_data_size = sizeof(struct pcache_request);
         ti->private = pcache;
 
         /* Log the parsed data (for debugging) */
         pr_info("Cache device: %s\n", cache_dev);
         pr_info("Backing device: %s\n", backing_dev);
-        pr_info("Total sectors: %lu\n", sec_nr);
 
         /* Return success */
         return 0;
@@ -60,20 +64,13 @@ static void dm_pcache_dtr(struct dm_target *ti)
         kfree(ti->private);
 }
 
-/* Request‑based fast path – just succeed */
-static int dm_pcache_clone_and_map_rq(struct dm_target *ti,
-                                      struct request *rq,
-                                      union map_info *map_ctx,
-                                      struct request **clone)
+/* bio-based fast path – just succeed */
+static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 {
-        blk_mq_end_request(rq, BLK_STS_OK);
-        *clone = NULL;                 /* nothing was dispatched */
-
+        /* We simply complete the bio without doing any actual I/O */
+        bio_endio(bio);  // Correct way to complete bio with success status
         return DM_MAPIO_SUBMITTED;
 }
-
-static void dm_pcache_release_clone_rq(struct request *clone,
-                                       union map_info *map_ctx) {}
 
 static int dm_pcache_busy(struct dm_target *ti) { return 0; }
 
@@ -97,8 +94,7 @@ static struct target_type dm_pcache_target = {
         .module           = THIS_MODULE,
         .ctr              = dm_pcache_ctr,
         .dtr              = dm_pcache_dtr,
-        .clone_and_map_rq = dm_pcache_clone_and_map_rq,
-        .release_clone_rq = dm_pcache_release_clone_rq,
+        .map 	         = dm_pcache_map_bio,  // Updated to map_bio for bio-based targets
         .busy             = dm_pcache_busy,
         .status           = dm_pcache_status,
         .message          = dm_pcache_message,
@@ -116,6 +112,6 @@ static void __exit dm_pcache_exit(void)
 }
 module_exit(dm_pcache_exit);
 
-MODULE_DESCRIPTION("Device‑mapper pcache (stub – all I/O succeed)");
-MODULE_AUTHOR("Dongsheng Yang");
+MODULE_DESCRIPTION("Device‑mapper pcache (bio-based, all I/O succeed)");
+MODULE_AUTHOR("Dongsheng Yang");
 MODULE_LICENSE("GPL v2");
