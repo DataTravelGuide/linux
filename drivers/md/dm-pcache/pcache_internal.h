@@ -12,42 +12,12 @@
 #define pcache_debug(fmt, ...)							\
 	pr_debug("dm-pcache: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
 
-#define PCACHE_KB			(1024ULL)			/* 1 Kilobyte in bytes */
-#define PCACHE_MB			(1024ULL * PCACHE_KB)		/* 1 Megabyte in bytes */
-
 #define PCACHE_PATH_LEN			256
 
-/* pcache segment */
-#define PCACHE_SEG_SIZE			(16 * 1024 * 1024ULL)		/* Size of each PCACHE segment (16 MB) */
-
-#define PCACHE_MAGIC			0x65B05EFA96C596EFULL		/* Unique identifier for PCACHE cache dev */
-#define PCACHE_VERSION			1
-
 /* Maximum number of metadata indices */
-#define PCACHE_META_INDEX_MAX			2
+#define PCACHE_META_INDEX_MAX		2
 
-#define PCACHE_SB_OFF				4096
-#define PCACHE_SB_SIZE				PAGE_SIZE
-
-#define PCACHE_CACHE_INFO_OFF			(PCACHE_SB_OFF + PCACHE_SB_SIZE)
-#define PCACHE_CACHE_INFO_SIZE			PAGE_SIZE
-#define PCACHE_CACHE_INFO_STRIDE		(PCACHE_CACHE_INFO_SIZE * PCACHE_META_INDEX_MAX)
-
-#define PCACHE_CACHE_CTRL_OFF			(PCACHE_CACHE_INFO_OFF + PCACHE_CACHE_INFO_STRIDE)
-#define PCACHE_CACHE_CTRL_SIZE			PAGE_SIZE
-
-#define PCACHE_SEGMENTS_OFF			(PCACHE_CACHE_CTRL_OFF + PCACHE_CACHE_CTRL_SIZE)
-#define PCACHE_SEG_INFO_SIZE			PAGE_SIZE
-
-#define PCACHE_CACHE_DEV_SIZE_MIN		(512 * 1024 * 1024)	 /* 512 MB */
-
-#define CACHE_DEV_SB(cache_dev)			((struct pcache_sb *)(cache_dev->mapping + PCACHE_SB_OFF))
-#define CACHE_DEV_CACHE_INFO(cache_dev)		((void *)cache_dev->mapping + PCACHE_CACHE_INFO_OFF)
-#define CACHE_DEV_CACHE_CTRL(cache_dev)		((void *)cache_dev->mapping + PCACHE_CACHE_CTRL_OFF)
-#define CACHE_DEV_SEGMENTS(cache_dev)		((void *)cache_dev->mapping + PCACHE_SEGMENTS_OFF)
-#define CACHE_DEV_SEGMENT(cache_dev, id)	((void *)CACHE_DEV_SEGMENTS(cache_dev) + (u64)id * PCACHE_SEG_SIZE)
-
-#define PCACHE_CRC_SEED		0x315
+#define PCACHE_CRC_SEED			0x315
 /*
  * struct pcache_meta_header - PCACHE metadata header structure
  * @crc: CRC checksum for validating metadata integrity.
