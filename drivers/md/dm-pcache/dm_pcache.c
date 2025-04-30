@@ -139,20 +139,16 @@ static void defered_req_fn(struct work_struct *work)
 					    struct pcache_request, list_node);
 		list_del_init(&pcache_req->list_node);
 
-		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-		if (!ret) {
-			pcache_req_put(pcache_req, ret);
-			continue;
-		}
+		pcache_req->ret = 0;
 
+		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
 		if (ret == -ENOMEM || ret == -EBUSY) {
 			pcache_err("requeue req: %d", ret);
 
 			defer_req(pcache_req);
-			continue;
+			ret = 0;
 		}
 
-		pcache_err("failed to handle request: %d", ret);
 		pcache_req_put(pcache_req, ret);
 	}
 }
