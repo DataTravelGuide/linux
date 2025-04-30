@@ -65,12 +65,9 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 		goto put_dm;
 	}
 
-	/* Convert device size to total pages */
 	total_pages = bdev_size >> PAGE_SHIFT;
 
-	/* Lock DAX access */
 	id = dax_read_lock();
-
 	/* Try to access the entire device memory */
 	mapped_pages = dax_direct_access(dax_dev, 0, total_pages, DAX_ACCESS, &vaddr, &pfn);
 	if (mapped_pages < 0) {
@@ -91,8 +88,6 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 	} else {
 		/* Use vmap() to create a contiguous mapping */
 		long chunk_size;
-
-		pcache_debug("partial mapping, using vmap\n");
 
 		pages = vmalloc_array(total_pages, sizeof(struct page *));
 		if (!pages) {
@@ -134,8 +129,6 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 		vfree(pages);
 		cache_dev->mapping = vaddr;
 	}
-
-	/* Unlock and store references */
 	dax_read_unlock(id);
 
 	cache_dev->bdev_file = bdev_file;
@@ -178,7 +171,7 @@ static int cache_dev_format(struct pcache_cache_dev *cache_dev)
 
 	cache_dev_size = bdev_nr_bytes(file_bdev(cache_dev->bdev_file));
 	if (cache_dev_size < PCACHE_CACHE_DEV_SIZE_MIN) {
-		pcache_err("dax device is too small, required at least %u",
+		pcache_err("dax device is too small, required at least %llu",
 				PCACHE_CACHE_DEV_SIZE_MIN);
 		return -ENOSPC;
 	}
@@ -241,7 +234,6 @@ static int cache_dev_init(struct pcache_cache_dev *cache_dev)
 	sb = CACHE_DEV_SB(cache_dev);
 	cache_dev->seg_num = le64_to_cpu(sb->seg_num);
 
-	pr_err("seg_num: %u", cache_dev->seg_num);
 	cache_dev->seg_bitmap = bitmap_zalloc(cache_dev->seg_num, GFP_KERNEL);
 	if (!cache_dev->seg_bitmap)
 		goto err;
@@ -256,15 +248,13 @@ static void cache_dev_exit(struct pcache_cache_dev *cache_dev)
 	bitmap_free(cache_dev->seg_bitmap);
 }
 
-int cache_dev_stop(struct dm_pcache *pcache)
+void cache_dev_stop(struct dm_pcache *pcache)
 {
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 
 	cache_dev_zero_range(cache_dev, CACHE_DEV_SB(cache_dev), PCACHE_SB_SIZE);
 	cache_dev_exit(cache_dev);
 	cache_dev_dax_exit(cache_dev);
-
-	return 0;
 }
 
 int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path)

@@ -7,10 +7,7 @@
 
 #include "pcache_internal.h"
 
-/* pcache segment */
-#define PCACHE_SEG_SIZE				(16 * PCACHE_MB)		/* Size of each PCACHE segment (16 MB) */
-
-#define PCACHE_MAGIC				0x65B05EFA96C596EFULL		/* Unique identifier for PCACHE cache dev */
+#define PCACHE_MAGIC				0x65B05EFA96C596EFULL
 #define PCACHE_VERSION				1
 
 #define PCACHE_SB_OFF				(4 * PCACHE_KB)
@@ -26,6 +23,7 @@
 #define PCACHE_SEG_INFO_SIZE			(4 * PCACHE_KB)
 
 #define PCACHE_CACHE_DEV_SIZE_MIN		(512 * PCACHE_MB)	 /* 512 MB */
+#define PCACHE_SEG_SIZE				(16 * PCACHE_MB)		/* Size of each PCACHE segment (16 MB) */
 
 #define CACHE_DEV_SB(cache_dev)			((struct pcache_sb *)(cache_dev->mapping + PCACHE_SB_OFF))
 #define CACHE_DEV_CACHE_INFO(cache_dev)		((void *)cache_dev->mapping + PCACHE_CACHE_INFO_OFF)
@@ -64,8 +62,8 @@ struct pcache_cache_dev {
 };
 
 struct dm_pcache;
-int cache_dev_stop(struct dm_pcache *pcache);
 int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path);
+void cache_dev_stop(struct dm_pcache *pcache);
 
 void cache_dev_flush(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
