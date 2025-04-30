@@ -100,14 +100,12 @@ err:
 	return ret;
 }
 
-int backing_dev_stop(struct dm_pcache *pcache)
+void backing_dev_stop(struct dm_pcache *pcache)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 
 	backing_dev_close(backing_dev);
 	backing_dev_destroy(backing_dev);
-
-	return 0;
 }
 
 /* pcache_backing_dev_req functions */

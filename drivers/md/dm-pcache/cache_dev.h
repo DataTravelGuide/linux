@@ -52,6 +52,7 @@ struct pcache_sb {
 struct pcache_cache_dev {
 	u16				seg_num;
 	void				*mapping;
+	bool				use_vmap;
 
 	struct file			*bdev_file;
 	struct block_device		*bdev;

@@ -15,6 +15,9 @@ static void cache_dev_dax_exit(struct pcache_cache_dev *cache_dev)
 {
 	struct dm_pcache *pcache = CACHE_DEV_TO_PCACHE(cache_dev);
 
+	if (cache_dev->use_vmap)
+		vunmap(cache_dev->mapping);
+
 	dm_put_device(pcache->ti, cache_dev->dm_dev);
 }
 
@@ -128,6 +131,7 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 
 		vfree(pages);
 		cache_dev->mapping = vaddr;
+		cache_dev->use_vmap = true;
 	}
 	dax_read_unlock(id);
 
