@@ -40,7 +40,7 @@ struct pcache_cache_pos_onmedia {
 
 /* Offset and size definitions for cache segment control */
 #define PCACHE_CACHE_SEG_CTRL_OFF     (PCACHE_SEG_INFO_SIZE * PCACHE_META_INDEX_MAX)
-#define PCACHE_CACHE_SEG_CTRL_SIZE    PAGE_SIZE
+#define PCACHE_CACHE_SEG_CTRL_SIZE    (4 * PCACHE_KB)
 
 struct pcache_cache_seg_gen {
 	struct pcache_meta_header header;

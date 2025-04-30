@@ -13,6 +13,8 @@
 	pr_debug("dm-pcache: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
 
 #define PCACHE_PATH_LEN			256
+#define PCACHE_KB			(1024ULL)
+#define PCACHE_MB			(1024 * PCACHE_KB)
 
 /* Maximum number of metadata indices */
 #define PCACHE_META_INDEX_MAX		2
