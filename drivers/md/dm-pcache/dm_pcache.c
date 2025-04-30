@@ -11,6 +11,17 @@
 #include "cache.h"
 #include "dm_pcache.h"
 
+static void defer_req(struct pcache_request *pcache_req)
+{
+	struct dm_pcache *pcache = pcache_req->pcache;
+
+	spin_lock(&pcache->defered_req_list_lock);
+	list_add(&pcache->defered_req_list, &pcache_req->list_node);
+	spin_unlock(&pcache->defered_req_list_lock);
+
+	queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, msecs_to_jiffies(100));
+}
+
 static void end_req(struct kref *ref)
 {
 	struct pcache_request *pcache_req = container_of(ref, struct pcache_request, ref);
@@ -18,12 +29,12 @@ static void end_req(struct kref *ref)
 	int ret = pcache_req->ret;
 
 	if (bio) {
-		if (ret == -ENOMEM || ret == -EBUSY)
-			bio->bi_status = BLK_STS_DM_REQUEUE;
-		else
+		if (ret == -ENOMEM || ret == -EBUSY) {
+			defer_req(pcache_req);
+		} else {
 			bio->bi_status = ret;
-
-		bio_endio(bio);
+			bio_endio(bio);
+		}
 	}
 }
 
@@ -110,6 +121,40 @@ err:
 	return ret;
 }
 
+static void defered_req_fn(struct work_struct *work)
+{
+	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work.work);
+	struct pcache_request *pcache_req;
+	LIST_HEAD(tmp_list);
+	int ret;
+
+	spin_lock(&pcache->defered_req_list_lock);
+	list_splice_init(&pcache->defered_req_list, &tmp_list);
+	spin_unlock(&pcache->defered_req_list_lock);
+
+	while (!list_empty(&tmp_list)) {
+		pcache_req = list_first_entry(&tmp_list,
+					    struct pcache_request, list_node);
+		list_del_init(&pcache_req->list_node);
+
+		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
+		if (!ret) {
+			pcache_req_put(pcache_req, ret);
+			continue;
+		}
+
+		if (ret == -ENOMEM || ret == -EBUSY) {
+			pcache_err("requeue req: %d", ret);
+
+			defer_req(pcache_req);
+			continue;
+		}
+
+		pcache_err("failed to handle request: %d", ret);
+		pcache_req_put(pcache_req, ret);
+	}
+}
+
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dm_pcache *pcache;
@@ -127,6 +172,9 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto free_pcache;
 	}
 
+	spin_lock_init(&pcache->defered_req_list_lock);
+	INIT_LIST_HEAD(&pcache->defered_req_list);
+	INIT_DELAYED_WORK(&pcache->defered_req_work, defered_req_fn);
 	pcache->ti = ti;
 
 	ret = parse_pcache_args(pcache, argc, argv, &ti->error);
@@ -179,23 +227,29 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	struct pcache_request *pcache_req = dm_per_bio_data(bio, sizeof(struct pcache_request));
 	int ret;
 
+	pcache_req->pcache = pcache;
 	kref_init(&pcache_req->ref);
 	pcache_req->ret = 0;
 	pcache_req->bio = bio;
 	pcache_req->off = (u64)bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	pcache_req->data_len = (u64)bio_sectors(bio) << SECTOR_SHIFT;
+	INIT_LIST_HEAD(&pcache_req->list_node);
 
 	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-	pcache_req_put(pcache_req, ret);
-	if (ret == -ENOMEM || ret == -EBUSY) {
-		pcache_err("requeue req: %d", ret);
-		return DM_MAPIO_REQUEUE;
-	} else if (ret) {
-		pcache_err("failed to handle request: %d", ret);
-		return DM_MAPIO_KILL;
+	if (!ret) {
+		pcache_req_put(pcache_req, ret);
+		return DM_MAPIO_SUBMITTED;
 	}
 
-	return DM_MAPIO_SUBMITTED;
+	if (ret == -ENOMEM || ret == -EBUSY) {
+		pcache_err("requeue req: %d", ret);
+
+		defer_req(pcache_req);
+		return DM_MAPIO_SUBMITTED;
+	}
+
+	pcache_err("failed to handle request: %d", ret);
+	return DM_MAPIO_KILL;
 }
 
 static void dm_pcache_status(struct dm_target *ti, status_type_t type,

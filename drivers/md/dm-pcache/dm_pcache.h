@@ -16,10 +16,15 @@ struct dm_pcache {
 	struct pcache_backing_dev backing_dev;
 	struct pcache_cache cache;
 
+	spinlock_t			defered_req_list_lock;
+	struct list_head		defered_req_list;
 	struct workqueue_struct		*task_wq;
+
+	struct delayed_work		defered_req_work;
 };
 
 struct pcache_request {
+	struct dm_pcache	*pcache;
 	struct bio		*bio;
 
 	u64			off;
@@ -27,6 +32,8 @@ struct pcache_request {
 
 	struct kref		ref;
 	int			ret;
+
+	struct list_head	list_node;
 };
 
 void pcache_req_get(struct pcache_request *pcache_req);
