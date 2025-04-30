@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/blk_types.h>
 
+#include "logic_dev.h"
 #include "cache.h"
 #include "backing_dev.h"
 
@@ -39,6 +40,7 @@ int cache_pos_decode(struct pcache_cache *cache,
 static void cache_info_set_seg_id(struct pcache_cache *cache, u32 seg_id)
 {
 	cache->cache_info->seg_id = seg_id;
+	backing_dev_info_write(cache->backing_dev);
 }
 
 static struct pcache_cache *cache_alloc(struct pcache_backing_dev *backing_dev)
