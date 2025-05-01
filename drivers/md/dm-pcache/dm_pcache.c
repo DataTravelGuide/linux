@@ -16,9 +16,10 @@ static void defer_req(struct pcache_request *pcache_req)
 	struct dm_pcache *pcache = pcache_req->pcache;
 
 	pcache_req_get(pcache_req);
+	BUG_ON(!list_empty(&pcache_req->list_node));
 
 	spin_lock(&pcache->defered_req_list_lock);
-	list_add(&pcache->defered_req_list, &pcache_req->list_node);
+	list_add(&pcache_req->list_node, &pcache->defered_req_list);
 	spin_unlock(&pcache->defered_req_list_lock);
 
 	queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, msecs_to_jiffies(100));
