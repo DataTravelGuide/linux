@@ -7,7 +7,7 @@
 #include "cache.h"
 #include "dm_pcache.h"
 
-static void backing_dev_destroy(struct pcache_backing_dev *backing_dev)
+static void backing_dev_exit(struct pcache_backing_dev *backing_dev)
 {
 	kmem_cache_destroy(backing_dev->backing_req_cache);
 }
@@ -65,14 +65,12 @@ err:
 	return ret;
 }
 
-static int backing_dev_close(struct pcache_backing_dev *backing_dev)
+static void backing_dev_close(struct pcache_backing_dev *backing_dev)
 {
 	struct dm_pcache *pcache = BACKING_DEV_TO_PCACHE(backing_dev);
 
 	bioset_exit(&backing_dev->bioset);
 	dm_put_device(pcache->ti, backing_dev->dm_dev);
-
-	return 0;
 }
 
 int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path)
@@ -95,7 +93,7 @@ int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path)
 	return 0;
 
 destroy_backing_dev:
-	backing_dev_destroy(backing_dev);
+	backing_dev_exit(backing_dev);
 err:
 	return ret;
 }
@@ -105,7 +103,7 @@ void backing_dev_stop(struct dm_pcache *pcache)
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 
 	backing_dev_close(backing_dev);
-	backing_dev_destroy(backing_dev);
+	backing_dev_exit(backing_dev);
 }
 
 /* pcache_backing_dev_req functions */

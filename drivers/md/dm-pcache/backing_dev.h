@@ -33,6 +33,7 @@ struct pcache_backing_dev {
 
 	struct bio_set			bioset;
 	struct kmem_cache		*backing_req_cache;
+
 	struct list_head		submit_list;
 	spinlock_t			submit_lock;
 	struct work_struct		req_submit_work;
