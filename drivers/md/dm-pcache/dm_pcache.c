@@ -267,6 +267,18 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 static int dm_pcache_message(struct dm_target *ti, unsigned int argc,
 			     char **argv, char *result, unsigned int maxlen)
 {
+	struct dm_pcache *pcache = ti->private;
+	unsigned long val;
+
+	if (!strcasecmp(argv[0], "gc_percent")) {
+		if (kstrtoul(argv[1], 10, &val))
+			return -EINVAL;
+
+		pcache_cache_set_gc_percent(&pcache->cache, val);
+
+		return 0;
+	}
+
 	return -EINVAL; /* no messages supported yet */
 }
 

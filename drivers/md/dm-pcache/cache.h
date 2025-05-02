@@ -209,6 +209,8 @@ struct pcache_cache_kset_onmedia {
 	struct pcache_cache_key_onmedia data[];
 };
 
+int pcache_cache_set_gc_percent(struct pcache_cache *cache, u32 percent);
+
 /* cache key */
 struct pcache_cache_key *cache_key_alloc(struct pcache_cache_tree *cache_tree);
 void cache_key_init(struct pcache_cache_tree *cache_tree, struct pcache_cache_key *key);

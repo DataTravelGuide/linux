@@ -36,6 +36,16 @@ static void cache_info_load(struct pcache_cache *cache)
 	pr_err("seg_num: %d, flags: %x", cache->cache_info.n_segs, cache->cache_info.flags);
 }
 
+int pcache_cache_set_gc_percent(struct pcache_cache *cache, u32 percent)
+{
+	// TODO validate percent and add cache_info_lock
+	cache->cache_info.gc_percent = percent;
+
+	cache_info_write(cache);
+
+	return 0;
+}
+
 void cache_pos_encode(struct pcache_cache *cache,
 			     struct pcache_cache_pos_onmedia *pos_onmedia,
 			     struct pcache_cache_pos *pos)
