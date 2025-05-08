@@ -21,74 +21,44 @@ void segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
 	}
 }
 
-static int segment_copy_between_bio(struct pcache_segment *segment,
-				u32 data_off, u32 data_len,
-				struct bio *bio, u32 bio_off,
-				bool to_bio)
-{
-	struct kvec kv = { .iov_base = segment->data + data_off,
-			.iov_len  = data_len };
-	struct iov_iter seg_iter;
-	struct bio_vec bvec;
-	struct bvec_iter bio_iter;
-	u32 remaining = data_len;
-	u32 skip = bio_off;
-	ssize_t ret;
-
-	if (to_bio)
-		iov_iter_kvec(&seg_iter, WRITE, &kv, 1, data_len);
-	else
-		iov_iter_kvec(&seg_iter, READ, &kv, 1, data_len);
-
-	bio_for_each_segment(bvec, bio, bio_iter) {
-		u32 this_len = bvec.bv_len;
-
-		if (skip) {
-			if (skip >= this_len) {
-				skip -= this_len;
-				continue;
-			}
-			this_len -= skip;
-		}
-
-		if (this_len > remaining)
-			this_len = remaining;
-
-		if (to_bio)
-			ret = copy_page_from_iter(bvec.bv_page,
-						bvec.bv_offset + skip,
-						this_len,
-						&seg_iter);
-		else
-			ret = copy_page_to_iter(bvec.bv_page,
-						bvec.bv_offset + skip,
-						this_len,
-						&seg_iter);
-		skip = 0;
-
-		if (ret < this_len)
-			return -EFAULT;
-
-		remaining -= ret;
-		if (!iov_iter_count(&seg_iter))
-			break;
-	}
-
-	return remaining ? -EFAULT : 0;
-}
-
 int segment_copy_to_bio(struct pcache_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
-	return segment_copy_between_bio(segment, data_off, data_len,
-					bio, bio_off, true);
+	struct iov_iter iter;
+	size_t copied;
+	void *src;
+
+	iov_iter_bvec(&iter, ITER_DEST, bio->bi_io_vec, bio_segments(bio), bio->bi_iter.bi_size);
+	if (bio_off)
+		iov_iter_advance(&iter, bio_off);
+
+	src = segment->data + data_off;
+	copied = _copy_mc_to_iter(src, data_len, &iter);
+	if (copied != data_len)
+		return -EIO;
+
+	return 0;
 }
 
 int segment_copy_from_bio(struct pcache_segment *segment,
 		u32 data_off, u32 data_len, struct bio *bio, u32 bio_off)
 {
-	return segment_copy_between_bio(segment, data_off, data_len,
-					bio, bio_off, false);
+	struct iov_iter iter;
+	size_t copied;
+	void *dst;
+
+	iov_iter_bvec(&iter, ITER_SOURCE, bio->bi_io_vec, bio_segments(bio), bio->bi_iter.bi_size);
+	if (bio_off)
+		iov_iter_advance(&iter, bio_off);
+
+	dst = segment->data + data_off;
+	copied = _copy_from_iter_flushcache(dst, data_len, &iter);
+	pmem_wmb();
+
+	if (copied != data_len)
+		return -EIO;
+
+	return 0;
 }
 
 void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
