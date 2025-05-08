@@ -149,6 +149,9 @@ err:
 
 void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 {
+	if (atomic_read(&cache_seg->state) != pcache_cache_seg_state_running)
+		return;
+
 	pr_err("destroy segment\n");
 	/* clear cache segment ctrl */
 	cache_dev_zero_range(cache_seg->cache->cache_dev, cache_seg->cache_seg_ctrl,
