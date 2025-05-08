@@ -196,7 +196,8 @@ struct pcache_cache_key_onmedia {
 	u32 cache_seg_off;
 	u64 seg_gen;
 	u32 data_crc;
-};
+	u32 reserved;
+} __packed;
 
 struct pcache_cache_kset_onmedia {
 	u32 crc;
@@ -207,7 +208,7 @@ struct pcache_cache_kset_onmedia {
 	u64 magic;
 	u64 flags;
 	struct pcache_cache_key_onmedia data[];
-};
+} __packed;
 
 int pcache_cache_set_gc_percent(struct pcache_cache *cache, u32 percent);
 

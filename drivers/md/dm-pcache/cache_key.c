@@ -158,9 +158,11 @@ again:
 	/* clear outdated kset after current kset */
 	memcpy_flushcache(get_key_head_addr(cache) + kset_onmedia_size, &pcache_empty_kset,
 				sizeof(struct pcache_cache_kset_onmedia));
-
 	/* write current kset into segment */
 	memcpy_flushcache(get_key_head_addr(cache), kset_onmedia, kset_onmedia_size);
+	pmem_wmb();
+
+	/* reset kset_onmedia */
 	memset(kset_onmedia, 0, sizeof(struct pcache_cache_kset_onmedia));
 	cache_pos_advance(&cache->key_head, kset_onmedia_size);
 
