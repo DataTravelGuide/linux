@@ -28,7 +28,8 @@ int segment_copy_to_bio(struct pcache_segment *segment,
 	size_t copied;
 	void *src;
 
-	iov_iter_bvec(&iter, ITER_DEST, bio->bi_io_vec, bio_segments(bio), bio->bi_iter.bi_size);
+	iov_iter_bvec(&iter, ITER_DEST, &bio->bi_io_vec[bio->bi_iter.bi_idx], bio_segments(bio), bio->bi_iter.bi_size);
+	iter.iov_offset = bio->bi_iter.bi_bvec_done;
 	if (bio_off)
 		iov_iter_advance(&iter, bio_off);
 
@@ -47,7 +48,8 @@ int segment_copy_from_bio(struct pcache_segment *segment,
 	size_t copied;
 	void *dst;
 
-	iov_iter_bvec(&iter, ITER_SOURCE, bio->bi_io_vec, bio_segments(bio), bio->bi_iter.bi_size);
+	iov_iter_bvec(&iter, ITER_SOURCE, &bio->bi_io_vec[bio->bi_iter.bi_idx], bio_segments(bio), bio->bi_iter.bi_size);
+	iter.iov_offset = bio->bi_iter.bi_bvec_done;
 	if (bio_off)
 		iov_iter_advance(&iter, bio_off);
 
