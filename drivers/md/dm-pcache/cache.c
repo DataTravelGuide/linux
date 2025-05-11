@@ -398,6 +398,7 @@ void pcache_cache_stop(struct dm_pcache *pcache)
 		cache_destroy_req_keys(cache);
 
 	cache_segs_destroy(cache);
+	cache_free(cache);
 }
 
 struct workqueue_struct *cache_get_wq(struct pcache_cache *cache)
