@@ -205,11 +205,11 @@ static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_
 	u32 off = opts->req.req_off;
 	u32 len = opts->req.len;
 
-	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, GFP_ATOMIC);
+	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, opts->gfp_mask);
 	if (!backing_req)
 		return NULL;
 
-	clone = bio_alloc_clone(backing_dev->bdev, orig, GFP_ATOMIC, &backing_dev->bioset);
+	clone = bio_alloc_clone(backing_dev->bdev, orig, opts->gfp_mask, &backing_dev->bioset);
 	if (!clone)
 		goto err_free_req;
 
@@ -259,11 +259,12 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 	struct pcache_backing_dev_req *backing_req;
 	struct bio *backing_bio;
 
-	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, GFP_ATOMIC);
+	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, opts->gfp_mask);
 	if (!backing_req)
 		return NULL;
 
-	backing_bio = bio_alloc_bioset(backing_dev->bdev, DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->kmem.opf, GFP_ATOMIC, &backing_dev->bioset);
+	backing_bio = bio_alloc_bioset(backing_dev->bdev, DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE),
+					opts->kmem.opf, opts->gfp_mask, &backing_dev->bioset);
 	if (!backing_bio)
 		goto err_free_req;
 

@@ -162,6 +162,7 @@ static void miss_read_end_req(struct pcache_backing_dev_req *backing_req, int re
 				cache_key_delete(key);
 				goto unlock;
 			}
+
 			ret = cache_copy_from_req_bio(cache, key, pcache_req, backing_req->req.bio_off);
 			if (ret) {
 				cache_seg_put(key->cache_pos.cache_seg);
@@ -255,6 +256,7 @@ static struct pcache_backing_dev_req *create_cache_miss_req(struct pcache_cache 
 	struct pcache_backing_dev_req_opts req_opts = { 0 };
 
 	req_opts.type = BACKING_DEV_REQ_TYPE_REQ;
+	req_opts.gfp_mask = GFP_ATOMIC;
 	req_opts.req.upper_req = parent;
 	req_opts.req.req_off = off;
 	req_opts.req.len = len;
