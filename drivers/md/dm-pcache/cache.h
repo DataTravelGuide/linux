@@ -138,6 +138,7 @@ struct pcache_cache {
 	struct file		*bdev_file;
 	u64			dev_size;
 	struct delayed_work	writeback_work;
+	struct pcache_cache_tree	writeback_key_tree;
 	struct delayed_work	gc_work;
 
 	struct kmem_cache	*req_cache;

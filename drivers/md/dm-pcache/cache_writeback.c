@@ -42,14 +42,23 @@ void cache_writeback_exit(struct pcache_cache *cache)
 		schedule_timeout(HZ);
 
 	cancel_delayed_work_sync(&cache->writeback_work);
+	cache_tree_exit(&cache->writeback_key_tree);
 }
 
 int cache_writeback_init(struct pcache_cache *cache)
 {
+	int ret;
+
+	ret = cache_tree_init(cache, &cache->writeback_key_tree, 1);
+	if (ret)
+		goto err;
+
 	/* Queue delayed work to start writeback handling */
 	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, 0);
 
 	return 0;
+err:
+	return ret;
 }
 
 static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_key *key)
@@ -89,45 +98,66 @@ static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_k
 	return 0;
 }
 
-static int cache_kset_writeback(struct pcache_cache *cache,
-		struct pcache_cache_kset_onmedia *kset_onmedia)
+static int cache_wb_tree_writeback(struct pcache_cache *cache)
+{
+	struct pcache_cache_tree *cache_tree = &cache->writeback_key_tree;
+	struct pcache_cache_subtree *cache_subtree;
+	struct rb_node *node;
+	struct pcache_cache_key *key;
+	int ret;
+	u32 i;
+
+	for (i = 0; i < cache_tree->n_subtrees; i++) {
+		cache_subtree = &cache_tree->subtrees[i];
+
+		node = rb_first(&cache_subtree->root);
+		while (node) {
+			key = CACHE_KEY(node);
+			node = rb_next(node);
+
+			ret = cache_key_writeback(cache, key);
+			if (ret) {
+				pcache_err("writeback error: %d\n", ret);
+				return ret;
+			}
+
+			cache_key_delete(key);
+		}
+	}
+
+	/* Sync the entire kset's data to disk to ensure durability */
+	vfs_fsync(cache->bdev_file, 1);
+
+	return 0;
+}
+
+static int cache_kset_insert_tree(struct pcache_cache *cache, struct pcache_cache_kset_onmedia *kset_onmedia)
 {
 	struct pcache_cache_key_onmedia *key_onmedia;
 	struct pcache_cache_key *key;
-	u64 start = U64_MAX, end = U64_MAX;
 	int ret;
 	u32 i;
 
 	/* Iterate through all keys in the kset and write each back to storage */
 	for (i = 0; i < kset_onmedia->key_num; i++) {
-		struct pcache_cache_key key_tmp = { 0 };
-
 		key_onmedia = &kset_onmedia->data[i];
 
-		key = &key_tmp;
-		cache_key_init(NULL, key);
+		key = cache_key_alloc(&cache->writeback_key_tree);
+		if (!key)
+			return -ENOMEM;
 
 		ret = cache_key_decode(cache, key_onmedia, key);
 		if (ret) {
-			pcache_err("failed to decode key: %llu:%u in writeback.",
-					key->off, key->len);
+			cache_key_delete(key);
 			return ret;
 		}
 
-		if (start == U64_MAX || start > key->off)
-			start = key->off;
-		if (end == U64_MAX || end < key->off + key->len)
-			end = key->off + key->len;
-
-		ret = cache_key_writeback(cache, key);
+		ret = cache_key_insert(&cache->writeback_key_tree, key, true);
 		if (ret) {
-			pcache_err("writeback error: %d\n", ret);
+			cache_key_delete(key);
 			return ret;
 		}
 	}
-
-	/* Sync the entire kset's data to disk to ensure durability */
-	vfs_fsync_range(cache->bdev_file, start, end, 1);
 
 	return 0;
 }
@@ -166,7 +196,11 @@ void cache_writeback_fn(struct work_struct *work)
 			continue;
 		}
 
-		ret = cache_kset_writeback(cache, kset_onmedia);
+		ret = cache_kset_insert_tree(cache, kset_onmedia);
+		if (ret)
+			break;
+
+		ret = cache_wb_tree_writeback(cache);
 		if (ret)
 			break;
 
