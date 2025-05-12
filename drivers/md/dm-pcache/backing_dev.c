@@ -270,7 +270,7 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 
 	bio_map(backing_bio, opts->kmem.data, opts->kmem.len);
 	backing_bio->bi_iter.bi_sector = (opts->kmem.backing_off) >> SECTOR_SHIFT;
-	backing_bio->bi_private = opts->kmem.priv_data;
+	backing_bio->bi_private = backing_req;
 	backing_bio->bi_end_io = backing_dev_bio_end;
 
 	backing_req->backing_dev = backing_dev;
@@ -291,6 +291,13 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 {
 	if (opts->type == BACKING_DEV_REQ_TYPE_REQ)
 		return req_type_req_create(backing_dev, opts);
+	else if (opts->type == BACKING_DEV_REQ_TYPE_KMEM)
+		return kmem_type_req_create(backing_dev, opts);
 
 	return NULL;
+}
+
+void backing_dev_flush(struct pcache_backing_dev *backing_dev)
+{
+	blkdev_issue_flush(backing_dev->bdev);
 }

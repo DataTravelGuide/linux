@@ -342,7 +342,6 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 	cache->cache_info_addr = CACHE_DEV_CACHE_INFO(cache->cache_dev);
 	cache->cache_ctrl = CACHE_DEV_CACHE_CTRL(cache->cache_dev);
 	backing_dev->cache = cache;
-	cache->bdev_file = backing_dev->bdev_file;
 	cache->dev_size = backing_dev->dev_size;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;
 

@@ -63,9 +63,10 @@ err:
 
 static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_key *key)
 {
+	struct pcache_backing_dev_req *writeback_req;
+	struct pcache_backing_dev_req_opts writeback_req_opts = { 0 };
 	struct pcache_cache_pos *pos;
 	void *addr;
-	ssize_t written;
 	u32 seg_remain;
 	u64 off;
 
@@ -80,20 +81,20 @@ static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_k
 	addr = cache_pos_addr(pos);
 	off = key->off;
 
+	writeback_req_opts.type = BACKING_DEV_REQ_TYPE_KMEM;
+	writeback_req_opts.end_fn = NULL;
+	writeback_req_opts.gfp_mask = GFP_KERNEL;
 
-	/* Perform synchronous writeback to maintain overwrite sequence.
-	 * Ensures data consistency by writing in order. For instance, if K1 writes
-	 * data to the range 0-4K and then K2 writes to the same range, K1's write
-	 * must complete before K2's.
-	 *
-	 * Note: We defer flushing data immediately after each key's writeback.
-	 * Instead, a `sync` operation is issued once the entire kset (group of keys)
-	 * has completed writeback, ensuring all data from the kset is safely persisted
-	 * to disk while reducing the overhead of frequent flushes.
-	 */
-	written = kernel_write(cache->bdev_file, addr, key->len, &off);
-	if (written != key->len)
+	writeback_req_opts.kmem.data = addr;
+	writeback_req_opts.kmem.opf = REQ_OP_WRITE;
+	writeback_req_opts.kmem.len = key->len;
+	writeback_req_opts.kmem.backing_off = off;
+
+	writeback_req = backing_dev_req_create(cache->backing_dev, &writeback_req_opts);
+	if (!writeback_req)
 		return -EIO;
+
+	backing_dev_req_submit(writeback_req);
 
 	return 0;
 }
@@ -125,8 +126,7 @@ static int cache_wb_tree_writeback(struct pcache_cache *cache)
 		}
 	}
 
-	/* Sync the entire kset's data to disk to ensure durability */
-	vfs_fsync(cache->bdev_file, 1);
+	backing_dev_flush(cache->backing_dev);
 
 	return 0;
 }

@@ -70,7 +70,6 @@ struct pcache_backing_dev_req_opts {
 			blk_opf_t opf;
 			u32 len;
 			u64 backing_off;
-			void *priv_data;
 		} kmem;
 	};
 
@@ -82,4 +81,5 @@ void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req);
 void backing_dev_req_end(struct pcache_backing_dev_req *backing_req);
 struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
 						struct pcache_backing_dev_req_opts *opts);
+void backing_dev_flush(struct pcache_backing_dev *backing_dev);
 #endif /* _BACKING_DEV_H */
