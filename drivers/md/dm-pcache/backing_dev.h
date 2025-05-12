@@ -67,12 +67,14 @@ struct pcache_backing_dev_req_opts {
 		} req;
 		struct {
 			void *data;
-			u8 op;
-			u64 backing_off;
+			blk_opf_t opf;
 			u32 len;
+			u64 backing_off;
+			void *priv_data;
 		} kmem;
 	};
 
+	gfp_t gfp_mask;
 	backing_req_end_fn_t	end_fn;
 };
 
