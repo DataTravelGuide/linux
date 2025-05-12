@@ -55,10 +55,9 @@ int segment_copy_from_bio(struct pcache_segment *segment,
 
 	dst = segment->data + data_off;
 	copied = _copy_from_iter_flushcache(dst, data_len, &iter);
-	pmem_wmb();
-
 	if (copied != data_len)
 		return -EIO;
+	pmem_wmb();
 
 	return 0;
 }

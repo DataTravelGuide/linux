@@ -225,17 +225,23 @@ static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
 	kref_init(&backing_req->ref);
-	backing_req->bio_off     = off;
 	backing_req->bio         = clone;
 	backing_req->end_req     = end_fn;
 
 	pcache_req_get(pcache_req);
-	backing_req->upper_req = pcache_req;
+	backing_req->req.upper_req	= pcache_req;
+	backing_req->req.bio_off	= off;
 
 	return backing_req;
 
 err_free_req:
 	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
+	return NULL;
+}
+
+static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing_dev *backing_dev,
+						struct pcache_backing_dev_req_opts *opts)
+{
 	return NULL;
 }
 

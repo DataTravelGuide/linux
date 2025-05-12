@@ -17,11 +17,16 @@ struct pcache_backing_dev_req {
 	void				*priv_data;
 	backing_req_end_fn_t		end_req;
 
-	struct pcache_request		*upper_req;
-	u32				bio_off;
 	struct list_head		node;
 	struct kref			ref;
 	int				ret;
+
+	union {
+		struct {
+			struct pcache_request		*upper_req;
+			u32				bio_off;
+		} req;
+	};
 };
 
 struct pcache_backing_dev {
@@ -63,7 +68,7 @@ struct pcache_backing_dev_req_opts {
 		struct {
 			void *data;
 			u8 op;
-			u64 disk_off;
+			u64 backing_off;
 			u32 len;
 		} kmem;
 	};

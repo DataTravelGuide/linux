@@ -134,7 +134,7 @@ static int cache_copy_to_req_bio(struct pcache_cache *cache, struct pcache_reque
 static void miss_read_end_req(struct pcache_backing_dev_req *backing_req, int read_ret)
 {
 	void *priv_data = backing_req->priv_data;
-	struct pcache_request *pcache_req = backing_req->upper_req;
+	struct pcache_request *pcache_req = backing_req->req.upper_req;
 	struct pcache_cache *cache = backing_req->backing_dev->cache;
 	int ret;
 
@@ -162,7 +162,7 @@ static void miss_read_end_req(struct pcache_backing_dev_req *backing_req, int re
 				cache_key_delete(key);
 				goto unlock;
 			}
-			ret = cache_copy_from_req_bio(cache, key, pcache_req, backing_req->bio_off);
+			ret = cache_copy_from_req_bio(cache, key, pcache_req, backing_req->req.bio_off);
 			if (ret) {
 				cache_seg_put(key->cache_pos.cache_seg);
 				cache_key_delete(key);
