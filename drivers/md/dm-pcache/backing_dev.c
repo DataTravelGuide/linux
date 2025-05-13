@@ -240,8 +240,8 @@ static void bio_map(struct bio *bio, void *base, size_t size)
 		struct page *page = is_vmalloc_addr(base)
 				? vmalloc_to_page(base)
 				: virt_to_page(base);
-		unsigned offset = offset_in_page(base);
-		unsigned len = min_t(size_t, PAGE_SIZE - offset, size);
+		unsigned int offset = offset_in_page(base);
+		unsigned int len = min_t(size_t, PAGE_SIZE - offset, size);
 
 		BUG_ON(!bio_add_page(bio, page, len, offset));
 		size -= len;
@@ -260,7 +260,7 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 	if (!backing_req)
 		return NULL;
 
-	backing_req->kmem.bvecs = kzalloc(sizeof(struct bio_vec) * n_vecs, opts->gfp_mask);
+	backing_req->kmem.bvecs = kcalloc(n_vecs, sizeof(struct bio_vec), opts->gfp_mask);
 	if (!backing_req->kmem.bvecs)
 		goto err_free_req;
 

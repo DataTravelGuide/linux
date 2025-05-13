@@ -71,7 +71,7 @@ static int parse_cache_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 	if (ret) {
 		pcache_err("error to start cache dev: %s, ret: %d", cache_dev_path, ret);
 		*error = "Failed to start cache dev";
-		return ret;;
+		return ret;
 	}
 
 	return 0;
@@ -93,7 +93,7 @@ static int parse_backing_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 	if (ret) {
 		pcache_err("error to start backing dev: %s, ret: %d", backing_dev_path, ret);
 		*error = "Failed to start backing dev";
-		return ret;;
+		return ret;
 	}
 
 	return 0;
