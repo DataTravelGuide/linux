@@ -247,6 +247,9 @@ err_free_req:
 
 static void bio_map(struct bio *bio, void *base, size_t size)
 {
+	if (is_vmalloc_addr(base))
+		flush_kernel_vmap_range(base, size);
+
 	while (size) {
 		struct page *page = is_vmalloc_addr(base)
 				? vmalloc_to_page(base)
@@ -274,14 +277,14 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 	if (!backing_req->kmem.bvecs)
 		goto err_free_req;
 
-	bio_init(&backing_req->bio, backing_dev->bdev, backing_req->kmem.bvecs, DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->gfp_mask);
-
 	backing_req->type = BACKING_DEV_REQ_TYPE_KMEM;
 
+	bio_init(&backing_req->bio, backing_dev->bdev, backing_req->kmem.bvecs,
+			DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->kmem.opf);
+
 	backing_bio = &backing_req->bio;
-	backing_bio->bi_max_vecs = DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE);
-	backing_bio->bi_io_vec = backing_req->kmem.bvecs;
 	bio_map(backing_bio, opts->kmem.data, opts->kmem.len);
+
 	backing_bio->bi_iter.bi_sector = (opts->kmem.backing_off) >> SECTOR_SHIFT;
 	backing_bio->bi_private = backing_req;
 	backing_bio->bi_end_io = backing_dev_bio_end;
