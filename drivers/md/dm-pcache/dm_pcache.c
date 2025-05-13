@@ -257,11 +257,12 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 	struct dm_pcache *pcache = ti->private;
 	struct pcache_cache *cache = &pcache->cache;
 
-	snprintf(result, maxlen, "key_head: %u:%u, dirty_tail: %u:%u, key_tail: %u:%u, seg used: %u",
+	snprintf(result, maxlen, "key_head: %u:%u, dirty_tail: %u:%u, key_tail: %u:%u, cache segs: %u, seg used: %u, gc_percent: %u",
 			cache->key_head.cache_seg->cache_seg_id, cache->key_head.seg_off,
 			cache->dirty_tail.cache_seg->cache_seg_id, cache->dirty_tail.seg_off,
 			cache->key_tail.cache_seg->cache_seg_id, cache->key_tail.seg_off,
-			bitmap_weight(cache->seg_map, cache->n_segs));
+			cache->n_segs,
+			bitmap_weight(cache->seg_map, cache->n_segs), cache->cache_info.gc_percent);
 }
 
 static int dm_pcache_message(struct dm_target *ti, unsigned int argc,
