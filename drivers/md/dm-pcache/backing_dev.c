@@ -208,12 +208,15 @@ static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_
 	struct bio *clone, *orig = pcache_req->bio;
 	u32 off = opts->req.req_off;
 	u32 len = opts->req.len;
+	int ret;
 
 	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, opts->gfp_mask);
 	if (!backing_req)
 		return NULL;
 
-	bio_init_clone(backing_dev->bdev, &backing_req->bio, orig, opts->gfp_mask);
+	ret = bio_init_clone(backing_dev->bdev, &backing_req->bio, orig, opts->gfp_mask);
+	if (ret)
+		goto err_free_req;
 
 	backing_req->type = BACKING_DEV_REQ_TYPE_REQ;
 
