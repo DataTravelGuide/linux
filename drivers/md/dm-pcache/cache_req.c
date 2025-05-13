@@ -221,7 +221,7 @@ static void submit_cache_miss_req(struct pcache_cache *cache, struct pcache_back
 			return;
 		}
 	}
-	backing_dev_req_submit(backing_req);
+	backing_dev_req_submit(backing_req, false);
 }
 
 /**

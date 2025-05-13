@@ -94,7 +94,7 @@ static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_k
 	if (!writeback_req)
 		return -EIO;
 
-	backing_dev_req_submit(writeback_req);
+	backing_dev_req_submit(writeback_req, true);
 
 	return 0;
 }

@@ -114,6 +114,9 @@ void backing_dev_req_end(struct pcache_backing_dev_req *backing_req)
 	if (backing_req->end_req)
 		backing_req->end_req(backing_req, backing_req->ret);
 
+	if (backing_req->type == BACKING_DEV_REQ_TYPE_KMEM)
+		kfree(backing_req->kmem.bvecs);
+
 	kmem_cache_free(backing_dev->backing_req_cache, backing_req);
 }
 
@@ -157,11 +160,6 @@ static void backing_dev_bio_end(struct bio *bio)
 		backing_req->ret = ret;
 
 	kref_put(&backing_req->ref, end_req);
-
-	if (backing_req->type == BACKING_DEV_REQ_TYPE_KMEM)
-		kfree(backing_req->kmem.bvecs);
-
-	bio_uninit(bio);
 }
 
 static void req_submit_fn(struct work_struct *work)
@@ -187,9 +185,14 @@ static void req_submit_fn(struct work_struct *work)
 	}
 }
 
-void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req)
+void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req, bool direct)
 {
 	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
+
+	if (direct) {
+		submit_bio_noacct(&backing_req->bio);
+		return;
+	}
 
 	kref_get(&backing_req->ref);
 

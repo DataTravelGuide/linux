@@ -81,7 +81,7 @@ struct pcache_backing_dev_req_opts {
 	backing_req_end_fn_t	end_fn;
 };
 
-void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req);
+void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req, bool direct);
 void backing_dev_req_end(struct pcache_backing_dev_req *backing_req);
 struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev *backing_dev,
 						struct pcache_backing_dev_req_opts *opts);
