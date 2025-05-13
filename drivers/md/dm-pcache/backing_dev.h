@@ -22,7 +22,6 @@ struct pcache_backing_dev_req {
 	backing_req_end_fn_t		end_req;
 
 	struct list_head		node;
-	struct kref			ref;
 	int				ret;
 
 	union {

@@ -139,10 +139,12 @@ static void req_complete_fn(struct work_struct *work)
 	}
 }
 
-static void end_req(struct kref *ref)
+static void backing_dev_bio_end(struct bio *bio)
 {
-	struct pcache_backing_dev_req *backing_req = container_of(ref, struct pcache_backing_dev_req, ref);
+	struct pcache_backing_dev_req *backing_req = bio->bi_private;
 	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
+
+	backing_req->ret = bio->bi_status;
 
 	spin_lock(&backing_dev->complete_lock);
 	list_move_tail(&backing_req->node, &backing_dev->complete_list);
@@ -151,22 +153,10 @@ static void end_req(struct kref *ref)
 	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_complete_work);
 }
 
-static void backing_dev_bio_end(struct bio *bio)
-{
-	struct pcache_backing_dev_req *backing_req = bio->bi_private;
-	int ret = bio->bi_status;
-
-	if (ret && !backing_req->ret)
-		backing_req->ret = ret;
-
-	kref_put(&backing_req->ref, end_req);
-}
-
 static void req_submit_fn(struct work_struct *work)
 {
 	struct pcache_backing_dev *backing_dev = container_of(work, struct pcache_backing_dev, req_submit_work);
 	struct pcache_backing_dev_req *backing_req;
-	unsigned long flags;
 	LIST_HEAD(tmp_list);
 
 	spin_lock(&backing_dev->submit_lock);
@@ -178,10 +168,6 @@ static void req_submit_fn(struct work_struct *work)
 					    struct pcache_backing_dev_req, node);
 		list_del_init(&backing_req->node);
 		submit_bio_noacct(&backing_req->bio);
-
-		local_irq_save(flags);
-		kref_put(&backing_req->ref, end_req);
-		local_irq_restore(flags);
 	}
 }
 
@@ -193,8 +179,6 @@ void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req, bool dir
 		submit_bio_noacct(&backing_req->bio);
 		return;
 	}
-
-	kref_get(&backing_req->ref);
 
 	spin_lock(&backing_dev->submit_lock);
 	list_add_tail(&backing_req->node, &backing_dev->submit_list);
@@ -234,7 +218,6 @@ static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_
 
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
-	kref_init(&backing_req->ref);
 	backing_req->end_req     = opts->end_fn;
 
 	pcache_req_get(pcache_req);
@@ -294,7 +277,6 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
-	kref_init(&backing_req->ref);
 	backing_req->end_req     = opts->end_fn;
 
 	return backing_req;
