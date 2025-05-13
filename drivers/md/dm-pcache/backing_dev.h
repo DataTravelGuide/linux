@@ -9,9 +9,13 @@
 struct pcache_backing_dev_req;
 typedef void (*backing_req_end_fn_t)(struct pcache_backing_dev_req *backing_req, int ret);
 
+#define BACKING_DEV_REQ_TYPE_REQ		1
+#define BACKING_DEV_REQ_TYPE_KMEM		2
+
 struct pcache_request;
 struct pcache_backing_dev_req {
-	struct bio			*bio;
+	u8				type;
+	struct bio			bio;
 	struct pcache_backing_dev	*backing_dev;
 
 	void				*priv_data;
@@ -26,6 +30,9 @@ struct pcache_backing_dev_req {
 			struct pcache_request		*upper_req;
 			u32				bio_off;
 		} req;
+		struct {
+			struct bio_vec	*bvecs;
+		} kmem;
 	};
 };
 
@@ -53,9 +60,6 @@ struct pcache_backing_dev {
 struct dm_pcache;
 int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path);
 void backing_dev_stop(struct dm_pcache *pcache);
-
-#define BACKING_DEV_REQ_TYPE_REQ		1
-#define BACKING_DEV_REQ_TYPE_KMEM		2
 
 struct pcache_backing_dev_req_opts {
 	u32 type;

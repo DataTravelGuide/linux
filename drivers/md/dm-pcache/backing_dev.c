@@ -157,7 +157,11 @@ static void backing_dev_bio_end(struct bio *bio)
 		backing_req->ret = ret;
 
 	kref_put(&backing_req->ref, end_req);
-	bio_put(bio);
+
+	if (backing_req->type == BACKING_DEV_REQ_TYPE_KMEM)
+		kfree(backing_req->kmem.bvecs);
+
+	bio_uninit(bio);
 }
 
 static void req_submit_fn(struct work_struct *work)
@@ -175,7 +179,7 @@ static void req_submit_fn(struct work_struct *work)
 		backing_req = list_first_entry(&tmp_list,
 					    struct pcache_backing_dev_req, node);
 		list_del_init(&backing_req->node);
-		submit_bio_noacct(backing_req->bio);
+		submit_bio_noacct(&backing_req->bio);
 
 		local_irq_save(flags);
 		kref_put(&backing_req->ref, end_req);
@@ -209,10 +213,11 @@ static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_
 	if (!backing_req)
 		return NULL;
 
-	clone = bio_alloc_clone(backing_dev->bdev, orig, opts->gfp_mask, &backing_dev->bioset);
-	if (!clone)
-		goto err_free_req;
+	bio_init_clone(backing_dev->bdev, &backing_req->bio, orig, opts->gfp_mask);
 
+	backing_req->type = BACKING_DEV_REQ_TYPE_REQ;
+
+	clone = &backing_req->bio;
 	BUG_ON(off & SECTOR_MASK);
 	BUG_ON(len & SECTOR_MASK);
 	bio_trim(clone, off >> SECTOR_SHIFT, len >> SECTOR_SHIFT);
@@ -224,7 +229,6 @@ static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
 	kref_init(&backing_req->ref);
-	backing_req->bio         = clone;
 	backing_req->end_req     = opts->end_fn;
 
 	pcache_req_get(pcache_req);
@@ -263,11 +267,17 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 	if (!backing_req)
 		return NULL;
 
-	backing_bio = bio_alloc_bioset(backing_dev->bdev, DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE),
-					opts->kmem.opf, opts->gfp_mask, &backing_dev->bioset);
-	if (!backing_bio)
+	backing_req->kmem.bvecs = kzalloc(sizeof(struct bio_vec) * DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->gfp_mask);
+	if (!backing_req->kmem.bvecs)
 		goto err_free_req;
 
+	bio_init(&backing_req->bio, backing_dev->bdev, backing_req->kmem.bvecs, DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->gfp_mask);
+
+	backing_req->type = BACKING_DEV_REQ_TYPE_KMEM;
+
+	backing_bio = &backing_req->bio;
+	backing_bio->bi_max_vecs = DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE);
+	backing_bio->bi_io_vec = backing_req->kmem.bvecs;
 	bio_map(backing_bio, opts->kmem.data, opts->kmem.len);
 	backing_bio->bi_iter.bi_sector = (opts->kmem.backing_off) >> SECTOR_SHIFT;
 	backing_bio->bi_private = backing_req;
@@ -276,7 +286,6 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
 	kref_init(&backing_req->ref);
-	backing_req->bio         = backing_bio;
 	backing_req->end_req     = opts->end_fn;
 
 	return backing_req;
