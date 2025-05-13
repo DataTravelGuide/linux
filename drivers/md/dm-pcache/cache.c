@@ -12,28 +12,34 @@ static void cache_info_write(struct pcache_cache *cache)
 	struct pcache_cache_info *cache_info_addr;
 
 	cache_info->header.seq++;
-	cache_info_addr = pcache_meta_find_oldest(&cache->cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
+	cache_info_addr = pcache_meta_find_oldest(&cache->cache_info_addr->header, sizeof(struct pcache_cache_info));
+	cache_info->header.crc = pcache_meta_crc(&cache_info_addr->header, sizeof(struct pcache_cache_info));
 
-	memcpy(cache_info_addr, cache_info, sizeof(struct pcache_cache_info));
-
-	cache_info_addr->header.crc = pcache_meta_crc(&cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
-	cache_dev_flush(cache->cache_dev, cache_info_addr, PCACHE_CACHE_INFO_SIZE);
+	memcpy_flushcache(cache_info_addr, cache_info, sizeof(struct pcache_cache_info));
 }
 
 static void cache_info_init(struct pcache_cache *cache);
-static void cache_info_load(struct pcache_cache *cache)
+static int cache_info_load(struct pcache_cache *cache)
 {
 	struct pcache_cache_info *cache_info_addr;
 
-	cache_info_addr = pcache_meta_find_latest(&cache->cache_info_addr->header, PCACHE_CACHE_INFO_SIZE);
+	cache_info_addr = pcache_meta_find_latest(&cache->cache_info_addr->header, sizeof(struct pcache_cache_info));
 
 	pr_err("cache_info_addr %p", cache_info_addr);
-	if (!cache_info_addr)
+	if (!cache_info_addr) {
 		cache_info_init(cache);
-	else
-		memcpy(&cache->cache_info, cache_info_addr, sizeof(struct pcache_cache_info));
+	} else {
+		int ret;
 
+		ret = copy_mc_to_kernel(&cache->cache_info, cache_info_addr, sizeof(struct pcache_cache_info));
+		if (ret) {
+			pr_err("hardware memory error when loading cache info: %d", ret);
+			return ret;
+        	}
+	}
 	pr_err("seg_num: %d, flags: %x", cache->cache_info.n_segs, cache->cache_info.flags);
+
+	return 0;
 }
 
 int pcache_cache_set_gc_percent(struct pcache_cache *cache, u32 percent)
@@ -345,7 +351,9 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 	cache->dev_size = backing_dev->dev_size;
 	cache->state = PCACHE_CACHE_STATE_RUNNING;
 
-	cache_info_load(cache);
+	ret = cache_info_load(cache);
+	if (ret)
+		return ret;
 
 	new_cache = !(cache->cache_info.flags & PCACHE_CACHE_FLAGS_INIT_DONE);
 
