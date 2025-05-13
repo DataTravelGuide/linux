@@ -254,19 +254,20 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 {
 	struct pcache_backing_dev_req *backing_req;
 	struct bio *backing_bio;
+	u32 n_vecs = DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE);
 
 	backing_req = kmem_cache_zalloc(backing_dev->backing_req_cache, opts->gfp_mask);
 	if (!backing_req)
 		return NULL;
 
-	backing_req->kmem.bvecs = kzalloc(sizeof(struct bio_vec) * DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->gfp_mask);
+	backing_req->kmem.bvecs = kzalloc(sizeof(struct bio_vec) * n_vecs, opts->gfp_mask);
 	if (!backing_req->kmem.bvecs)
 		goto err_free_req;
 
 	backing_req->type = BACKING_DEV_REQ_TYPE_KMEM;
 
 	bio_init(&backing_req->bio, backing_dev->bdev, backing_req->kmem.bvecs,
-			DIV_ROUND_UP(opts->kmem.len, PAGE_SIZE), opts->kmem.opf);
+			n_vecs, opts->kmem.opf);
 
 	backing_bio = &backing_req->bio;
 	bio_map(backing_bio, opts->kmem.data, opts->kmem.len);
