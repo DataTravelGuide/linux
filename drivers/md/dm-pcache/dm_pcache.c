@@ -25,6 +25,34 @@ static void defer_req(struct pcache_request *pcache_req)
 	queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, msecs_to_jiffies(100));
 }
 
+static void defered_req_fn(struct work_struct *work)
+{
+	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work.work);
+	struct pcache_request *pcache_req;
+	LIST_HEAD(tmp_list);
+	int ret;
+
+	spin_lock(&pcache->defered_req_list_lock);
+	list_splice_init(&pcache->defered_req_list, &tmp_list);
+	spin_unlock(&pcache->defered_req_list_lock);
+
+	while (!list_empty(&tmp_list)) {
+		pcache_req = list_first_entry(&tmp_list,
+					    struct pcache_request, list_node);
+		list_del_init(&pcache_req->list_node);
+
+		pcache_req->ret = 0;
+
+		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
+		if (ret == -ENOMEM || ret == -EBUSY) {
+			defer_req(pcache_req);
+			ret = 0;
+		}
+
+		pcache_req_put(pcache_req, ret);
+	}
+}
+
 void pcache_req_get(struct pcache_request *pcache_req)
 {
 	kref_get(&pcache_req->ref);
@@ -36,13 +64,11 @@ static void end_req(struct kref *ref)
 	struct bio *bio = pcache_req->bio;
 	int ret = pcache_req->ret;
 
-	if (bio) {
-		if (ret == -ENOMEM || ret == -EBUSY) {
-			defer_req(pcache_req);
-		} else {
-			bio->bi_status = ret;
-			bio_endio(bio);
-		}
+	if (ret == -ENOMEM || ret == -EBUSY) {
+		defer_req(pcache_req);
+	} else {
+		bio->bi_status = ret;
+		bio_endio(bio);
 	}
 }
 
@@ -122,36 +148,6 @@ stop_cache_dev:
 	cache_dev_stop(pcache);
 err:
 	return ret;
-}
-
-static void defered_req_fn(struct work_struct *work)
-{
-	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work.work);
-	struct pcache_request *pcache_req;
-	LIST_HEAD(tmp_list);
-	int ret;
-
-	spin_lock(&pcache->defered_req_list_lock);
-	list_splice_init(&pcache->defered_req_list, &tmp_list);
-	spin_unlock(&pcache->defered_req_list_lock);
-
-	while (!list_empty(&tmp_list)) {
-		pcache_req = list_first_entry(&tmp_list,
-					    struct pcache_request, list_node);
-		list_del_init(&pcache_req->list_node);
-
-		pcache_req->ret = 0;
-
-		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-		if (ret == -ENOMEM || ret == -EBUSY) {
-			pcache_err("requeue req: %d", ret);
-
-			defer_req(pcache_req);
-			ret = 0;
-		}
-
-		pcache_req_put(pcache_req, ret);
-	}
 }
 
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -238,7 +234,6 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	if (!ret) {
 		ret = DM_MAPIO_SUBMITTED;
 	} else if (ret == -ENOMEM || ret == -EBUSY) {
-		pcache_err("requeue req: %d", ret);
 		defer_req(pcache_req);
 		ret = DM_MAPIO_SUBMITTED;
 	} else {
@@ -280,7 +275,7 @@ static int dm_pcache_message(struct dm_target *ti, unsigned int argc,
 		return 0;
 	}
 
-	return -EINVAL; /* no messages supported yet */
+	return -EINVAL;
 }
 
 static struct target_type dm_pcache_target = {
