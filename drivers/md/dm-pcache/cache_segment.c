@@ -27,7 +27,9 @@ static int cache_seg_info_load(struct pcache_cache_segment *cache_seg)
 		ret = -EIO;
 		goto out;
 	}
-	memcpy(&cache_seg->cache_seg_info, cache_seg_info, sizeof(struct pcache_cache_seg_info));
+	ret = copy_mc_to_kernel(&cache_seg->cache_seg_info, cache_seg_info, sizeof(struct pcache_cache_seg_info));
+	if (ret)
+		pr_err("hardware memory error when loading seg info: %d", ret);
 out:
 	mutex_unlock(&cache_seg->info_lock);
 	return ret;

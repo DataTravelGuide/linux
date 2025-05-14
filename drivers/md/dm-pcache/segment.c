@@ -84,12 +84,10 @@ void pcache_segment_info_write(struct pcache_cache_dev *cache_dev, struct pcache
 	seg_info->header.seq++;
 
 	seg_info_addr = CACHE_DEV_SEGMENT(cache_dev, seg_id);
-	seg_info_addr = pcache_meta_find_oldest(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
+	seg_info_addr = pcache_meta_find_oldest(&seg_info_addr->header, sizeof(struct pcache_segment_info));
+	seg_info->header.crc = pcache_meta_crc(&seg_info_addr->header, sizeof(struct pcache_segment_info));
 
-	memcpy(seg_info_addr, seg_info, sizeof(struct pcache_segment_info));
-
-	seg_info_addr->header.crc = pcache_meta_crc(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
-	cache_dev_flush(cache_dev, seg_info_addr, PCACHE_SEG_INFO_SIZE);
+	memcpy_flushcache(seg_info_addr, seg_info, sizeof(struct pcache_segment_info));
 }
 
 struct pcache_segment_info *pcache_segment_info_read(struct pcache_cache_dev *cache_dev, u32 seg_id)
