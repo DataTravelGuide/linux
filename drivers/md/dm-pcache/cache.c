@@ -25,7 +25,6 @@ static int cache_info_load(struct pcache_cache *cache)
 
 	cache_info_addr = pcache_meta_find_latest(&cache->cache_info_addr->header, sizeof(struct pcache_cache_info));
 
-	pr_err("cache_info_addr %p", cache_info_addr);
 	if (!cache_info_addr) {
 		cache_info_init(cache);
 	} else {
@@ -33,11 +32,10 @@ static int cache_info_load(struct pcache_cache *cache)
 
 		ret = copy_mc_to_kernel(&cache->cache_info, cache_info_addr, sizeof(struct pcache_cache_info));
 		if (ret) {
-			pr_err("hardware memory error when loading cache info: %d", ret);
+			pcache_err("hardware memory error when loading cache info: %d", ret);
 			return ret;
-        	}
+		}
 	}
-	pr_err("seg_num: %d, flags: %x", cache->cache_info.n_segs, cache->cache_info.flags);
 
 	return 0;
 }
@@ -137,7 +135,7 @@ err:
 	return ret;
 }
 
-static void cache_free(struct pcache_cache *cache)
+static void cache_exit(struct pcache_cache *cache)
 {
 	kmem_cache_destroy(cache->req_cache);
 	bitmap_free(cache->seg_map);
@@ -353,13 +351,13 @@ int pcache_cache_start(struct dm_pcache *pcache, bool data_crc)
 
 	ret = cache_info_load(cache);
 	if (ret)
-		return ret;
+		goto cache_exit;
 
 	new_cache = !(cache->cache_info.flags & PCACHE_CACHE_FLAGS_INIT_DONE);
 
 	ret = cache_segs_init(cache, new_cache);
 	if (ret)
-		goto free_cache;
+		goto cache_exit;
 
 	ret = cache_tail_init(cache, new_cache);
 	if (ret)
@@ -383,8 +381,8 @@ destroy_keys:
 	cache_destroy_req_keys(cache);
 segs_destroy:
 	cache_segs_destroy(cache);
-free_cache:
-	cache_free(cache);
+cache_exit:
+	cache_exit(cache);
 
 	return ret;
 }
@@ -405,7 +403,7 @@ void pcache_cache_stop(struct dm_pcache *pcache)
 		cache_destroy_req_keys(cache);
 
 	cache_segs_destroy(cache);
-	cache_free(cache);
+	cache_exit(cache);
 }
 
 struct workqueue_struct *cache_get_wq(struct pcache_cache *cache)

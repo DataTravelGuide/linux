@@ -22,14 +22,15 @@ static int cache_seg_info_load(struct pcache_cache_segment *cache_seg)
 	cache_seg_info = pcache_segment_info_read(cache_seg->cache->cache_dev,
 						cache_seg->segment.seg_info->seg_id);
 	if (!cache_seg_info) {
-		pr_err("can't read segment info of segment: %u\n",
+		pcache_err("can't read segment info of segment: %u\n",
 			      cache_seg->segment.seg_info->seg_id);
 		ret = -EIO;
 		goto out;
 	}
+
 	ret = copy_mc_to_kernel(&cache_seg->cache_seg_info, cache_seg_info, sizeof(struct pcache_cache_seg_info));
 	if (ret)
-		pr_err("hardware memory error when loading seg info: %d", ret);
+		pcache_err("hardware memory error when loading seg info: %d", ret);
 out:
 	mutex_unlock(&cache_seg->info_lock);
 	return ret;
@@ -154,7 +155,6 @@ void cache_seg_destroy(struct pcache_cache_segment *cache_seg)
 	if (atomic_read(&cache_seg->state) != pcache_cache_seg_state_running)
 		return;
 
-	pr_err("destroy segment\n");
 	/* clear cache segment ctrl */
 	cache_dev_zero_range(cache_seg->cache->cache_dev, cache_seg->cache_seg_ctrl,
 			PCACHE_CACHE_SEG_CTRL_SIZE);
