@@ -96,5 +96,5 @@ struct pcache_segment_info *pcache_segment_info_read(struct pcache_cache_dev *ca
 
 	seg_info_addr = CACHE_DEV_SEGMENT(cache_dev, seg_id);
 
-	return pcache_meta_find_latest(&seg_info_addr->header, PCACHE_SEG_INFO_SIZE);
+	return pcache_meta_find_latest(&seg_info_addr->header, sizeof(struct pcache_segment_info));
 }
