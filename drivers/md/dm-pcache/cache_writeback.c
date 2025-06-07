@@ -192,13 +192,13 @@ static int cache_kset_insert_tree(struct pcache_cache *cache, struct pcache_cach
 
 		ret = cache_key_decode(cache, key_onmedia, key);
 		if (ret) {
-			cache_key_delete(key);
+			cache_key_put(key);
 			return ret;
 		}
 
 		ret = cache_key_insert(&cache->writeback_key_tree, key, true);
 		if (ret) {
-			cache_key_delete(key);
+			cache_key_put(key);
 			return ret;
 		}
 	}
