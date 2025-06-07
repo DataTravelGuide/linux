@@ -174,6 +174,11 @@ struct pcache_cache {
 	char wb_kset_onmedia_buf[PCACHE_KSET_ONMEDIA_SIZE_MAX];
 	struct pcache_cache_tree	writeback_key_tree;
 	struct delayed_work	writeback_work;
+	struct {
+		atomic_t pending;
+		u32 advance;
+		int ret;
+	} writeback_ctx;
 
 	char gc_kset_onmedia_buf[PCACHE_KSET_ONMEDIA_SIZE_MAX];
 	struct delayed_work	gc_work;

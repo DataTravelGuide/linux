@@ -7,6 +7,36 @@
 #include "cache_dev.h"
 #include "dm_pcache.h"
 
+static void writeback_ctx_end(struct pcache_cache *cache, int ret)
+{
+	if (ret && !cache->writeback_ctx.ret) {
+		pcache_dev_err(CACHE_TO_PCACHE(cache), "writeback error: %d", ret);
+		cache->writeback_ctx.ret = ret;
+	}
+
+	if (!atomic_dec_and_test(&cache->writeback_ctx.pending))
+		return;
+
+	if (!cache->writeback_ctx.ret) {
+		backing_dev_flush(cache->backing_dev);
+
+		mutex_lock(&cache->dirty_tail_lock);
+		cache_pos_advance(&cache->dirty_tail, cache->writeback_ctx.advance);
+		cache_encode_dirty_tail(cache);
+		mutex_unlock(&cache->dirty_tail_lock);
+	}
+	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, 0);
+}
+
+static void writeback_end_req(struct pcache_backing_dev_req *backing_req, int ret)
+{
+	struct pcache_cache *cache = backing_req->priv_data;
+
+	mutex_lock(&cache->writeback_lock);
+	writeback_ctx_end(cache, ret);
+	mutex_unlock(&cache->writeback_lock);
+}
+
 static inline bool is_cache_clean(struct pcache_cache *cache, struct pcache_cache_pos *dirty_tail)
 {
 	struct dm_pcache *pcache = CACHE_TO_PCACHE(cache);
@@ -58,6 +88,8 @@ int cache_writeback_init(struct pcache_cache *cache)
 	if (ret)
 		goto err;
 
+	atomic_set(&cache->writeback_ctx.pending, 0);
+
 	/* Queue delayed work to start writeback handling */
 	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, 0);
 
@@ -87,7 +119,8 @@ static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_k
 	off = key->off;
 
 	writeback_req_opts.type = BACKING_DEV_REQ_TYPE_KMEM;
-	writeback_req_opts.end_fn = NULL;
+	writeback_req_opts.end_fn = writeback_end_req;
+	writeback_req_opts.priv_data = cache;
 	writeback_req_opts.gfp_mask = GFP_NOIO;
 
 	writeback_req_opts.kmem.data = addr;
@@ -99,20 +132,25 @@ static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_k
 	if (!writeback_req)
 		return -EIO;
 
+	atomic_inc(&cache->writeback_ctx.pending);
 	backing_dev_req_submit(writeback_req, true);
 
 	return 0;
 }
 
-static int cache_wb_tree_writeback(struct pcache_cache *cache)
+static int cache_wb_tree_writeback(struct pcache_cache *cache, u32 advance)
 {
 	struct dm_pcache *pcache = CACHE_TO_PCACHE(cache);
 	struct pcache_cache_tree *cache_tree = &cache->writeback_key_tree;
 	struct pcache_cache_subtree *cache_subtree;
 	struct rb_node *node;
 	struct pcache_cache_key *key;
-	int ret;
+	int ret = 0;
 	u32 i;
+
+	cache->writeback_ctx.ret = 0;
+	cache->writeback_ctx.advance = advance;
+	atomic_set(&cache->writeback_ctx.pending, 1);
 
 	for (i = 0; i < cache_tree->n_subtrees; i++) {
 		cache_subtree = &cache_tree->subtrees[i];
@@ -125,16 +163,16 @@ static int cache_wb_tree_writeback(struct pcache_cache *cache)
 			ret = cache_key_writeback(cache, key);
 			if (ret) {
 				pcache_dev_err(pcache, "writeback error: %d\n", ret);
-				return ret;
+				goto release;
 			}
 
 			cache_key_delete(key);
 		}
 	}
+release:
+	writeback_ctx_end(cache, ret);
 
-	backing_dev_flush(cache->backing_dev);
-
-	return 0;
+	return ret;
 }
 
 static int cache_kset_insert_tree(struct pcache_cache *cache, struct pcache_cache_kset_onmedia *kset_onmedia)
@@ -191,49 +229,48 @@ void cache_writeback_fn(struct work_struct *work)
 	struct dm_pcache *pcache = CACHE_TO_PCACHE(cache);
 	struct pcache_cache_pos dirty_tail;
 	struct pcache_cache_kset_onmedia *kset_onmedia;
-	int ret = 0;
+	u32 delay;
+	int ret;
 
 	mutex_lock(&cache->writeback_lock);
+	if (atomic_read(&cache->writeback_ctx.pending))
+		goto unlock;
+
+	if (pcache_is_stopping(pcache))
+		goto unlock;
+
 	kset_onmedia = (struct pcache_cache_kset_onmedia *)cache->wb_kset_onmedia_buf;
-	/* Loop until all dirty data is written back and the cache is clean */
-	while (true) {
-		if (pcache_is_stopping(pcache)) {
-			mutex_unlock(&cache->writeback_lock);
-			return;
-		}
 
-		/* Get new dirty tail */
-		mutex_lock(&cache->dirty_tail_lock);
-		cache_pos_copy(&dirty_tail, &cache->dirty_tail);
-		mutex_unlock(&cache->dirty_tail_lock);
+	mutex_lock(&cache->dirty_tail_lock);
+	cache_pos_copy(&dirty_tail, &cache->dirty_tail);
+	mutex_unlock(&cache->dirty_tail_lock);
 
-		if (is_cache_clean(cache, &dirty_tail))
-			break;
-
-		if (kset_onmedia->flags & PCACHE_KSET_FLAGS_LAST) {
-			last_kset_writeback(cache, kset_onmedia);
-			continue;
-		}
-
-		ret = cache_kset_insert_tree(cache, kset_onmedia);
-		if (ret)
-			break;
-
-		ret = cache_wb_tree_writeback(cache);
-		if (ret)
-			break;
-
-		pcache_dev_debug(pcache, "writeback advance: %u:%u %u\n",
-			dirty_tail.cache_seg->cache_seg_id,
-			dirty_tail.seg_off,
-			get_kset_onmedia_size(kset_onmedia));
-
-		mutex_lock(&cache->dirty_tail_lock);
-		cache_pos_advance(&cache->dirty_tail, get_kset_onmedia_size(kset_onmedia));
-		cache_encode_dirty_tail(cache);
-		mutex_unlock(&cache->dirty_tail_lock);
+	if (is_cache_clean(cache, &dirty_tail)) {
+		delay = PCACHE_CACHE_WRITEBACK_INTERVAL;
+		goto queue_work;
 	}
-	mutex_unlock(&cache->writeback_lock);
 
-	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, PCACHE_CACHE_WRITEBACK_INTERVAL);
+	if (kset_onmedia->flags & PCACHE_KSET_FLAGS_LAST) {
+		last_kset_writeback(cache, kset_onmedia);
+		delay = 0;
+		goto queue_work;
+	}
+
+	ret = cache_kset_insert_tree(cache, kset_onmedia);
+	if (ret) {
+		delay = PCACHE_CACHE_WRITEBACK_INTERVAL;
+		goto queue_work;
+	}
+
+	ret = cache_wb_tree_writeback(cache, get_kset_onmedia_size(kset_onmedia));
+	if (ret) {
+		delay = PCACHE_CACHE_WRITEBACK_INTERVAL;
+		goto queue_work;
+	}
+
+	delay = 0;
+queue_work:
+	queue_delayed_work(cache_get_wq(cache), &cache->writeback_work, delay);
+unlock:
+	mutex_unlock(&cache->writeback_lock);
 }

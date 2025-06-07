@@ -279,7 +279,8 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 
 	backing_req->backing_dev = backing_dev;
 	INIT_LIST_HEAD(&backing_req->node);
-	backing_req->end_req     = opts->end_fn;
+	backing_req->end_req	= opts->end_fn;
+	backing_req->priv_data	= opts->priv_data;
 
 	return backing_req;
 

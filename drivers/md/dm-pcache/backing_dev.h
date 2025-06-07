@@ -74,6 +74,7 @@ struct pcache_backing_dev_req_opts {
 
 	gfp_t gfp_mask;
 	backing_req_end_fn_t	end_fn;
+	void			*priv_data;
 };
 
 void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req, bool direct);
