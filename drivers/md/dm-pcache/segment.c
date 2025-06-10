@@ -52,12 +52,10 @@ void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segme
 		      struct pcache_segment_init_options *options)
 {
 	segment->seg_info = options->seg_info;
-
 	segment_info_set_type(segment->seg_info, options->type);
-	segment->seg_info->seg_id = options->seg_id;
-	segment->seg_info->data_off = options->data_off;
 
 	segment->cache_dev = cache_dev;
+	segment->seg_id = options->seg_id;
 	segment->data_size = PCACHE_SEG_SIZE - options->data_off;
 	segment->data = CACHE_DEV_SEGMENT(cache_dev, options->seg_id) + options->data_off;
 }

@@ -8,7 +8,7 @@
 static inline struct pcache_segment_info *get_seg_info_addr(struct pcache_cache_segment *cache_seg)
 {
 	struct pcache_segment_info *seg_info_addr;
-	u32 seg_id = cache_seg->segment.seg_info->seg_id;
+	u32 seg_id = cache_seg->segment.seg_id;
 	void *seg_addr;
 
 	seg_addr = CACHE_DEV_SEGMENT(cache_seg->cache->cache_dev, seg_id);
@@ -39,7 +39,7 @@ static int cache_seg_info_load(struct pcache_cache_segment *cache_seg)
 	struct pcache_segment_info *cache_seg_info_addr_base, *cache_seg_info_addr;
 	struct pcache_cache_dev *cache_dev = cache_seg->cache->cache_dev;
 	struct dm_pcache *pcache = CACHE_DEV_TO_PCACHE(cache_dev);
-	u32 seg_id = cache_seg->segment.seg_info->seg_id;
+	u32 seg_id = cache_seg->segment.seg_id;
 	int ret = 0;
 
 	cache_seg_info_addr_base = CACHE_DEV_SEGMENT(cache_dev, seg_id);
@@ -62,7 +62,7 @@ out:
 
 	if (ret)
 		pcache_dev_err(pcache, "can't read segment info of segment: %u, ret: %d\n",
-			      cache_seg->segment.seg_info->seg_id, ret);
+			      cache_seg->segment.seg_id, ret);
 	return ret;
 }
 

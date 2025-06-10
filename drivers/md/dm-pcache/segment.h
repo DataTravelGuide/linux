@@ -10,8 +10,6 @@ struct pcache_segment_info {
 	struct pcache_meta_header	header;	/* Metadata header for the segment */
 	__u32			flags;
 	__u32			next_seg;
-	__u32			seg_id;
-	__u32			data_off;
 } __packed;
 
 #define PCACHE_SEG_INFO_FLAGS_HAS_NEXT		BIT(0)
@@ -53,6 +51,7 @@ struct pcache_segment {
 
 	void			*data;
 	u32			data_size;
+	u32			seg_id;
 
 	struct pcache_segment_info	*seg_info;
 };
