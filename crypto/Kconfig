@@ -1172,6 +1172,11 @@ config CRYPTO_ZSTD
 
 	  See https://github.com/facebook/zstd for further information.
 
+config CRYPTO_BACO
+	tristate "Background Compressor"
+	select CRYPTO_ACOMP2
+	help
+          background compressor
 endmenu
 
 menu "Random number generation"
