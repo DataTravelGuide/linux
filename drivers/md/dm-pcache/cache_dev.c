@@ -61,7 +61,7 @@ out_free:
 	return ret;
 }
 
-static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *path)
+static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev)
 {
 	struct dm_pcache	*pcache = CACHE_DEV_TO_PCACHE(cache_dev);
 	struct dax_device	*dax_dev;
@@ -71,20 +71,14 @@ static int cache_dev_dax_init(struct pcache_cache_dev *cache_dev, const char *pa
 	int			ret, id;
 	pfn_t			pfn;
 
-	ret = dm_get_device(pcache->ti, path,
-			    BLK_OPEN_READ | BLK_OPEN_WRITE, &cache_dev->dm_dev);
-	if (ret) {
-		pcache_dev_err(pcache, "failed to open dm_dev: %s: %d", path, ret);
-		goto err;
-	}
-
 	dax_dev	= cache_dev->dm_dev->dax_dev;
 
 	/* total size check */
 	bdev_size = bdev_nr_bytes(cache_dev->dm_dev->bdev);
 	if (!bdev_size) {
 		ret = -ENODEV;
-		pcache_dev_err(pcache, "device %s has zero size\n", path);
+		pcache_dev_err(pcache, "device %s has zero size\n",
+			       cache_dev->dm_dev->name);
 		goto put_dm;
 	}
 
@@ -125,7 +119,7 @@ unlock:
 	dax_read_unlock(id);
 put_dm:
 	dm_put_device(pcache->ti, cache_dev->dm_dev);
-err:
+
 	return ret;
 }
 
@@ -245,7 +239,7 @@ void cache_dev_stop(struct dm_pcache *pcache)
 	cache_dev_dax_exit(cache_dev);
 }
 
-int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path)
+int cache_dev_start(struct dm_pcache *pcache)
 {
 	struct pcache_cache_dev *cache_dev = &pcache->cache_dev;
 	struct pcache_sb sb;
@@ -254,9 +248,10 @@ int cache_dev_start(struct dm_pcache *pcache, const char *cache_dev_path)
 
 	mutex_init(&cache_dev->seg_lock);
 
-	ret = cache_dev_dax_init(cache_dev, cache_dev_path);
+	ret = cache_dev_dax_init(cache_dev);
 	if (ret) {
-		pcache_dev_err(pcache, "failed to init cache_dev via dax way: %d.", ret);
+		pcache_dev_err(pcache, "failed to init cache_dev %s via dax way: %d.",
+			       cache_dev->dm_dev->name, ret);
 		goto err;
 	}
 

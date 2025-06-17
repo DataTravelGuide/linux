@@ -38,24 +38,6 @@ err:
 	return ret;
 }
 
-static int backing_dev_open(struct pcache_backing_dev *backing_dev, const char *path)
-{
-	struct dm_pcache *pcache = BACKING_DEV_TO_PCACHE(backing_dev);
-	int ret;
-
-	ret = dm_get_device(pcache->ti, path,
-			BLK_OPEN_READ | BLK_OPEN_WRITE, &backing_dev->dm_dev);
-	if (ret) {
-		pcache_dev_err(pcache, "failed to open dm_dev: %s: %d", path, ret);
-		goto err;
-	}
-	backing_dev->dev_size = bdev_nr_sectors(backing_dev->dm_dev->bdev);
-
-	return 0;
-err:
-	return ret;
-}
-
 static void backing_dev_close(struct pcache_backing_dev *backing_dev)
 {
 	struct dm_pcache *pcache = BACKING_DEV_TO_PCACHE(backing_dev);
@@ -63,25 +45,18 @@ static void backing_dev_close(struct pcache_backing_dev *backing_dev)
 	dm_put_device(pcache->ti, backing_dev->dm_dev);
 }
 
-int backing_dev_start(struct dm_pcache *pcache, const char *backing_dev_path)
+int backing_dev_start(struct dm_pcache *pcache)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 	int ret;
 
 	ret = backing_dev_init(pcache);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = backing_dev_open(backing_dev, backing_dev_path);
-	if (ret)
-		goto destroy_backing_dev;
+	backing_dev->dev_size = bdev_nr_sectors(backing_dev->dm_dev->bdev);
 
 	return 0;
-
-destroy_backing_dev:
-	backing_dev_exit(backing_dev);
-err:
-	return ret;
 }
 
 void backing_dev_stop(struct dm_pcache *pcache)

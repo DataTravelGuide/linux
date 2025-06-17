@@ -30,7 +30,7 @@ Constructor
 
 ::
 
-    pcache <cache_dev> <backing_dev> <cache_mode> <data_crc>
+    pcache <cache_dev> <backing_dev> N <cache_mode> <data_crc>
 
 =========================  ====================================================
 ``cache_dev``               Any DAX-capable block device (``/dev/pmem0``…).
@@ -38,9 +38,10 @@ Constructor
 
 ``backing_dev``             The slow block device to be cached.
 
-``cache_mode``              Only ``writeback`` is accepted at the moment.
+``cache_mode``              Optional, Only ``writeback`` is accepted at the moment.
 
-``data_crc``                ``true``  – store CRC32 for every cached entry and
+``data_crc``                Optional, default to ``false``
+                            ``true``  – store CRC32 for every cached entry and
                                       verify on reads
                             ``false`` – skip CRC (faster)
 =========================  ====================================================
@@ -51,7 +52,7 @@ Example
 .. code-block:: shell
 
    dmsetup create pcache_sdb --table \
-     "0 $(blockdev --getsz /dev/sdb) pcache /dev/pmem0 /dev/sdb writeback true"
+     "0 $(blockdev --getsz /dev/sdb) pcache /dev/pmem0 /dev/sdb 2 writeback true"
 
 The first time a pmem device is used, dm-pcache formats it automatically
 (super-block, cache_info, etc.).

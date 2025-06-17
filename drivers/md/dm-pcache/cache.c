@@ -370,10 +370,11 @@ static void cache_destroy_req_keys(struct pcache_cache *cache)
 	cache_tree_exit(&cache->req_key_tree);
 }
 
-int pcache_cache_start(struct dm_pcache *pcache, struct pcache_cache_options *opts)
+int pcache_cache_start(struct dm_pcache *pcache)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 	struct pcache_cache *cache = &pcache->cache;
+	struct pcache_cache_options *opts = &pcache->opts;
 	int ret;
 
 	ret = cache_init(pcache);

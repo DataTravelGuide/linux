@@ -15,11 +15,13 @@
 struct pcache_cache_dev;
 struct pcache_backing_dev;
 struct pcache_cache;
+struct pcache_cache_options;
 struct dm_pcache {
 	struct dm_target *ti;
 	struct pcache_cache_dev cache_dev;
 	struct pcache_backing_dev backing_dev;
 	struct pcache_cache cache;
+	struct pcache_cache_options opts;
 
 	spinlock_t			defered_req_list_lock;
 	struct list_head		defered_req_list;

@@ -206,7 +206,7 @@ struct pcache_cache_options {
 	u32	cache_mode:4;
 	u32	data_crc:1;
 };
-int pcache_cache_start(struct dm_pcache *pcache, struct pcache_cache_options *opts);
+int pcache_cache_start(struct dm_pcache *pcache);
 void pcache_cache_stop(struct dm_pcache *pcache);
 
 struct pcache_cache_ctrl {

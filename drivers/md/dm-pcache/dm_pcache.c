@@ -87,21 +87,28 @@ void pcache_req_put(struct pcache_request *pcache_req, int ret)
 	kref_put(&pcache_req->ref, end_req);
 }
 
+static bool at_least_one_arg(struct dm_arg_set *as, char **error)
+{
+	if (!as->argc) {
+		*error = "Insufficient args";
+		return false;
+	}
+
+	return true;
+}
+
 static int parse_cache_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 				char **error)
 {
-	const char *cache_dev_path;
 	int ret;
 
-	if (!as->argc) {
-		*error = "Cache_dev_path required";
+	if (!at_least_one_arg(as, error))
 		return -EINVAL;
-	}
-
-	cache_dev_path = dm_shift_arg(as);
-	ret = cache_dev_start(pcache, cache_dev_path);
+	ret = dm_get_device(pcache->ti, dm_shift_arg(as),
+			  BLK_OPEN_READ | BLK_OPEN_WRITE,
+			  &pcache->cache_dev.dm_dev);
 	if (ret) {
-		*error = "Failed to start cache dev";
+		*error = "Error opening cache device";
 		return ret;
 	}
 
@@ -111,91 +118,125 @@ static int parse_cache_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 static int parse_backing_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 				char **error)
 {
-	const char *backing_dev_path;
 	int ret;
 
-	if (!as->argc) {
-		*error = "Backing_dev_path required";
+	if (!at_least_one_arg(as, error))
 		return -EINVAL;
-	}
 
-	backing_dev_path = dm_shift_arg(as);
-	ret = backing_dev_start(pcache, backing_dev_path);
+	ret = dm_get_device(pcache->ti, dm_shift_arg(as),
+			  BLK_OPEN_READ | BLK_OPEN_WRITE,
+			  &pcache->backing_dev.dm_dev);
 	if (ret) {
-		*error = "Failed to start backing dev";
+		*error = "Error opening backing device";
 		return ret;
 	}
 
 	return 0;
 }
 
-static int parse_cache_opts(struct dm_pcache *pcache, struct dm_arg_set *as,
-				char **error)
+static void pcache_init_opts(struct pcache_cache_options *opts)
 {
-	struct pcache_cache_options opts = { 0 };
-	const char *cache_mode;
-	const char *data_crc_str;
-
-	if (as->argc != 2) {
-		*error = "Bad cache options, need '<cache_mode> <data_crc(true|false)>'";
-		return -EINVAL;
-	}
-
-	cache_mode = dm_shift_arg(as);
-	if (!strcmp(cache_mode, "writeback")) {
-		opts.cache_mode = PCACHE_CACHE_MODE_WRITEBACK;
-	} else {
-		*error = "only writeback cache mode supported currently";
-		return -EINVAL;
-	}
-
-	data_crc_str = dm_shift_arg(as);
-	if (!strcmp(data_crc_str, "true")) {
-		opts.data_crc = true;
-	} else if (!strcmp(data_crc_str, "false")) {
-		opts.data_crc = false;
-	} else {
-		*error = "Invalid option for data_crc";
-		return -EINVAL;
-	}
-
-	return pcache_cache_start(pcache, &opts);
+	opts->cache_mode = PCACHE_CACHE_MODE_WRITEBACK;
+	opts->data_crc = false;
 }
 
-static int parse_pcache_args(struct dm_pcache *pcache, unsigned int argc, char **argv,
+static int parse_cache_opts(struct dm_pcache *pcache, struct dm_arg_set *as,
+                            char **error)
+{
+	struct pcache_cache_options *opts = &pcache->opts;
+	static const struct dm_arg _args[] = {
+		{0, 2, "Invalid number of cache option arguments"},
+	};
+	int ret;
+	unsigned int argc;
+	const char *arg;
+
+	pcache_init_opts(opts);
+	if (!as->argc)
+		return 0;
+
+	ret = dm_read_arg_group(_args, as, &argc, error);
+	if (ret)
+		return -EINVAL;
+
+	while (argc--) {
+		arg = dm_shift_arg(as);
+
+		if (!strcmp(arg, "writeback")) {
+			opts->cache_mode = PCACHE_CACHE_MODE_WRITEBACK;
+		}else if (!strcmp(arg, "true")) {
+			opts->data_crc = true;
+		} else if (!strcmp(arg, "false")) {
+			opts->data_crc = false;
+		} else {
+			*error = "Unrecognised cache option requested";
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int pcache_create(struct dm_pcache *pcache, char **error)
+{
+	int ret;
+
+	ret = cache_dev_start(pcache);
+	if (ret) {
+		*error = "Failed to start cache dev";
+		return ret;
+	}
+
+	ret = backing_dev_start(pcache);
+	if (ret) {
+		*error = "Failed to start backing dev";
+		goto out_cache;
+	}
+
+	ret = pcache_cache_start(pcache);
+	if (ret) {
+		*error = "Failed to start pcache";
+		goto out_backing;
+	}
+
+	return 0;
+out_backing:
+	backing_dev_stop(pcache);
+out_cache:
+	cache_dev_stop(pcache);
+
+	return ret;
+}
+
+static int pcache_parse_args(struct dm_pcache *pcache, unsigned int argc, char **argv,
 				char **error)
 {
 	struct dm_arg_set as;
 	int ret;
 
-	if (argc != 4) {
-		ret = -EINVAL;
-		goto err;
-	}
-
 	as.argc = argc;
 	as.argv = argv;
 
+	/*
+	 * Parse cache device
+	 */
 	ret = parse_cache_dev(pcache, &as, error);
 	if (ret)
-		goto err;
-
+		return ret;
+	/*
+	 * Parse backing device
+	 */
 	ret = parse_backing_dev(pcache, &as, error);
 	if (ret)
-		goto stop_cache_dev;
-
+		return ret;
+	/*
+	 * Parse optional arguments
+	 */
 	ret = parse_cache_opts(pcache, &as, error);
 	if (ret)
-		goto stop_backing_dev;
+		return ret;
 
 	return 0;
-
-stop_backing_dev:
-	backing_dev_stop(pcache);
-stop_cache_dev:
-	cache_dev_stop(pcache);
-err:
-	return ret;
 }
 
 static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -226,7 +267,11 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	INIT_WORK(&pcache->defered_req_work, defered_req_fn);
 	pcache->ti = ti;
 
-	ret = parse_pcache_args(pcache, argc, argv, &ti->error);
+	ret = pcache_parse_args(pcache, argc, argv, &ti->error);
+	if (ret)
+		goto destroy_wq;
+
+	ret = pcache_create(pcache, &ti->error);
 	if (ret)
 		goto destroy_wq;
 
