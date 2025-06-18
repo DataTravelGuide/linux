@@ -3,7 +3,7 @@
 #define _PCACHE_INTERNAL_H
 
 #include <linux/delay.h>
-#include <linux/crc32.h>
+#include <linux/crc32c.h>
 
 #define pcache_err(fmt, ...)							\
 	pr_err("dm-pcache: %s:%u " fmt, __func__, __LINE__, ##__VA_ARGS__)
@@ -42,7 +42,7 @@ struct pcache_meta_header {
  */
 static inline u32 pcache_meta_crc(struct pcache_meta_header *header, u32 meta_size)
 {
-	return crc32(PCACHE_CRC_SEED, (void *)header + 4, meta_size - 4);
+	return crc32c(PCACHE_CRC_SEED, (void *)header + 4, meta_size - 4);
 }
 
 /*

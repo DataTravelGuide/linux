@@ -462,7 +462,7 @@ static inline u32 cache_key_data_crc(struct pcache_cache_key *key)
 
 	data = cache_pos_addr(&key->cache_pos);
 
-	return crc32(PCACHE_CRC_SEED, data, key->len);
+	return crc32c(PCACHE_CRC_SEED, data, key->len);
 }
 
 static inline u32 cache_kset_crc(struct pcache_cache_kset_onmedia *kset_onmedia)
@@ -474,7 +474,7 @@ static inline u32 cache_kset_crc(struct pcache_cache_kset_onmedia *kset_onmedia)
 	else
 		crc_size = struct_size(kset_onmedia, data, kset_onmedia->key_num) - 4;
 
-	return crc32(PCACHE_CRC_SEED, (void *)kset_onmedia + 4, crc_size);
+	return crc32c(PCACHE_CRC_SEED, (void *)kset_onmedia + 4, crc_size);
 }
 
 static inline u32 get_kset_onmedia_size(struct pcache_cache_kset_onmedia *kset_onmedia)

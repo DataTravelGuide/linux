@@ -180,7 +180,7 @@ static int sb_init(struct pcache_cache_dev *cache_dev, struct pcache_sb *sb)
 	sb->flags = cpu_to_le32(flags);
 	sb->magic = cpu_to_le64(PCACHE_MAGIC);
 	sb->seg_num = cpu_to_le32(nr_segs);
-	sb->crc = cpu_to_le32(crc32(PCACHE_CRC_SEED, (void *)(sb) + 4, sizeof(struct pcache_sb) - 4));
+	sb->crc = cpu_to_le32(crc32c(PCACHE_CRC_SEED, (void *)(sb) + 4, sizeof(struct pcache_sb) - 4));
 
 	cache_dev_zero_range(cache_dev, CACHE_DEV_CACHE_INFO(cache_dev),
 			     PCACHE_CACHE_INFO_SIZE * PCACHE_META_INDEX_MAX +
@@ -201,7 +201,7 @@ static int sb_validate(struct pcache_cache_dev *cache_dev, struct pcache_sb *sb)
 		return -EINVAL;
 	}
 
-	crc = crc32(PCACHE_CRC_SEED, (void *)(sb) + 4, sizeof(struct pcache_sb) - 4);
+	crc = crc32c(PCACHE_CRC_SEED, (void *)(sb) + 4, sizeof(struct pcache_sb) - 4);
 	if (crc != le32_to_cpu(sb->crc)) {
 		pcache_dev_err(pcache, "corrupted sb: %u, expected: %u\n", crc, le32_to_cpu(sb->crc));
 		return -EINVAL;
