@@ -226,16 +226,17 @@ struct pcache_cache_segment *get_cache_segment(struct pcache_cache *cache)
 	struct pcache_cache_segment *cache_seg;
 	u32 seg_id;
 
-again:
 	spin_lock(&cache->seg_map_lock);
+again:
 	seg_id = find_next_zero_bit(cache->seg_map, cache->n_segs, cache->last_cache_seg);
 	if (seg_id == cache->n_segs) {
-		spin_unlock(&cache->seg_map_lock);
 		/* reset the hint of ->last_cache_seg and retry */
 		if (cache->last_cache_seg) {
 			cache->last_cache_seg = 0;
 			goto again;
 		}
+		cache->cache_full = true;
+		spin_unlock(&cache->seg_map_lock);
 		return NULL;
 	}
 
@@ -275,6 +276,10 @@ static void cache_seg_invalidate(struct pcache_cache_segment *cache_seg)
 	cache_seg_gen_increase(cache_seg);
 
 	spin_lock(&cache->seg_map_lock);
+	if (cache->cache_full) {
+		cache->cache_full = false;
+		pcache_defer_reqs_kick(CACHE_TO_PCACHE(cache));
+	}
 	clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 	spin_unlock(&cache->seg_map_lock);
 

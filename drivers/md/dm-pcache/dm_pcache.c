@@ -9,6 +9,11 @@
 #include "cache.h"
 #include "dm_pcache.h"
 
+void pcache_defer_reqs_kick(struct dm_pcache *pcache)
+{
+	queue_work(pcache->task_wq, &pcache->defered_req_work);
+}
+
 static void defer_req(struct pcache_request *pcache_req)
 {
 	struct dm_pcache *pcache = pcache_req->pcache;
@@ -17,14 +22,13 @@ static void defer_req(struct pcache_request *pcache_req)
 
 	spin_lock(&pcache->defered_req_list_lock);
 	list_add(&pcache_req->list_node, &pcache->defered_req_list);
+	queue_work(pcache->task_wq, &pcache->defered_req_work);
 	spin_unlock(&pcache->defered_req_list_lock);
-
-	queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, msecs_to_jiffies(100));
 }
 
 static void defered_req_fn(struct work_struct *work)
 {
-	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work.work);
+	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work);
 	struct pcache_request *pcache_req;
 	LIST_HEAD(tmp_list);
 	int ret;
@@ -214,7 +218,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	spin_lock_init(&pcache->defered_req_list_lock);
 	INIT_LIST_HEAD(&pcache->defered_req_list);
-	INIT_DELAYED_WORK(&pcache->defered_req_work, defered_req_fn);
+	INIT_WORK(&pcache->defered_req_work, defered_req_fn);
 	pcache->ti = ti;
 
 	ret = parse_pcache_args(pcache, argc, argv, &ti->error);
@@ -242,7 +246,7 @@ static void defer_req_stop(struct dm_pcache *pcache)
 	struct pcache_request *pcache_req;
 	LIST_HEAD(tmp_list);
 
-	cancel_delayed_work_sync(&pcache->defered_req_work);
+	flush_work(&pcache->defered_req_work);
 
 	spin_lock(&pcache->defered_req_list_lock);
 	list_splice_init(&pcache->defered_req_list, &tmp_list);

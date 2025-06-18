@@ -25,7 +25,7 @@ struct dm_pcache {
 	struct list_head		defered_req_list;
 	struct workqueue_struct		*task_wq;
 
-	struct delayed_work		defered_req_work;
+	struct work_struct		defered_req_work;
 
 	atomic_t			state;
 };
@@ -62,5 +62,7 @@ static inline bool pcache_req_need_retry(struct pcache_request *pcache_req)
 
 void pcache_req_get(struct pcache_request *pcache_req);
 void pcache_req_put(struct pcache_request *pcache_req, int ret);
+
+void pcache_defer_reqs_kick(struct dm_pcache *pcache);
 
 #endif /* _DM_PCACHE_H */
