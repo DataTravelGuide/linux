@@ -149,9 +149,8 @@ static void backing_dev_bio_end(struct bio *bio)
 
 	spin_lock_irqsave(&backing_dev->complete_lock, flags);
 	list_move_tail(&backing_req->node, &backing_dev->complete_list);
-	spin_unlock_irqrestore(&backing_dev->complete_lock, flags);
-
 	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_complete_work);
+	spin_unlock_irqrestore(&backing_dev->complete_lock, flags);
 }
 
 static void req_submit_fn(struct work_struct *work)
@@ -183,9 +182,8 @@ void backing_dev_req_submit(struct pcache_backing_dev_req *backing_req, bool dir
 
 	spin_lock(&backing_dev->submit_lock);
 	list_add_tail(&backing_req->node, &backing_dev->submit_list);
-	spin_unlock(&backing_dev->submit_lock);
-
 	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_submit_work);
+	spin_unlock(&backing_dev->submit_lock);
 }
 
 static struct pcache_backing_dev_req *req_type_req_create(struct pcache_backing_dev *backing_dev,
