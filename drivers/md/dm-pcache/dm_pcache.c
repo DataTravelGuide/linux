@@ -42,12 +42,10 @@ static void defered_req_fn(struct work_struct *work)
 		list_del_init(&pcache_req->list_node);
 		pcache_req->ret = 0;
 		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-		if (ret == -ENOMEM || ret == -EBUSY) {
+		if (pcache_req_need_retry(pcache_req))
 			defer_req(pcache_req);
-			ret = 0;
-		} else {
+		else
 			pcache_req_put(pcache_req, ret);
-		}
 	}
 }
 
@@ -62,7 +60,7 @@ static void end_req(struct kref *ref)
 	struct bio *bio = pcache_req->bio;
 	int ret = pcache_req->ret;
 
-	if (ret == -ENOMEM || ret == -EBUSY) {
+	if (pcache_req_need_retry(pcache_req)) {
 		pcache_req_get(pcache_req);
 		defer_req(pcache_req);
 	} else {
@@ -293,11 +291,10 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	bio->bi_iter.bi_sector = dm_target_offset(ti, bio->bi_iter.bi_sector);
 
 	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-	if (ret == -ENOMEM || ret == -EBUSY) {
+	if (pcache_req_need_retry(pcache_req))
 		defer_req(pcache_req);
-	} else {
+	else
 		pcache_req_put(pcache_req, ret);
-	}
 
 	return DM_MAPIO_SUBMITTED;
 }
