@@ -33,7 +33,7 @@ struct pcache_cache_pos_onmedia {
 	struct pcache_meta_header header;
 	__u32 cache_seg_id;
 	__u32 seg_off;
-} __packed;
+};
 
 /* Offset and size definitions for cache segment control */
 #define PCACHE_CACHE_SEG_CTRL_OFF     (PCACHE_SEG_INFO_SIZE * PCACHE_META_INDEX_MAX)
@@ -42,13 +42,13 @@ struct pcache_cache_pos_onmedia {
 struct pcache_cache_seg_gen {
 	struct pcache_meta_header header;
 	__u64 gen;
-} __packed;
+};
 
 /* Control structure for cache segments */
 struct pcache_cache_seg_ctrl {
 	struct pcache_cache_seg_gen gen[PCACHE_META_INDEX_MAX];
 	__u64	res[64];
-} __packed;
+};
 
 #define PCACHE_CACHE_FLAGS_DATA_CRC			BIT(0)
 #define PCACHE_CACHE_FLAGS_INIT_DONE			BIT(1)
@@ -67,7 +67,7 @@ struct pcache_cache_info {
 	__u32 n_segs;
 	__u32 flags;
 	__u32 reserved;
-} __packed;
+};
 
 struct pcache_cache_pos {
 	struct pcache_cache_segment *cache_seg;
@@ -131,7 +131,7 @@ struct pcache_cache_key_onmedia {
 	__u64 seg_gen;
 	__u32 data_crc;
 	__u32 reserved;
-} __packed;
+};
 
 struct pcache_cache_kset_onmedia {
 	__u32 crc;
@@ -142,7 +142,7 @@ struct pcache_cache_kset_onmedia {
 	__u64 magic;
 	__u64 flags;
 	struct pcache_cache_key_onmedia data[];
-} __packed;
+};
 
 struct pcache_cache {
 	struct pcache_backing_dev	*backing_dev;
