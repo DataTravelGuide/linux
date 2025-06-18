@@ -259,7 +259,7 @@ static struct pcache_backing_dev_req *kmem_type_req_create(struct pcache_backing
 	if (!backing_req)
 		return NULL;
 
-	backing_req->kmem.bvecs = kcalloc(n_vecs, sizeof(struct bio_vec), opts->gfp_mask);
+	backing_req->kmem.bvecs = kmalloc_array(n_vecs, sizeof(struct bio_vec), opts->gfp_mask);
 	if (!backing_req->kmem.bvecs)
 		goto err_free_req;
 
