@@ -212,25 +212,19 @@ err:
 	return ret;
 }
 
-#define PCACHE_WAIT_NEW_CACHE_INTERVAL	100
-#define PCACHE_WAIT_NEW_CACHE_COUNT	100
-
 /**
  * get_cache_segment - Retrieves a free cache segment from the cache.
  * @cache: Pointer to the cache structure.
  *
  * This function attempts to find a free cache segment that can be used.
  * It locks the segment map and checks for the next available segment ID.
- * If no segment is available, it waits for a predefined interval and retries.
  * If a free segment is found, it initializes it and returns a pointer to the
- * cache segment structure. Returns NULL if no segments are available after
- * waiting for a specified count.
+ * cache segment structure. Returns NULL if no segments are available.
  */
 struct pcache_cache_segment *get_cache_segment(struct pcache_cache *cache)
 {
 	struct pcache_cache_segment *cache_seg;
 	u32 seg_id;
-	u32 wait_count = 0;
 
 again:
 	spin_lock(&cache->seg_map_lock);
@@ -242,12 +236,7 @@ again:
 			cache->last_cache_seg = 0;
 			goto again;
 		}
-
-		if (++wait_count >= PCACHE_WAIT_NEW_CACHE_COUNT)
-			return NULL;
-
-		udelay(PCACHE_WAIT_NEW_CACHE_INTERVAL);
-		goto again;
+		return NULL;
 	}
 
 	/*
