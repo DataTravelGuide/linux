@@ -143,12 +143,13 @@ static void backing_dev_bio_end(struct bio *bio)
 {
 	struct pcache_backing_dev_req *backing_req = bio->bi_private;
 	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
+	unsigned long flags;
 
 	backing_req->ret = bio->bi_status;
 
-	spin_lock(&backing_dev->complete_lock);
+	spin_lock_irqsave(&backing_dev->complete_lock, flags);
 	list_move_tail(&backing_req->node, &backing_dev->complete_list);
-	spin_unlock(&backing_dev->complete_lock);
+	spin_unlock_irqrestore(&backing_dev->complete_lock, flags);
 
 	queue_work(BACKING_DEV_TO_PCACHE(backing_dev)->task_wq, &backing_dev->req_complete_work);
 }
