@@ -276,13 +276,12 @@ static void cache_seg_invalidate(struct pcache_cache_segment *cache_seg)
 	cache_seg_gen_increase(cache_seg);
 
 	spin_lock(&cache->seg_map_lock);
-	if (cache->cache_full) {
+	if (cache->cache_full)
 		cache->cache_full = false;
-		pcache_defer_reqs_kick(CACHE_TO_PCACHE(cache));
-	}
 	clear_bit(cache_seg->cache_seg_id, cache->seg_map);
 	spin_unlock(&cache->seg_map_lock);
 
+	pcache_defer_reqs_kick(CACHE_TO_PCACHE(cache));
 	/* clean_work will clean the bad key in key_tree*/
 	queue_work(cache_get_wq(cache), &cache->clean_work);
 }

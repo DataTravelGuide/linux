@@ -11,7 +11,12 @@
 
 void pcache_defer_reqs_kick(struct dm_pcache *pcache)
 {
-	queue_work(pcache->task_wq, &pcache->defered_req_work);
+	struct pcache_cache *cache = &pcache->cache;
+
+	spin_lock(&cache->seg_map_lock);
+	if (!cache->cache_full)
+		queue_work(pcache->task_wq, &pcache->defered_req_work);
+	spin_unlock(&cache->seg_map_lock);
 }
 
 static void defer_req(struct pcache_request *pcache_req)
@@ -22,7 +27,7 @@ static void defer_req(struct pcache_request *pcache_req)
 
 	spin_lock(&pcache->defered_req_list_lock);
 	list_add(&pcache_req->list_node, &pcache->defered_req_list);
-	queue_work(pcache->task_wq, &pcache->defered_req_work);
+	pcache_defer_reqs_kick(pcache);
 	spin_unlock(&pcache->defered_req_list_lock);
 }
 
@@ -46,7 +51,7 @@ static void defered_req_fn(struct work_struct *work)
 		list_del_init(&pcache_req->list_node);
 		pcache_req->ret = 0;
 		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-		if (pcache_req_need_retry(pcache_req))
+		if (ret == -EBUSY)
 			defer_req(pcache_req);
 		else
 			pcache_req_put(pcache_req, ret);
@@ -64,7 +69,7 @@ static void end_req(struct kref *ref)
 	struct bio *bio = pcache_req->bio;
 	int ret = pcache_req->ret;
 
-	if (pcache_req_need_retry(pcache_req)) {
+	if (ret == -EBUSY) {
 		pcache_req_get(pcache_req);
 		defer_req(pcache_req);
 	} else {
@@ -295,7 +300,7 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	bio->bi_iter.bi_sector = dm_target_offset(ti, bio->bi_iter.bi_sector);
 
 	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-	if (pcache_req_need_retry(pcache_req))
+	if (ret == -EBUSY)
 		defer_req(pcache_req);
 	else
 		pcache_req_put(pcache_req, ret);

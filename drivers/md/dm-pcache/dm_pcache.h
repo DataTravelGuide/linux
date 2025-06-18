@@ -55,11 +55,6 @@ struct pcache_request {
 	struct list_head	list_node;
 };
 
-static inline bool pcache_req_need_retry(struct pcache_request *pcache_req)
-{
-	return (pcache_req->ret == -EBUSY);
-}
-
 void pcache_req_get(struct pcache_request *pcache_req);
 void pcache_req_put(struct pcache_request *pcache_req, int ret);
 
