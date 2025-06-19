@@ -30,7 +30,7 @@ Constructor
 
 ::
 
-    pcache <cache_dev> <backing_dev> N <cache_mode> <data_crc>
+    pcache <cache_dev> <backing_dev> [<#option args> <cache_mode writeback> <data_crc true|false>]
 
 =========================  ====================================================
 ``cache_dev``               Any DAX-capable block device (``/dev/pmem0``…).
@@ -52,7 +52,7 @@ Example
 .. code-block:: shell
 
    dmsetup create pcache_sdb --table \
-     "0 $(blockdev --getsz /dev/sdb) pcache /dev/pmem0 /dev/sdb 2 writeback true"
+     "0 $(blockdev --getsz /dev/sdb) pcache /dev/pmem0 /dev/sdb 4 cache_mode writeback data_crc true"
 
 The first time a pmem device is used, dm-pcache formats it automatically
 (super-block, cache_info, etc.).
