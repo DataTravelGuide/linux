@@ -222,7 +222,6 @@ static int pcache_start(struct dm_pcache *pcache, char **error)
 	return 0;
 stop_backing:
 	backing_dev_stop(pcache);
-stop_cache:
 	cache_dev_stop(pcache);
 
 	return ret;
