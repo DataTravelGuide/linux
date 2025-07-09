@@ -3,6 +3,7 @@
 #define _PCACHE_SEGMENT_H
 
 #include <linux/bio.h>
+#include <linux/bitfield.h>
 
 #include "pcache_internal.h"
 
