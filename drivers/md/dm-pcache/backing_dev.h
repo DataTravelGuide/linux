@@ -43,7 +43,6 @@ struct pcache_backing_dev {
 	struct pcache_cache		*cache;
 
 	struct dm_dev			*dm_dev;
-	struct kmem_cache		*backing_req_cache;
 	mempool_t			req_pool;
 
 	struct list_head		submit_list;

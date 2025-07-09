@@ -836,15 +836,9 @@ int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_
 	cache_tree->cache = cache;
 	cache_tree->n_subtrees = n_subtrees;
 
-	cache_tree->key_cache = KMEM_CACHE(pcache_cache_key, 0);
-	if (!cache_tree->key_cache) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	ret = mempool_init_slab_pool(&cache_tree->key_pool, 1024, cache_tree->key_cache);
+	ret = mempool_init_slab_pool(&cache_tree->key_pool, 1024, key_cache);
 	if (ret)
-		goto destroy_key_cache;
+		goto err;
 
 	/*
 	 * Allocate and initialize the subtrees array.
@@ -868,8 +862,6 @@ int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_
 
 key_pool_exit:
 	mempool_exit(&cache_tree->key_pool);
-destroy_key_cache:
-	kmem_cache_destroy(cache_tree->key_cache);
 err:
 	return ret;
 }
@@ -896,5 +888,4 @@ void cache_tree_exit(struct pcache_cache_tree *cache_tree)
 	}
 	kvfree(cache_tree->subtrees);
 	mempool_exit(&cache_tree->key_pool);
-	kmem_cache_destroy(cache_tree->key_cache);
 }

@@ -9,6 +9,9 @@
 #include "cache.h"
 #include "dm_pcache.h"
 
+struct kmem_cache *backing_req_cache;
+struct kmem_cache *key_cache;
+
 void pcache_defer_reqs_kick(struct dm_pcache *pcache)
 {
 	struct pcache_cache *cache = &pcache->cache;
@@ -451,13 +454,39 @@ static struct target_type dm_pcache_target = {
 
 static int __init dm_pcache_init(void)
 {
-	return dm_register_target(&dm_pcache_target);
+	int ret;
+
+	backing_req_cache = KMEM_CACHE(pcache_backing_dev_req, 0);
+	if (!backing_req_cache) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	key_cache = KMEM_CACHE(pcache_cache_key, 0);
+	if (!key_cache) {
+		ret = -ENOMEM;
+		goto destroy_req_cache;
+	}
+
+	ret = dm_register_target(&dm_pcache_target);
+	if (ret)
+		goto destroy_key_cache;
+	return 0;
+
+destroy_key_cache:
+	kmem_cache_destroy(key_cache);
+destroy_req_cache:
+	kmem_cache_destroy(backing_req_cache);
+err:
+	return ret;
 }
 module_init(dm_pcache_init);
 
 static void __exit dm_pcache_exit(void)
 {
 	dm_unregister_target(&dm_pcache_target);
+	kmem_cache_destroy(key_cache);
+	kmem_cache_destroy(backing_req_cache);
 }
 module_exit(dm_pcache_exit);
 

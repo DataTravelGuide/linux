@@ -32,6 +32,9 @@ struct dm_pcache {
 	atomic_t			state;
 };
 
+extern struct kmem_cache *backing_req_cache;
+extern struct kmem_cache *key_cache;
+
 static inline bool pcache_is_stopping(struct dm_pcache *pcache)
 {
 	return (atomic_read(&pcache->state) == PCACHE_STATE_STOPPING);

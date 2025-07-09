@@ -11,7 +11,6 @@
 static void backing_dev_exit(struct pcache_backing_dev *backing_dev)
 {
 	mempool_exit(&backing_dev->req_pool);
-	kmem_cache_destroy(backing_dev->backing_req_cache);
 }
 
 static void req_submit_fn(struct work_struct *work);
@@ -21,15 +20,9 @@ static int backing_dev_init(struct dm_pcache *pcache)
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
 	int ret;
 
-	backing_dev->backing_req_cache = KMEM_CACHE(pcache_backing_dev_req, 0);
-	if (!backing_dev->backing_req_cache) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	ret = mempool_init_slab_pool(&backing_dev->req_pool, 128, backing_dev->backing_req_cache);
+	ret = mempool_init_slab_pool(&backing_dev->req_pool, 128, backing_req_cache);
 	if (ret)
-		goto cache_destroy;
+		goto err;
 
 	INIT_LIST_HEAD(&backing_dev->submit_list);
 	INIT_LIST_HEAD(&backing_dev->complete_list);
@@ -39,8 +32,7 @@ static int backing_dev_init(struct dm_pcache *pcache)
 	INIT_WORK(&backing_dev->req_complete_work, req_complete_fn);
 
 	return 0;
-cache_destroy:
-	kmem_cache_destroy(backing_dev->backing_req_cache);
+
 err:
 	return ret;
 }
