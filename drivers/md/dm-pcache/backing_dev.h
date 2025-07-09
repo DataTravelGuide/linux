@@ -43,7 +43,6 @@ struct pcache_backing_dev {
 	struct pcache_cache		*cache;
 
 	struct dm_dev			*dm_dev;
-	mempool_t			req_pool;
 
 	struct list_head		submit_list;
 	spinlock_t			submit_lock;
@@ -57,7 +56,7 @@ struct pcache_backing_dev {
 };
 
 struct dm_pcache;
-int backing_dev_start(struct dm_pcache *pcache);
+void backing_dev_start(struct dm_pcache *pcache);
 void backing_dev_stop(struct dm_pcache *pcache);
 
 struct pcache_backing_dev_req_opts {

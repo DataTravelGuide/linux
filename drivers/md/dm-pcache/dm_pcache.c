@@ -18,25 +18,31 @@ void pcache_defer_reqs_kick(struct dm_pcache *pcache)
 
 	spin_lock(&cache->seg_map_lock);
 	if (!cache->cache_full)
-		queue_work(pcache->task_wq, &pcache->defered_req_work);
+		queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, 0);
 	spin_unlock(&cache->seg_map_lock);
 }
 
-static void defer_req(struct pcache_request *pcache_req)
+static void defer_req(struct pcache_request *pcache_req, int ret)
 {
 	struct dm_pcache *pcache = pcache_req->pcache;
+	bool kick = (ret == -EBUSY);
+	bool need_queue_work = (ret == -ENOMEM);
 
 	BUG_ON(!list_empty(&pcache_req->list_node));
 
 	spin_lock(&pcache->defered_req_list_lock);
 	list_add(&pcache_req->list_node, &pcache->defered_req_list);
-	pcache_defer_reqs_kick(pcache);
+	if (kick)
+		pcache_defer_reqs_kick(pcache);
 	spin_unlock(&pcache->defered_req_list_lock);
+
+	if (need_queue_work)
+		queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, msecs_to_jiffies(5000));
 }
 
 static void defered_req_fn(struct work_struct *work)
 {
-	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work);
+	struct dm_pcache *pcache = container_of(work, struct dm_pcache, defered_req_work.work);
 	struct pcache_request *pcache_req;
 	LIST_HEAD(tmp_list);
 	int ret;
@@ -54,8 +60,8 @@ static void defered_req_fn(struct work_struct *work)
 		list_del_init(&pcache_req->list_node);
 		pcache_req->ret = 0;
 		ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-		if (ret == -EBUSY)
-			defer_req(pcache_req);
+		if (ret == -EBUSY || ret == -ENOMEM)
+			defer_req(pcache_req, ret);
 		else
 			pcache_req_put(pcache_req, ret);
 	}
@@ -72,9 +78,9 @@ static void end_req(struct kref *ref)
 	struct bio *bio = pcache_req->bio;
 	int ret = pcache_req->ret;
 
-	if (ret == -EBUSY) {
+	if (ret == -EBUSY || ret == -ENOMEM) {
 		pcache_req_get(pcache_req);
-		defer_req(pcache_req);
+		defer_req(pcache_req, ret);
 	} else {
 		bio->bi_status = errno_to_blk_status(ret);
 		bio_endio(bio);
@@ -205,11 +211,7 @@ static int pcache_start(struct dm_pcache *pcache, char **error)
 		return ret;
 	}
 
-	ret = backing_dev_start(pcache);
-	if (ret) {
-		*error = "Failed to start backing dev";
-		goto stop_cache;
-	}
+	backing_dev_start(pcache);
 
 	ret = pcache_cache_start(pcache);
 	if (ret) {
@@ -293,7 +295,7 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	spin_lock_init(&pcache->defered_req_list_lock);
 	INIT_LIST_HEAD(&pcache->defered_req_list);
-	INIT_WORK(&pcache->defered_req_work, defered_req_fn);
+	INIT_DELAYED_WORK(&pcache->defered_req_work, defered_req_fn);
 	pcache->ti = ti;
 
 	ret = pcache_parse_args(pcache, argc, argv, &ti->error);
@@ -326,7 +328,7 @@ static void defer_req_stop(struct dm_pcache *pcache)
 	struct pcache_request *pcache_req;
 	LIST_HEAD(tmp_list);
 
-	flush_work(&pcache->defered_req_work);
+	cancel_delayed_work_sync(&pcache->defered_req_work);
 
 	spin_lock(&pcache->defered_req_list_lock);
 	list_splice_init(&pcache->defered_req_list, &tmp_list);
@@ -375,8 +377,8 @@ static int dm_pcache_map_bio(struct dm_target *ti, struct bio *bio)
 	INIT_LIST_HEAD(&pcache_req->list_node);
 
 	ret = pcache_cache_handle_req(&pcache->cache, pcache_req);
-	if (ret == -EBUSY)
-		defer_req(pcache_req);
+	if (ret == -EBUSY || ret == -ENOMEM)
+		defer_req(pcache_req, ret);
 	else
 		pcache_req_put(pcache_req, ret);
 

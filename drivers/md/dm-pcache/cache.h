@@ -102,7 +102,6 @@ struct pcache_cache_subtree {
 struct pcache_cache_tree {
 	struct pcache_cache		*cache;
 	u32				n_subtrees;
-	mempool_t			key_pool;
 	struct pcache_cache_subtree	*subtrees;
 };
 

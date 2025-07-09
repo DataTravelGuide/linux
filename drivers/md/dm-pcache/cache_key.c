@@ -18,11 +18,10 @@ struct pcache_cache_key *cache_key_alloc(struct pcache_cache_tree *cache_tree)
 {
 	struct pcache_cache_key *key;
 
-	key = mempool_alloc(&cache_tree->key_pool, GFP_NOIO);
+	key = kmem_cache_zalloc(key_cache, GFP_NOIO);
 	if (!key)
 		return NULL;
 
-	memset(key, 0, sizeof(struct pcache_cache_key));
 	cache_key_init(cache_tree, key);
 
 	return key;
@@ -50,9 +49,8 @@ void cache_key_get(struct pcache_cache_key *key)
 static void cache_key_destroy(struct kref *ref)
 {
 	struct pcache_cache_key *key = container_of(ref, struct pcache_cache_key, ref);
-	struct pcache_cache_tree *cache_tree = key->cache_tree;
 
-	mempool_free(key, &cache_tree->key_pool);
+	kmem_cache_free(key_cache, key);
 }
 
 void cache_key_put(struct pcache_cache_key *key)
@@ -830,15 +828,10 @@ out:
 
 int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_tree, u32 n_subtrees)
 {
-	int ret;
 	u32 i;
 
 	cache_tree->cache = cache;
 	cache_tree->n_subtrees = n_subtrees;
-
-	ret = mempool_init_slab_pool(&cache_tree->key_pool, 1024, key_cache);
-	if (ret)
-		goto err;
 
 	/*
 	 * Allocate and initialize the subtrees array.
@@ -846,10 +839,8 @@ int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_
 	 * an RB tree root and a spinlock for protecting its contents.
 	 */
 	cache_tree->subtrees = kvcalloc(cache_tree->n_subtrees, sizeof(struct pcache_cache_subtree), GFP_KERNEL);
-	if (!cache_tree->subtrees) {
-		ret = -ENOMEM;
-		goto key_pool_exit;
-	}
+	if (!cache_tree->subtrees)
+		return -ENOMEM;
 
 	for (i = 0; i < cache_tree->n_subtrees; i++) {
 		struct pcache_cache_subtree *cache_subtree = &cache_tree->subtrees[i];
@@ -859,11 +850,6 @@ int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_
 	}
 
 	return 0;
-
-key_pool_exit:
-	mempool_exit(&cache_tree->key_pool);
-err:
-	return ret;
 }
 
 void cache_tree_exit(struct pcache_cache_tree *cache_tree)
@@ -887,5 +873,4 @@ void cache_tree_exit(struct pcache_cache_tree *cache_tree)
 		spin_unlock(&cache_subtree->tree_lock);
 	}
 	kvfree(cache_tree->subtrees);
-	mempool_exit(&cache_tree->key_pool);
 }

@@ -8,21 +8,12 @@
 #include "cache.h"
 #include "dm_pcache.h"
 
-static void backing_dev_exit(struct pcache_backing_dev *backing_dev)
-{
-	mempool_exit(&backing_dev->req_pool);
-}
-
 static void req_submit_fn(struct work_struct *work);
 static void req_complete_fn(struct work_struct *work);
-static int backing_dev_init(struct dm_pcache *pcache)
+
+void backing_dev_start(struct dm_pcache *pcache)
 {
 	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
-	int ret;
-
-	ret = mempool_init_slab_pool(&backing_dev->req_pool, 128, backing_req_cache);
-	if (ret)
-		goto err;
 
 	INIT_LIST_HEAD(&backing_dev->submit_list);
 	INIT_LIST_HEAD(&backing_dev->complete_list);
@@ -31,24 +22,7 @@ static int backing_dev_init(struct dm_pcache *pcache)
 	INIT_WORK(&backing_dev->req_submit_work, req_submit_fn);
 	INIT_WORK(&backing_dev->req_complete_work, req_complete_fn);
 
-	return 0;
-
-err:
-	return ret;
-}
-
-int backing_dev_start(struct dm_pcache *pcache)
-{
-	struct pcache_backing_dev *backing_dev = &pcache->backing_dev;
-	int ret;
-
-	ret = backing_dev_init(pcache);
-	if (ret)
-		return ret;
-
 	backing_dev->dev_size = bdev_nr_sectors(backing_dev->dm_dev->bdev);
-
-	return 0;
 }
 
 void backing_dev_stop(struct dm_pcache *pcache)
@@ -61,15 +35,11 @@ void backing_dev_stop(struct dm_pcache *pcache)
 	/* There should be no inflight backing_dev_request */
 	BUG_ON(!list_empty(&backing_dev->submit_list));
 	BUG_ON(!list_empty(&backing_dev->complete_list));
-
-	backing_dev_exit(backing_dev);
 }
 
 /* pcache_backing_dev_req functions */
 void backing_dev_req_end(struct pcache_backing_dev_req *backing_req)
 {
-	struct pcache_backing_dev *backing_dev = backing_req->backing_dev;
-
 	if (backing_req->end_req)
 		backing_req->end_req(backing_req, backing_req->ret);
 
@@ -86,7 +56,7 @@ void backing_dev_req_end(struct pcache_backing_dev_req *backing_req)
 		BUG();
 	}
 
-	mempool_free(backing_req, &backing_dev->req_pool);
+	kmem_cache_free(backing_req_cache, backing_req);
 }
 
 static void req_complete_fn(struct work_struct *work)
@@ -188,7 +158,7 @@ static struct pcache_backing_dev_req *req_type_req_alloc(struct pcache_backing_d
 	struct bio *orig = pcache_req->bio;
 	int ret;
 
-	backing_req = mempool_alloc(&backing_dev->req_pool, GFP_NOIO);
+	backing_req = kmem_cache_zalloc(backing_req_cache, GFP_NOIO);
 	if (!backing_req)
 		return NULL;
 
@@ -204,7 +174,7 @@ static struct pcache_backing_dev_req *req_type_req_alloc(struct pcache_backing_d
 	return backing_req;
 
 err_free_req:
-	mempool_free(backing_req, &backing_dev->req_pool);
+	kmem_cache_free(backing_req_cache, backing_req);
 	return NULL;
 }
 
@@ -222,7 +192,7 @@ static struct pcache_backing_dev_req *kmem_type_req_alloc(struct pcache_backing_
 	struct pcache_backing_dev_req *backing_req;
 	u32 n_vecs = get_n_vecs(opts->kmem.data, opts->kmem.len);
 
-	backing_req = mempool_alloc(&backing_dev->req_pool, GFP_NOIO);
+	backing_req = kmem_cache_zalloc(backing_req_cache, GFP_NOIO);
 	if (!backing_req)
 		return NULL;
 
@@ -243,7 +213,7 @@ static struct pcache_backing_dev_req *kmem_type_req_alloc(struct pcache_backing_
 	return backing_req;
 
 err_free_req:
-	mempool_free(backing_req, &backing_dev->req_pool);
+	kmem_cache_free(backing_req_cache, backing_req);
 	return NULL;
 }
 

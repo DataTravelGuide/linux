@@ -27,7 +27,7 @@ struct dm_pcache {
 	struct list_head		defered_req_list;
 	struct workqueue_struct		*task_wq;
 
-	struct work_struct		defered_req_work;
+	struct delayed_work		defered_req_work;
 
 	atomic_t			state;
 };
