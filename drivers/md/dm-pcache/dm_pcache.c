@@ -18,7 +18,7 @@ void pcache_defer_reqs_kick(struct dm_pcache *pcache)
 
 	spin_lock(&cache->seg_map_lock);
 	if (!cache->cache_full)
-		queue_delayed_work(pcache->task_wq, &pcache->defered_req_work, 0);
+		mod_delayed_work(pcache->task_wq, &pcache->defered_req_work, 0);
 	spin_unlock(&cache->seg_map_lock);
 }
 
