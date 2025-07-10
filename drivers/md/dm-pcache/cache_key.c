@@ -852,7 +852,7 @@ int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_
 	return 0;
 }
 
-void cache_tree_exit(struct pcache_cache_tree *cache_tree)
+void cache_tree_clear(struct pcache_cache_tree *cache_tree)
 {
 	struct pcache_cache_subtree *cache_subtree;
 	struct rb_node *node;
@@ -872,5 +872,10 @@ void cache_tree_exit(struct pcache_cache_tree *cache_tree)
 		}
 		spin_unlock(&cache_subtree->tree_lock);
 	}
+}
+
+void cache_tree_exit(struct pcache_cache_tree *cache_tree)
+{
+	cache_tree_clear(cache_tree);
 	kvfree(cache_tree->subtrees);
 }

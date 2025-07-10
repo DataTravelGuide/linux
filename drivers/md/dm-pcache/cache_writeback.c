@@ -129,7 +129,7 @@ static int cache_key_writeback(struct pcache_cache *cache, struct pcache_cache_k
 
 	writeback_req = backing_dev_req_create(cache->backing_dev, &writeback_req_opts);
 	if (!writeback_req)
-		return -EIO;
+		return -ENOMEM;
 
 	atomic_inc(&cache->writeback_ctx.pending);
 	backing_dev_req_submit(writeback_req, true);
@@ -162,13 +162,13 @@ static int cache_wb_tree_writeback(struct pcache_cache *cache, u32 advance)
 			ret = cache_key_writeback(cache, key);
 			if (ret) {
 				pcache_dev_err(pcache, "writeback error: %d\n", ret);
-				goto release;
+				cache_tree_clear(cache_tree);
+				goto out;
 			}
-
 			cache_key_delete(key);
 		}
 	}
-release:
+out:
 	writeback_ctx_end(cache, ret);
 
 	return ret;
@@ -202,11 +202,13 @@ static int cache_kset_insert_tree(struct pcache_cache *cache, struct pcache_cach
 		spin_unlock(&cache_subtree->tree_lock);
 		if (ret) {
 			cache_key_put(key);
-			return ret;
+			goto clear_tree;
 		}
 	}
-
 	return 0;
+clear_tree:
+	cache_tree_clear(&cache->writeback_key_tree);
+	return ret;
 }
 
 static void last_kset_writeback(struct pcache_cache *cache,

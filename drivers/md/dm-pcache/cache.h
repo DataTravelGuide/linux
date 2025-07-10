@@ -325,6 +325,7 @@ void clean_fn(struct work_struct *work);
 void kset_flush_fn(struct work_struct *work);
 int cache_replay(struct pcache_cache *cache);
 int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_tree, u32 n_subtrees);
+void cache_tree_clear(struct pcache_cache_tree *cache_tree);
 void cache_tree_exit(struct pcache_cache_tree *cache_tree);
 
 /* cache segments */
