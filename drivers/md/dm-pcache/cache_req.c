@@ -248,6 +248,20 @@ out:
 	return NULL;
 }
 
+static void cache_miss_req_free(struct pcache_backing_dev_req *backing_req)
+{
+	struct pcache_cache_key *key;
+
+	if (backing_req->priv_data) {
+		key = backing_req->priv_data;
+		backing_req->priv_data = NULL;
+		cache_key_put(key); /* for ->priv_data */
+		cache_key_put(key); /* for init ref in alloc */
+	}
+
+	backing_dev_req_end(backing_req);
+}
+
 static void cache_miss_req_init(struct pcache_cache *cache,
 				struct pcache_backing_dev_req *backing_req,
 				struct pcache_request *parent,
@@ -272,6 +286,7 @@ static void cache_miss_req_init(struct pcache_cache *cache,
 	} else {
 		key = backing_req->priv_data;
 		backing_req->priv_data = NULL;
+		cache_key_put(key);
 		cache_key_put(key);
 	}
 }
@@ -720,7 +735,7 @@ search:
 	ret = 0;
 out:
 	if (walk_ctx.pre_alloc_req)
-		backing_dev_req_end(walk_ctx.pre_alloc_req);
+		cache_miss_req_free(walk_ctx.pre_alloc_req);
 
 	list_for_each_entry_safe(backing_req, next_req, &submit_req_list, node) {
 		list_del_init(&backing_req->node);
