@@ -313,9 +313,6 @@ struct pcache_backing_dev_req *backing_dev_req_create(struct pcache_backing_dev 
 	struct pcache_backing_dev_req *backing_req;
 
 	backing_req = backing_dev_req_alloc(backing_dev, opts);
-	if (!backing_req)
-		return NULL;
-
 	backing_dev_req_init(backing_req, opts);
 
 	return backing_req;
