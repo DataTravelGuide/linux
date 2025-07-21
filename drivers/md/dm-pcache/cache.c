@@ -54,10 +54,7 @@ static int cache_info_init(struct pcache_cache *cache, struct pcache_cache_optio
 
 	/* init cache_info for new cache */
 	cache_info_init_default(cache);
-
-	cache->cache_info.flags &= ~PCACHE_CACHE_FLAGS_CACHE_MODE_MASK;
-	cache->cache_info.flags |= FIELD_PREP(PCACHE_CACHE_FLAGS_CACHE_MODE_MASK, opts->cache_mode);
-
+	cache_mode_set(cache, opts->cache_mode);
 	if (opts->data_crc)
 		cache->cache_info.flags |= PCACHE_CACHE_FLAGS_DATA_CRC;
 

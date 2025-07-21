@@ -462,6 +462,17 @@ static inline bool cache_data_crc_on(struct pcache_cache *cache)
 	return (cache->cache_info.flags & PCACHE_CACHE_FLAGS_DATA_CRC);
 }
 
+static inline u32 cache_mode_get(struct pcache_cache *cache)
+{
+	return FIELD_GET(PCACHE_CACHE_FLAGS_CACHE_MODE_MASK, cache->cache_info.flags);
+}
+
+static inline void cache_mode_set(struct pcache_cache *cache, u32 cache_mode)
+{
+	cache->cache_info.flags &= ~PCACHE_CACHE_FLAGS_CACHE_MODE_MASK;
+	cache->cache_info.flags |= FIELD_PREP(PCACHE_CACHE_FLAGS_CACHE_MODE_MASK, cache_mode);
+}
+
 /**
  * cache_key_data_crc - Calculates CRC for data in a cache key.
  * @key: Pointer to the pcache_cache_key structure.
