@@ -122,6 +122,7 @@ struct pcache_cache_key {
 
 #define PCACHE_CACHE_KEY_FLAGS_EMPTY		BIT(0)
 #define PCACHE_CACHE_KEY_FLAGS_CLEAN		BIT(1)
+#define PCACHE_CACHE_KEY_FLAGS_CLEAR		BIT(2)
 
 struct pcache_cache_key_onmedia {
 	__u64 off;
@@ -399,6 +400,11 @@ static inline bool cache_key_clean(struct pcache_cache_key *key)
 	return key->flags & PCACHE_CACHE_KEY_FLAGS_CLEAN;
 }
 
+static inline bool cache_key_clear(struct pcache_cache_key *key)
+{
+	return key->flags & PCACHE_CACHE_KEY_FLAGS_CLEAR;
+}
+
 static inline void cache_pos_copy(struct pcache_cache_pos *dst, struct pcache_cache_pos *src)
 {
 	memcpy(dst, src, sizeof(struct pcache_cache_pos));
@@ -474,6 +480,78 @@ static inline void cache_mode_set(struct pcache_cache *cache, u32 cache_mode)
 {
 	cache->cache_info.flags &= ~PCACHE_CACHE_FLAGS_CACHE_MODE_MASK;
 	cache->cache_info.flags |= FIELD_PREP(PCACHE_CACHE_FLAGS_CACHE_MODE_MASK, cache_mode);
+}
+
+static inline const char *cache_mode_str(u32 cache_mode)
+{
+	switch (cache_mode) {
+	case PCACHE_CACHE_MODE_WRITEBACK:
+		return "writeback";
+	case PCACHE_CACHE_MODE_WRITETHROUGH:
+		return "writethrough";
+	case PCACHE_CACHE_MODE_WRITEAROUND:
+		return "writearound";
+	case PCACHE_CACHE_MODE_WRITEONLY:
+		return "writeonly";
+	default:
+		BUG();
+	}
+}
+
+static inline bool cache_mode_need_writeback(struct pcache_cache *cache)
+{
+	switch (cache_mode_get(cache)) {
+	case PCACHE_CACHE_MODE_WRITEBACK:
+	case PCACHE_CACHE_MODE_WRITEONLY:
+		return true;
+	case PCACHE_CACHE_MODE_WRITETHROUGH:
+	case PCACHE_CACHE_MODE_WRITEAROUND:
+		return false;
+	default:
+		BUG();
+	}
+}
+
+static inline bool cache_mode_need_cache(struct pcache_cache *cache)
+{
+	switch (cache_mode_get(cache)) {
+	case PCACHE_CACHE_MODE_WRITEBACK:
+	case PCACHE_CACHE_MODE_WRITETHROUGH:
+	case PCACHE_CACHE_MODE_WRITEONLY:
+		return true;
+	case PCACHE_CACHE_MODE_WRITEAROUND:
+		return false;
+	default:
+		BUG();
+	}
+}
+
+static inline bool cache_mode_need_backing(struct pcache_cache *cache)
+{
+	switch (cache_mode_get(cache)) {
+	case PCACHE_CACHE_MODE_WRITETHROUGH:
+	case PCACHE_CACHE_MODE_WRITEAROUND:
+		return true;
+	case PCACHE_CACHE_MODE_WRITEBACK:
+	case PCACHE_CACHE_MODE_WRITEONLY:
+		return false;
+	default:
+		BUG();
+	}
+}
+
+static inline bool cache_mode_need_read(struct pcache_cache *cache)
+{
+	switch (cache_mode_get(cache)) {
+	case PCACHE_CACHE_MODE_WRITETHROUGH:
+	case PCACHE_CACHE_MODE_WRITEAROUND:
+	case PCACHE_CACHE_MODE_WRITEBACK:
+		return true;
+	case PCACHE_CACHE_MODE_WRITEONLY:
+		return false;
+	default:
+		BUG();
+	}
 }
 
 /**

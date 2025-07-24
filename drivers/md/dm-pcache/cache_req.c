@@ -272,7 +272,7 @@ static void cache_miss_req_init(struct pcache_cache *cache,
 
 	backing_dev_req_init(backing_req, &req_opts);
 
-	if (insert_key) {
+	if (insert_key && cache_mode_need_read(cache)) {
 		key = backing_req->priv_data;
 		key->off = parent->off + off;
 		key->len = len;
@@ -736,7 +736,39 @@ out:
 	return ret;
 }
 
-static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache_req)
+static int cache_data_write(struct pcache_cache *cache, struct pcache_request *pcache_req);
+static void backing_write_end_req(struct pcache_backing_dev_req *backing_req, int ret)
+{
+	struct pcache_request *pcache_req = backing_req->req.upper_req;
+	struct pcache_cache *cache = backing_req->backing_dev->cache;
+
+	if (ret)
+		return;
+
+	if (!cache_mode_need_cache(cache)) {
+		ret = cache_data_write(cache, pcache_req);
+		if (ret && !pcache_req->ret)
+			pcache_req->ret = ret;
+	}
+}
+
+static void backing_write_req_send(struct pcache_backing_dev *backing_dev,
+				struct pcache_request *pcache_req)
+{
+	struct pcache_backing_dev_req *backing_req;
+	struct pcache_backing_dev_req_opts req_opts = { 0 };
+
+	req_opts.type = BACKING_DEV_REQ_TYPE_REQ;
+	req_opts.req.upper_req = pcache_req;
+	req_opts.req.req_off = 0;
+	req_opts.req.len = pcache_req->data_len;
+	req_opts.end_fn = backing_write_end_req;
+
+	backing_req = backing_dev_req_create(backing_dev, &req_opts);
+	backing_dev_req_submit(backing_req, true);
+}
+
+static int cache_data_write(struct pcache_cache *cache, struct pcache_request *pcache_req)
 {
 	struct pcache_cache_subtree *cache_subtree;
 	struct pcache_cache_key *key;
@@ -755,17 +787,25 @@ static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache
 		if (key->len > PCACHE_CACHE_SUBTREE_SIZE - (key->off & PCACHE_CACHE_SUBTREE_SIZE_MASK))
 			key->len = PCACHE_CACHE_SUBTREE_SIZE - (key->off & PCACHE_CACHE_SUBTREE_SIZE_MASK);
 
-		ret = cache_data_alloc(cache, key);
-		if (ret) {
-			cache_key_put(key);
-			goto err;
-		}
+		if (cache_mode_need_cache(cache)) {
+			ret = cache_data_alloc(cache, key);
+			if (ret) {
+				cache_key_put(key);
+				goto err;
+			}
 
-		ret = cache_copy_from_req_bio(cache, key, pcache_req, io_done);
-		if (ret) {
-			cache_seg_put(key->cache_pos.cache_seg);
-			cache_key_put(key);
-			goto err;
+			if (!cache_mode_need_writeback(cache))
+				key->flags |= PCACHE_CACHE_KEY_FLAGS_CLEAN;
+
+			ret = cache_copy_from_req_bio(cache, key, pcache_req, io_done);
+			if (ret) {
+				cache_seg_put(key->cache_pos.cache_seg);
+				cache_key_put(key);
+				goto err;
+			}
+		} else {
+			/* clear the range to write */
+			key->flags |= PCACHE_CACHE_KEY_FLAGS_CLEAR;
 		}
 
 		cache_subtree = get_subtree(&cache->req_key_tree, key->off);
@@ -779,13 +819,27 @@ static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache
 		}
 
 		io_done += key->len;
+		if (cache_key_clear(key))
+			cache_key_put(key);
 		spin_unlock(&cache_subtree->tree_lock);
 	}
-
 	return 0;
 unlock:
 	spin_unlock(&cache_subtree->tree_lock);
 err:
+	return ret;
+}
+
+static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache_req)
+{
+	int ret = 0;
+
+	if (cache_mode_need_backing(cache))
+		backing_write_req_send(cache->backing_dev, pcache_req);
+
+	if (cache_mode_need_cache(cache))
+		ret = cache_data_write(cache, pcache_req);
+
 	return ret;
 }
 
