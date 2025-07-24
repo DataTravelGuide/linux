@@ -76,6 +76,9 @@ static inline bool is_cache_clean(struct pcache_cache *cache, struct pcache_cach
 
 void cache_writeback_exit(struct pcache_cache *cache)
 {
+	if (!cache_mode_need_writeback(cache))
+		return;
+
 	cancel_delayed_work_sync(&cache->writeback_work);
 	backing_dev_flush(cache->backing_dev);
 	cache_tree_exit(&cache->writeback_key_tree);
@@ -84,6 +87,9 @@ void cache_writeback_exit(struct pcache_cache *cache)
 int cache_writeback_init(struct pcache_cache *cache)
 {
 	int ret;
+
+	if (!cache_mode_need_writeback(cache))
+		return 0;
 
 	ret = cache_tree_init(cache, &cache->writeback_key_tree, 1);
 	if (ret)
