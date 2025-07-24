@@ -505,9 +505,7 @@ static int fixup_overlap_contained(struct pcache_cache_key *key,
 			cache_key_put(key_fixup);
 		} else {
 			/* Insert the new key into the cache */
-			ctx->ret = cache_key_insert(cache_tree, key_fixup, false);
-			if (ctx->ret)
-				return SUBTREE_WALK_RET_ERR;
+			cache_key_insert(cache_tree, key_fixup, false);
 			need_research = true;
 		}
 
@@ -558,10 +556,8 @@ static int fixup_overlap_head(struct pcache_cache_key *key,
  * This function searches for the appropriate location to insert
  * a new cache key into the cache tree. It handles key overlaps
  * and ensures any invalid keys are removed before insertion.
- *
- * Returns 0 on success or a negative error code on failure.
  */
-int cache_key_insert(struct pcache_cache_tree *cache_tree, struct pcache_cache_key *key, bool fixup)
+void cache_key_insert(struct pcache_cache_tree *cache_tree, struct pcache_cache_key *key, bool fixup)
 {
 	struct pcache_cache_subtree_walk_ctx walk_ctx = { 0 };
 	struct rb_node **new, *parent = NULL;
@@ -607,23 +603,17 @@ search:
 			walk_ctx.pre_alloc_key = cache_key_alloc(cache_tree);
 			spin_lock(&cache_subtree->tree_lock);
 			goto search;
-		case SUBTREE_WALK_RET_ERR:
-			ret = walk_ctx.ret;
-			goto out;
 		default:
 			BUG();
 		}
 	}
 
-	/* Link and insert the new key into the red-black tree */
-	rb_link_node(&key->rb_node, parent, new);
-	rb_insert_color(&key->rb_node, &cache_subtree->root);
-	ret = 0;
-out:
 	if (walk_ctx.pre_alloc_key)
 		cache_key_put(walk_ctx.pre_alloc_key);
 
-	return ret;
+	/* Link and insert the new key into the red-black tree */
+	rb_link_node(&key->rb_node, parent, new);
+	rb_insert_color(&key->rb_node, &cache_subtree->root);
 }
 
 /**
@@ -730,12 +720,8 @@ static int kset_replay(struct pcache_cache *cache, struct pcache_cache_kset_onme
 		} else {
 			cache_subtree = get_subtree(&cache->req_key_tree, key->off);
 			spin_lock(&cache_subtree->tree_lock);
-			ret = cache_key_insert(&cache->req_key_tree, key, true);
+			cache_key_insert(&cache->req_key_tree, key, true);
 			spin_unlock(&cache_subtree->tree_lock);
-			if (ret) {
-				cache_key_put(key);
-				goto err;
-			}
 		}
 
 		cache_seg_get(key->cache_pos.cache_seg);

@@ -234,7 +234,7 @@ void cache_key_init(struct pcache_cache_tree *cache_tree, struct pcache_cache_ke
 void cache_key_get(struct pcache_cache_key *key);
 void cache_key_put(struct pcache_cache_key *key);
 int cache_key_append(struct pcache_cache *cache, struct pcache_cache_key *key, bool force_close);
-int cache_key_insert(struct pcache_cache_tree *cache_tree, struct pcache_cache_key *key, bool fixup);
+void cache_key_insert(struct pcache_cache_tree *cache_tree, struct pcache_cache_key *key, bool fixup);
 int cache_key_decode(struct pcache_cache *cache,
 			struct pcache_cache_key_onmedia *key_onmedia,
 			struct pcache_cache_key *key);

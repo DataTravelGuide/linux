@@ -176,18 +176,15 @@ static int cache_kset_insert_tree(struct pcache_cache *cache, struct pcache_cach
 		ret = cache_key_decode(cache, key_onmedia, key);
 		if (ret) {
 			cache_key_put(key);
-			return ret;
+			goto clear_tree;
 		}
 
 		cache_subtree = get_subtree(&cache->writeback_key_tree, key->off);
 		spin_lock(&cache_subtree->tree_lock);
-		ret = cache_key_insert(&cache->writeback_key_tree, key, true);
+		cache_key_insert(&cache->writeback_key_tree, key, true);
 		spin_unlock(&cache_subtree->tree_lock);
-		if (ret) {
-			cache_key_put(key);
-			goto clear_tree;
-		}
 	}
+
 	return 0;
 clear_tree:
 	cache_tree_clear(&cache->writeback_key_tree);

@@ -201,19 +201,12 @@ unlock:
  */
 static void submit_cache_miss_req(struct pcache_cache *cache, struct pcache_backing_dev_req *backing_req)
 {
-	int ret;
-
 	if (backing_req->priv_data) {
 		struct pcache_cache_key *key;
 
 		/* Attempt to insert the key into the cache if priv_data is set */
 		key = (struct pcache_cache_key *)backing_req->priv_data;
-		ret = cache_key_insert(&cache->req_key_tree, key, true);
-		if (ret) {
-			/* Release the key if insertion fails */
-			cache_key_put(key);
-			backing_req->priv_data = NULL;
-		}
+		cache_key_insert(&cache->req_key_tree, key, true);
 	}
 	backing_dev_req_submit(backing_req, false);
 }
@@ -763,13 +756,7 @@ static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache
 
 		cache_subtree = get_subtree(&cache->req_key_tree, key->off);
 		spin_lock(&cache_subtree->tree_lock);
-		ret = cache_key_insert(&cache->req_key_tree, key, true);
-		if (ret) {
-			cache_seg_put(key->cache_pos.cache_seg);
-			cache_key_put(key);
-			goto unlock;
-		}
-
+		cache_key_insert(&cache->req_key_tree, key, true);
 		ret = cache_key_append(cache, key, pcache_req->bio->bi_opf & REQ_FUA);
 		if (ret) {
 			cache_seg_put(key->cache_pos.cache_seg);
