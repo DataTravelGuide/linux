@@ -181,7 +181,7 @@ static void miss_read_end_req(struct pcache_backing_dev_req *backing_req, int re
 		}
 unlock:
 		spin_unlock(&cache_subtree->tree_lock);
-		cache_key_put(key);
+		cache_key_put(key); /* put ref for ctx->priv_data */
 	}
 }
 
@@ -223,9 +223,7 @@ static struct pcache_backing_dev_req *cache_miss_req_alloc(struct pcache_cache *
 
 	backing_req = backing_dev_req_alloc(backing_dev, &req_opts);
 	key = cache_key_alloc(&cache->req_key_tree);
-
-	cache_key_get(key);
-	backing_req->priv_data = key;
+	backing_req->priv_data = key; /* transmit the ref to req->priv_data */
 
 	return backing_req;
 }
@@ -237,8 +235,7 @@ static void cache_miss_req_free(struct pcache_backing_dev_req *backing_req)
 	if (backing_req->priv_data) {
 		key = backing_req->priv_data;
 		backing_req->priv_data = NULL;
-		cache_key_put(key); /* for ->priv_data */
-		cache_key_put(key); /* for init ref in alloc */
+		cache_key_put(key);
 	}
 
 	backing_dev_req_end(backing_req);
@@ -268,7 +265,6 @@ static void cache_miss_req_init(struct pcache_cache *cache,
 	} else {
 		key = backing_req->priv_data;
 		backing_req->priv_data = NULL;
-		cache_key_put(key);
 		cache_key_put(key);
 	}
 }
@@ -775,10 +771,8 @@ static int cache_data_write(struct pcache_cache *cache, struct pcache_request *p
 
 		if (cache_mode_need_cache(cache)) {
 			ret = cache_data_alloc(cache, key);
-			if (ret) {
-				cache_key_put(key);
+			if (ret)
 				goto err;
-			}
 
 			if (!cache_mode_need_writeback(cache))
 				key->flags |= PCACHE_CACHE_KEY_FLAGS_CLEAN;
@@ -786,7 +780,6 @@ static int cache_data_write(struct pcache_cache *cache, struct pcache_request *p
 			ret = cache_copy_from_req_bio(cache, key, pcache_req, io_done);
 			if (ret) {
 				cache_seg_put(key->cache_pos.cache_seg);
-				cache_key_put(key);
 				goto err;
 			}
 		} else {
@@ -805,14 +798,14 @@ static int cache_data_write(struct pcache_cache *cache, struct pcache_request *p
 		}
 
 		io_done += key->len;
-		if (cache_key_clear(key))
-			cache_key_put(key);
+		cache_key_put(key);
 		spin_unlock(&cache_subtree->tree_lock);
 	}
 	return 0;
 unlock:
 	spin_unlock(&cache_subtree->tree_lock);
 err:
+	cache_key_put(key);
 	return ret;
 }
 

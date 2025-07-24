@@ -189,6 +189,7 @@ static int cache_kset_insert_tree(struct pcache_cache *cache, struct pcache_cach
 		spin_lock(&cache_subtree->tree_lock);
 		cache_key_insert(&cache->writeback_key_tree, key, true);
 		spin_unlock(&cache_subtree->tree_lock);
+		cache_key_put(key);
 	}
 
 	return 0;

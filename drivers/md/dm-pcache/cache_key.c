@@ -505,13 +505,12 @@ static int fixup_overlap_contained(struct pcache_cache_key *key,
 
 		/* Create a new portion for key_fixup */
 		cache_key_cutfront(key_fixup, cache_key_lend(key) - cache_key_lstart(key_tmp));
-		if (key_fixup->len == 0) {
-			cache_key_put(key_fixup);
-		} else {
+		if (key_fixup->len > 0) {
 			/* Insert the new key into the cache */
 			cache_key_insert(cache_tree, key_fixup, false);
 			need_research = true;
 		}
+		cache_key_put(key_fixup); /* put ref for ctx->pre_alloc_key */
 
 		if (need_research)
 			return SUBTREE_WALK_RET_RESEARCH;
@@ -618,6 +617,7 @@ search:
 	if (cache_key_clear(key))
 		return;
 
+	cache_key_get(key);
 	/* Link and insert the new key into the red-black tree */
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_subtree->root);
@@ -722,7 +722,7 @@ static int kset_replay(struct pcache_cache *cache, struct pcache_cache_kset_onme
 			cache_subtree = get_subtree(&cache->req_key_tree, key->off);
 			spin_lock(&cache_subtree->tree_lock);
 			cache_key_insert(&cache->req_key_tree, key, true);
-			cache_key_put(key);
+			cache_key_put(key); /* put ref for cache_key_alloc */
 			spin_unlock(&cache_subtree->tree_lock);
 			continue;
 		}
@@ -731,15 +731,14 @@ static int kset_replay(struct pcache_cache *cache, struct pcache_cache_kset_onme
 		set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
 
 		/* Check if the segment generation is valid for insertion. */
-		if (key->seg_gen < key->cache_pos.cache_seg->gen) {
-			cache_key_put(key);
-		} else {
+		if (key->seg_gen >= key->cache_pos.cache_seg->gen) {
 			cache_subtree = get_subtree(&cache->req_key_tree, key->off);
 			spin_lock(&cache_subtree->tree_lock);
 			cache_key_insert(&cache->req_key_tree, key, true);
 			spin_unlock(&cache_subtree->tree_lock);
 		}
 
+		cache_key_put(key); /* put ref for cache_key_alloc() */
 		cache_seg_get(key->cache_pos.cache_seg);
 	}
 
