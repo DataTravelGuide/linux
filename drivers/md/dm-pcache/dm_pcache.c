@@ -407,7 +407,7 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 		       cache->key_tail.seg_off);
 		break;
 	case STATUSTYPE_TABLE:
-		DMEMIT("%s %s writeback %s",
+		DMEMIT("%s %s 4 cache_mode writeback crc %s",
 		       cache_dev->dm_dev->name,
 		       backing_dev->dm_dev->name,
 		       cache_data_crc_on(cache) ? "true" : "false");
