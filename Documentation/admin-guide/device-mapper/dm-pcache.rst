@@ -30,7 +30,7 @@ Constructor
 
 ::
 
-    pcache <cache_dev> <backing_dev> [<number_of_optional_arguments> <cache_mode writeback> <data_crc true|false>]
+    pcache <cache_dev> <backing_dev> [<number_of_optional_arguments> <cache_mode writeback|writethrough|writearound|writeonly> <data_crc true|false>]
 
 =========================  ====================================================
 ``cache_dev``               Any DAX-capable block device (``/dev/pmem0``…).
@@ -38,7 +38,7 @@ Constructor
 
 ``backing_dev``             The slow block device to be cached.
 
-``cache_mode``              Optional, Only ``writeback`` is accepted at the moment.
+``cache_mode``              Optional, ``writeback``, ``writethrough``, ``writearound``, ``writeonly``.
 
 ``data_crc``                Optional, default to ``false``
                             ``true``  – store CRC32 for every cached entry and
