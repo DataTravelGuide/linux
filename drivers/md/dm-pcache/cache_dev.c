@@ -265,7 +265,7 @@ int cache_dev_start(struct dm_pcache *pcache)
 		goto dax_release;
 
 	cache_dev->sb_flags = le32_to_cpu(sb.flags);
-	ret = cache_dev_init(cache_dev, sb.seg_num);
+	ret = cache_dev_init(cache_dev, le32_to_cpu(sb.seg_num));
 	if (ret)
 		goto dax_release;
 
