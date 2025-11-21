@@ -8,7 +8,6 @@
 #include <linux/dax.h>
 #include <linux/io.h>
 #include <linux/backing-dev.h>
-#include <linux/pfn_t.h>
 #include <linux/range.h>
 #include <linux/uio.h>
 #include "dax-private.h"
@@ -1467,15 +1466,14 @@ static void write_dax(void *pmem_addr, struct page *page,
 
 static long __dev_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 			long nr_pages, enum dax_access_mode mode, void **kaddr,
-			pfn_t *pfn)
+			unsigned long *pfn)
 {
 	struct dev_dax *dev_dax = dax_get_private(dax_dev);
 	size_t size = nr_pages << PAGE_SHIFT;
 	size_t offset = pgoff << PAGE_SHIFT;
 	void *virt_addr = dev_dax->virt_addr + offset;
-	u64 flags = PFN_DEV|PFN_MAP;
 	phys_addr_t phys;
-	pfn_t local_pfn;
+	unsigned long local_pfn;
 	size_t dax_size;
 
 	WARN_ON(!dev_dax->virt_addr);
@@ -1490,7 +1488,7 @@ static long __dev_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 	if (kaddr)
 		*kaddr = virt_addr;
 
-	local_pfn = phys_to_pfn_t(phys, flags); /* are flags correct? */
+	local_pfn = phys >> PAGE_SHIFT;
 	if (pfn)
 		*pfn = local_pfn;
 
@@ -1521,7 +1519,7 @@ static int dev_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 
 static long dev_dax_direct_access(struct dax_device *dax_dev,
 		pgoff_t pgoff, long nr_pages, enum dax_access_mode mode,
-		void **kaddr, pfn_t *pfn)
+		void **kaddr, unsigned long *pfn)
 {
 	return __dev_dax_direct_access(dax_dev, pgoff, nr_pages, mode, kaddr, pfn);
 }
