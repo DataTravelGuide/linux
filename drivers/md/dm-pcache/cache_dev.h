@@ -55,6 +55,11 @@ struct pcache_cache_dev {
 
 	struct dm_dev			*dm_dev;
 
+	bool				use_char_dev;
+	struct dax_device		*dax_dev;
+	u64				size;
+	char				name[16];
+
 	struct mutex			seg_lock;
 	unsigned long			*seg_bitmap;
 };
@@ -66,5 +71,9 @@ void cache_dev_stop(struct dm_pcache *pcache);
 void cache_dev_zero_range(struct pcache_cache_dev *cache_dev, void *pos, u32 size);
 
 int cache_dev_get_empty_segment_id(struct pcache_cache_dev *cache_dev, u32 *seg_id);
+
+void cache_dev_close_daxdev(struct pcache_cache_dev *cache_dev);
+int cache_dev_open_daxdev(struct pcache_cache_dev *cache_dev, char *path);
+const char *cache_dev_name(struct pcache_cache_dev *cache_dev);
 
 #endif /* _PCACHE_CACHE_DEV_H */

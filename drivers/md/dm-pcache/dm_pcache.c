@@ -104,13 +104,20 @@ static bool at_least_one_arg(struct dm_arg_set *as, char **error)
 static int parse_cache_dev(struct dm_pcache *pcache, struct dm_arg_set *as,
 				char **error)
 {
+	const char *path;
 	int ret;
 
 	if (!at_least_one_arg(as, error))
 		return -EINVAL;
-	ret = dm_get_device(pcache->ti, dm_shift_arg(as),
+
+	path = dm_shift_arg(as);
+
+	ret = dm_get_device(pcache->ti, path,
 			  BLK_OPEN_READ | BLK_OPEN_WRITE,
 			  &pcache->cache_dev.dm_dev);
+	if (ret == -ENOTBLK)
+		ret = cache_dev_open_daxdev(&pcache->cache_dev, path);
+
 	if (ret) {
 		*error = "Error opening cache device";
 		return ret;
@@ -229,6 +236,8 @@ stop_cache:
 
 static void pcache_destroy_args(struct dm_pcache *pcache)
 {
+	if (pcache->cache_dev.use_char_dev)
+		cache_dev_close_daxdev(&pcache->cache_dev);
 	if (pcache->cache_dev.dm_dev)
 		dm_put_device(pcache->ti, pcache->cache_dev.dm_dev);
 	if (pcache->backing_dev.dm_dev)
@@ -417,7 +426,7 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 		break;
 	case STATUSTYPE_TABLE:
 		DMEMIT("%s %s 4 cache_mode writeback crc %s",
-		       cache_dev->dm_dev->name,
+			cache_dev_name(cache_dev),
 		       backing_dev->dm_dev->name,
 		       cache_data_crc_on(cache) ? "true" : "false");
 		break;
