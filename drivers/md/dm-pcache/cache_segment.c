@@ -60,7 +60,6 @@ static int cache_seg_info_load(struct pcache_cache_segment *cache_seg)
 	cache_seg->info_index =
 		((char *)cache_seg_info_addr - (char *)cache_seg_info_addr_base) /
 		PCACHE_SEG_INFO_SIZE;
-	cache_seg->info_index = (cache_seg->info_index + 1) % PCACHE_META_INDEX_MAX;
 out:
 	mutex_unlock(&cache_seg->info_lock);
 

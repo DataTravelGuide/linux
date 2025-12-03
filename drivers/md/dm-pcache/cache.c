@@ -42,12 +42,7 @@ static int cache_info_init(struct pcache_cache *cache, struct pcache_cache_optio
 	if (IS_ERR(cache_info_addr))
 		return PTR_ERR(cache_info_addr);
 
-    if (cache_info_addr) {
-		int index = ((char *)cache_info_addr - (char *)cache->cache_info_addr) /
-				PCACHE_CACHE_INFO_SIZE;
-
-		cache->info_index = (index + 1) % PCACHE_META_INDEX_MAX;
-
+	if (cache_info_addr) {
 		if (opts->data_crc !=
 				(cache->cache_info.flags & PCACHE_CACHE_FLAGS_DATA_CRC)) {
 			pcache_dev_err(pcache, "invalid option for data_crc: %s, expected: %s",
@@ -55,6 +50,8 @@ static int cache_info_init(struct pcache_cache *cache, struct pcache_cache_optio
 					cache->cache_info.flags & PCACHE_CACHE_FLAGS_DATA_CRC ? "true" : "false");
 			return -EINVAL;
 		}
+
+		cache->info_index = ((char *)cache_info_addr - (char *)cache->cache_info_addr) / PCACHE_CACHE_INFO_SIZE;
 
 		return 0;
 	}
