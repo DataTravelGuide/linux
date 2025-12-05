@@ -23,6 +23,8 @@ static void defer_req(struct pcache_request *pcache_req)
 {
 	struct dm_pcache *pcache = pcache_req->pcache;
 
+	atomic64_inc(&pcache->defer_reqs);
+
 	BUG_ON(!list_empty(&pcache_req->list_node));
 
 	spin_lock(&pcache->defered_req_list_lock);
@@ -322,6 +324,11 @@ static int dm_pcache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	atomic_set(&pcache->state, PCACHE_STATE_RUNNING);
 	init_waitqueue_head(&pcache->inflight_wq);
 
+	atomic64_set(&pcache->reads, 0);
+	atomic64_set(&pcache->writes, 0);
+	atomic64_set(&pcache->cache_miss, 0);
+	atomic64_set(&pcache->defer_reqs, 0);
+
 	return 0;
 destroy_args:
 	pcache_destroy_args(pcache);
@@ -410,7 +417,7 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		DMEMIT("%x %u %u %u %u %x %u:%u %u:%u %u:%u",
+		DMEMIT("%x %u %u %u %u %x %u:%u %u:%u %u:%u %llu %llu %llu %llu",
 		       cache_dev->sb_flags,
 		       cache_dev->seg_num,
 		       cache->n_segs,
@@ -422,7 +429,11 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 		       cache->dirty_tail.cache_seg->cache_seg_id,
 		       cache->dirty_tail.seg_off,
 		       cache->key_tail.cache_seg->cache_seg_id,
-		       cache->key_tail.seg_off);
+		       cache->key_tail.seg_off,
+		       atomic64_read(&pcache->reads),
+		       atomic64_read(&pcache->writes),
+		       atomic64_read(&pcache->cache_miss),
+		       atomic64_read(&pcache->defer_reqs));
 		break;
 	case STATUSTYPE_TABLE:
 		DMEMIT("%s %s 4 cache_mode writeback crc %s",

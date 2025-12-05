@@ -283,6 +283,8 @@ static void cache_miss_req_init(struct pcache_cache *cache,
 		cache_key_put(key);
 		cache_key_put(key);
 	}
+
+	atomic64_inc(&CACHE_TO_PCACHE(cache)->cache_miss);
 }
 
 static struct pcache_backing_dev_req *get_pre_alloc_req(struct pcache_cache_subtree_walk_ctx *ctx)
@@ -672,6 +674,8 @@ static int cache_read(struct pcache_cache *cache, struct pcache_request *pcache_
 	LIST_HEAD(submit_req_list);
 	int ret;
 
+	atomic64_inc(&CACHE_TO_PCACHE(cache)->reads);
+
 	walk_ctx.cache_tree = &cache->req_key_tree;
 	walk_ctx.req_done = 0;
 	walk_ctx.pcache_req = pcache_req;
@@ -744,6 +748,8 @@ static int cache_write(struct pcache_cache *cache, struct pcache_request *pcache
 	u32 length = pcache_req->data_len;
 	u32 io_done = 0;
 	int ret;
+
+	atomic64_inc(&CACHE_TO_PCACHE(cache)->writes);
 
 	while (true) {
 		if (io_done >= length)

@@ -32,6 +32,11 @@ struct dm_pcache {
 	atomic_t			state;
 	atomic_t			inflight_reqs;
 	wait_queue_head_t		inflight_wq;
+
+	atomic64_t			reads;
+	atomic64_t			writes;
+	atomic64_t			cache_miss;
+	atomic64_t			defer_reqs;
 };
 
 static inline bool pcache_is_stopping(struct dm_pcache *pcache)
