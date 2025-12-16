@@ -29,7 +29,7 @@ Constructor
 
 ::
 
-    pcache <cache_dev> <backing_dev> [<number_of_optional_arguments> <cache_mode writeback> <data_crc true|false>]
+    pcache <cache_dev> <backing_dev> [<number_of_optional_arguments> <cache_mode writeback|writethrough|writearound|writeonly> <data_crc true|false>]
 
 =========================  ====================================================
 ``cache_dev``               Any DAX-capable block device (``/dev/pmem0``…).

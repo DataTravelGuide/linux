@@ -114,9 +114,18 @@ void pcache_cache_gc_fn(struct work_struct *work)
 			return;
 
 		/* Get new tail positions */
-		mutex_lock(&cache->dirty_tail_lock);
-		cache_pos_copy(&dirty_tail, &cache->dirty_tail);
-		mutex_unlock(&cache->dirty_tail_lock);
+		if (cache_mode_need_writeback(cache)) {
+			mutex_lock(&cache->dirty_tail_lock);
+			cache_pos_copy(&dirty_tail, &cache->dirty_tail);
+			mutex_unlock(&cache->dirty_tail_lock);
+		} else {
+			/* If cache dont need writeback, then there is no
+			 * dirty key, that means the dirty_tail is key_head
+			 */
+			spin_lock(&cache->key_head_lock);
+			cache_pos_copy(&dirty_tail, &cache->key_head);
+			spin_unlock(&cache->key_head_lock);
+		}
 
 		mutex_lock(&cache->key_tail_lock);
 		cache_pos_copy(&key_tail, &cache->key_tail);
@@ -151,6 +160,9 @@ void pcache_cache_gc_fn(struct work_struct *work)
 				pcache_dev_err(pcache, "failed to decode cache key in gc\n");
 				return;
 			}
+
+			if (cache_key_clear(key))
+				continue;
 
 			cache_key_gc(cache, key);
 		}

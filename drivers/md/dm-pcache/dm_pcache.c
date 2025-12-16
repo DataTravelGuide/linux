@@ -171,6 +171,12 @@ static int parse_cache_opts(struct dm_pcache *pcache, struct dm_arg_set *as,
 			arg = dm_shift_arg(as);
 			if (!strcmp(arg, "writeback")) {
 				opts->cache_mode = PCACHE_CACHE_MODE_WRITEBACK;
+			} else if (!strcmp(arg, "writethrough")) {
+				opts->cache_mode = PCACHE_CACHE_MODE_WRITETHROUGH;
+			} else if (!strcmp(arg, "writearound")) {
+				opts->cache_mode = PCACHE_CACHE_MODE_WRITEAROUND;
+			} else if (!strcmp(arg, "writeonly")) {
+				opts->cache_mode = PCACHE_CACHE_MODE_WRITEONLY;
 			} else {
 				*error = "Invalid cache mode parameter";
 				return -EINVAL;
@@ -416,9 +422,10 @@ static void dm_pcache_status(struct dm_target *ti, status_type_t type,
 		       cache->key_tail.seg_off);
 		break;
 	case STATUSTYPE_TABLE:
-		DMEMIT("%s %s 4 cache_mode writeback crc %s",
+		DMEMIT("%s %s 4 cache_mode %s crc %s",
 		       cache_dev->dm_dev->name,
 		       backing_dev->dm_dev->name,
+		       cache_mode_str(cache_mode_get(cache)),
 		       cache_data_crc_on(cache) ? "true" : "false");
 		break;
 	case STATUSTYPE_IMA:
