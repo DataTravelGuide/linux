@@ -53,6 +53,13 @@ static int cache_info_init(struct pcache_cache *cache, struct pcache_cache_optio
 
 		cache->info_index = ((char *)cache_info_addr - (char *)cache->cache_info_addr) / PCACHE_CACHE_INFO_SIZE;
 
+		if (opts->cache_mode != cache_mode_get(cache)) {
+			pcache_dev_err(pcache, "invalid option for cache_mode: %s, expected: %s",
+					cache_mode_str(opts->cache_mode),
+					cache_mode_str(cache_mode_get(cache)));
+			return -EINVAL;
+		}
+
 		return 0;
 	}
 

@@ -74,12 +74,14 @@ static void cache_key_encode(struct pcache_cache *cache,
 {
 	key_onmedia->off = key->off;
 	key_onmedia->len = key->len;
+	key_onmedia->flags = key->flags;
+
+	if (cache_key_clear(key))
+		return;
 
 	key_onmedia->cache_seg_id = key->cache_pos.cache_seg->cache_seg_id;
 	key_onmedia->cache_seg_off = key->cache_pos.seg_off;
-
 	key_onmedia->seg_gen = key->seg_gen;
-	key_onmedia->flags = key->flags;
 
 	if (cache_data_crc_on(cache))
 		key_onmedia->data_crc = cache_key_data_crc(key);
@@ -93,12 +95,14 @@ int cache_key_decode(struct pcache_cache *cache,
 
 	key->off = key_onmedia->off;
 	key->len = key_onmedia->len;
+	key->flags = key_onmedia->flags;
+
+	if (cache_key_clear(key))
+		return 0;
 
 	key->cache_pos.cache_seg = &cache->segments[key_onmedia->cache_seg_id];
 	key->cache_pos.seg_off = key_onmedia->cache_seg_off;
-
 	key->seg_gen = key_onmedia->seg_gen;
-	key->flags = key_onmedia->flags;
 
 	if (cache_data_crc_on(cache) &&
 			key_onmedia->data_crc != cache_key_data_crc(key)) {
@@ -628,6 +632,9 @@ search:
 	if (walk_ctx.pre_alloc_key)
 		cache_key_put(walk_ctx.pre_alloc_key);
 
+	if (cache_key_clear(key))
+		return;
+
 	/* Link and insert the new key into the red-black tree */
 	rb_link_node(&key->rb_node, parent, new);
 	rb_insert_color(&key->rb_node, &cache_subtree->root);
@@ -726,6 +733,15 @@ static int kset_replay(struct pcache_cache *cache, struct pcache_cache_kset_onme
 		if (ret) {
 			cache_key_put(key);
 			goto err;
+		}
+
+		if (cache_key_clear(key)) {
+			cache_subtree = get_subtree(&cache->req_key_tree, key->off);
+			spin_lock(&cache_subtree->tree_lock);
+			cache_key_insert(&cache->req_key_tree, key, true);
+			cache_key_put(key);
+			spin_unlock(&cache_subtree->tree_lock);
+			continue;
 		}
 
 		__set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
