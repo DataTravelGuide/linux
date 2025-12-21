@@ -34,11 +34,6 @@ static inline u8 segment_info_get_type(struct pcache_segment_info *seg_info)
 	return FIELD_GET(PCACHE_SEG_INFO_FLAGS_TYPE_MASK, seg_info->flags);
 }
 
-struct pcache_segment_pos {
-	struct pcache_segment	*segment;	/* Segment associated with the position */
-	u32			off;		/* Offset within the segment */
-};
-
 struct pcache_segment_init_options {
 	u8			type;
 	u32			seg_id;
@@ -61,13 +56,6 @@ int segment_copy_to_bio(struct pcache_segment *segment,
 		      u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
 int segment_copy_from_bio(struct pcache_segment *segment,
 			u32 data_off, u32 data_len, struct bio *bio, u32 bio_off);
-
-static inline void segment_pos_advance(struct pcache_segment_pos *seg_pos, u32 len)
-{
-	BUG_ON(seg_pos->off + len > seg_pos->segment->data_size);
-
-	seg_pos->off += len;
-}
 
 void pcache_segment_init(struct pcache_cache_dev *cache_dev, struct pcache_segment *segment,
 		      struct pcache_segment_init_options *options);
